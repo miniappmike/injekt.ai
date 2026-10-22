@@ -26,7 +26,7 @@ export async function enforceRateLimit(userId: string, action: string, limit = 2
       rl = new Ratelimit({
         redis: new Redis({ url: env.UPSTASH_REDIS_REST_URL, token: env.UPSTASH_REDIS_REST_TOKEN }),
         limiter: Ratelimit.slidingWindow(limit, `${windowSec} s`),
-        prefix: "injekt",
+        prefix: "modelspawn",
       });
       limiters.set(name, rl);
     }

@@ -1,4 +1,4 @@
--- Injekt.ai foundation schema. Every table has RLS on.
+-- Model Spawn foundation schema. Every table has RLS on.
 
 create table public.profiles (
   id uuid primary key references auth.users on delete cascade,

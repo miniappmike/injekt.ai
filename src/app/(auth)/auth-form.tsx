@@ -25,7 +25,7 @@ export function AuthForm({
       <CardHeader>
         <CardTitle>{isLogin ? "Log in" : "Create account"}</CardTitle>
         <CardDescription>
-          {isLogin ? "Welcome back to Injekt.ai." : "Bring your own API keys, keep your characters."}
+          {isLogin ? "Welcome back to Model Spawn." : "Bring your own API keys, keep your characters."}
         </CardDescription>
       </CardHeader>
       <CardContent>
