@@ -18,7 +18,7 @@ Next.js (App Router, TS) + Supabase (auth, Postgres, Storage, Realtime) + Tailwi
 Three adapter shapes live in `src/lib/ai/providers/types.ts`: image, vision, llm. SpicyAPI is an `ImageProvider` shell awaiting the provider docs.
 
 ## Safety
-SSRF guard on every server-side fetch of user-supplied URLs, signed uploads (to build), EXIF stripping (to build), per-user rate limits, usage ledger, provenance attestation timestamp on characters, content report table. The "clean up overlays" feature is intentionally not part of this build.
+SSRF guard on every server-side fetch of user-supplied URLs, signed uploads and EXIF stripping (browser uploads raw to `<uid>/raw/`, the server re-encodes to clean JPEG and deletes the raw file), per-user rate limits, usage ledger, provenance attestation timestamp on characters, content report table. The "clean up overlays" feature is intentionally not part of this build.
 
 ## Still to build
-UI (shadcn), auth pages, signed uploads, character CRUD + versioning, prompt optimizer, inject/variants/likeness, Inngest or Trigger.dev for multi-step jobs, Sentry with scrubbing, Playwright tests, pgTAP RLS tests.
+image generation for inject, variants/likeness, Inngest or Trigger.dev for multi-step jobs, Sentry with scrubbing, Playwright tests, pgTAP RLS tests.

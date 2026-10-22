@@ -4,7 +4,8 @@ import { decryptSecret, encryptSecret, last4 } from "./crypto";
 import { env } from "@/env";
 import type { KeyResolverDeps } from "./keys";
 
-export type KeyKind = "image" | "vision" | "llm";
+export type { KeyKind } from "./key-store-types";
+import type { KeyKind } from "./key-store-types";
 
 // Only this module ever touches ciphertext, through the service-role client.
 export async function saveUserKey(userId: string, provider: string, kind: KeyKind, secret: string) {
@@ -31,6 +32,7 @@ export const keyResolverDeps: KeyResolverDeps = {
       .select("ciphertext")
       .eq("user_id", userId)
       .eq("provider", provider)
+      .limit(1)
       .maybeSingle();
     return data ? decryptSecret(data.ciphertext, env.ENCRYPTION_KEY) : null;
   },

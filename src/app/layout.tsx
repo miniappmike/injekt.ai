@@ -1,6 +1,6 @@
 import "./globals.css";
 
-export const metadata = { title: "Injekt.ai" };
+export const metadata = { title: "Model Spawn" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

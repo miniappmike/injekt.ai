@@ -1,7 +1,7 @@
 # Project handoff
 
 ## Product
-Injekt.ai: build persistent AI influencer characters, optimize prompts, and inject a character into a target image via image models. BYOK for vision, language and image APIs. Prototype UI described in `docs/ui-reference.md` (tabs: Inject, Variants, Likeness, Reference Sheet, Characters).
+Model Spawn: build persistent AI influencer characters, optimize prompts, and inject a character into a target image via image models. BYOK for vision, language and image APIs. Prototype UI described in `docs/ui-reference.md` (tabs: Inject, Variants, Likeness, Reference Sheet, Characters).
 
 ## Decisions made
 - Next.js App Router + TS, Supabase (auth, Postgres, Storage, Realtime), Tailwind + shadcn/ui.
@@ -16,7 +16,11 @@ Injekt.ai: build persistent AI influencer characters, optimize prompts, and inje
 ## Done (branch claude/foundation-scaffold)
 Schema migration with RLS, crypto, key resolver, SSRF guard, rate limiter, webhook route, master prompt + guard, provider types, tests (18 passing).
 
-Also done: email/password auth (login, signup, callback, signout, `src/proxy.ts` session refresh + redirect), shadcn-style UI shell with the five-tab nav, characters CRUD with profile versioning and provenance attestation (text fields only, no photos yet).
+Also done: email/password auth (login, signup, callback, signout, `src/proxy.ts` session refresh + redirect), shadcn-style UI shell with the five-tab nav, characters CRUD with provenance attestation (profile version history was dropped on purpose, see `0002_drop_profile_versions.sql`) (text fields only, no photos yet).
+
+Also done: signed uploads with EXIF stripping (`/api/uploads/finalize`, `src/lib/images.ts`, migration `0003_storage.sql`), API key manager at `/settings/api-keys` (Anthropic, OpenAI, OpenRouter, SpicyAPI shell; keys with hidden/non-ASCII characters are rejected), profile builder on the character edit page, and a prompt writer on `/inject` (one vision call per target image, prompt is copied out; no image generation yet).
+
+Text providers: one key per provider (stored with kind `llm`) covers both vision and language calls. Model name is stored in `user_settings.prefs.models[provider]`. Add a provider in `src/lib/ai/providers/catalog.ts` and `text.ts`.
 
 ## Next
-1. Signed uploads + EXIF strip (then photos on characters). 2. Profile builder from sheets/references (needs vision provider). 3. Prompt optimizer. 4. Inject / direct swap / edit. 5. Variants, carousel. 6. Likeness + face fix. 7. Prompt history. 8. API key manager UI (`/settings/api-keys`). 9. SpicyAPI adapter once docs are provided.
+1. Inject image generation: direct swap and edit (needs the SpicyAPI adapter and its docs, or another image provider). 2. Variants and carousel. 3. Likeness + face fix. 4. Prompt history. 5. Reference sheet maker. 6. Design pass once Inject works end to end. 7. Sentry, Playwright, pgTAP RLS tests.

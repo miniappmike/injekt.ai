@@ -2,14 +2,17 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
+import { signedUrlMap } from "@/lib/media-urls";
 import type { CharacterProfile } from "@/lib/characters";
 
 export default async function CharactersPage() {
   const { supabase } = await requireUser();
   const { data: characters } = await supabase
     .from("characters")
-    .select("id, name, profile, profile_version")
+    .select("id, name, profile, profile_photo_path")
     .order("created_at", { ascending: false });
+
+  const urls = await signedUrlMap(supabase, (characters ?? []).map((c) => c.profile_photo_path));
 
   return (
     <div>
@@ -23,14 +26,17 @@ export default async function CharactersPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {characters.map((c) => (
             <Card key={c.id}>
+              {c.profile_photo_path && urls[c.profile_photo_path] && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={urls[c.profile_photo_path]} alt="" className="h-40 w-full rounded-t-lg object-cover" />
+              )}
               <CardHeader>
                 <CardTitle>{c.name}</CardTitle>
                 <CardDescription className="line-clamp-3">
                   {(c.profile as CharacterProfile).identity_line ?? "No identity line yet"}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex items-center justify-between">
-                <span className="text-xs text-neutral-500">Profile v{c.profile_version}</span>
+              <CardContent className="flex justify-end">
                 <Button asChild size="sm" variant="secondary"><Link href={`/characters/${c.id}`}>Edit</Link></Button>
               </CardContent>
             </Card>

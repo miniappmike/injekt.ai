@@ -1,4 +1,4 @@
-# Injekt.ai
+# Model Spawn
 
 AI character generator and API connector. See `docs/ARCHITECTURE.md`.
 

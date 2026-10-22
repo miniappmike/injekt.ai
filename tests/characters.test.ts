@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createUserClient: vi.fn() }));
 
-import { characterInput, parseProfile, profilesEqual } from "@/lib/characters";
+import { characterInput, parseProfile } from "@/lib/characters";
 import { safeNext } from "@/lib/auth";
 
 describe("characterInput", () => {
@@ -24,7 +24,7 @@ describe("characterInput", () => {
   });
 });
 
-describe("profile helpers", () => {
+describe("parseProfile", () => {
   it("parses only known fields and skips blanks", () => {
     const fd = new FormData();
     fd.set("profile_face", " oval ");
@@ -33,11 +33,6 @@ describe("profile helpers", () => {
     expect(parseProfile(fd)).toEqual({ face: "oval" });
   });
 
-  it("detects changes", () => {
-    expect(profilesEqual({ face: "a" }, { face: "a" })).toBe(true);
-    expect(profilesEqual({ face: "a" }, { face: "b" })).toBe(false);
-    expect(profilesEqual({}, { hair: "" })).toBe(true);
-  });
 });
 
 describe("safeNext", () => {

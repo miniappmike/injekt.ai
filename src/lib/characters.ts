@@ -37,7 +37,3 @@ export function parseProfile(formData: FormData): CharacterProfile {
   }
   return profile;
 }
-
-export function profilesEqual(a: CharacterProfile, b: CharacterProfile) {
-  return PROFILE_FIELDS.every(({ key }) => (a[key] ?? "") === (b[key] ?? ""));
-}
