@@ -8,7 +8,7 @@ export default async function CharactersPage() {
   const { supabase } = await requireUser();
   const { data: characters } = await supabase
     .from("characters")
-    .select("id, name, profile, profile_version")
+    .select("id, name, profile")
     .order("created_at", { ascending: false });
 
   return (
@@ -29,8 +29,7 @@ export default async function CharactersPage() {
                   {(c.profile as CharacterProfile).identity_line ?? "No identity line yet"}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex items-center justify-between">
-                <span className="text-xs text-neutral-500">Profile v{c.profile_version}</span>
+              <CardContent className="flex justify-end">
                 <Button asChild size="sm" variant="secondary"><Link href={`/characters/${c.id}`}>Edit</Link></Button>
               </CardContent>
             </Card>

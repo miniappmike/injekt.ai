@@ -10,7 +10,7 @@ export default async function EditCharacterPage({ params }: { params: Promise<{ 
   const { supabase } = await requireUser();
   const { data: c } = await supabase
     .from("characters")
-    .select("id, name, always_keep, height, weight, lore, profile, profile_version")
+    .select("id, name, always_keep, height, weight, lore, profile")
     .eq("id", id)
     .maybeSingle();
   if (!c) notFound();
