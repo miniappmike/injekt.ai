@@ -16,5 +16,7 @@ Injekt.ai: build persistent AI influencer characters, optimize prompts, and inje
 ## Done (branch claude/foundation-scaffold)
 Schema migration with RLS, crypto, key resolver, SSRF guard, rate limiter, webhook route, master prompt + guard, provider types, tests (18 passing).
 
+Also done: email/password auth (login, signup, callback, signout, `src/proxy.ts` session refresh + redirect), shadcn-style UI shell with the five-tab nav, characters CRUD with profile versioning and provenance attestation (text fields only, no photos yet).
+
 ## Next
-1. Auth pages + shadcn UI shell. 2. Signed uploads + EXIF strip. 3. Characters CRUD + versioning + profile builder. 4. Prompt optimizer. 5. Inject / direct swap / edit. 6. Variants, carousel. 7. Likeness + face fix. 8. Prompt history. 9. SpicyAPI adapter once docs are provided.
+1. Signed uploads + EXIF strip (then photos on characters). 2. Profile builder from sheets/references (needs vision provider). 3. Prompt optimizer. 4. Inject / direct swap / edit. 5. Variants, carousel. 6. Likeness + face fix. 7. Prompt history. 8. API key manager UI (`/settings/api-keys`). 9. SpicyAPI adapter once docs are provided.
