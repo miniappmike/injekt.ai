@@ -43,7 +43,7 @@ export const PROVIDERS: ProviderInfo[] = [
     kind: "llm",
     defaultModel: "anthropic/claude-sonnet-5.5/chat",
     keyUrl: "https://spicyapi.ai",
-    note: "Claude Sonnet 5.5 at $2 in / $10 out per 1M tokens. The same key will be used for image generation later.",
+    note: "Optional. Bring your own SpicyAPI key. The same key will be used for image generation later.",
   },
 ];
 
