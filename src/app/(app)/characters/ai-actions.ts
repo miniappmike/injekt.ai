@@ -36,8 +36,8 @@ export async function buildProfile(characterId: string): Promise<AiResult<{ prof
     const refs = referenceList(c);
     if (!refs.length) return { ok: false, error: "Upload a face sheet, body sheet or reference photo first." };
 
-    const client = await getUserTextClient(supabase, user.id);
-    const images = await loadForVision(supabase, refs);
+    const { client, imageMaxEdge } = await getUserTextClient(supabase, user.id);
+    const images = await loadForVision(supabase, refs, imageMaxEdge);
     const reply = await client.run(buildProfileTask(c, images));
     return { ok: true, profile: parseProfileResponse(reply) };
   } catch (e) {
@@ -73,14 +73,14 @@ export async function writeReplacementPrompts(input: {
     const refs = referenceList(c);
     if (!refs.length) return { ok: false, error: "This character needs a face sheet, body sheet or reference photo first." };
 
-    const client = await getUserTextClient(supabase, user.id);
-    const references = await loadForVision(supabase, refs);
+    const { client, imageMaxEdge } = await getUserTextClient(supabase, user.id);
+    const references = await loadForVision(supabase, refs, imageMaxEdge);
 
     const results: WrittenPrompt[] = [];
     for (const path of targets) {
       try {
         await enforceRateLimit(user.id, "llm", 20, 60);
-        const [target] = await loadForVision(supabase, [{ label: "target photo", path }]);
+        const [target] = await loadForVision(supabase, [{ label: "target photo", path }], imageMaxEdge);
         const prompt = await client.run(
           buildReplacementPromptTask({ character: { ...c, profile: c.profile as CharacterProfile }, references, target, outfit: input.outfit, style: input.style }),
         );

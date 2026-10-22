@@ -3,6 +3,8 @@ import type { TaskInput } from "../master-prompt";
 // Raw text/vision backend. Implementations receive an already-built system prompt.
 export interface TextBackend {
   readonly id: string;
+  /** Longest image edge to send, for providers that cap total image tokens per request. */
+  readonly imageMaxEdge?: number;
   complete(args: { system: string; text: string; images?: string[]; apiKey: string }): Promise<string>;
 }
 

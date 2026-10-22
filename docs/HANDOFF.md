@@ -20,6 +20,8 @@ Also done: email/password auth (login, signup, callback, signout, `src/proxy.ts`
 
 Also done: signed uploads with EXIF stripping (`/api/uploads/finalize`, `src/lib/images.ts`, migration `0003_storage.sql`), API key manager at `/settings/api-keys` (Anthropic, OpenAI, OpenRouter, SpicyAPI shell; keys with hidden/non-ASCII characters are rejected), profile builder on the character edit page, and a prompt writer on `/inject` (one vision call per target image, prompt is copied out; no image generation yet).
 
+SpicyAPI chat (`api.spicyapi.ai/v1/chat/completions`, OpenAI-style) is a text provider using the same `spicyapi` key as the future image adapter; its docs cap image tokens at 6000 per request, so images are sent at 768px. Unverified against the live API: whether `image_url` accepts base64 data URIs.
+
 Text providers: one key per provider (stored with kind `llm`) covers both vision and language calls. Model name is stored in `user_settings.prefs.models[provider]`. Add a provider in `src/lib/ai/providers/catalog.ts` and `text.ts`.
 
 ## Next

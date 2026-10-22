@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { parseDataUri } from "@/lib/images";
 import type { TextBackend } from "./types";
 
@@ -89,7 +90,40 @@ export function openaiCompatBackend(id: "openai" | "openrouter", model: string):
   };
 }
 
+// SpicyAPI: OpenAI-style chat completions. The endpoint rejects unknown fields, so only documented
+// ones are sent. Thinking shares the max_tokens budget, hence the roomy cap and low effort.
+// Its docs list a 6000 image-token limit, so images are shrunk harder than for other providers.
+export function spicyapiBackend(model: string): TextBackend {
+  return {
+    id: "spicyapi",
+    imageMaxEdge: 768,
+    async complete({ system, text, images = [], apiKey }) {
+      const json = await post(
+        "spicyapi",
+        "https://api.spicyapi.ai/v1/chat/completions",
+        { authorization: `Bearer ${apiKey}`, "idempotency-key": randomUUID() },
+        {
+          model,
+          max_tokens: 4096,
+          reasoning_effort: "low",
+          messages: [
+            { role: "system", content: system },
+            {
+              role: "user",
+              content: [{ type: "text", text }, ...images.map((uri) => ({ type: "image_url", image_url: { url: uri } }))],
+            },
+          ],
+        },
+      );
+      const out = json?.choices?.[0]?.message?.content;
+      if (typeof out !== "string" || !out) throw new ProviderError("spicyapi", 200, "spicyapi returned no text");
+      return out;
+    },
+  };
+}
+
 export function getTextBackend(provider: string, model: string): TextBackend {
+  if (provider === "spicyapi") return spicyapiBackend(model);
   if (provider === "anthropic") return anthropicBackend(model);
   if (provider === "openai" || provider === "openrouter") return openaiCompatBackend(provider, model);
   throw new Error(`Unknown text provider: ${provider}`);

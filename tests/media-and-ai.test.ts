@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { stripAndNormalize, parseDataUri } from "@/lib/images";
 import { isOwnPath, isOwnRawPath } from "@/lib/uploads";
 import { validateApiKey } from "@/lib/key-validation";
-import { anthropicBackend, openaiCompatBackend, ProviderError } from "@/lib/ai/providers/text";
+import { anthropicBackend, openaiCompatBackend, spicyapiBackend, ProviderError } from "@/lib/ai/providers/text";
 import { buildProfileTask, parseProfileResponse } from "@/lib/ai/tasks/profile-builder";
 import { buildReplacementPromptTask } from "@/lib/ai/tasks/prompt-writer";
 import { referenceList } from "@/lib/character-images";
@@ -101,6 +101,24 @@ describe("text backends", () => {
     expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
     body = JSON.parse(init.body as string);
     expect(body.max_tokens).toBe(2048);
+  });
+
+  it("sends SpicyAPI requests with only documented fields, an idempotency key and roomy limits", async () => {
+    const fetchFn = mockFetch({ choices: [{ message: { content: "ok" } }] });
+    const backend = spicyapiBackend("anthropic/claude-sonnet-5.5/chat");
+    expect(await backend.complete({ system: "S", text: "t", images: [dataUri], apiKey: "k-1" })).toBe("ok");
+    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(url).toBe("https://api.spicyapi.ai/v1/chat/completions");
+    expect(headers.authorization).toBe("Bearer k-1");
+    expect(headers["idempotency-key"]).toMatch(/^[0-9a-f-]{36}$/);
+    const body = JSON.parse(init.body as string);
+    // the endpoint rejects unknown fields
+    const allowed = ["model", "messages", "max_tokens", "reasoning_effort", "stop", "tools", "tool_choice", "parallel_tool_calls", "stream"];
+    expect(Object.keys(body).every((k) => allowed.includes(k))).toBe(true);
+    expect(body.max_tokens).toBeGreaterThanOrEqual(4000);
+    expect(body.reasoning_effort).toBe("low");
+    expect(backend.imageMaxEdge).toBe(768);
   });
 
   it("turns provider errors into ProviderError without leaking the key", async () => {

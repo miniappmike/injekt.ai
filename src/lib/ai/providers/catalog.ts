@@ -39,9 +39,11 @@ export const PROVIDERS: ProviderInfo[] = [
   },
   {
     id: "spicyapi",
-    label: "SpicyAPI (images)",
-    kind: "image",
-    note: "Image generation. Not wired up yet.",
+    label: "SpicyAPI",
+    kind: "llm",
+    defaultModel: "anthropic/claude-sonnet-5.5/chat",
+    keyUrl: "https://spicyapi.ai",
+    note: "Claude Sonnet 5.5 at $2 in / $10 out per 1M tokens. The same key will be used for image generation later.",
   },
 ];
 

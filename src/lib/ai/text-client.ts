@@ -5,9 +5,10 @@ import { getProvider, textProviders } from "./providers/catalog";
 import { resolveApiKey } from "@/lib/keys";
 import { keyResolverDeps } from "@/lib/key-store";
 import { ApiKeyRequiredError } from "@/lib/errors";
+import { env } from "@/env";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Builds the guarded client for the user's chosen text provider. Throws ApiKeyRequiredError
+// Returns the guarded client plus the image size the provider can take. Builds it for the user's chosen text provider. Throws ApiKeyRequiredError
 // (with a redirect to the key page) when the user has not added a key yet.
 export async function getUserTextClient(supabase: SupabaseClient, userId: string) {
   const { data } = await supabase
@@ -16,7 +17,9 @@ export async function getUserTextClient(supabase: SupabaseClient, userId: string
     .eq("user_id", userId)
     .maybeSingle();
 
-  const provider = data?.default_llm_provider ?? textProviders()[0].id;
+  // Admins with a server key and no saved choice use it (SpicyAPI), everyone else starts at the first provider.
+  const adminDefault = !data?.default_llm_provider && env.SPICY_API_KEY && (await keyResolverDeps.isAdmin(userId));
+  const provider = data?.default_llm_provider ?? (adminDefault ? "spicyapi" : textProviders()[0].id);
   const info = getProvider(provider);
   if (!info) throw new ApiKeyRequiredError(textProviders()[0].id);
 
@@ -24,5 +27,6 @@ export async function getUserTextClient(supabase: SupabaseClient, userId: string
   if (!model) throw new ApiKeyRequiredError(provider);
 
   const { key } = await resolveApiKey(keyResolverDeps, userId, provider);
-  return createGuardedClient(getTextBackend(provider, model), key);
+  const backend = getTextBackend(provider, model);
+  return { client: createGuardedClient(backend, key), imageMaxEdge: backend.imageMaxEdge };
 }
