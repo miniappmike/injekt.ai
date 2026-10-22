@@ -234,6 +234,11 @@ describe("resolveRoleSetup", () => {
     const ok = await resolveRoleSetup({ key: "unknownkey12345", baseUrl: "https://1.1.1.1/v1/", model: "m-1" });
     expect(ok).toMatchObject({ ok: true, config: { provider: "custom", model: "m-1", baseUrl: "https://1.1.1.1/v1" } });
   });
+  it("lets the user override detection when a provider's key looks like another one's (sk-)", async () => {
+    const r = await resolveRoleSetup({ key: "sk-abcdefgh12345", custom: true, baseUrl: "https://1.1.1.1/v1", model: "m" });
+    expect(r).toMatchObject({ ok: true, config: { provider: "custom", baseUrl: "https://1.1.1.1/v1" } });
+    expect((await resolveRoleSetup({ key: "sk-abcdefgh12345", custom: true })).ok).toBe(false);
+  });
   it("refuses private or non-https base URLs and masked keys", async () => {
     expect((await resolveRoleSetup({ key: "unknownkey12345", baseUrl: "https://127.0.0.1/v1", model: "m" })).ok).toBe(false);
     expect((await resolveRoleSetup({ key: "unknownkey12345", baseUrl: "https://169.254.169.254/v1", model: "m" })).ok).toBe(false);

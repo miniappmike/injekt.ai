@@ -39,6 +39,7 @@ export async function saveRoleKey(_: KeyFormState, formData: FormData): Promise<
     key: String(formData.get("key") ?? ""),
     model: String(formData.get("model") ?? ""),
     baseUrl: String(formData.get("baseUrl") ?? ""),
+    custom: formData.get("custom") === "1",
   });
   if (!setup.ok) return { error: setup.error };
 

@@ -20,9 +20,10 @@ export function RoleKeyForm({ role, saved }: { role: string; saved?: SavedRole }
   const [replacing, setReplacing] = useState(false);
   const [key, setKey] = useState("");
   const [model, setModel] = useState("");
+  const [forceCustom, setForceCustom] = useState(false);
 
   const trimmed = key.trim();
-  const detected = detectProvider(trimmed);
+  const detected = forceCustom ? null : detectProvider(trimmed);
   const unknown = !detected && trimmed.length >= 8;
 
   if (saved && !replacing) {
@@ -54,6 +55,7 @@ export function RoleKeyForm({ role, saved }: { role: string; saved?: SavedRole }
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="role" value={role} />
+      {forceCustom && <input type="hidden" name="custom" value="1" />}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`key-${role}`}>Paste your API key</Label>
         <Input
@@ -68,7 +70,19 @@ export function RoleKeyForm({ role, saved }: { role: string; saved?: SavedRole }
       </div>
       {detected && (
         <>
-          <p className="text-sm text-emerald-400">Detected: {detected.label}</p>
+          <p className="text-sm text-emerald-400">
+            Detected: {detected.label}{" "}
+            <button
+              type="button"
+              className="text-neutral-400 underline"
+              onClick={() => {
+                setForceCustom(true);
+                setModel("");
+              }}
+            >
+              Not {detected.label}? Use another provider
+            </button>
+          </p>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`model-${role}`}>Model</Label>
             <Input
@@ -85,7 +99,20 @@ export function RoleKeyForm({ role, saved }: { role: string; saved?: SavedRole }
       {unknown && (
         <>
           <p className="text-sm text-neutral-300">
-            We don&apos;t recognise this key, so enter the provider&apos;s details. Any provider that accepts OpenAI-style requests works.
+            {forceCustom ? "Enter the provider's details." : "We don't recognise this key, so enter the provider's details."} Any provider that
+            accepts OpenAI-style requests works.{" "}
+            {forceCustom && (
+              <button
+                type="button"
+                className="text-neutral-400 underline"
+                onClick={() => {
+                  setForceCustom(false);
+                  setModel("");
+                }}
+              >
+                Back to auto-detect
+              </button>
+            )}
           </p>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`base-${role}`}>Base URL</Label>
