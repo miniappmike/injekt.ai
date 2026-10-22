@@ -7,6 +7,13 @@ import { anthropicBackend, openaiCompatBackend, spicyapiBackend, ProviderError }
 import { buildProfileTask, parseProfileResponse } from "@/lib/ai/tasks/profile-builder";
 import { buildReplacementPromptTask } from "@/lib/ai/tasks/prompt-writer";
 import { referenceList } from "@/lib/character-images";
+import { detectProvider } from "@/lib/ai/providers/detect";
+import { effectiveRole, normalizeBaseUrl } from "@/lib/ai/roles";
+import { resolveRoleSetup } from "@/lib/ai/role-setup";
+import { getTextBackend } from "@/lib/ai/providers/text";
+
+// Hostnames resolve to a public address so tests never touch real DNS.
+vi.mock("node:dns/promises", () => ({ lookup: vi.fn(async () => [{ address: "93.184.216.34" }]) }));
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -91,7 +98,7 @@ describe("text backends", () => {
     let [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.openai.com/v1/chat/completions");
     let body = JSON.parse(init.body as string);
-    expect(body.max_completion_tokens).toBe(2048);
+    expect(body.max_completion_tokens).toBe(4096);
     expect(body.max_tokens).toBeUndefined();
     expect(body.messages[1].content[1]).toEqual({ type: "image_url", image_url: { url: dataUri } });
 
@@ -100,7 +107,7 @@ describe("text backends", () => {
     [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
     body = JSON.parse(init.body as string);
-    expect(body.max_tokens).toBe(2048);
+    expect(body.max_tokens).toBe(4096);
   });
 
   it("sends SpicyAPI requests with only documented fields, an idempotency key and roomy limits", async () => {
@@ -180,5 +187,88 @@ describe("parseDataUri", () => {
   it("splits media type and data", () => {
     expect(parseDataUri(dataUri)).toEqual({ mediaType: "image/jpeg", data: "QUJD" });
     expect(() => parseDataUri("http://x")).toThrow();
+  });
+});
+
+describe("detectProvider", () => {
+  it("recognises the big providers by prefix", () => {
+    expect(detectProvider("sk-ant-api03-abc")?.id).toBe("anthropic");
+    expect(detectProvider("sk-or-v1-abc")?.id).toBe("openrouter");
+    expect(detectProvider("sk-proj-abc")?.id).toBe("openai");
+    expect(detectProvider("sk-abc")?.id).toBe("openai");
+    expect(detectProvider("AIzaSyAbc")?.id).toBe("google");
+    expect(detectProvider("  sk-ant-abc  ")?.id).toBe("anthropic");
+  });
+  it("returns null for unrecognised keys", () => {
+    expect(detectProvider("spicy_abcdef123456")).toBeNull();
+    expect(detectProvider("")).toBeNull();
+  });
+});
+
+describe("normalizeBaseUrl", () => {
+  it("accepts https URLs and strips the chat completions suffix and trailing slashes", () => {
+    expect(normalizeBaseUrl("https://api.groq.com/openai/v1/")).toBe("https://api.groq.com/openai/v1");
+    expect(normalizeBaseUrl("https://api.spicyapi.ai/v1/chat/completions")).toBe("https://api.spicyapi.ai/v1");
+    expect(normalizeBaseUrl("https://example.com")).toBe("https://example.com");
+  });
+  it("rejects http, credentials, queries and junk", () => {
+    expect(normalizeBaseUrl("http://example.com/v1")).toBeNull();
+    expect(normalizeBaseUrl("https://user:pw@example.com/v1")).toBeNull();
+    expect(normalizeBaseUrl("https://example.com/v1?x=1")).toBeNull();
+    expect(normalizeBaseUrl("not a url")).toBeNull();
+  });
+});
+
+describe("resolveRoleSetup", () => {
+  it("uses the detected provider and its default model", async () => {
+    const r = await resolveRoleSetup({ key: "sk-ant-abcdefgh12345" });
+    expect(r).toMatchObject({ ok: true, config: { provider: "anthropic", model: "claude-sonnet-5-5" } });
+  });
+  it("requires a model when the provider has no default (OpenRouter)", async () => {
+    expect((await resolveRoleSetup({ key: "sk-or-v1-abcdefgh" })).ok).toBe(false);
+    expect(await resolveRoleSetup({ key: "sk-or-v1-abcdefgh", model: "anthropic/claude-sonnet-4.5" })).toMatchObject({ ok: true });
+  });
+  it("treats unknown keys as OpenAI-compatible and needs a base URL and model", async () => {
+    expect((await resolveRoleSetup({ key: "unknownkey12345" })).ok).toBe(false);
+    expect((await resolveRoleSetup({ key: "unknownkey12345", baseUrl: "https://1.1.1.1/v1" })).ok).toBe(false);
+    const ok = await resolveRoleSetup({ key: "unknownkey12345", baseUrl: "https://1.1.1.1/v1/", model: "m-1" });
+    expect(ok).toMatchObject({ ok: true, config: { provider: "custom", model: "m-1", baseUrl: "https://1.1.1.1/v1" } });
+  });
+  it("refuses private or non-https base URLs and masked keys", async () => {
+    expect((await resolveRoleSetup({ key: "unknownkey12345", baseUrl: "https://127.0.0.1/v1", model: "m" })).ok).toBe(false);
+    expect((await resolveRoleSetup({ key: "unknownkey12345", baseUrl: "https://169.254.169.254/v1", model: "m" })).ok).toBe(false);
+    expect((await resolveRoleSetup({ key: "unknownkey12345", baseUrl: "http://1.1.1.1/v1", model: "m" })).ok).toBe(false);
+    expect((await resolveRoleSetup({ key: "sk-ant-••••••••••" })).ok).toBe(false);
+  });
+});
+
+describe("custom backends", () => {
+  it("posts to the user's base URL with a bearer key", async () => {
+    const fetchFn = mockFetch({ choices: [{ message: { content: "hi" } }] });
+    const out = await getTextBackend("custom", "m", "https://1.1.1.1/v1").complete({ system: "s", text: "t", apiKey: "k" });
+    expect(out).toBe("hi");
+    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://1.1.1.1/v1/chat/completions");
+    expect((init.headers as Record<string, string>).authorization).toBe("Bearer k");
+    expect(init.redirect).toBe("error");
+  });
+  it("refuses to call a private address even if one was saved", async () => {
+    const fetchFn = mockFetch({});
+    await expect(getTextBackend("custom", "m", "https://10.0.0.5/v1").complete({ system: "s", text: "t", apiKey: "k" })).rejects.toThrow();
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+  it("routes spicyapi.ai base URLs to the SpicyAPI request shape", () => {
+    expect(getTextBackend("custom", "m", "https://api.spicyapi.ai/v1").id).toBe("spicyapi");
+    expect(getTextBackend("custom", "m", "https://api.groq.com/openai/v1").id).toBe("custom");
+  });
+});
+
+describe("effectiveRole", () => {
+  const cfg = { provider: "anthropic", model: "m" };
+  it("uses the role's own setup, else falls back to the other, else null", () => {
+    expect(effectiveRole({ vision: cfg }, "vision")).toEqual({ cfg, keyRole: "vision" });
+    expect(effectiveRole({ llm: cfg }, "vision")).toEqual({ cfg, keyRole: "llm" });
+    expect(effectiveRole({ vision: cfg }, "llm")).toEqual({ cfg, keyRole: "vision" });
+    expect(effectiveRole({}, "vision")).toBeNull();
   });
 });

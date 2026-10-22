@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { parseDataUri } from "@/lib/images";
+import { assertPublicHttpsUrl } from "@/lib/ssrf";
 import type { TextBackend } from "./types";
 
 export class ProviderError extends Error {
@@ -23,6 +24,7 @@ async function post(provider: string, url: string, headers: Record<string, strin
       headers: { "content-type": "application/json", ...headers },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(TIMEOUT_MS),
+      redirect: "error",
     });
   } catch {
     throw new ProviderError(provider, 0, `${provider} did not respond in time. Try again.`);
@@ -60,12 +62,21 @@ export function anthropicBackend(model: string): TextBackend {
   };
 }
 
-// OpenAI and OpenRouter share the chat completions format.
-export function openaiCompatBackend(id: "openai" | "openrouter", model: string): TextBackend {
-  const base = id === "openai" ? "https://api.openai.com/v1" : "https://openrouter.ai/api/v1";
+const BASES = {
+  openai: "https://api.openai.com/v1",
+  openrouter: "https://openrouter.ai/api/v1",
+  google: "https://generativelanguage.googleapis.com/v1beta/openai",
+} as const;
+
+// OpenAI, OpenRouter, Google and any "other" provider share the chat completions format.
+// A custom base URL is user supplied, so it is checked to be a public https address on every call.
+export function openaiCompatBackend(id: "openai" | "openrouter" | "google" | "custom", model: string, baseUrl?: string): TextBackend {
+  const base = id === "custom" ? baseUrl : BASES[id];
+  if (!base) throw new Error("A base URL is required for this provider");
   return {
     id,
     async complete({ system, text, images = [], apiKey }) {
+      if (id === "custom") await assertPublicHttpsUrl(base);
       const userContent = [
         { type: "text", text },
         ...images.map((uri) => ({ type: "image_url", image_url: { url: uri } })),
@@ -76,7 +87,7 @@ export function openaiCompatBackend(id: "openai" | "openrouter", model: string):
         { authorization: `Bearer ${apiKey}` },
         {
           model,
-          [id === "openai" ? "max_completion_tokens" : "max_tokens"]: 2048,
+          [id === "openai" ? "max_completion_tokens" : "max_tokens"]: 4096,
           messages: [
             { role: "system", content: system },
             { role: "user", content: userContent },
@@ -93,14 +104,15 @@ export function openaiCompatBackend(id: "openai" | "openrouter", model: string):
 // SpicyAPI: OpenAI-style chat completions. The endpoint rejects unknown fields, so only documented
 // ones are sent. Thinking shares the max_tokens budget, hence the roomy cap and low effort.
 // Its docs list a 6000 image-token limit, so images are shrunk harder than for other providers.
-export function spicyapiBackend(model: string): TextBackend {
+export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.ai/v1"): TextBackend {
   return {
     id: "spicyapi",
     imageMaxEdge: 768,
     async complete({ system, text, images = [], apiKey }) {
+      await assertPublicHttpsUrl(baseUrl);
       const json = await post(
         "spicyapi",
-        "https://api.spicyapi.ai/v1/chat/completions",
+        `${baseUrl}/chat/completions`,
         { authorization: `Bearer ${apiKey}`, "idempotency-key": randomUUID() },
         {
           model,
@@ -122,9 +134,14 @@ export function spicyapiBackend(model: string): TextBackend {
   };
 }
 
-export function getTextBackend(provider: string, model: string): TextBackend {
-  if (provider === "spicyapi") return spicyapiBackend(model);
+export function getTextBackend(provider: string, model: string, baseUrl?: string): TextBackend {
   if (provider === "anthropic") return anthropicBackend(model);
-  if (provider === "openai" || provider === "openrouter") return openaiCompatBackend(provider, model);
+  if (provider === "openai" || provider === "openrouter" || provider === "google") return openaiCompatBackend(provider, model);
+  if (provider === "custom") {
+    if (!baseUrl) throw new Error("A base URL is required for this provider");
+    // SpicyAPI rejects unknown fields and needs reasoning kept low, so it gets its own request shape.
+    if (new URL(baseUrl).hostname.endsWith("spicyapi.ai")) return spicyapiBackend(model, baseUrl);
+    return openaiCompatBackend("custom", model, baseUrl);
+  }
   throw new Error(`Unknown text provider: ${provider}`);
 }

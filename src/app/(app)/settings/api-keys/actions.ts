@@ -2,57 +2,90 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
-import { getProvider } from "@/lib/ai/providers/catalog";
 import { saveUserKey } from "@/lib/key-store";
-import { validateApiKey } from "@/lib/key-validation";
+import { MODEL_PATTERN, resolveRoleSetup } from "@/lib/ai/role-setup";
+import { readRoles, ROLES, type RoleId } from "@/lib/ai/roles";
+import { enforceRateLimit } from "@/lib/ratelimit";
 
 export type KeyFormState = { error?: string; saved?: string };
 
-export async function saveKey(_: KeyFormState, formData: FormData): Promise<KeyFormState> {
+const roleOf = (v: FormDataEntryValue | null): RoleId | null => ROLES.find((r) => r.id === v)?.id ?? null;
+
+async function loadPrefs(supabase: Awaited<ReturnType<typeof requireUser>>["supabase"], userId: string) {
+  const { data } = await supabase.from("user_settings").select("prefs").eq("user_id", userId).maybeSingle();
+  return (data?.prefs as Record<string, unknown> | null) ?? {};
+}
+
+async function writeRoles(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  userId: string,
+  prefs: Record<string, unknown>,
+  roles: ReturnType<typeof readRoles>,
+) {
+  await supabase.from("user_settings").update({ prefs: { ...prefs, roles } }).eq("user_id", userId);
+}
+
+export async function saveRoleKey(_: KeyFormState, formData: FormData): Promise<KeyFormState> {
   const { supabase, user } = await requireUser();
-  const provider = getProvider(String(formData.get("provider") ?? ""));
-  if (!provider) return { error: "Unknown provider" };
+  const role = roleOf(formData.get("role"));
+  if (!role) return { error: "Unknown setting" };
+  try {
+    await enforceRateLimit(user.id, "save-key", 10, 60);
+  } catch {
+    return { error: "Too many attempts. Wait a minute and try again." };
+  }
 
-  const checked = validateApiKey(String(formData.get("key") ?? ""));
-  if (!checked.ok) return { error: checked.error };
-
-  const model = String(formData.get("model") ?? "").trim() || provider.defaultModel;
-  if (provider.kind === "llm" && !model) return { error: "Enter a model name for this provider" };
-  if (model && !/^[\w./:-]{1,100}$/.test(model)) return { error: "That model name has unexpected characters" };
+  const setup = await resolveRoleSetup({
+    key: String(formData.get("key") ?? ""),
+    model: String(formData.get("model") ?? ""),
+    baseUrl: String(formData.get("baseUrl") ?? ""),
+  });
+  if (!setup.ok) return { error: setup.error };
 
   try {
-    await saveUserKey(user.id, provider.id, provider.kind, checked.key);
+    await saveUserKey(user.id, setup.config.provider, role, setup.key);
   } catch {
     return { error: "Could not save the key. Try again." };
   }
 
-  if (provider.kind === "llm") {
-    const { data } = await supabase.from("user_settings").select("default_llm_provider, prefs").eq("user_id", user.id).maybeSingle();
-    const prefs = (data?.prefs as { models?: Record<string, string> } | null) ?? {};
-    await supabase
-      .from("user_settings")
-      .update({
-        default_llm_provider: data?.default_llm_provider ?? provider.id,
-        prefs: { ...prefs, models: { ...prefs.models, [provider.id]: model } },
-      })
-      .eq("user_id", user.id);
+  const prefs = await loadPrefs(supabase, user.id);
+  const roles = readRoles(prefs);
+  const previous = roles[role];
+  if (previous && previous.provider !== setup.config.provider) {
+    await supabase.rpc("delete_my_api_key", { p_provider: previous.provider, p_kind: role });
   }
+  roles[role] = setup.config;
+  await writeRoles(supabase, user.id, prefs, roles);
+
   revalidatePath("/settings/api-keys");
-  return { saved: provider.id };
+  return { saved: role };
 }
 
-export async function deleteKey(formData: FormData) {
-  const { supabase } = await requireUser();
-  const provider = getProvider(String(formData.get("provider") ?? ""));
-  if (!provider) return;
-  await supabase.rpc("delete_my_api_key", { p_provider: provider.id, p_kind: provider.kind });
-  revalidatePath("/settings/api-keys");
-}
-
-export async function makeDefault(formData: FormData) {
+export async function updateRoleModel(_: KeyFormState, formData: FormData): Promise<KeyFormState> {
   const { supabase, user } = await requireUser();
-  const provider = getProvider(String(formData.get("provider") ?? ""));
-  if (!provider || provider.kind !== "llm") return;
-  await supabase.from("user_settings").update({ default_llm_provider: provider.id }).eq("user_id", user.id);
+  const role = roleOf(formData.get("role"));
+  const model = String(formData.get("model") ?? "").trim();
+  if (!role) return { error: "Unknown setting" };
+  if (!MODEL_PATTERN.test(model)) return { error: "Enter a valid model name" };
+
+  const prefs = await loadPrefs(supabase, user.id);
+  const roles = readRoles(prefs);
+  if (!roles[role]) return { error: "Add a key first" };
+  roles[role] = { ...roles[role]!, model };
+  await writeRoles(supabase, user.id, prefs, roles);
+  revalidatePath("/settings/api-keys");
+  return { saved: role };
+}
+
+export async function removeRoleKey(formData: FormData) {
+  const { supabase, user } = await requireUser();
+  const role = roleOf(formData.get("role"));
+  if (!role) return;
+  const prefs = await loadPrefs(supabase, user.id);
+  const roles = readRoles(prefs);
+  const current = roles[role];
+  if (current) await supabase.rpc("delete_my_api_key", { p_provider: current.provider, p_kind: role });
+  delete roles[role];
+  await writeRoles(supabase, user.id, prefs, roles);
   revalidatePath("/settings/api-keys");
 }

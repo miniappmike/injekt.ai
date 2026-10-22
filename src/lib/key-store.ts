@@ -26,14 +26,10 @@ export async function saveUserKey(userId: string, provider: string, kind: KeyKin
 }
 
 export const keyResolverDeps: KeyResolverDeps = {
-  async loadUserKey(userId, provider) {
-    const { data } = await adminClient()
-      .from("user_api_keys")
-      .select("ciphertext")
-      .eq("user_id", userId)
-      .eq("provider", provider)
-      .limit(1)
-      .maybeSingle();
+  async loadUserKey(userId, provider, kind) {
+    let query = adminClient().from("user_api_keys").select("ciphertext").eq("user_id", userId).eq("provider", provider);
+    if (kind) query = query.eq("kind", kind);
+    const { data } = await query.limit(1).maybeSingle();
     return data ? decryptSecret(data.ciphertext, env.ENCRYPTION_KEY) : null;
   },
   async isAdmin(userId) {
