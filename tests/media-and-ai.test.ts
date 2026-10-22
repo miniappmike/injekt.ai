@@ -132,7 +132,7 @@ describe("text backends", () => {
     mockFetch({ error: { message: "invalid x-api-key" } }, 401);
     const err = await anthropicBackend("m").complete({ system: "s", text: "t", apiKey: "super-secret-key" }).catch((e) => e);
     expect(err).toBeInstanceOf(ProviderError);
-    expect(err.message).toContain("rejected this API key");
+    expect(err.message).toContain("was rejected");
     expect(err.message).not.toContain("super-secret-key");
   });
 });
@@ -321,10 +321,10 @@ describe("shared keys between jobs", () => {
 describe("provider error messages", () => {
   it("explains restricted keys, missing models, credit and bad keys", () => {
     expect(describeProviderError("spicyapi", 403, "model not allowed", "x/y", "k")).toContain('allowed to use the model "x/y"');
-    expect(describeProviderError("openai", 404, "no such model", "gpt-x", "k")).toContain('couldn\'t find the model "gpt-x"');
+    expect(describeProviderError("openai", 404, "no such model", "gpt-x", "k")).toContain('model "gpt-x" wasn\'t found');
     expect(describeProviderError("openai", 402, "", "m", "k")).toContain("spend cap");
-    expect(describeProviderError("openai", 401, "bad", "m", "k")).toContain("rejected this API key");
-    expect(describeProviderError("openai", 429, "", "m", "k")).toContain("rate limiting");
+    expect(describeProviderError("openai", 401, "bad", "m", "k")).toContain("was rejected");
+    expect(describeProviderError("openai", 429, "", "m", "k")).toContain("rate limited");
   });
 
   it("never echoes the API key back, even if the provider does", async () => {

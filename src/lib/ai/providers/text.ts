@@ -19,12 +19,12 @@ const TIMEOUT_MS = 55_000;
 // Turns a provider failure into a message a user can act on. The key itself is never included.
 export function describeProviderError(provider: string, status: number, detail: string, model: string, apiKey: string): string {
   const safe = apiKey ? detail.split(apiKey).join("[key]") : detail;
-  const said = safe ? ` ${provider} said: ${safe}` : "";
-  if (status === 401) return `${provider} rejected this API key. Check that it was copied in full and is still active.${said}`;
-  if (status === 402) return `${provider} says this key is out of credit or has hit its spend cap.${said}`;
+  const said = safe ? ` Provider message: ${safe}` : "";
+  if (status === 401) return `This API key was rejected. Check that it was copied in full and is still active.${said}`;
+  if (status === 402) return `This key is out of credit or has hit its spend cap.${said}`;
   if (status === 403) return `This key isn't allowed to use the model "${model}" (or lacks access). Check the key's allowed models, then update the model on the API keys page.${said}`;
-  if (status === 404) return `${provider} couldn't find the model "${model}". Check the model name on the API keys page.${said}`;
-  if (status === 429) return `${provider} is rate limiting this key. Wait a moment and try again.${said}`;
+  if (status === 404) return `The model "${model}" wasn't found. Check the model name on the API keys page.${said}`;
+  if (status === 429) return `This key is being rate limited. Wait a moment and try again.${said}`;
   return `${provider} error (${status}).${said}`;
 }
 
