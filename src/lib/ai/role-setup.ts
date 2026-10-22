@@ -1,11 +1,11 @@
 import { detectProvider } from "./providers/detect";
-import { normalizeBaseUrl, type RoleConfig } from "./roles";
+import { normalizeBaseUrl, type OwnRoleConfig } from "./roles";
 import { validateApiKey } from "@/lib/key-validation";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
 
 export const MODEL_PATTERN = /^[\w./:@-]{1,100}$/;
 
-export type RoleSetup = { ok: true; key: string; config: RoleConfig } | { ok: false; error: string };
+export type RoleSetup = { ok: true; key: string; config: OwnRoleConfig } | { ok: false; error: string };
 
 // Turns what the user pasted into a provider setup. Known key prefixes pick the provider for them
 // unless the user says it is another provider; anything else is treated as an OpenAI-compatible endpoint and needs a base URL and model.

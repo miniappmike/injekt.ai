@@ -3,12 +3,12 @@ import sharp from "sharp";
 import { stripAndNormalize, parseDataUri } from "@/lib/images";
 import { isOwnPath, isOwnRawPath } from "@/lib/uploads";
 import { validateApiKey } from "@/lib/key-validation";
-import { anthropicBackend, openaiCompatBackend, spicyapiBackend, ProviderError } from "@/lib/ai/providers/text";
+import { anthropicBackend, describeProviderError, openaiCompatBackend, spicyapiBackend, ProviderError } from "@/lib/ai/providers/text";
 import { buildProfileTask, parseProfileResponse } from "@/lib/ai/tasks/profile-builder";
 import { buildReplacementPromptTask } from "@/lib/ai/tasks/prompt-writer";
 import { referenceList } from "@/lib/character-images";
 import { detectProvider } from "@/lib/ai/providers/detect";
-import { effectiveRole, normalizeBaseUrl } from "@/lib/ai/roles";
+import { dropRole, effectiveRole, normalizeBaseUrl, readRoles, shareRole } from "@/lib/ai/roles";
 import { resolveRoleSetup } from "@/lib/ai/role-setup";
 import { getTextBackend } from "@/lib/ai/providers/text";
 
@@ -132,7 +132,7 @@ describe("text backends", () => {
     mockFetch({ error: { message: "invalid x-api-key" } }, 401);
     const err = await anthropicBackend("m").complete({ system: "s", text: "t", apiKey: "super-secret-key" }).catch((e) => e);
     expect(err).toBeInstanceOf(ProviderError);
-    expect(err.message).toContain("Check your API key");
+    expect(err.message).toContain("rejected this API key");
     expect(err.message).not.toContain("super-secret-key");
   });
 });
@@ -275,5 +275,70 @@ describe("effectiveRole", () => {
     expect(effectiveRole({ llm: cfg }, "vision")).toEqual({ cfg, keyRole: "llm" });
     expect(effectiveRole({ vision: cfg }, "llm")).toEqual({ cfg, keyRole: "vision" });
     expect(effectiveRole({}, "vision")).toBeNull();
+  });
+});
+
+describe("shared keys between jobs", () => {
+  const own = { provider: "custom", model: "anthropic/claude-sonnet-5.5/chat", baseUrl: "https://api.spicyapi.ai/v1" };
+
+  it("lets a job reuse another job's key with its own model", () => {
+    const shared = shareRole({ vision: own }, "llm", "vision", "moonshot/kimi-k3/chat");
+    expect(shared).toEqual({ ok: true, roles: { vision: own, llm: { keyFrom: "vision", model: "moonshot/kimi-k3/chat" } } });
+    if (!shared.ok) throw new Error("unreachable");
+    expect(effectiveRole(shared.roles, "llm")).toEqual({
+      cfg: { ...own, model: "moonshot/kimi-k3/chat" },
+      keyRole: "vision",
+    });
+    expect(effectiveRole(shared.roles, "vision")?.cfg.model).toBe(own.model);
+  });
+
+  it("refuses to share from a job with no key of its own, itself, or a shared job", () => {
+    expect(shareRole({}, "llm", "vision", "m").ok).toBe(false);
+    expect(shareRole({ vision: own }, "vision", "vision", "m").ok).toBe(false);
+    expect(shareRole({ vision: { keyFrom: "llm", model: "m" } }, "llm", "vision", "m").ok).toBe(false);
+  });
+
+  it("treats a shared job whose source is gone as not set up", () => {
+    expect(effectiveRole({ llm: { keyFrom: "vision", model: "m" } }, "llm")).toBeNull();
+  });
+
+  it("removing a job also removes the jobs borrowing its key", () => {
+    const roles = { vision: own, llm: { keyFrom: "vision" as const, model: "m" } };
+    expect(dropRole(roles, "vision")).toEqual({});
+    expect(dropRole(roles, "llm")).toEqual({ vision: own });
+  });
+
+  it("reads saved prefs defensively", () => {
+    expect(readRoles({ roles: { vision: own, llm: { keyFrom: "vision", model: "m" }, bogus: { provider: "x" } } })).toEqual({
+      vision: own,
+      llm: { keyFrom: "vision", model: "m" },
+    });
+    expect(readRoles({ roles: { llm: { keyFrom: "nope", model: "m" }, vision: { provider: 5, model: "m" } } })).toEqual({});
+    expect(readRoles(null)).toEqual({});
+  });
+});
+
+describe("provider error messages", () => {
+  it("explains restricted keys, missing models, credit and bad keys", () => {
+    expect(describeProviderError("spicyapi", 403, "model not allowed", "x/y", "k")).toContain('allowed to use the model "x/y"');
+    expect(describeProviderError("openai", 404, "no such model", "gpt-x", "k")).toContain('couldn\'t find the model "gpt-x"');
+    expect(describeProviderError("openai", 402, "", "m", "k")).toContain("spend cap");
+    expect(describeProviderError("openai", 401, "bad", "m", "k")).toContain("rejected this API key");
+    expect(describeProviderError("openai", 429, "", "m", "k")).toContain("rate limiting");
+  });
+
+  it("never echoes the API key back, even if the provider does", async () => {
+    mockFetch({ error: { message: "Invalid key super-secret-key-123 for model" } }, 401);
+    const err = await openaiCompatBackend("openai", "m").complete({ system: "s", text: "t", apiKey: "super-secret-key-123" }).catch((e) => e);
+    expect(err).toBeInstanceOf(ProviderError);
+    expect(err.message).not.toContain("super-secret-key-123");
+    expect(err.message).toContain("[key]");
+  });
+
+  it("surfaces a model restriction from a real 403 response", async () => {
+    mockFetch({ error: { message: "Model not enabled for this key" } }, 403);
+    const err = await spicyapiBackend("bytedance/other").complete({ system: "s", text: "t", apiKey: "k-12345678" }).catch((e) => e);
+    expect(err.message).toContain('"bytedance/other"');
+    expect(err.message).toContain("Model not enabled for this key");
   });
 });

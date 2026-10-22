@@ -2,8 +2,7 @@
 
 import { requireUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/ratelimit";
-import { ApiKeyRequiredError, RateLimitError } from "@/lib/errors";
-import { ProviderError } from "@/lib/ai/providers/text";
+import { toFailure, type AiFailure } from "@/lib/ai/failure";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { buildProfileTask, parseProfileResponse } from "@/lib/ai/tasks/profile-builder";
 import { buildReplacementPromptTask, type PromptStyle } from "@/lib/ai/tasks/prompt-writer";
@@ -11,15 +10,9 @@ import { loadForVision, referenceList } from "@/lib/character-images";
 import { isOwnPath } from "@/lib/uploads";
 import type { CharacterProfile } from "@/lib/characters";
 
-export type AiResult<T> = ({ ok: true } & T) | { ok: false; error: string; redirectTo?: string };
+export type AiResult<T> = ({ ok: true } & T) | AiFailure;
 
-function failure(e: unknown): { ok: false; error: string; redirectTo?: string } {
-  if (e instanceof ApiKeyRequiredError) return { ok: false, error: "Add an API key to continue.", redirectTo: e.redirectTo };
-  if (e instanceof RateLimitError) return { ok: false, error: `Too many requests. Try again in ${e.retryAfterSeconds}s.` };
-  if (e instanceof ProviderError) return { ok: false, error: e.message };
-  console.error("ai action failed", e instanceof Error ? e.message : e);
-  return { ok: false, error: e instanceof Error ? e.message : "Something went wrong" };
-}
+const failure = toFailure;
 
 export async function buildProfile(characterId: string): Promise<AiResult<{ profile: CharacterProfile }>> {
   try {

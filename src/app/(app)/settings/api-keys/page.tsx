@@ -1,8 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { RoleKeyForm, type SavedRole } from "@/components/key-form";
+import { RoleKeyForm, type SavedRole, type ShareSource } from "@/components/key-form";
 import { requireUser } from "@/lib/auth";
 import { PROVIDER_LABELS } from "@/lib/ai/providers/detect";
-import { readRoles, ROLES } from "@/lib/ai/roles";
+import { isShared, readRoles, ROLES, type RoleId } from "@/lib/ai/roles";
 
 export default async function ApiKeysPage({ searchParams }: { searchParams: Promise<{ provider?: string }> }) {
   const { provider: wanted } = await searchParams;
@@ -26,10 +26,30 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
       <div className="mt-6 flex flex-col gap-4">
         {ROLES.map((r) => {
           const cfg = roles[r.id];
-          const tail = cfg && last4(cfg.provider, r.id);
+          const labelOf = (id: RoleId) => ROLES.find((x) => x.id === id)!.label;
+          const source = cfg && isShared(cfg) ? roles[cfg.keyFrom] : undefined;
+          const own = cfg && !isShared(cfg) ? cfg : source && !isShared(source) ? source : undefined;
+          const tail = cfg && !isShared(cfg) ? last4(cfg.provider, r.id) : undefined;
+          const usedBy = ROLES.filter((x) => x.id !== r.id && roles[x.id] && isShared(roles[x.id]!) && (roles[x.id] as { keyFrom: RoleId }).keyFrom === r.id).map((x) => x.label);
+
           const saved: SavedRole | undefined =
-            cfg && tail
-              ? { providerLabel: PROVIDER_LABELS[cfg.provider] ?? cfg.provider, last4: tail, model: cfg.model, baseUrl: cfg.baseUrl }
+            cfg && own && (isShared(cfg) || tail)
+              ? {
+                  providerLabel: PROVIDER_LABELS[own.provider] ?? own.provider,
+                  model: cfg.model,
+                  baseUrl: own.baseUrl,
+                  last4: tail,
+                  sharedFrom: isShared(cfg) ? labelOf(cfg.keyFrom) : undefined,
+                  usedBy,
+                }
+              : undefined;
+
+          // Offer to reuse the other job's key when that job has a key of its own.
+          const other = ROLES.find((x) => x.id !== r.id)!;
+          const otherCfg = roles[other.id];
+          const shareSource: ShareSource | undefined =
+            otherCfg && !isShared(otherCfg) && last4(otherCfg.provider, other.id)
+              ? { id: other.id, label: other.label, providerLabel: PROVIDER_LABELS[otherCfg.provider] ?? otherCfg.provider, model: otherCfg.model }
               : undefined;
           return (
             <Card key={r.id} className={wanted === r.id ? "border-amber-500" : undefined}>
@@ -38,7 +58,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 <CardDescription>{r.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                <RoleKeyForm role={r.id} saved={saved} />
+                <RoleKeyForm role={r.id} saved={saved} shareSource={shareSource} />
               </CardContent>
             </Card>
           );

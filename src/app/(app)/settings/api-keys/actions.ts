@@ -4,25 +4,28 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { saveUserKey } from "@/lib/key-store";
 import { MODEL_PATTERN, resolveRoleSetup } from "@/lib/ai/role-setup";
-import { readRoles, ROLES, type RoleId } from "@/lib/ai/roles";
+import { dropRole, isShared, readRoles, ROLES, shareRole, type RoleId, type RolePrefs } from "@/lib/ai/roles";
 import { enforceRateLimit } from "@/lib/ratelimit";
+import { getUserTextClient } from "@/lib/ai/text-client";
+import { toFailure } from "@/lib/ai/failure";
 
-export type KeyFormState = { error?: string; saved?: string };
+export type KeyFormState = { error?: string; saved?: string; tested?: string };
+
+type Supabase = Awaited<ReturnType<typeof requireUser>>["supabase"];
 
 const roleOf = (v: FormDataEntryValue | null): RoleId | null => ROLES.find((r) => r.id === v)?.id ?? null;
 
-async function loadPrefs(supabase: Awaited<ReturnType<typeof requireUser>>["supabase"], userId: string) {
+async function loadPrefs(supabase: Supabase, userId: string) {
   const { data } = await supabase.from("user_settings").select("prefs").eq("user_id", userId).maybeSingle();
   return (data?.prefs as Record<string, unknown> | null) ?? {};
 }
 
-async function writeRoles(
-  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
-  userId: string,
-  prefs: Record<string, unknown>,
-  roles: ReturnType<typeof readRoles>,
-) {
+async function writeRoles(supabase: Supabase, userId: string, prefs: Record<string, unknown>, roles: RolePrefs) {
   await supabase.from("user_settings").update({ prefs: { ...prefs, roles } }).eq("user_id", userId);
+}
+
+async function deleteStoredKey(supabase: Supabase, provider: string, role: RoleId) {
+  await supabase.rpc("delete_my_api_key", { p_provider: provider, p_kind: role });
 }
 
 export async function saveRoleKey(_: KeyFormState, formData: FormData): Promise<KeyFormState> {
@@ -52,12 +55,35 @@ export async function saveRoleKey(_: KeyFormState, formData: FormData): Promise<
   const prefs = await loadPrefs(supabase, user.id);
   const roles = readRoles(prefs);
   const previous = roles[role];
-  if (previous && previous.provider !== setup.config.provider) {
-    await supabase.rpc("delete_my_api_key", { p_provider: previous.provider, p_kind: role });
+  if (previous && !isShared(previous) && previous.provider !== setup.config.provider) {
+    await deleteStoredKey(supabase, previous.provider, role);
   }
   roles[role] = setup.config;
   await writeRoles(supabase, user.id, prefs, roles);
 
+  revalidatePath("/settings/api-keys");
+  return { saved: role };
+}
+
+// Reuse another job's key with a model of this job's own.
+export async function shareRoleKey(_: KeyFormState, formData: FormData): Promise<KeyFormState> {
+  const { supabase, user } = await requireUser();
+  const role = roleOf(formData.get("role"));
+  const from = roleOf(formData.get("from"));
+  const model = String(formData.get("model") ?? "").trim();
+  if (!role || !from) return { error: "Unknown setting" };
+  if (!MODEL_PATTERN.test(model)) return { error: "Enter a valid model name" };
+
+  const prefs = await loadPrefs(supabase, user.id);
+  const roles = readRoles(prefs);
+  const result = shareRole(roles, role, from, model);
+  if (!result.ok) return { error: result.error };
+
+  // Drop this job's own stored key, it is no longer used.
+  const previous = roles[role];
+  if (previous && !isShared(previous)) await deleteStoredKey(supabase, previous.provider, role);
+
+  await writeRoles(supabase, user.id, prefs, result.roles);
   revalidatePath("/settings/api-keys");
   return { saved: role };
 }
@@ -71,8 +97,9 @@ export async function updateRoleModel(_: KeyFormState, formData: FormData): Prom
 
   const prefs = await loadPrefs(supabase, user.id);
   const roles = readRoles(prefs);
-  if (!roles[role]) return { error: "Add a key first" };
-  roles[role] = { ...roles[role]!, model };
+  const current = roles[role];
+  if (!current) return { error: "Add a key first" };
+  roles[role] = { ...current, model };
   await writeRoles(supabase, user.id, prefs, roles);
   revalidatePath("/settings/api-keys");
   return { saved: role };
@@ -85,8 +112,22 @@ export async function removeRoleKey(formData: FormData) {
   const prefs = await loadPrefs(supabase, user.id);
   const roles = readRoles(prefs);
   const current = roles[role];
-  if (current) await supabase.rpc("delete_my_api_key", { p_provider: current.provider, p_kind: role });
-  delete roles[role];
-  await writeRoles(supabase, user.id, prefs, roles);
+  if (current && !isShared(current)) await deleteStoredKey(supabase, current.provider, role);
+  await writeRoles(supabase, user.id, prefs, dropRole(roles, role));
   revalidatePath("/settings/api-keys");
+}
+
+// One tiny real request, so a bad key, wrong model or spend cap shows up now instead of mid-task.
+export async function testRoleKey(_: KeyFormState, formData: FormData): Promise<KeyFormState> {
+  const { supabase, user } = await requireUser();
+  const role = roleOf(formData.get("role"));
+  if (!role) return { error: "Unknown setting" };
+  try {
+    await enforceRateLimit(user.id, "test-key", 5, 60);
+    const { client } = await getUserTextClient(supabase, user.id, role);
+    const reply = await client.run({ instructions: "Reply with the single word: ok", text: "Connection test." });
+    return reply.trim() ? { tested: role } : { error: "The provider answered with an empty reply." };
+  } catch (e) {
+    return { error: toFailure(e).error };
+  }
 }
