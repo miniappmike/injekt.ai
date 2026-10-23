@@ -4,6 +4,7 @@ import { env } from "@/env";
 import { adminClient } from "@/lib/supabase/admin";
 import { safeFetchBytes } from "@/lib/ssrf";
 import { getImageProvider } from "@/lib/ai/providers/registry";
+import { generationExpiry } from "@/lib/retention";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -48,7 +49,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
     if (up.error) return NextResponse.json({ error: "storage" }, { status: 500 }); // provider retries
     await db
       .from("generations")
-      .update({ status: "complete", output_path: path, completed_at: new Date().toISOString() })
+      .update({
+        status: "complete",
+        output_path: path,
+        completed_at: new Date().toISOString(),
+        expires_at: generationExpiry().toISOString(),
+      })
       .eq("id", gen.id);
   } else {
     await db

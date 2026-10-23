@@ -43,6 +43,10 @@ beforeAll(async () => {
   await db.exec(migration("0002_drop_profile_versions.sql"));
   await db.exec(migration("0004_free_tier_limits.sql"));
   await db.exec(migration("0005_prompt_history.sql"));
+  await db.exec(migration("0003_storage.sql"));
+  await db.exec(migration("0006_generation_retention.sql"));
+  // Storage tables are only stand-ins here; turn on row-level security so the policies are actually tested.
+  await db.exec(`alter table storage.objects enable row level security; grant usage on schema storage to authenticated; grant select on storage.objects to authenticated;`);
 });
 
 describe("allowance counters", () => {
@@ -163,5 +167,45 @@ describe("prompt history", () => {
     const u = await newUser("r@x.com");
     await asUser(u);
     await expect(entry(u, "x", "bogus")).rejects.toThrow();
+  });
+});
+
+describe("generation files expire", () => {
+  async function generation(u: string, path: string, expires: string) {
+    await db.exec("reset role");
+    await db.query("insert into storage.objects (bucket_id, name) values ('generations', $1)", [path]);
+    await db.query(
+      `insert into public.generations (user_id, kind, status, provider, output_path, completed_at, expires_at)
+       values ($1, 'inject', 'complete', 'p', $2, now(), ${expires})`,
+      [u, path],
+    );
+  }
+  const visible = async (u: string) => (await (async () => { await asUser(u); return db.query<{ name: string }>("select name from storage.objects where bucket_id = 'generations'"); })()).rows.map((r) => r.name);
+
+  it("lets owners read unexpired files only", async () => {
+    const u = await newUser("s@x.com");
+    await generation(u, `${u}/fresh.png`, "now() + interval '10 hours'");
+    await generation(u, `${u}/old.png`, "now() - interval '1 minute'");
+    expect(await visible(u)).toEqual([`${u}/fresh.png`]);
+  });
+
+  it("never shows one user's files to another", async () => {
+    const [a, b] = [await newUser("t@x.com"), await newUser("u@x.com")];
+    await generation(a, `${a}/mine.png`, "now() + interval '10 hours'");
+    expect(await visible(b)).toEqual([]);
+  });
+
+  it("gives up access exactly at expires_at even if the file is still stored", async () => {
+    const u = await newUser("v@x.com");
+    await generation(u, `${u}/x.png`, "now() + interval '10 hours'");
+    expect(await visible(u)).toEqual([`${u}/x.png`]);
+    await db.exec("reset role");
+    await db.query("update public.generations set expires_at = now() - interval '1 second' where user_id = $1", [u]);
+    expect(await visible(u)).toEqual([]);
+  });
+
+  it("backfills old rows so they expire 72 hours after completion", async () => {
+    const m = migration("0006_generation_retention.sql");
+    expect(m).toContain("interval '72 hours'");
   });
 });
