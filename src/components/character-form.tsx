@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/toast";
 import { PROFILE_FIELDS, type CharacterProfile } from "@/lib/characters";
 import type { CharacterFormState } from "@/app/(app)/characters/actions";
 import { buildProfile } from "@/app/(app)/characters/ai-actions";
@@ -44,17 +45,19 @@ export function CharacterForm({
   const [profile, setProfile] = useState<CharacterProfile>(initial.profile ?? {});
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string>();
+  const { toast, show } = useToast();
 
   async function build() {
     if (!characterId || buildsLeft === 0) return;
     const hasText = Object.values(profile).some((v) => v?.trim());
-    if (hasText && !window.confirm("Replace the current profile text with a new one built from the images?")) return;
+    if (hasText && !window.confirm("Replace the current profile text with a new one built from the images? It is saved right away.")) return;
     setBuilding(true);
     setBuildError(undefined);
     const result = await buildProfile(characterId);
     setBuilding(false);
     if (result.ok) {
       setProfile(result.profile);
+      show("Profile saved. You can generate it again if you want a different take.");
     } else if (result.redirectTo) {
       router.push(result.redirectTo);
       return;
@@ -66,6 +69,7 @@ export function CharacterForm({
 
   return (
     <form action={formAction} className="flex max-w-2xl flex-col gap-5">
+      {toast}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="name">Name</Label>
         <Input id="name" name="name" defaultValue={initial.name} required maxLength={80} />
@@ -105,11 +109,11 @@ export function CharacterForm({
             {!canBuildProfile && <p className="text-xs text-neutral-500">Upload a face sheet, body sheet or reference photo to enable this.</p>}
             {buildsLeft !== null && buildsTotal !== undefined && (
               <p className="text-xs text-neutral-500">
-                Free plan: {buildsLeft} of {buildsTotal} profile builds left (1 build plus 3 rescans).
+                Free plan: {buildsLeft} of {buildsTotal} profile generations left.
               </p>
             )}
             {buildError && <p role="alert" className="text-sm text-red-400">{buildError}</p>}
-            <p className="text-xs text-neutral-500">The result is not saved until you click Save character.</p>
+            <p className="text-xs text-neutral-500">A generated profile is saved automatically. You can edit it below and click Save character.</p>
           </div>
         )}
         {PROFILE_FIELDS.map(({ key, label, rows }) => (

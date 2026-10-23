@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { toFailure, type AiFailure } from "@/lib/ai/failure";
@@ -32,13 +33,22 @@ export async function buildProfile(characterId: string): Promise<AiResult<{ prof
     const refs = referenceList(c);
     if (!refs.length) return { ok: false, error: "Upload a face sheet, body sheet or reference photo first." };
 
-    // Free plan: 1 build plus 3 rescans. Taken before the call, given back if nothing useful came out of it.
+    // Free plan: 3 generations in total. Taken before the call, given back if nothing useful came out of it.
     allowance = await entitlements.useAllowance(user.id, "profile_builds");
 
     const { client, imageMaxEdge } = await getUserTextClient(supabase, user.id);
     const images = await loadForVision(supabase, refs, imageMaxEdge);
     const reply = await client.run(buildProfileTask(c, images));
-    return { ok: true, profile: parseProfileResponse(reply) };
+    const profile = parseProfileResponse(reply);
+
+    // Saved right away so the user can stay on the page and generate again.
+    const { error } = await supabase
+      .from("characters")
+      .update({ profile, updated_at: new Date().toISOString() })
+      .eq("id", characterId);
+    if (error) throw new Error("The profile was generated but could not be saved. Try again.");
+    revalidatePath("/characters");
+    return { ok: true, profile };
   } catch (e) {
     await allowance?.release();
     return failure(e);
@@ -59,6 +69,7 @@ export async function writeReplacementPrompts(input: {
 }): Promise<AiResult<{ results: WrittenPrompt[] }>> {
   try {
     const { supabase, user } = await requireUser();
+    await entitlements.requirePro(user.id, "prompt_writer");
     const targets = input.targetPaths.slice(0, 10).filter((p) => isOwnPath(user.id, p));
     if (!targets.length) return { ok: false, error: "Add at least one target image." };
     if (input.style !== "sectioned" && input.style !== "match") return { ok: false, error: "Unknown prompt style" };

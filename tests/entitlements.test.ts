@@ -65,6 +65,22 @@ describe("free plan allowances", () => {
   });
 });
 
+describe("Pro-only features", () => {
+  it("blocks prompt writing on the free plan and allows pro and admin", async () => {
+    await expect(setup({ plan: "free", is_admin: false }).ent.requirePro("u", "prompt_writer")).rejects.toBeInstanceOf(LimitReachedError);
+    await expect(setup(null).ent.requirePro("u", "prompt_writer")).rejects.toBeInstanceOf(LimitReachedError);
+    await expect(setup({ plan: "pro", is_admin: false }).ent.requirePro("u", "prompt_writer")).resolves.toBeUndefined();
+    await expect(setup({ plan: "free", is_admin: true }).ent.requirePro("u", "prompt_writer")).resolves.toBeUndefined();
+  });
+
+  it("keeps the free plan to 1 character and 3 profile generations", () => {
+    expect(FREE_LIMITS.characters).toBe(1);
+    expect(FREE_LIMITS.profile_builds).toBe(3);
+    expect(toFailure(new LimitReachedError("prompt_writer"))).toEqual({ ok: false, error: limitMessage("prompt_writer") });
+    expect(limitMessage("profile_builds")).toContain("3 free profile generations");
+  });
+});
+
 describe("limits copy and errors", () => {
   it("turns a limit error into a friendly, specific message", () => {
     expect(toFailure(new LimitReachedError("profile_builds"))).toEqual({ ok: false, error: limitMessage("profile_builds") });

@@ -8,16 +8,16 @@ Model Spawn is bring-your-own-key. Users pay their own model providers; the plat
 | Purpose | Try it | Full prompt-optimization suite |
 | Keys | Bring your own | Bring your own, or use the platform's key through prepaid credits |
 | Characters | 1 at a time (built) | Unlimited |
-| Profile builds | 4 lifetime: 1 build plus 3 rescans (built) | Unlimited |
+| Profile generations | 3 lifetime attempts; each result is saved and the page stays open for another try (built) | Unlimited |
 | Image generation | 1 lifetime, verified email, house key (limit defined, generation not built) | Own key, or credits |
-| House-key credits | Open question | 25% markup over cost, $5 minimum top-up |
-| Prompt writing | Not limited yet (open question) | Unlimited with own key |
+| House-key credits | Can buy, 25% markup over cost, $5 minimum top-up | Same |
+| Prompt writing | Not included (built) | Unlimited with own key |
 
 Admins (`profiles.is_admin`) are unlimited and may use the server key. `profiles.plan` and the usage counters can only be changed by the server (service role), never from the browser. The tests in `tests/sql` run the real migration against Postgres to prove that.
 
 ## How the free limits work (built)
 - `usage_counters` holds lifetime counts per user and key. `consume_allowance()` uses one unit atomically and `release_allowance()` gives it back; both are callable only by the server.
-- A profile build takes a unit before the model call and gives it back if the call fails, so a provider error never costs the user a build.
+- A profile generation takes a unit before the model call and gives it back if the call fails, so a provider error never costs the user an attempt. A successful result is saved to the character immediately.
 - The 1-character limit is a database trigger (`enforce_character_limit`), so it holds on any code path. It counts characters that exist now, so deleting one frees the slot. Rebuilds and images are lifetime counters, so delete-and-recreate does not farm them.
 - Limits live in `src/lib/limits.ts`; a test checks the SQL matches the character limit shown in the app.
 
@@ -48,7 +48,7 @@ Admins (`profiles.is_admin`) are unlimited and may use the server key. `profiles
 - A free user costs roughly 15 to 20 cents in the worst case (3 rebuilds, a few prompts, 1 image).
 
 ## Payments
-- Phase 1: sell only the Pro subscription, through a merchant of record (handles sales tax and VAT). Candidates: Paddle, Lemon Squeezy (a Stripe company, which may matter if the worry is Stripe's account reviews), Polar, Creem. Read each one's prohibited-business list and AI policy before applying; processors can freeze accounts.
+- Processor decision: Lemon Squeezy, a merchant of record that handles sales tax and VAT. Phase 1 sells only the Pro subscription. Others considered: Paddle, Lemon Squeezy (a Stripe company, which may matter if the worry is Stripe's account reviews), Polar, Creem. Read each one's prohibited-business list and AI policy before applying; processors can freeze accounts.
 - Describe the product accurately on applications: a prompt-optimization workflow where users bring their own model keys. Keep terms of service and an acceptable-use policy. The content users make is governed by their model providers' rules.
 - Phase 2: house-key credits, after the subscription is running (reselling generated content is higher risk with processors).
 - Keep a second processor approved as a backup and withdraw payouts regularly.
@@ -65,6 +65,5 @@ Admins (`profiles.is_admin`) are unlimited and may use the server key. `profiles
 4. Wallet, hold/settle, metering, then house-key credits.
 
 ## Open questions
-- Can a free user buy house-key credits, and at what markup? Pro is 25%.
-- Does a free user get the prompt writer with their own key, or only the profile builder?
-- Which processor, and a lawyer's view on the refund wording.
+- A lawyer's view on the refund wording.
+- Whether Pro and credits are separate Lemon Squeezy products (a subscription plus a pay-what-you-top-up product), and how credit top-ups are priced (fixed packs from $5, or any amount).

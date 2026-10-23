@@ -38,6 +38,11 @@ export function createEntitlements(deps: EntitlementDeps) {
       };
     },
 
+    /** Features that are not part of the free plan at all. */
+    async requirePro(userId: string, feature: "prompt_writer"): Promise<void> {
+      if (!(await isUnlimited(userId))) throw new LimitReachedError(feature);
+    },
+
     /** What is left, for showing in the UI. `null` means unlimited. */
     async remaining(userId: string): Promise<Record<AllowanceKey, number | null>> {
       if (await isUnlimited(userId)) return { profile_builds: null, free_images: null };
