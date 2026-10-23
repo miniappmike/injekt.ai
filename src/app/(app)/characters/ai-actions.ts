@@ -1,12 +1,13 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { toFailure, type AiFailure } from "@/lib/ai/failure";
 import { entitlements } from "@/lib/entitlements";
-import type { Allowance } from "@/lib/entitlements-core";
+import { saveHistory } from "@/lib/history";
 import { getUserTextClient } from "@/lib/ai/text-client";
-import { buildProfileTask, parseProfileResponse } from "@/lib/ai/tasks/profile-builder";
+import { runProfileBuild } from "@/lib/ai/build-profile";
 import { buildReplacementPromptTask, type PromptStyle } from "@/lib/ai/tasks/prompt-writer";
 import { loadForVision, referenceList } from "@/lib/character-images";
 import { isOwnPath } from "@/lib/uploads";
@@ -17,30 +18,12 @@ export type AiResult<T> = ({ ok: true } & T) | AiFailure;
 const failure = toFailure;
 
 export async function buildProfile(characterId: string): Promise<AiResult<{ profile: CharacterProfile }>> {
-  let allowance: Allowance | undefined;
   try {
     const { supabase, user } = await requireUser();
-    await enforceRateLimit(user.id, "llm", 10, 60);
-
-    const { data: c } = await supabase
-      .from("characters")
-      .select("name, height, weight, always_keep, face_sheet_path, body_sheet_path, reference_paths")
-      .eq("id", characterId)
-      .maybeSingle();
-    if (!c) return { ok: false, error: "Character not found" };
-
-    const refs = referenceList(c);
-    if (!refs.length) return { ok: false, error: "Upload a face sheet, body sheet or reference photo first." };
-
-    // Free plan: 1 build plus 3 rescans. Taken before the call, given back if nothing useful came out of it.
-    allowance = await entitlements.useAllowance(user.id, "profile_builds");
-
-    const { client, imageMaxEdge } = await getUserTextClient(supabase, user.id);
-    const images = await loadForVision(supabase, refs, imageMaxEdge);
-    const reply = await client.run(buildProfileTask(c, images));
-    return { ok: true, profile: parseProfileResponse(reply) };
+    const result = await runProfileBuild(supabase, user.id, characterId);
+    if (result.ok) revalidatePath("/characters");
+    return result;
   } catch (e) {
-    await allowance?.release();
     return failure(e);
   }
 }
@@ -59,6 +42,7 @@ export async function writeReplacementPrompts(input: {
 }): Promise<AiResult<{ results: WrittenPrompt[] }>> {
   try {
     const { supabase, user } = await requireUser();
+    await entitlements.requirePro(user.id, "prompt_writer");
     const targets = input.targetPaths.slice(0, 10).filter((p) => isOwnPath(user.id, p));
     if (!targets.length) return { ok: false, error: "Add at least one target image." };
     if (input.style !== "sectioned" && input.style !== "match") return { ok: false, error: "Unknown prompt style" };
@@ -91,6 +75,19 @@ export async function writeReplacementPrompts(input: {
         results.push({ path, error: f.error });
       }
     }
+    await saveHistory(
+      supabase,
+      user.id,
+      results
+        .filter((r) => r.prompt)
+        .map((r) => ({
+          characterId: input.characterId,
+          kind: "inject" as const,
+          label: `Inject · ${c.name} · ${input.style === "match" ? "Match the target" : "Sectioned"}`,
+          prompt: r.prompt!,
+          imagePath: r.path,
+        })),
+    );
     return { ok: true, results };
   } catch (e) {
     return failure(e);

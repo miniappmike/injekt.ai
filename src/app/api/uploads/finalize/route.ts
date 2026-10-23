@@ -4,7 +4,7 @@ import { createUserClient } from "@/lib/supabase/server";
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { RateLimitError } from "@/lib/errors";
 import { MEDIA_BUCKET, stripAndNormalize, UPLOAD_SLOTS } from "@/lib/images";
-import { finalPath, isOwnRawPath } from "@/lib/uploads";
+import { finalPath, isOwnRawPath, PENDING_FOLDER } from "@/lib/uploads";
 
 export const maxDuration = 60;
 
@@ -44,8 +44,9 @@ export async function POST(request: NextRequest) {
   const storage = supabase.storage.from(MEDIA_BUCKET);
   try {
     let character: { reference_paths: string[]; profile_photo_path: string | null; face_sheet_path: string | null; body_sheet_path: string | null } | null = null;
-    if (slot !== "target") {
-      if (!characterId) return NextResponse.json({ error: "characterId required" }, { status: 400 });
+    // Without a characterId this is a draft upload from the new-character page: stored in a holding
+    // folder and attached when the character is saved.
+    if (slot !== "target" && characterId) {
       const { data } = await supabase
         .from("characters")
         .select("reference_paths, profile_photo_path, face_sheet_path, body_sheet_path")
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: e instanceof Error ? e.message : "Invalid image" }, { status: 400 });
     }
 
-    const path = finalPath(user.id, slot === "target" ? "targets" : `characters/${characterId}`);
+    const path = finalPath(user.id, slot === "target" ? "targets" : characterId ? `characters/${characterId}` : PENDING_FOLDER);
     const { error: upError } = await storage.upload(path, clean, { contentType: "image/jpeg" });
     if (upError) return NextResponse.json({ error: "Could not store image" }, { status: 500 });
 

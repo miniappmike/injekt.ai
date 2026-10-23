@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { MEDIA_BUCKET } from "@/lib/images";
-import { isOwnPath, rawPath } from "@/lib/uploads";
+import { isOwnPath, isPendingPath, rawPath } from "@/lib/uploads";
 
 // Step 1 of an upload: hand the browser a one-time signed URL for a raw file in the user's folder.
 export async function requestUpload(): Promise<{ path: string; token: string } | { error: string }> {
@@ -44,4 +44,11 @@ export async function removeCharacterImage(
   }
   if (removed && isOwnPath(user.id, removed)) await supabase.storage.from(MEDIA_BUCKET).remove([removed]);
   revalidatePath(`/characters/${characterId}`);
+}
+
+// Removes an image uploaded on the new-character page that was never attached to a character.
+export async function removePendingImage(path: string) {
+  const { supabase, user } = await requireUser();
+  if (!isPendingPath(user.id, path)) return;
+  await supabase.storage.from(MEDIA_BUCKET).remove([path]);
 }

@@ -11,6 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/characters" className="font-semibold">Model Spawn</Link>
         <MainNav />
         <div className="ml-auto flex items-center gap-3">
+          <Link href="/history" className="text-sm text-neutral-400 hover:text-neutral-100">History</Link>
           <Link href="/settings/api-keys" className="text-sm text-neutral-400 hover:text-neutral-100">API keys</Link>
           <span className="hidden text-sm text-neutral-500 sm:inline">{user.email}</span>
           <form action="/auth/signout" method="post">

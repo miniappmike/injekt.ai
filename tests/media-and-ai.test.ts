@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import sharp from "sharp";
 import { stripAndNormalize, parseDataUri } from "@/lib/images";
-import { isOwnPath, isOwnRawPath } from "@/lib/uploads";
+import { isOwnPath, isOwnRawPath, isPendingPath, readDraftImages } from "@/lib/uploads";
 import { validateApiKey } from "@/lib/key-validation";
 import { anthropicBackend, describeProviderError, openaiCompatBackend, spicyapiBackend, ProviderError } from "@/lib/ai/providers/text";
 import { buildProfileTask, parseProfileResponse } from "@/lib/ai/tasks/profile-builder";
@@ -340,5 +340,46 @@ describe("provider error messages", () => {
     const err = await spicyapiBackend("bytedance/other").complete({ system: "s", text: "t", apiKey: "k-12345678" }).catch((e) => e);
     expect(err.message).toContain('"bytedance/other"');
     expect(err.message).toContain("Model not enabled for this key");
+  });
+});
+
+describe("draft images on the new-character form", () => {
+  const form = (entries: [string, string][]) => {
+    const fd = new FormData();
+    for (const [k, v] of entries) fd.append(k, v);
+    return fd;
+  };
+  const p = (n: string) => `u1/characters/pending/${n}.jpg`;
+
+  it("only treats the user's own holding-folder uploads as pending", () => {
+    expect(isPendingPath("u1", p("a"))).toBe(true);
+    expect(isPendingPath("u2", p("a"))).toBe(false);
+    expect(isPendingPath("u1", "u1/characters/c1/a.jpg")).toBe(false);
+    expect(isPendingPath("u1", "u1/targets/a.jpg")).toBe(false);
+    expect(isPendingPath("u1", "u1/characters/pending/../../u2/x.jpg")).toBe(false);
+  });
+
+  it("reads the submitted images, ignoring blanks and repeats", () => {
+    const r = readDraftImages(
+      form([["image_profile_photo", p("a")], ["image_face_sheet", ""], ["image_reference", p("b")], ["image_reference", p("b")], ["image_reference", p("c")]]),
+      "u1",
+    );
+    expect(r).toEqual({
+      ok: true,
+      images: { profile_photo_path: p("a"), face_sheet_path: null, body_sheet_path: null, reference_paths: [p("b"), p("c")] },
+    });
+  });
+
+  it("is fine with no images at all", () => {
+    expect(readDraftImages(form([]), "u1")).toEqual({
+      ok: true,
+      images: { profile_photo_path: null, face_sheet_path: null, body_sheet_path: null, reference_paths: [] },
+    });
+  });
+
+  it("rejects other people's paths, other folders and more than 3 references", () => {
+    expect(readDraftImages(form([["image_face_sheet", "u2/characters/pending/x.jpg"]]), "u1").ok).toBe(false);
+    expect(readDraftImages(form([["image_body_sheet", "u1/targets/x.jpg"]]), "u1").ok).toBe(false);
+    expect(readDraftImages(form([["image_reference", p("a")], ["image_reference", p("b")], ["image_reference", p("c")], ["image_reference", p("d")]]), "u1").ok).toBe(false);
   });
 });
