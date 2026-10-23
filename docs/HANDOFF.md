@@ -24,5 +24,7 @@ API keys are set per job, not per provider: Vision, Text (and Image, coming soon
 
 Free-tier limits are built: see `docs/PRICING.md` (`src/lib/limits.ts`, `src/lib/entitlements*.ts`, migration `0004_free_tier_limits.sql`, SQL tests in `tests/sql` using PGlite). To use the app without limits set `profiles.is_admin = true` or `plan = 'pro'` for your user in the Supabase SQL Editor.
 
+Also done: prompt history (`/history`, migration `0005_prompt_history.sql`, newest 100 kept) and the Likeness checker (`/likeness`, Pro-only, saves reports to history). Known gap: target/generated images uploaded for a run that fails are not cleaned up yet; add a storage sweep later.
+
 ## Next
-0. Lemon Squeezy: Pro subscription checkout + webhook that sets `profiles.plan`, then credits wallet with hold-and-settle (see PRICING.md). 1. Inject image generation: direct swap and edit (needs the SpicyAPI adapter and its docs, or another image provider). 2. Variants and carousel. 3. Likeness + face fix. 4. Prompt history. 5. Reference sheet maker. 6. Design pass once Inject works end to end. 7. Sentry, Playwright, pgTAP RLS tests.
+0. Lemon Squeezy: Pro subscription checkout + webhook that sets `profiles.plan`, then credits wallet with hold-and-settle (see PRICING.md). 1. Inject image generation: direct swap and edit (needs the SpicyAPI adapter and its docs, or another image provider). 2. Variants and carousel (text/vision, no image provider needed). 3. Face fix (needs image provider). 4. Reference sheet maker. 6. Design pass once Inject works end to end. 7. Sentry, Playwright, pgTAP RLS tests.
