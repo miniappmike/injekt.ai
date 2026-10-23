@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { limitMessage } from "@/lib/limits";
 import { characterInput, parseProfile } from "@/lib/characters";
 
 export type CharacterFormState = { error?: string };
@@ -31,7 +32,7 @@ export async function createCharacter(_: CharacterFormState, formData: FormData)
     .insert({ ...fields, user_id: user.id, profile, provenance_attested_at: new Date().toISOString() })
     .select("id")
     .single();
-  if (error) return { error: error.message };
+  if (error) return { error: error.message.includes("character_limit_reached") ? limitMessage("characters") : error.message };
 
   revalidatePath("/characters");
   redirect(`/characters/${data.id}`);

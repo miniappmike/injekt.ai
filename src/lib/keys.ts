@@ -4,7 +4,7 @@ export type KeySource = "byok" | "server";
 export type ProviderId = string;
 
 export interface KeyResolverDeps {
-  loadUserKey(userId: string, provider: ProviderId): Promise<string | null>;
+  loadUserKey(userId: string, provider: ProviderId, kind?: string): Promise<string | null>;
   isAdmin(userId: string): Promise<boolean>;
   serverKeys: Partial<Record<ProviderId, string | undefined>>;
 }
@@ -14,8 +14,9 @@ export async function resolveApiKey(
   deps: KeyResolverDeps,
   userId: string,
   provider: ProviderId,
+  kind?: string,
 ): Promise<{ key: string; source: KeySource }> {
-  const own = await deps.loadUserKey(userId, provider);
+  const own = await deps.loadUserKey(userId, provider, kind);
   if (own) return { key: own, source: "byok" };
 
   const serverKey = deps.serverKeys[provider];

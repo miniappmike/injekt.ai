@@ -2,8 +2,9 @@
 
 import { requireUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/ratelimit";
-import { ApiKeyRequiredError, RateLimitError } from "@/lib/errors";
-import { ProviderError } from "@/lib/ai/providers/text";
+import { toFailure, type AiFailure } from "@/lib/ai/failure";
+import { entitlements } from "@/lib/entitlements";
+import type { Allowance } from "@/lib/entitlements-core";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { buildProfileTask, parseProfileResponse } from "@/lib/ai/tasks/profile-builder";
 import { buildReplacementPromptTask, type PromptStyle } from "@/lib/ai/tasks/prompt-writer";
@@ -11,17 +12,12 @@ import { loadForVision, referenceList } from "@/lib/character-images";
 import { isOwnPath } from "@/lib/uploads";
 import type { CharacterProfile } from "@/lib/characters";
 
-export type AiResult<T> = ({ ok: true } & T) | { ok: false; error: string; redirectTo?: string };
+export type AiResult<T> = ({ ok: true } & T) | AiFailure;
 
-function failure(e: unknown): { ok: false; error: string; redirectTo?: string } {
-  if (e instanceof ApiKeyRequiredError) return { ok: false, error: "Add an API key to continue.", redirectTo: e.redirectTo };
-  if (e instanceof RateLimitError) return { ok: false, error: `Too many requests. Try again in ${e.retryAfterSeconds}s.` };
-  if (e instanceof ProviderError) return { ok: false, error: e.message };
-  console.error("ai action failed", e instanceof Error ? e.message : e);
-  return { ok: false, error: e instanceof Error ? e.message : "Something went wrong" };
-}
+const failure = toFailure;
 
 export async function buildProfile(characterId: string): Promise<AiResult<{ profile: CharacterProfile }>> {
+  let allowance: Allowance | undefined;
   try {
     const { supabase, user } = await requireUser();
     await enforceRateLimit(user.id, "llm", 10, 60);
@@ -36,11 +32,15 @@ export async function buildProfile(characterId: string): Promise<AiResult<{ prof
     const refs = referenceList(c);
     if (!refs.length) return { ok: false, error: "Upload a face sheet, body sheet or reference photo first." };
 
-    const client = await getUserTextClient(supabase, user.id);
-    const images = await loadForVision(supabase, refs);
+    // Free plan: 1 build plus 3 rescans. Taken before the call, given back if nothing useful came out of it.
+    allowance = await entitlements.useAllowance(user.id, "profile_builds");
+
+    const { client, imageMaxEdge } = await getUserTextClient(supabase, user.id);
+    const images = await loadForVision(supabase, refs, imageMaxEdge);
     const reply = await client.run(buildProfileTask(c, images));
     return { ok: true, profile: parseProfileResponse(reply) };
   } catch (e) {
+    await allowance?.release();
     return failure(e);
   }
 }
@@ -73,14 +73,14 @@ export async function writeReplacementPrompts(input: {
     const refs = referenceList(c);
     if (!refs.length) return { ok: false, error: "This character needs a face sheet, body sheet or reference photo first." };
 
-    const client = await getUserTextClient(supabase, user.id);
-    const references = await loadForVision(supabase, refs);
+    const { client, imageMaxEdge } = await getUserTextClient(supabase, user.id);
+    const references = await loadForVision(supabase, refs, imageMaxEdge);
 
     const results: WrittenPrompt[] = [];
     for (const path of targets) {
       try {
         await enforceRateLimit(user.id, "llm", 20, 60);
-        const [target] = await loadForVision(supabase, [{ label: "target photo", path }]);
+        const [target] = await loadForVision(supabase, [{ label: "target photo", path }], imageMaxEdge);
         const prompt = await client.run(
           buildReplacementPromptTask({ character: { ...c, profile: c.profile as CharacterProfile }, references, target, outfit: input.outfit, style: input.style }),
         );

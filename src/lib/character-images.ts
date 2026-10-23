@@ -20,12 +20,13 @@ export function referenceList(c: CharacterImagePaths): { label: string; path: st
 export async function loadForVision(
   supabase: SupabaseClient,
   items: { label: string; path: string }[],
+  maxEdge?: number,
 ): Promise<LabeledImage[]> {
   return Promise.all(
     items.map(async ({ label, path }) => {
       const { data, error } = await supabase.storage.from(MEDIA_BUCKET).download(path);
       if (error || !data) throw new Error(`Could not load ${label}`);
-      const img = await shrinkForVision(Buffer.from(await data.arrayBuffer()));
+      const img = await shrinkForVision(Buffer.from(await data.arrayBuffer()), maxEdge);
       return { label, dataUri: toDataUri(img) };
     }),
   );
