@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ImageSlot, type SlotImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { PROFILE_FIELDS, type CharacterProfile } from "@/lib/characters";
 import type { CharacterFormState } from "@/app/(app)/characters/actions";
@@ -41,7 +42,16 @@ export function CharacterForm({
   buildsTotal?: number;
 }) {
   const router = useRouter();
-  const [state, formAction, pending] = useActionState(action, {});
+  const [state, formAction, pendingAction] = useActionState(action, {});
+  const [submitting, startSubmit] = useTransition();
+  const pending = pendingAction || submitting;
+  // New-character page only: images uploaded before the character exists, attached on save.
+  const [draft, setDraft] = useState<{ profile_photo: SlotImage[]; face_sheet: SlotImage[]; body_sheet: SlotImage[]; reference: SlotImage[] }>({
+    profile_photo: [],
+    face_sheet: [],
+    body_sheet: [],
+    reference: [],
+  });
   const [profile, setProfile] = useState<CharacterProfile>(initial.profile ?? {});
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string>();
@@ -68,7 +78,15 @@ export function CharacterForm({
   }
 
   return (
-    <form action={formAction} className="flex max-w-2xl flex-col gap-5">
+    <form
+      // Submitting through a transition keeps what was typed if the save is refused (React would otherwise clear the form).
+      onSubmit={(e) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        startSubmit(() => formAction(data));
+      }}
+      className="flex max-w-2xl flex-col gap-5"
+    >
       {toast}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="name">Name</Label>
@@ -93,13 +111,31 @@ export function CharacterForm({
         <Textarea id="lore" name="lore" defaultValue={initial.lore ?? ""} />
       </div>
 
+      {!characterId && (
+        <fieldset className="flex flex-col gap-3 rounded-lg border border-neutral-800 p-4">
+          <legend className="px-2 text-sm font-medium">Images <span className="font-normal text-neutral-500">optional</span></legend>
+          <p className="text-sm text-neutral-400">
+            Add them now or later. Click to upload, drop a file, or paste with Ctrl+V while a box is focused. Photo metadata (location,
+            device) is stripped on upload. The profile photo is only for display and is never sent to an AI model.
+          </p>
+          <ImageSlot label="Profile photo" slot="profile_photo" draft={{ images: draft.profile_photo, onChange: (v) => setDraft((d) => ({ ...d, profile_photo: v })) }} />
+          <ImageSlot label="Face sheet" slot="face_sheet" hint="A sheet of the face from several angles, or one clear face photo." draft={{ images: draft.face_sheet, onChange: (v) => setDraft((d) => ({ ...d, face_sheet: v })) }} />
+          <ImageSlot label="Body sheet" slot="body_sheet" hint="Front, back and side of the body." draft={{ images: draft.body_sheet, onChange: (v) => setDraft((d) => ({ ...d, body_sheet: v })) }} />
+          <ImageSlot label="Reference images (up to 3)" slot="reference" max={3} draft={{ images: draft.reference, onChange: (v) => setDraft((d) => ({ ...d, reference: v })) }} />
+          {draft.profile_photo.map((i) => <input key={i.path} type="hidden" name="image_profile_photo" value={i.path} />)}
+          {draft.face_sheet.map((i) => <input key={i.path} type="hidden" name="image_face_sheet" value={i.path} />)}
+          {draft.body_sheet.map((i) => <input key={i.path} type="hidden" name="image_body_sheet" value={i.path} />)}
+          {draft.reference.map((i) => <input key={i.path} type="hidden" name="image_reference" value={i.path} />)}
+        </fieldset>
+      )}
+
       <fieldset className="flex flex-col gap-4 rounded-lg border border-neutral-800 p-4">
         <legend className="px-2 text-sm font-medium">Profile</legend>
         <p className="text-sm text-neutral-400">
           The saved profile is the sole source of the character description.
           {characterId
             ? " Upload images above, then build a profile from them and edit it."
-            : " Save the character first, then you can upload images and build the profile from them."}
+            : " Save the character, then open it to build the profile from the images with one click, or write it by hand."}
         </p>
         {characterId && (
           <div className="flex flex-col gap-2">

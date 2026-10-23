@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { requestUpload, removeCharacterImage } from "@/app/(app)/characters/media-actions";
+import { requestUpload, removeCharacterImage, removePendingImage } from "@/app/(app)/characters/media-actions";
 import type { UploadSlot } from "@/lib/images";
 
 const MAX_BYTES = 15 * 1024 * 1024;
@@ -26,19 +26,32 @@ export async function uploadImage(file: File, slot: UploadSlot, characterId?: st
   return json.path as string;
 }
 
+export interface SlotImage {
+  path: string;
+  url: string;
+}
+
+/**
+ * One upload box. With a characterId it saves straight onto that character. Without one (the
+ * new-character page) it keeps the uploaded images in the parent through `draft`, and they are
+ * attached when the character is saved.
+ */
 export function ImageSlot({
   label,
   slot,
   characterId,
   images,
+  draft,
   max = 1,
   hint,
 }: {
   label: string;
   slot: Exclude<UploadSlot, "target">;
-  characterId: string;
-  /** Existing images with a signed preview URL. */
-  images: { path: string; url: string }[];
+  characterId?: string;
+  /** Existing images with a signed preview URL (saved characters). */
+  images?: SlotImage[];
+  /** New-character page: images held in the form until it is saved. */
+  draft?: { images: SlotImage[]; onChange: (images: SlotImage[]) => void };
   max?: number;
   hint?: string;
 }) {
@@ -46,17 +59,25 @@ export function ImageSlot({
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const current = draft ? draft.images : (images ?? []);
 
   async function add(files: FileList | File[] | null) {
     if (!files?.length) return;
     setBusy(true);
     setError(undefined);
     try {
-      const room = max === 1 ? 1 : max - images.length;
+      const room = max === 1 ? 1 : max - current.length;
+      let next = current;
       for (const file of Array.from(files).slice(0, room)) {
-        await uploadImage(file, slot, characterId);
+        const path = await uploadImage(file, slot, characterId);
+        if (draft) {
+          // A single-image box replaces its previous draft upload.
+          if (max === 1) for (const old of next) await removePendingImage(old.path);
+          next = max === 1 ? [{ path, url: URL.createObjectURL(file) }] : [...next, { path, url: URL.createObjectURL(file) }];
+        }
       }
-      router.refresh();
+      if (draft) draft.onChange(next);
+      else router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -67,12 +88,17 @@ export function ImageSlot({
 
   async function remove(path: string) {
     setBusy(true);
-    await removeCharacterImage(characterId, slot, path);
-    router.refresh();
+    if (draft) {
+      await removePendingImage(path);
+      draft.onChange(draft.images.filter((i) => i.path !== path));
+    } else if (characterId) {
+      await removeCharacterImage(characterId, slot, path);
+      router.refresh();
+    }
     setBusy(false);
   }
 
-  const full = max > 1 && images.length >= max;
+  const full = max > 1 && current.length >= max;
   return (
     <div
       className="flex flex-col gap-2 rounded-lg border border-dashed border-neutral-700 p-3"
@@ -88,7 +114,7 @@ export function ImageSlot({
         <span className="text-sm font-medium">{label}</span>
         {!full && (
           <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => input.current?.click()}>
-            {busy ? "Uploading..." : images.length && max === 1 ? "Replace" : "Upload"}
+            {busy ? "Uploading..." : current.length && max === 1 ? "Replace" : "Upload"}
           </Button>
         )}
       </div>
@@ -101,9 +127,9 @@ export function ImageSlot({
         onChange={(e) => add(e.target.files)}
       />
       {hint && <p className="text-xs text-neutral-500">{hint}</p>}
-      {images.length > 0 && (
+      {current.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {images.map((img) => (
+          {current.map((img) => (
             <div key={img.path} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={img.url} alt={label} className="h-24 w-24 rounded-md object-cover" />
