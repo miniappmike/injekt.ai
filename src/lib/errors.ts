@@ -1,3 +1,5 @@
+import type { LimitKey } from "./limits";
+
 export class ApiKeyRequiredError extends Error {
   readonly redirectTo: string;
   constructor(public readonly provider: string) {
@@ -22,7 +24,7 @@ export class RateLimitError extends Error {
 }
 
 export class LimitReachedError extends Error {
-  constructor(public readonly key: "characters" | "profile_builds" | "free_images" | "prompt_writer") {
+  constructor(public readonly key: LimitKey) {
     super(`Free plan limit reached: ${key}`);
     this.name = "LimitReachedError";
   }

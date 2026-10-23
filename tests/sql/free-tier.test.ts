@@ -42,6 +42,7 @@ beforeAll(async () => {
   await db.exec(migration("0001_init.sql"));
   await db.exec(migration("0002_drop_profile_versions.sql"));
   await db.exec(migration("0004_free_tier_limits.sql"));
+  await db.exec(migration("0005_prompt_history.sql"));
 });
 
 describe("allowance counters", () => {
@@ -131,5 +132,36 @@ describe("free plan character limit", () => {
     await asUser(null, "service_role");
     const p = await db.query<{ plan: string; is_admin: boolean }>("select plan, is_admin from profiles where id = $1", [u]);
     expect(p.rows[0]).toEqual({ plan: "free", is_admin: false });
+  });
+});
+
+describe("prompt history", () => {
+  const entry = (u: string, label = "x", kind = "inject") =>
+    db.query("insert into public.prompt_history (user_id, kind, label, prompt) values ($1, $2, $3, 'p')", [u, kind, label]);
+
+  it("is private to its owner for reads, updates and deletes", async () => {
+    const [a, b] = [await newUser("n@x.com"), await newUser("o@x.com")];
+    await asUser(a);
+    await entry(a, "mine");
+    await asUser(b);
+    await entry(b, "theirs");
+    expect((await db.query("select * from prompt_history")).rows).toHaveLength(1);
+    await db.query("delete from prompt_history where label = 'mine'");
+    await db.query("update prompt_history set prompt = 'hacked' where label = 'mine'");
+    await asUser(a);
+    const rows = await db.query<{ prompt: string }>("select prompt from prompt_history where label = 'mine'");
+    expect(rows.rows).toEqual([{ prompt: "p" }]);
+  });
+
+  it("cannot be written on behalf of another user", async () => {
+    const [a, b] = [await newUser("p@x.com"), await newUser("q@x.com")];
+    await asUser(a);
+    await expect(entry(b)).rejects.toThrow(/row-level security/);
+  });
+
+  it("only accepts known kinds", async () => {
+    const u = await newUser("r@x.com");
+    await asUser(u);
+    await expect(entry(u, "x", "bogus")).rejects.toThrow();
   });
 });

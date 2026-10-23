@@ -1,4 +1,4 @@
-import { FREE_LIMITS, type AllowanceKey } from "./limits";
+import { FREE_LIMITS, type AllowanceKey, type ProFeature } from "./limits";
 import { LimitReachedError } from "./errors";
 
 export interface EntitlementDeps {
@@ -39,7 +39,7 @@ export function createEntitlements(deps: EntitlementDeps) {
     },
 
     /** Features that are not part of the free plan at all. */
-    async requirePro(userId: string, feature: "prompt_writer"): Promise<void> {
+    async requirePro(userId: string, feature: ProFeature): Promise<void> {
       if (!(await isUnlimited(userId))) throw new LimitReachedError(feature);
     },
 

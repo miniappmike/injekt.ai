@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { toFailure, type AiFailure } from "@/lib/ai/failure";
 import { entitlements } from "@/lib/entitlements";
+import { saveHistory } from "@/lib/history";
 import type { Allowance } from "@/lib/entitlements-core";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { buildProfileTask, parseProfileResponse } from "@/lib/ai/tasks/profile-builder";
@@ -102,6 +103,19 @@ export async function writeReplacementPrompts(input: {
         results.push({ path, error: f.error });
       }
     }
+    await saveHistory(
+      supabase,
+      user.id,
+      results
+        .filter((r) => r.prompt)
+        .map((r) => ({
+          characterId: input.characterId,
+          kind: "inject" as const,
+          label: `Inject · ${c.name} · ${input.style === "match" ? "Match the target" : "Sectioned"}`,
+          prompt: r.prompt!,
+          imagePath: r.path,
+        })),
+    );
     return { ok: true, results };
   } catch (e) {
     return failure(e);

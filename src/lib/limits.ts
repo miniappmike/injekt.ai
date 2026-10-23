@@ -10,13 +10,16 @@ export const FREE_LIMITS = {
 
 export type AllowanceKey = Exclude<keyof typeof FREE_LIMITS, "characters">;
 
-export type LimitKey = keyof typeof FREE_LIMITS | "prompt_writer";
+export type ProFeature = "prompt_writer" | "likeness" | "variants";
+export type LimitKey = keyof typeof FREE_LIMITS | ProFeature;
 
 const MESSAGES: Record<LimitKey, string> = {
   characters: `The free plan includes ${FREE_LIMITS.characters} character. Pro, with unlimited characters, is coming soon.`,
   profile_builds: `You've used all ${FREE_LIMITS.profile_builds} free profile generations. Pro, with unlimited generations, is coming soon.`,
   free_images: `The free plan includes ${FREE_LIMITS.free_images} image generation. Pro is coming soon.`,
   prompt_writer: "Prompt writing is part of Pro, which is coming soon.",
+  likeness: "Likeness checks are part of Pro, which is coming soon.",
+  variants: "Variants and carousels are part of Pro, which is coming soon.",
 };
 
 export const limitMessage = (key: LimitKey) => MESSAGES[key];
