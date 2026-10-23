@@ -1,13 +1,20 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ExpiryBadge } from "@/components/expiry-badge";
 import { RetentionNotice } from "@/components/retention-notice";
+import { GenerationPoller } from "@/components/generation-poller";
 import { requireUser } from "@/lib/auth";
+import { collectPending } from "@/lib/generation";
 import { timeLeft } from "@/lib/retention";
 
 const BUCKET = "generations";
 
+// Finishing a job downloads and stores the image.
+export const maxDuration = 60;
+
 export default async function GenerationsPage() {
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
+  // Pick up anything that finished while you were away, before listing.
+  await collectPending(supabase, user);
   const { data: rows } = await supabase
     .from("generations")
     .select("id, kind, status, model, prompt, error, output_path, created_at, expires_at")
@@ -33,6 +40,7 @@ export default async function GenerationsPage() {
     <div className="max-w-3xl">
       <h1 className="text-2xl font-semibold">Generations</h1>
       <div className="mt-4"><RetentionNotice /></div>
+      <GenerationPoller ids={(rows ?? []).filter((r) => r.status === "pending" || r.status === "processing").map((r) => r.id)} />
 
       {!rows?.length ? (
         <p className="mt-6 text-neutral-400">No generations yet. Image generation is coming soon, and everything you generate will appear here.</p>
@@ -46,7 +54,7 @@ export default async function GenerationsPage() {
                   <img src={previews.get(r.id)} alt="" className="h-24 w-24 shrink-0 rounded-md object-cover" />
                 ) : (
                   <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-md bg-neutral-800 text-xs text-neutral-500">
-                    {r.output_path ? "Unavailable" : r.status === "complete" ? "Expired" : r.status}
+                    {r.output_path ? "Unavailable" : r.status === "complete" ? "Expired" : r.status === "failed" ? "Failed" : "Generating..."}
                   </div>
                 )}
                 <div className="min-w-0 flex-1 text-sm">

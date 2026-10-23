@@ -9,7 +9,7 @@ Model Spawn is bring-your-own-key. Users pay their own model providers; the plat
 | Keys | Bring your own | Bring your own, or use the platform's key through prepaid credits |
 | Characters | 1 at a time (built) | Unlimited |
 | Profile generations | 3 lifetime attempts; each result is saved and the page stays open for another try (built) | Unlimited |
-| Image generation | 1 lifetime, verified email, house key (limit defined, generation not built) | Own key, or credits |
+| Image generation | 1 lifetime image at 1k, verified email, platform key (built) | Own Image key, or credits (credits not built) |
 | House-key credits | Can buy, 25% markup over cost, $5 minimum top-up | Same |
 | Prompt writing | Not included (built) | Unlimited with own key |
 

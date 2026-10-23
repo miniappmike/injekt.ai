@@ -2,7 +2,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RoleKeyForm, type SavedRole, type ShareSource } from "@/components/key-form";
 import { requireUser } from "@/lib/auth";
 import { PROVIDER_LABELS } from "@/lib/ai/providers/detect";
-import { isShared, readRoles, ROLES, type RoleId } from "@/lib/ai/roles";
+import { isShared, providerSupports, readRoles, ROLES, type RoleId } from "@/lib/ai/roles";
+import { SPICY_IMAGE_MODEL } from "@/lib/ai/providers/detect";
 
 export default async function ApiKeysPage({ searchParams }: { searchParams: Promise<{ provider?: string }> }) {
   const { provider: wanted } = await searchParams;
@@ -44,13 +45,12 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 }
               : undefined;
 
-          // Offer to reuse the other job's key when that job has a key of its own.
-          const other = ROLES.find((x) => x.id !== r.id)!;
-          const otherCfg = roles[other.id];
-          const shareSource: ShareSource | undefined =
-            otherCfg && !isShared(otherCfg) && last4(otherCfg.provider, other.id)
-              ? { id: other.id, label: other.label, providerLabel: PROVIDER_LABELS[otherCfg.provider] ?? otherCfg.provider, model: otherCfg.model }
-              : undefined;
+          // Offer to reuse another job's key when that job has a key of its own that can do this job too.
+          const shareSources: ShareSource[] = ROLES.filter((o) => o.id !== r.id).flatMap((o) => {
+            const c = roles[o.id];
+            if (!c || isShared(c) || !last4(c.provider, o.id) || !providerSupports(c, r.id)) return [];
+            return [{ id: o.id, label: o.label, providerLabel: PROVIDER_LABELS[c.provider] ?? c.provider, model: c.model, imageModel: SPICY_IMAGE_MODEL }];
+          });
           return (
             <Card key={r.id} className={wanted === r.id ? "border-amber-500" : undefined}>
               <CardHeader>
@@ -58,19 +58,13 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 <CardDescription>{r.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                <RoleKeyForm role={r.id} saved={saved} shareSource={shareSource} />
+                <RoleKeyForm role={r.id} saved={saved} shareSources={shareSources} />
               </CardContent>
             </Card>
           );
         })}
-        <Card className="opacity-60">
-          <CardHeader>
-            <CardTitle>Image</CardTitle>
-            <CardDescription>Generates images. Coming soon.</CardDescription>
-          </CardHeader>
-        </Card>
         <p className="text-sm text-neutral-500">
-          If you leave Vision or Text empty, it uses the other one. One key is enough to start.
+          If you leave Vision or Text empty, it uses the other one. A SpicyAPI key can serve all three jobs: paste it once and reuse it on the others.
         </p>
       </div>
     </div>

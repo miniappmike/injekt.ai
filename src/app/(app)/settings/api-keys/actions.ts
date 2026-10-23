@@ -8,8 +8,10 @@ import { dropRole, isShared, readRoles, ROLES, shareRole, type RoleId, type Role
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { toFailure } from "@/lib/ai/failure";
+import { getUserImageConfig, resolveUserImageKey } from "@/lib/ai/image-setup";
+import { getImageProvider } from "@/lib/ai/providers/registry";
 
-export type KeyFormState = { error?: string; saved?: string; tested?: string };
+export type KeyFormState = { error?: string; saved?: string; tested?: string; detail?: string };
 
 type Supabase = Awaited<ReturnType<typeof requireUser>>["supabase"];
 
@@ -43,6 +45,7 @@ export async function saveRoleKey(_: KeyFormState, formData: FormData): Promise<
     model: String(formData.get("model") ?? ""),
     baseUrl: String(formData.get("baseUrl") ?? ""),
     custom: formData.get("custom") === "1",
+    role,
   });
   if (!setup.ok) return { error: setup.error };
 
@@ -124,6 +127,13 @@ export async function testRoleKey(_: KeyFormState, formData: FormData): Promise<
   if (!role) return { error: "Unknown setting" };
   try {
     await enforceRateLimit(user.id, "test-key", 5, 60);
+    if (role === "image") {
+      // A free balance check, so testing never spends anything.
+      const cfg = await getUserImageConfig(supabase, user.id);
+      if (!cfg) return { error: "Add an image key first." };
+      const { detail } = await getImageProvider("spicyapi").check({ apiKey: await resolveUserImageKey(user.id, cfg) });
+      return { tested: role, detail };
+    }
     const { client } = await getUserTextClient(supabase, user.id, role);
     const reply = await client.run({ instructions: "Reply with the single word: ok", text: "Connection test." });
     return reply.trim() ? { tested: role } : { error: "The provider answered with an empty reply." };

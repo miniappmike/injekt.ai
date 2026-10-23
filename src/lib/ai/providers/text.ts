@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { parseDataUri } from "@/lib/images";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
+import { isSpicyHost } from "../roles";
 import type { TextBackend } from "./types";
 
 export class ProviderError extends Error {
@@ -157,10 +158,11 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
 export function getTextBackend(provider: string, model: string, baseUrl?: string): TextBackend {
   if (provider === "anthropic") return anthropicBackend(model);
   if (provider === "openai" || provider === "openrouter" || provider === "google") return openaiCompatBackend(provider, model);
+  if (provider === "spicyapi") return spicyapiBackend(model);
   if (provider === "custom") {
     if (!baseUrl) throw new Error("A base URL is required for this provider");
     // SpicyAPI rejects unknown fields and needs reasoning kept low, so it gets its own request shape.
-    if (new URL(baseUrl).hostname.endsWith("spicyapi.ai")) return spicyapiBackend(model, baseUrl);
+    if (isSpicyHost(baseUrl)) return spicyapiBackend(model, baseUrl);
     return openaiCompatBackend("custom", model, baseUrl);
   }
   throw new Error(`Unknown text provider: ${provider}`);

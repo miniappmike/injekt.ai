@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { GenerateImage } from "@/components/generate-image";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { checkLikeness } from "@/app/(app)/likeness/actions";
@@ -14,6 +15,8 @@ import type { LikenessReport } from "@/lib/ai/tasks/likeness";
 
 interface Round {
   n: number;
+  path: string;
+  characterId: string;
   preview: string;
   report: LikenessReport;
 }
@@ -49,7 +52,7 @@ export function LikenessChecker({ characters }: { characters: { id: string; name
         if (res.redirectTo) return router.push(res.redirectTo);
         return setError(res.error);
       }
-      setRounds((r) => [...r, { n: r.length + 1, preview: file.preview, report: res.report }]);
+      setRounds((r) => [...r, { n: r.length + 1, path, characterId, preview: file.preview, report: res.report }]);
       // The next attempt is a new image: clear the slot so it is obvious the old one was already checked.
       setFile(null);
     } catch (e) {
@@ -190,6 +193,7 @@ export function LikenessChecker({ characters }: { characters: { id: string; name
                   <Button type="button" size="sm" variant="secondary" onClick={() => copy(latest.report.editPrompt)}>Copy</Button>
                 </div>
                 <p className="whitespace-pre-wrap">{latest.report.editPrompt}</p>
+                <GenerateImage prompt={latest.report.editPrompt} characterId={latest.characterId} extraPaths={[latest.path]} kind="face_fix" />
               </CardContent>
             </Card>
           )}

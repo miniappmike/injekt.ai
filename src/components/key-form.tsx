@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { detectProvider } from "@/lib/ai/providers/detect";
+import { defaultModelFor, detectProvider } from "@/lib/ai/providers/detect";
 import {
   removeRoleKey,
   saveRoleKey,
@@ -30,10 +30,13 @@ export interface ShareSource {
   id: string;
   label: string;
   providerLabel: string;
+  /** The source's model, prefilled for text jobs. */
   model: string;
+  /** The model to prefill for the Image job when it borrows this key. */
+  imageModel: string;
 }
 
-export function RoleKeyForm({ role, saved, shareSource }: { role: string; saved?: SavedRole; shareSource?: ShareSource }) {
+export function RoleKeyForm({ role, saved, shareSources = [] }: { role: "vision" | "llm" | "image"; saved?: SavedRole; shareSources?: ShareSource[] }) {
   const [state, action, pending] = useActionState<KeyFormState, FormData>(saveRoleKey, {});
   const [modelState, modelAction, modelPending] = useActionState<KeyFormState, FormData>(updateRoleModel, {});
   const [shareState, shareAction, sharePending] = useActionState<KeyFormState, FormData>(shareRoleKey, {});
@@ -44,8 +47,11 @@ export function RoleKeyForm({ role, saved, shareSource }: { role: string; saved?
   const [forceCustom, setForceCustom] = useState(false);
 
   const trimmed = key.trim();
-  const detected = forceCustom ? null : detectProvider(trimmed);
-  const unknown = !detected && trimmed.length >= 8;
+  const isImage = role === "image";
+  const detected = forceCustom && !isImage ? null : detectProvider(trimmed);
+  // Image generation only works with providers that have an adapter, so there is no "other provider" path for it.
+  const imageUnsupported = isImage && trimmed.length >= 8 && detected?.id !== "spicyapi";
+  const unknown = !isImage && !detected && trimmed.length >= 8;
 
   if (saved && !replacing) {
     return (
@@ -80,7 +86,11 @@ export function RoleKeyForm({ role, saved, shareSource }: { role: string; saved?
             <Button type="submit" size="sm" variant="ghost">Remove</Button>
           </form>
         </div>
-        {testState.tested === role && <p role="status" className="text-sm text-emerald-400">Works. The provider answered with this model.</p>}
+        {testState.tested === role && (
+          <p role="status" className="text-sm text-emerald-400">
+            {testState.detail ? `Works. ${testState.detail}` : "Works. The provider answered with this model."}
+          </p>
+        )}
         {testState.error && <p role="alert" className="text-sm text-red-400">{testState.error}</p>}
       </div>
     );
@@ -88,25 +98,25 @@ export function RoleKeyForm({ role, saved, shareSource }: { role: string; saved?
 
   return (
     <div className="flex flex-col gap-5">
-      {shareSource && (
-        <form action={shareAction} className="flex flex-col gap-2 rounded-md border border-neutral-800 p-3">
+      {shareSources.map((source) => (
+        <form key={source.id} action={shareAction} className="flex flex-col gap-2 rounded-md border border-neutral-800 p-3">
           <input type="hidden" name="role" value={role} />
-          <input type="hidden" name="from" value={shareSource.id} />
-          <p className="text-sm font-medium">Use the same key as {shareSource.label} ({shareSource.providerLabel})</p>
+          <input type="hidden" name="from" value={source.id} />
+          <p className="text-sm font-medium">Use the same key as {source.label} ({source.providerLabel})</p>
           <p className="text-xs text-neutral-500">One key, a different model for this job if you want one.</p>
           <div className="flex gap-2">
-            <Input name="model" defaultValue={shareSource.model} aria-label="Model name" required />
+            <Input name="model" defaultValue={role === "image" ? source.imageModel : source.model} aria-label="Model name" required />
             <Button type="submit" variant="secondary" disabled={sharePending}>{sharePending ? "Saving..." : "Use it"}</Button>
           </div>
-          {shareState.error && <p role="alert" className="text-sm text-red-400">{shareState.error}</p>}
         </form>
-      )}
+      ))}
+      {shareState.error && <p role="alert" className="text-sm text-red-400">{shareState.error}</p>}
 
       <form action={action} className="flex flex-col gap-3">
         <input type="hidden" name="role" value={role} />
         {forceCustom && <input type="hidden" name="custom" value="1" />}
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`key-${role}`}>{shareSource ? "Or paste a different key" : "Paste your API key"}</Label>
+          <Label htmlFor={`key-${role}`}>{shareSources.length ? "Or paste a different key" : "Paste your API key"}</Label>
           <Input
             id={`key-${role}`}
             name="key"
@@ -137,13 +147,16 @@ export function RoleKeyForm({ role, saved, shareSource }: { role: string; saved?
               <Input
                 id={`model-${role}`}
                 name="model"
-                value={model || detected.defaultModel}
+                value={model || defaultModelFor(detected, role)}
                 onChange={(e) => setModel(e.target.value)}
                 placeholder={detected.id === "openrouter" ? "e.g. anthropic/claude-sonnet-4.5" : undefined}
                 required
               />
             </div>
           </>
+        )}
+        {imageUnsupported && (
+          <p className="text-sm text-neutral-300">Image generation works with SpicyAPI keys for now (they start with sk-spicy-). More providers are coming.</p>
         )}
         {unknown && (
           <>
