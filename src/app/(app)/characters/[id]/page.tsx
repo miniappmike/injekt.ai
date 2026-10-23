@@ -13,8 +13,25 @@ import { deleteCharacter, updateCharacter } from "../actions";
 // The profile builder calls a vision model from this page.
 export const maxDuration = 60;
 
-export default async function EditCharacterPage({ params }: { params: Promise<{ id: string }> }) {
+const NOTICES: Record<string, { text: string; good: boolean }> = {
+  saved: { text: "Character saved.", good: true },
+  built: { text: "Character saved and profile generated. Check it below, edit anything, or generate it again.", good: true },
+  no_images: { text: "Character saved. Add a face sheet, body sheet or reference image, then build the profile.", good: false },
+  no_key: { text: "Character saved, but the profile wasn't built because no API key is set up yet. Add one under API keys, then click Build profile from images.", good: false },
+  limit: { text: "Character saved, but you've used all your free profile generations.", good: false },
+  failed: { text: "Character saved, but the profile couldn't be built this time. Click Build profile from images to try again and see why.", good: false },
+};
+
+export default async function EditCharacterPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ notice?: string }>;
+}) {
   const { id } = await params;
+  const { notice } = await searchParams;
+  const banner = notice ? NOTICES[notice] : undefined;
   const { supabase, user } = await requireUser();
   const { data: c } = await supabase
     .from("characters")
@@ -35,6 +52,12 @@ export default async function EditCharacterPage({ params }: { params: Promise<{ 
           <Button type="submit" variant="destructive" size="sm">Delete</Button>
         </form>
       </div>
+
+      {banner && (
+        <p role="status" className={`mb-6 max-w-2xl rounded-md border p-3 text-sm ${banner.good ? "border-emerald-800 text-emerald-300" : "border-amber-700 text-amber-300"}`}>
+          {banner.text}
+        </p>
+      )}
 
       <section className="mb-8 grid max-w-2xl gap-3">
         <h2 className="text-lg font-semibold">Images</h2>

@@ -53,6 +53,7 @@ export function CharacterForm({
     reference: [],
   });
   const [profile, setProfile] = useState<CharacterProfile>(initial.profile ?? {});
+  const canBuildDraft = draft.face_sheet.length + draft.body_sheet.length + draft.reference.length > 0;
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string>();
   const { toast, show } = useToast();
@@ -82,7 +83,8 @@ export function CharacterForm({
       // Submitting through a transition keeps what was typed if the save is refused (React would otherwise clear the form).
       onSubmit={(e) => {
         e.preventDefault();
-        const data = new FormData(e.currentTarget);
+        // Passing the submitter includes the clicked button, which is how "Save and build profile" is told apart.
+        const data = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
         startSubmit(() => formAction(data));
       }}
       className="flex max-w-2xl flex-col gap-5"
@@ -172,8 +174,19 @@ export function CharacterForm({
       </label>
 
       {state.error && <p role="alert" className="text-sm text-red-400">{state.error}</p>}
-      <div className="flex gap-2">
+      {!characterId && !canBuildDraft && (
+        <p className="text-xs text-neutral-500">Add a face sheet, body sheet or reference image to save and build a profile in one step.</p>
+      )}
+      {!characterId && buildsLeft !== null && buildsTotal !== undefined && (
+        <p className="text-xs text-neutral-500">Free plan: {buildsLeft} of {buildsTotal} profile generations left.</p>
+      )}
+      <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={pending}>{pending ? "Saving..." : submitLabel}</Button>
+        {!characterId && (
+          <Button type="submit" name="build" value="1" variant="secondary" disabled={pending || !canBuildDraft || buildsLeft === 0}>
+            {pending ? "Working..." : "Save and build profile"}
+          </Button>
+        )}
         <Button asChild variant="outline"><Link href="/characters">Back</Link></Button>
       </div>
     </form>

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { limitMessage } from "@/lib/limits";
+import { runProfileBuild } from "@/lib/ai/build-profile";
 import { isOwnPath, readDraftImages } from "@/lib/uploads";
 import { MEDIA_BUCKET } from "@/lib/images";
 import { characterInput, parseProfile } from "@/lib/characters";
@@ -40,7 +41,15 @@ export async function createCharacter(_: CharacterFormState, formData: FormData)
   if (error) return { error: error.message.includes("character_limit_reached") ? limitMessage("characters") : error.message };
 
   revalidatePath("/characters");
-  redirect(`/characters/${data.id}`);
+
+  // "Save and build profile": generate the profile right after saving. The character exists either way,
+  // so the page it lands on says what happened.
+  let notice = "saved";
+  if (formData.get("build") === "1") {
+    const built = await runProfileBuild(supabase, user.id, data.id);
+    notice = built.ok ? "built" : (built.code ?? "failed");
+  }
+  redirect(`/characters/${data.id}?notice=${notice}`);
 }
 
 export async function updateCharacter(id: string, _: CharacterFormState, formData: FormData): Promise<CharacterFormState> {

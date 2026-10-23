@@ -6,6 +6,9 @@ import { entitlements } from "@/lib/entitlements";
 import { FREE_LIMITS, limitMessage } from "@/lib/limits";
 import { createCharacter } from "../actions";
 
+// "Save and build profile" calls a vision model.
+export const maxDuration = 60;
+
 export default async function NewCharacterPage() {
   const { supabase, user } = await requireUser();
   const { count } = await supabase.from("characters").select("id", { count: "exact", head: true });
@@ -21,10 +24,12 @@ export default async function NewCharacterPage() {
     );
   }
 
+  const { profile_builds: buildsLeft } = await entitlements.remaining(user.id);
+
   return (
     <div>
       <h1 className="mb-6 text-2xl font-semibold">New character</h1>
-      <CharacterForm action={createCharacter} submitLabel="Save character" />
+      <CharacterForm action={createCharacter} submitLabel="Save character" buildsLeft={buildsLeft} buildsTotal={FREE_LIMITS.profile_builds} />
     </div>
   );
 }
