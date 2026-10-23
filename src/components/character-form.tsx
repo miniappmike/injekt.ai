@@ -26,6 +26,8 @@ export function CharacterForm({
   submitLabel,
   characterId,
   canBuildProfile = false,
+  buildsLeft = null,
+  buildsTotal,
 }: {
   action: (state: CharacterFormState, formData: FormData) => Promise<CharacterFormState>;
   initial?: Initial;
@@ -33,6 +35,9 @@ export function CharacterForm({
   /** Set on the edit page, enables "Build profile from images". */
   characterId?: string;
   canBuildProfile?: boolean;
+  /** Free plan: profile builds left. `null` means unlimited. */
+  buildsLeft?: number | null;
+  buildsTotal?: number;
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(action, {});
@@ -41,16 +46,22 @@ export function CharacterForm({
   const [buildError, setBuildError] = useState<string>();
 
   async function build() {
-    if (!characterId) return;
+    if (!characterId || buildsLeft === 0) return;
     const hasText = Object.values(profile).some((v) => v?.trim());
     if (hasText && !window.confirm("Replace the current profile text with a new one built from the images?")) return;
     setBuilding(true);
     setBuildError(undefined);
     const result = await buildProfile(characterId);
     setBuilding(false);
-    if (result.ok) setProfile(result.profile);
-    else if (result.redirectTo) router.push(result.redirectTo);
-    else setBuildError(result.error);
+    if (result.ok) {
+      setProfile(result.profile);
+    } else if (result.redirectTo) {
+      router.push(result.redirectTo);
+      return;
+    } else {
+      setBuildError(result.error);
+    }
+    router.refresh(); // updates "builds left"
   }
 
   return (
@@ -88,10 +99,15 @@ export function CharacterForm({
         </p>
         {characterId && (
           <div className="flex flex-col gap-2">
-            <Button type="button" variant="secondary" onClick={build} disabled={building || !canBuildProfile} className="self-start">
+            <Button type="button" variant="secondary" onClick={build} disabled={building || !canBuildProfile || buildsLeft === 0} className="self-start">
               {building ? "Building..." : "Build profile from images"}
             </Button>
             {!canBuildProfile && <p className="text-xs text-neutral-500">Upload a face sheet, body sheet or reference photo to enable this.</p>}
+            {buildsLeft !== null && buildsTotal !== undefined && (
+              <p className="text-xs text-neutral-500">
+                Free plan: {buildsLeft} of {buildsTotal} profile builds left (1 build plus 3 rescans).
+              </p>
+            )}
             {buildError && <p role="alert" className="text-sm text-red-400">{buildError}</p>}
             <p className="text-xs text-neutral-500">The result is not saved until you click Save character.</p>
           </div>

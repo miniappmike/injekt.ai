@@ -20,3 +20,10 @@ export class RateLimitError extends Error {
     this.name = "RateLimitError";
   }
 }
+
+export class LimitReachedError extends Error {
+  constructor(public readonly key: "characters" | "profile_builds" | "free_images") {
+    super(`Free plan limit reached: ${key}`);
+    this.name = "LimitReachedError";
+  }
+}

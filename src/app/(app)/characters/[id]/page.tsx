@@ -4,6 +4,8 @@ import { CharacterForm } from "@/components/character-form";
 import { ImageSlot } from "@/components/image-slot";
 import { requireUser } from "@/lib/auth";
 import { signedUrlMap } from "@/lib/media-urls";
+import { entitlements } from "@/lib/entitlements";
+import { FREE_LIMITS } from "@/lib/limits";
 import { referenceList } from "@/lib/character-images";
 import type { CharacterProfile } from "@/lib/characters";
 import { deleteCharacter, updateCharacter } from "../actions";
@@ -13,7 +15,7 @@ export const maxDuration = 60;
 
 export default async function EditCharacterPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
   const { data: c } = await supabase
     .from("characters")
     .select("id, name, always_keep, height, weight, lore, profile, profile_photo_path, face_sheet_path, body_sheet_path, reference_paths")
@@ -21,6 +23,7 @@ export default async function EditCharacterPage({ params }: { params: Promise<{ 
     .maybeSingle();
   if (!c) notFound();
 
+  const { profile_builds: buildsLeft } = await entitlements.remaining(user.id);
   const urls = await signedUrlMap(supabase, [c.profile_photo_path, c.face_sheet_path, c.body_sheet_path, ...c.reference_paths]);
   const imgs = (paths: (string | null)[]) => paths.filter((p): p is string => !!p && !!urls[p]).map((p) => ({ path: p, url: urls[p] }));
 
@@ -51,6 +54,8 @@ export default async function EditCharacterPage({ params }: { params: Promise<{ 
         submitLabel="Save character"
         characterId={c.id}
         canBuildProfile={referenceList(c).length > 0}
+        buildsLeft={buildsLeft}
+        buildsTotal={FREE_LIMITS.profile_builds}
       />
     </div>
   );

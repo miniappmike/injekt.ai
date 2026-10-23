@@ -3,6 +3,8 @@
 import { requireUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { toFailure, type AiFailure } from "@/lib/ai/failure";
+import { entitlements } from "@/lib/entitlements";
+import type { Allowance } from "@/lib/entitlements-core";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { buildProfileTask, parseProfileResponse } from "@/lib/ai/tasks/profile-builder";
 import { buildReplacementPromptTask, type PromptStyle } from "@/lib/ai/tasks/prompt-writer";
@@ -15,6 +17,7 @@ export type AiResult<T> = ({ ok: true } & T) | AiFailure;
 const failure = toFailure;
 
 export async function buildProfile(characterId: string): Promise<AiResult<{ profile: CharacterProfile }>> {
+  let allowance: Allowance | undefined;
   try {
     const { supabase, user } = await requireUser();
     await enforceRateLimit(user.id, "llm", 10, 60);
@@ -29,11 +32,15 @@ export async function buildProfile(characterId: string): Promise<AiResult<{ prof
     const refs = referenceList(c);
     if (!refs.length) return { ok: false, error: "Upload a face sheet, body sheet or reference photo first." };
 
+    // Free plan: 1 build plus 3 rescans. Taken before the call, given back if nothing useful came out of it.
+    allowance = await entitlements.useAllowance(user.id, "profile_builds");
+
     const { client, imageMaxEdge } = await getUserTextClient(supabase, user.id);
     const images = await loadForVision(supabase, refs, imageMaxEdge);
     const reply = await client.run(buildProfileTask(c, images));
     return { ok: true, profile: parseProfileResponse(reply) };
   } catch (e) {
+    await allowance?.release();
     return failure(e);
   }
 }
