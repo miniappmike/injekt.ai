@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { stripAndNormalize, parseDataUri } from "@/lib/images";
 import { isOwnPath, isOwnRawPath, isPendingPath, readDraftImages } from "@/lib/uploads";
 import { validateApiKey } from "@/lib/key-validation";
-import { anthropicBackend, describeProviderError, openaiCompatBackend, spicyapiBackend, ProviderError } from "@/lib/ai/providers/text";
+import { anthropicBackend, describeProviderError, openaiCompatBackend, readUsage, spicyapiBackend, ProviderError } from "@/lib/ai/providers/text";
 import { buildProfileTask, parseProfileResponse } from "@/lib/ai/tasks/profile-builder";
 import { buildReplacementPromptTask } from "@/lib/ai/tasks/prompt-writer";
 import { referenceList } from "@/lib/character-images";
@@ -80,9 +80,10 @@ const dataUri = "data:image/jpeg;base64,QUJD";
 
 describe("text backends", () => {
   it("sends Anthropic requests with the key in a header and images as base64 blocks", async () => {
-    const fetchFn = mockFetch({ content: [{ type: "text", text: "hello" }] });
+    const fetchFn = mockFetch({ content: [{ type: "text", text: "hello" }], usage: { input_tokens: 12, output_tokens: 3 } });
     const out = await anthropicBackend("claude-x").complete({ system: "SYS", text: "hi", images: [dataUri], apiKey: "k-123" });
-    expect(out).toBe("hello");
+    expect(out.text).toBe("hello");
+    expect(out.usage).toEqual({ inputTokens: 12, outputTokens: 3 });
     const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.anthropic.com/v1/messages");
     expect((init.headers as Record<string, string>)["x-api-key"]).toBe("k-123");
@@ -113,7 +114,7 @@ describe("text backends", () => {
   it("sends SpicyAPI requests with only documented fields, an idempotency key and roomy limits", async () => {
     const fetchFn = mockFetch({ choices: [{ message: { content: "ok" } }] });
     const backend = spicyapiBackend("anthropic/claude-sonnet-5.5/chat");
-    expect(await backend.complete({ system: "S", text: "t", images: [dataUri], apiKey: "k-1" })).toBe("ok");
+    expect((await backend.complete({ system: "S", text: "t", images: [dataUri], apiKey: "k-1" })).text).toBe("ok");
     const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
     const headers = init.headers as Record<string, string>;
     expect(url).toBe("https://api.spicyapi.ai/v1/chat/completions");
@@ -134,6 +135,24 @@ describe("text backends", () => {
     expect(err).toBeInstanceOf(ProviderError);
     expect(err.message).toContain("was rejected");
     expect(err.message).not.toContain("super-secret-key");
+  });
+});
+
+describe("token usage from providers", () => {
+  it("reads usage under each provider's own names", async () => {
+    mockFetch({ choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } });
+    expect((await openaiCompatBackend("openai", "m").complete({ system: "s", text: "t", apiKey: "k" })).usage).toEqual({ inputTokens: 100, outputTokens: 20 });
+    mockFetch({ choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 7, completion_tokens: 1 } });
+    expect((await spicyapiBackend("m").complete({ system: "s", text: "t", apiKey: "k" })).usage).toEqual({ inputTokens: 7, outputTokens: 1 });
+  });
+
+  it("leaves usage out when a provider does not report it or reports nonsense", async () => {
+    mockFetch({ choices: [{ message: { content: "ok" } }] });
+    expect((await openaiCompatBackend("openai", "m").complete({ system: "s", text: "t", apiKey: "k" })).usage).toBeUndefined();
+    mockFetch({ choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: "lots", completion_tokens: -1 } });
+    expect((await openaiCompatBackend("openai", "m").complete({ system: "s", text: "t", apiKey: "k" })).usage).toBeUndefined();
+    expect(readUsage(5, undefined)).toBeUndefined();
+    expect(readUsage(0, 0)).toEqual({ inputTokens: 0, outputTokens: 0 });
   });
 });
 
@@ -251,7 +270,7 @@ describe("custom backends", () => {
   it("posts to the user's base URL with a bearer key", async () => {
     const fetchFn = mockFetch({ choices: [{ message: { content: "hi" } }] });
     const out = await getTextBackend("custom", "m", "https://1.1.1.1/v1").complete({ system: "s", text: "t", apiKey: "k" });
-    expect(out).toBe("hi");
+    expect(out.text).toBe("hi");
     const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://1.1.1.1/v1/chat/completions");
     expect((init.headers as Record<string, string>).authorization).toBe("Bearer k");

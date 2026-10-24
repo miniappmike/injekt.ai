@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { InfoTip } from "@/components/info-tip";
 import { checkImageGeneration, quoteImageGeneration, startImageGeneration } from "@/app/(app)/generate/actions";
 import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
+import { notifySpend } from "@/lib/spend-events";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageAspectRatio, type ImageOutputFormat, type ImageResolution } from "@/lib/ai/providers/types";
 
 type Phase = "idle" | "starting" | "running" | "done" | "failed";
@@ -91,10 +92,12 @@ export function GenerateImage({
       if (status.state === "complete") {
         setResult({ url: status.url, downloadUrl: status.downloadUrl });
         setPhase("done");
+        notifySpend();
         router.refresh();
         return;
       }
       if (status.state === "failed") {
+        notifySpend(); // a provider can still charge for a refusal
         setPhase("failed");
         return setMessage(status.error);
       }

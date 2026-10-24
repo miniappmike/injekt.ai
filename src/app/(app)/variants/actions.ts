@@ -38,7 +38,7 @@ export async function writeVariantEdits(input: {
 
     const { client, character, references, extras } = await prepareVision(supabase, user.id, input.characterId ?? null, [
       { label: "image to edit", path: input.imagePath },
-    ]);
+    ], "variants");
     const reply = await client.run(buildVariantTask({ character, references, image: extras[0], options, note: input.note }));
     const variants = parseVariants(reply, options.length);
 
@@ -74,7 +74,7 @@ export async function planCarousel(input: {
 
     const { client, character, references, extras } = await prepareVision(supabase, user.id, input.characterId ?? null, [
       { label: "cover image", path: input.coverPath },
-    ]);
+    ], "carousel");
     const reply = await client.run(buildCarouselTask({ character, references, cover: extras[0], slides: count, note: input.note }));
     const slides = parseCarousel(reply, count - 1);
 

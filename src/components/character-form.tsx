@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageSlot, type SlotImage } from "@/components/image-slot";
+import { CostHint } from "@/components/cost-hint";
 import { useToast } from "@/components/toast";
+import { notifySpend } from "@/lib/spend-events";
 import { PROFILE_FIELDS, type CharacterProfile } from "@/lib/characters";
 import type { CharacterFormState } from "@/app/(app)/characters/actions";
 import { buildProfile } from "@/app/(app)/characters/ai-actions";
@@ -66,6 +68,7 @@ export function CharacterForm({
     setBuildError(undefined);
     const result = await buildProfile(characterId);
     setBuilding(false);
+    notifySpend();
     if (result.ok) {
       setProfile(result.profile);
       show("Profile saved. You can generate it again if you want a different take.");
@@ -144,6 +147,7 @@ export function CharacterForm({
             <Button type="button" variant="secondary" onClick={build} disabled={building || !canBuildProfile || buildsLeft === 0} className="self-start">
               {building ? "Building..." : "Build profile from images"}
             </Button>
+            <CostHint feature="profile" />
             {!canBuildProfile && <p className="text-xs text-neutral-500">Upload a face sheet, body sheet or reference photo to enable this.</p>}
             {buildsLeft !== null && buildsTotal !== undefined && (
               <p className="text-xs text-neutral-500">

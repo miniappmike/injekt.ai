@@ -276,7 +276,9 @@ describe("collectGeneration", () => {
     const hours = (new Date(row.expires_at).getTime() - before) / 3_600_000;
     expect(hours).toBeGreaterThan(71.9);
     expect(hours).toBeLessThan(72.1);
-    expect(db.ledger).toEqual([{ user_id: U, generation_id: id, provider: "spicyapi", key_source: "server", cost_usd: 0.04 }]);
+    expect(db.ledger).toEqual([
+      { user_id: U, generation_id: id, provider: "spicyapi", key_source: "server", cost_usd: 0.04, job: "image", feature: "image:inject", model: "bytedance/seedream-5.0-pro/edit" },
+    ]);
 
     // Two tabs asking again: nothing is stored or charged twice.
     await collectGeneration(userClient(), verified, id);

@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { CostHint } from "@/components/cost-hint";
 import { GenerateImage } from "@/components/generate-image";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
+import { notifySpend } from "@/lib/spend-events";
 import { checkLikeness } from "@/app/(app)/likeness/actions";
 import type { LikenessReport } from "@/lib/ai/tasks/likeness";
 
@@ -48,6 +50,7 @@ export function LikenessChecker({ characters }: { characters: { id: string; name
       const path = file.path ?? (await uploadImage(file.file, "target"));
       setFile({ ...file, path });
       const res = await checkLikeness({ characterId, imagePath: path, promptUsed });
+      notifySpend();
       if (!res.ok) {
         if (res.redirectTo) return router.push(res.redirectTo);
         return setError(res.error);
@@ -127,6 +130,7 @@ export function LikenessChecker({ characters }: { characters: { id: string; name
         </Button>
         {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
       </div>
+      <div className="-mt-4"><CostHint feature="likeness" /></div>
 
       {latest && (
         <section className="flex flex-col gap-4">

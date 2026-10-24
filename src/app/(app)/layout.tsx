@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MainNav } from "@/components/main-nav";
 import { HistoryPanel } from "@/components/history-panel";
+import { SpendMeter } from "@/components/spend-meter";
 import { requireUser } from "@/lib/auth";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -13,6 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <MainNav />
         <div className="ml-auto flex items-center gap-3">
           <Link href="/generations" className="text-sm text-neutral-400 hover:text-neutral-100">Generations</Link>
+          <SpendMeter />
           <HistoryPanel />
           <Link href="/settings/api-keys" className="text-sm text-neutral-400 hover:text-neutral-100">API keys</Link>
           <span className="hidden text-sm text-neutral-500 sm:inline">{user.email}</span>

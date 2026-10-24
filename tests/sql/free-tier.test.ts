@@ -45,6 +45,7 @@ beforeAll(async () => {
   await db.exec(migration("0005_prompt_history.sql"));
   await db.exec(migration("0003_storage.sql"));
   await db.exec(migration("0006_generation_retention.sql"));
+  await db.exec(migration("0007_spend_tracking.sql"));
   // Storage tables are only stand-ins here; turn on row-level security so the policies are actually tested.
   await db.exec(`alter table storage.objects enable row level security; grant usage on schema storage to authenticated; grant select on storage.objects to authenticated;`);
 });
@@ -207,5 +208,74 @@ describe("generation files expire", () => {
   it("backfills old rows so they expire 72 hours after completion", async () => {
     const m = migration("0006_generation_retention.sql");
     expect(m).toContain("interval '72 hours'");
+  });
+});
+
+describe("spend tracking", () => {
+  const day = "2026-10-24T00:00:00Z";
+  const month = "2026-10-01T00:00:00Z";
+  async function ledger(u: string, over: Record<string, unknown>) {
+    const row = { job: "vision", feature: "profile", model: "m", key_source: "byok", cost_usd: 0.01, cost_known: true, input_tokens: 1000, output_tokens: 100, created_at: "2026-10-24T10:00:00Z", ...over };
+    await db.exec("reset role");
+    await db.query(
+      `insert into public.usage_ledger (user_id, provider, key_source, cost_usd, job, feature, model, input_tokens, output_tokens, cost_known, created_at)
+       values ($1, 'p', $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [u, row.key_source, row.cost_usd, row.job, row.feature, row.model, row.input_tokens, row.output_tokens, row.cost_known, row.created_at],
+    );
+  }
+  const summary = async (u: string) => {
+    await asUser(u);
+    return (await db.query<Record<string, string>>("select * from spend_summary($1, $2) order by job", [day, month])).rows;
+  };
+
+  it("adds up today and this month per job, with tokens and unpriced calls", async () => {
+    const u = await newUser("w@x.com");
+    await ledger(u, { job: "vision", cost_usd: 0.012 });
+    await ledger(u, { job: "vision", cost_usd: 0.03, created_at: "2026-10-10T10:00:00Z" }); // this month, not today
+    await ledger(u, { job: "vision", cost_usd: 0, cost_known: false });
+    await ledger(u, { job: "image", feature: "inject", cost_usd: 0.04, input_tokens: null, output_tokens: null });
+    await ledger(u, { job: "vision", cost_usd: 9, created_at: "2026-09-30T10:00:00Z" }); // last month
+    const rows = await summary(u);
+    expect(rows.map((r) => r.job)).toEqual(["image", "vision"]);
+    const vision = rows.find((r) => r.job === "vision")!;
+    expect(Number(vision.day_cost)).toBeCloseTo(0.012);
+    expect(Number(vision.month_cost)).toBeCloseTo(0.042);
+    expect(Number(vision.month_calls)).toBe(3);
+    expect(Number(vision.month_input_tokens)).toBe(3000);
+    expect(Number(vision.unpriced_calls)).toBe(1);
+    expect(Number(rows.find((r) => r.job === "image")!.month_cost)).toBeCloseTo(0.04);
+  });
+
+  it("leaves out calls the platform paid for", async () => {
+    const u = await newUser("x@x.com");
+    await ledger(u, { job: "image", key_source: "server", cost_usd: 0.05 });
+    expect(await summary(u)).toEqual([]);
+  });
+
+  it("only ever shows a person their own spend", async () => {
+    const [a, b] = [await newUser("y@x.com"), await newUser("z@x.com")];
+    await ledger(a, { cost_usd: 0.5 });
+    await ledger(b, { cost_usd: 0.25 });
+    expect(Number((await summary(a))[0].month_cost)).toBeCloseTo(0.5);
+    expect(Number((await summary(b))[0].month_cost)).toBeCloseTo(0.25);
+  });
+
+  it("averages each action's latest 10 priced runs", async () => {
+    const u = await newUser("aa@x.com");
+    for (let i = 0; i < 12; i++) await ledger(u, { feature: "profile", cost_usd: i < 2 ? 100 : 0.02, created_at: `2026-10-${String(10 + i).padStart(2, "0")}T10:00:00Z` });
+    await ledger(u, { feature: "prompt", cost_usd: 0.04 });
+    await ledger(u, { feature: "prompt", cost_usd: 0, cost_known: false }); // unpriced runs do not drag the average down
+    await asUser(u);
+    const rows = (await db.query<{ feature: string; avg_cost: string; runs: number }>("select * from typical_costs() order by feature")).rows;
+    const profile = rows.find((r) => r.feature === "profile")!;
+    expect(profile.runs).toBe(10); // the two oldest, expensive runs fall outside the window
+    expect(Number(profile.avg_cost)).toBeCloseTo(0.02);
+    expect(Number(rows.find((r) => r.feature === "prompt")!.avg_cost)).toBeCloseTo(0.04);
+  });
+
+  it("keeps fractions of a cent", async () => {
+    const u = await newUser("bb@x.com");
+    await ledger(u, { cost_usd: 0.000123 });
+    expect(Number((await summary(u))[0].month_cost)).toBeCloseTo(0.000123, 6);
   });
 });

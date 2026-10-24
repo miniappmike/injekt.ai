@@ -22,7 +22,7 @@ export async function checkLikeness(input: {
 
     const { client, character, references, extras } = await prepareVision(supabase, user.id, input.characterId, [
       { label: "generated image", path: input.imagePath },
-    ]);
+    ], "likeness");
     if (!character) return { ok: false, error: "Pick a character." };
 
     const reply = await client.run(

@@ -2,8 +2,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RoleKeyForm, type SavedRole, type ShareSource } from "@/components/key-form";
 import { requireUser } from "@/lib/auth";
 import { PROVIDER_LABELS } from "@/lib/ai/providers/detect";
-import { isShared, providerSupports, readRoles, ROLES, type RoleId } from "@/lib/ai/roles";
+import { effectiveRole, isShared, providerSupports, readRoles, ROLES, type RoleId } from "@/lib/ai/roles";
 import { SPICY_IMAGE_MODEL } from "@/lib/ai/providers/detect";
+import { priceFor } from "@/lib/pricing";
+
+// What turns this job's tokens into dollars, and whose number it is.
+function textPrice(roles: ReturnType<typeof readRoles>, id: RoleId) {
+  const chosen = effectiveRole(roles, id);
+  if (!chosen) return {};
+  const { price, source } = priceFor(chosen.cfg);
+  return { price, priceSource: source };
+}
 
 export default async function ApiKeysPage({ searchParams }: { searchParams: Promise<{ provider?: string }> }) {
   const { provider: wanted } = await searchParams;
@@ -42,6 +51,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                   last4: tail,
                   sharedFrom: isShared(cfg) ? labelOf(cfg.keyFrom) : undefined,
                   usedBy,
+                  ...(r.id !== "image" ? textPrice(roles, r.id) : {}),
                 }
               : undefined;
 

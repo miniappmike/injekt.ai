@@ -201,6 +201,8 @@ export type CollectResult =
 
 type Row = {
   id: string;
+  kind: string;
+  model: string | null;
   status: string;
   provider_job_id: string | null;
   params: { key_source?: string; free?: boolean } | null;
@@ -227,7 +229,7 @@ const dollars = (text?: string) => {
 
 // Looks at a job once. When it has finished, copies the image into our storage, stamps its expiry and records the cost.
 export async function collectGeneration(supabase: SupabaseClient, user: Actor, generationId: string): Promise<CollectResult> {
-  const columns = "id, status, provider_job_id, params, output_path, error, expires_at";
+  const columns = "id, kind, model, status, provider_job_id, params, output_path, error, expires_at";
   const { data } = await supabase.from("generations").select(columns).eq("id", generationId).maybeSingle();
   const row = data as Row | null;
   if (!row) throw new UserFacingError("Generation not found.");
@@ -260,7 +262,16 @@ export async function collectGeneration(supabase: SupabaseClient, user: Actor, g
       .in("status", ["pending", "processing"])
       .select("id");
     if (won?.length && cost !== null) {
-      await db.from("usage_ledger").insert({ user_id: user.id, generation_id: row.id, provider: "spicyapi", key_source: keySource, cost_usd: cost });
+      await db.from("usage_ledger").insert({
+        user_id: user.id,
+        generation_id: row.id,
+        provider: "spicyapi",
+        key_source: keySource,
+        cost_usd: cost,
+        job: "image",
+        feature: `image:${row.kind}`,
+        model: row.model,
+      });
     }
     return !!won?.length;
   };

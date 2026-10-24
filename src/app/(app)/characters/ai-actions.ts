@@ -57,7 +57,7 @@ export async function writeReplacementPrompts(input: {
     const refs = referenceList(c);
     if (!refs.length) return { ok: false, error: "This character needs a face sheet, body sheet or reference photo first." };
 
-    const { client, imageMaxEdge } = await getUserTextClient(supabase, user.id);
+    const { client, imageMaxEdge } = await getUserTextClient(supabase, user.id, "vision", "prompt");
     const references = await loadForVision(supabase, refs, imageMaxEdge);
 
     const results: WrittenPrompt[] = [];

@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { CostHint } from "@/components/cost-hint";
 import { GenerateImage } from "@/components/generate-image";
 import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
+import { notifySpend } from "@/lib/spend-events";
 import { planCarousel, writeVariantEdits } from "@/app/(app)/variants/actions";
 import { VARIANT_OPTIONS, type VariantOptionId } from "@/lib/ai/tasks/variants";
 
@@ -68,6 +70,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         mode === "edits"
           ? await writeVariantEdits({ imagePath: path, options: [...options], ...common })
           : await planCarousel({ coverPath: path, slides, ...common });
+      notifySpend();
       if (!res.ok) {
         if (res.redirectTo) return router.push(res.redirectTo);
         return setError(res.error);
@@ -177,6 +180,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         </Button>
         {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
       </div>
+      <div className="-mt-4"><CostHint feature={mode === "edits" ? "variants" : "carousel"} /></div>
 
       {result && (
         <section className="flex flex-col gap-4">

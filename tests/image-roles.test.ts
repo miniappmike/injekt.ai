@@ -122,3 +122,38 @@ describe("user-facing errors", () => {
     });
   });
 });
+
+import { readRoles } from "@/lib/ai/roles";
+
+describe("a job's own price", () => {
+  const own = { provider: "openai", model: "gpt-4o" };
+
+  it("is read from saved settings when it is two sensible numbers", () => {
+    expect(readRoles({ roles: { vision: { ...own, price: { input: 2.5, output: 10 } } } }).vision).toEqual({ ...own, price: { input: 2.5, output: 10 } });
+    expect(readRoles({ roles: { vision: { ...own, price: { input: "2", output: 10 } } } }).vision).toEqual(own);
+    expect(readRoles({ roles: { vision: { ...own, price: { input: -1, output: 10 } } } }).vision).toEqual(own);
+    expect(readRoles({ roles: { vision: { ...own, price: { input: 5000, output: 10 } } } }).vision).toEqual(own);
+    expect(readRoles({ roles: { llm: { keyFrom: "vision", model: "m", price: { input: 1, output: 2 } } } }).llm).toEqual({ keyFrom: "vision", model: "m", price: { input: 1, output: 2 } });
+  });
+
+  it("does not leak from the job whose key is borrowed, because it belongs to a different model", () => {
+    const roles = readRoles({
+      roles: {
+        vision: { ...own, price: { input: 2.5, output: 10 } },
+        llm: { keyFrom: "vision", model: "gpt-4o-mini" },
+      },
+    });
+    expect(effectiveRole(roles, "llm")?.cfg.price).toBeUndefined();
+    expect(effectiveRole(roles, "vision")?.cfg.price).toEqual({ input: 2.5, output: 10 });
+
+    const withOwn = readRoles({
+      roles: { vision: { ...own, price: { input: 2.5, output: 10 } }, llm: { keyFrom: "vision", model: "gpt-4o-mini", price: { input: 0.15, output: 0.6 } } },
+    });
+    expect(effectiveRole(withOwn, "llm")?.cfg.price).toEqual({ input: 0.15, output: 0.6 });
+  });
+
+  it("follows a job that stands in for another", () => {
+    const roles = readRoles({ roles: { llm: { ...own, price: { input: 1, output: 3 } } } });
+    expect(effectiveRole(roles, "vision")?.cfg.price).toEqual({ input: 1, output: 3 });
+  });
+});

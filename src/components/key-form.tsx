@@ -1,13 +1,15 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { notifySpend } from "@/lib/spend-events";
 import { defaultModelFor, detectProvider } from "@/lib/ai/providers/detect";
 import {
   removeRoleKey,
   saveRoleKey,
+  updateRolePrice,
   shareRoleKey,
   testRoleKey,
   updateRoleModel,
@@ -24,6 +26,9 @@ export interface SavedRole {
   sharedFrom?: string;
   /** Labels of jobs that reuse this job's key. */
   usedBy?: string[];
+  /** Text jobs: the price used to turn tokens into dollars, and where it came from (null: none known). */
+  price?: { input: number; output: number } | null;
+  priceSource?: "you" | "list" | null;
 }
 
 export interface ShareSource {
@@ -41,7 +46,13 @@ export function RoleKeyForm({ role, saved, shareSources = [] }: { role: "vision"
   const [modelState, modelAction, modelPending] = useActionState<KeyFormState, FormData>(updateRoleModel, {});
   const [shareState, shareAction, sharePending] = useActionState<KeyFormState, FormData>(shareRoleKey, {});
   const [testState, testAction, testPending] = useActionState<KeyFormState, FormData>(testRoleKey, {});
+  const [priceState, priceAction, pricePending] = useActionState<KeyFormState, FormData>(updateRolePrice, {});
   const [replacing, setReplacing] = useState(false);
+
+  // A test call can cost a little, so let the spend meter know.
+  useEffect(() => {
+    if (testState.tested || testState.error) notifySpend();
+  }, [testState]);
   const [key, setKey] = useState("");
   const [model, setModel] = useState("");
   const [forceCustom, setForceCustom] = useState(false);
@@ -92,6 +103,33 @@ export function RoleKeyForm({ role, saved, shareSources = [] }: { role: "vision"
           </p>
         )}
         {testState.error && <p role="alert" className="text-sm text-red-400">{testState.error}</p>}
+        {role !== "image" && (
+          <details className="rounded-md border border-neutral-800 p-3 text-sm" open={!saved.price}>
+            <summary className="cursor-pointer text-neutral-300">Spend tracking</summary>
+            <p className="mt-2 text-xs text-neutral-500">
+              {saved.priceSource === "list"
+                ? `Using the provider's list price: $${saved.price?.input} in / $${saved.price?.output} out per million tokens.`
+                : saved.priceSource === "you"
+                  ? `Using your price: $${saved.price?.input} in / $${saved.price?.output} out per million tokens.`
+                  : "We don't know what this model costs, so spend can't be shown in dollars yet. Enter its price per million tokens (it's on your provider's pricing page)."}
+            </p>
+            <form action={priceAction} className="mt-2 flex flex-wrap items-end gap-2">
+              <input type="hidden" name="role" value={role} />
+              <label className="flex flex-col gap-1 text-xs text-neutral-400">
+                Input $ / million tokens
+                <Input name="priceInput" inputMode="decimal" defaultValue={saved.priceSource === "you" ? saved.price?.input : ""} placeholder={saved.price ? String(saved.price.input) : "e.g. 2"} className="w-32" />
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-neutral-400">
+                Output $ / million tokens
+                <Input name="priceOutput" inputMode="decimal" defaultValue={saved.priceSource === "you" ? saved.price?.output : ""} placeholder={saved.price ? String(saved.price.output) : "e.g. 10"} className="w-32" />
+              </label>
+              <Button type="submit" size="sm" variant="secondary" disabled={pricePending}>{pricePending ? "Saving..." : "Save price"}</Button>
+            </form>
+            <p className="mt-1 text-xs text-neutral-500">Leave both empty and save to go back to the list price (if there is one).</p>
+            {priceState.error && <p role="alert" className="mt-1 text-xs text-red-400">{priceState.error}</p>}
+            {priceState.saved === role && <p role="status" className="mt-1 text-xs text-emerald-400">Saved.</p>}
+          </details>
+        )}
       </div>
     );
   }
