@@ -90,6 +90,34 @@ describe("buildCarouselTask", () => {
   });
 });
 
+describe("extra images", () => {
+  const extra = (n: number) => ({ label: "extra image from the user (vibe, outfit or styling reference)", dataUri: `${uri}#${n}` });
+
+  it("come after the main image, in @image order, and the model is told what they're for", () => {
+    const task = buildVariantTask({ character, references: refs, image, extras: [extra(1), extra(2)], options: ["pose"] });
+    expect(task.images).toEqual([uri, uri, uri, `${uri}#1`, `${uri}#2`]);
+    expect(task.text).toContain("@image3: image to edit\n@image4: extra image from the user");
+    expect(task.text).toContain("@image5: extra image from the user");
+    expect(task.instructions).toContain('starts with "Edit @image3."');
+    expect(task.instructions).toContain("The user added @image4 and @image5 to show");
+  });
+
+  it("work in carousel mode too, with the cover staying the image to edit", () => {
+    const task = buildCarouselTask({ character, references: refs, cover: { label: "cover image", dataUri: uri }, extras: [extra(1)], slides: 4 });
+    expect(task.text).toContain("@image3: cover image\n@image4: extra image");
+    expect(task.instructions).toContain('starts with "Edit @image3."');
+    expect(task.instructions).toContain("The user added @image4 to show");
+  });
+
+  it("aren't mentioned when there are none", () => {
+    expect(buildVariantTask({ character, references: refs, image, options: ["pose"] }).instructions).not.toContain("The user added");
+  });
+
+  it("are listed in the attach order", () => {
+    expect(attachOrder(refs, "cover image", [extra(1)]).at(-1)).toBe("@image4: extra image from the user (vibe, outfit or styling reference)");
+  });
+});
+
 describe("attachOrder", () => {
   it("tells the user which image is which, in order", () => {
     expect(attachOrder(refs, "image to edit")).toEqual([

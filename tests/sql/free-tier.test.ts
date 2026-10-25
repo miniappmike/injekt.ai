@@ -65,6 +65,7 @@ beforeAll(async () => {
     [legacyUser, legacyGeneration],
   );
   await db.exec(migration("0008_api_ledger.sql"));
+  await db.exec(migration("0009_history_extra_images.sql"));
   // Storage tables are only stand-ins here; turn on row-level security so the policies are actually tested.
   await db.exec(`alter table storage.objects enable row level security; grant usage on schema storage to authenticated; grant select on storage.objects to authenticated;`);
 });
@@ -162,6 +163,22 @@ describe("free plan character limit", () => {
 describe("prompt history", () => {
   const entry = (u: string, label = "x", kind = "inject") =>
     db.query("insert into public.prompt_history (user_id, kind, label, prompt) values ($1, $2, $3, 'p')", [u, kind, label]);
+
+  it("keeps up to 2 extra images per entry, defaulting to none", async () => {
+    const u = await newUser("extras@x.com");
+    await asUser(u);
+    await entry(u, "no-extras");
+    const plain = await db.query<{ extra_image_paths: string[] }>("select extra_image_paths from prompt_history where label = 'no-extras'");
+    expect(plain.rows[0].extra_image_paths).toEqual([]);
+    await db.query("insert into prompt_history (user_id, kind, label, prompt, extra_image_paths) values ($1, 'carousel', 'two', 'p', $2)", [u, ["a", "b"]]);
+    await expect(
+      db.query("insert into prompt_history (user_id, kind, label, prompt, extra_image_paths) values ($1, 'carousel', 'three', 'p', $2)", [u, ["a", "b", "c"]]),
+    ).rejects.toThrow(/check/);
+    await db.query("insert into prompt_history (user_id, kind, label, prompt, extra_image_paths) values ($1, 'variant', 'other', 'p', $2)", [u, ["b", "z"]]);
+    // The overlap lookup the cleanup uses finds entries that still use a file as an extra image.
+    const used = await db.query("select label from prompt_history where extra_image_paths && $1 order by label", [["b"]]);
+    expect(used.rows).toEqual([{ label: "other" }, { label: "two" }]);
+  });
 
   it("is private to its owner for reads, updates and deletes", async () => {
     const [a, b] = [await newUser("n@x.com"), await newUser("o@x.com")];

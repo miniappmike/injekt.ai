@@ -8,6 +8,8 @@ export interface HistoryItem {
   thumbnail: string | null;
   /** The photo the prompt was written for, sent after the character's references when generating again. */
   imagePath: string | null;
+  /** More images sent after imagePath when generating again (vibe or outfit references). */
+  extraPaths: string[];
   createdAt: string;
 }
 

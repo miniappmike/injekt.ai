@@ -333,13 +333,14 @@ export function HistoryPanel() {
                                     <GenerateImage
                                       prompt={i.prompt}
                                       characterId={i.characterId}
-                                      extraPaths={[i.imagePath as string]}
+                                      extraPaths={[i.imagePath as string, ...i.extraPaths]}
                                       kind={genKind}
                                       freeImagesLeft={freeLeft}
                                     />
                                   )}
                                   <p className="mt-2 text-xs text-neutral-500">
-                                    Uses {i.characterId ? `${i.characterName}'s current reference images, then ` : ""}the photo this prompt was written for.
+                                    Uses {i.characterId ? `${i.characterName}'s current reference images, then ` : ""}the photo this prompt was written for
+                                    {i.extraPaths.length ? ` and its ${i.extraPaths.length} extra image${i.extraPaths.length === 1 ? "" : "s"}` : ""}.
                                   </p>
                                 </div>
                               )}

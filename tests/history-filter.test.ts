@@ -11,6 +11,7 @@ const item = (over: Partial<HistoryItem>): HistoryItem => ({
   prompt: "Use @image1 as the strict identity reference",
   thumbnail: null,
   imagePath: null,
+  extraPaths: [],
   createdAt: "2026-10-23T12:00:00Z",
   ...over,
 });

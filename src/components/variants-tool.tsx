@@ -12,9 +12,10 @@ import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { planCarousel, writeVariantEdits } from "@/app/(app)/variants/actions";
-import { DEFAULT_VARIANT_COUNT, MAX_VARIANT_COUNT, VARIANT_OPTIONS, type VariantOptionId } from "@/lib/ai/tasks/variants";
+import { DEFAULT_VARIANT_COUNT, MAX_EXTRA_IMAGES, MAX_VARIANT_COUNT, VARIANT_OPTIONS, type VariantOptionId } from "@/lib/ai/tasks/variants";
 
 type Mode = "edits" | "carousel";
+type Picked = { file: File; preview: string; path?: string };
 interface Item {
   title: string;
   prompt: string;
@@ -24,6 +25,8 @@ interface Result {
   attach: string[];
   /** The uploaded image the prompts refer to, and the character they were written for. */
   path: string;
+  /** Extra images (vibe, outfit) the prompts refer to after the main image. */
+  extraPaths: string[];
   characterId: string | null;
   mode: Mode;
 }
@@ -32,7 +35,9 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("edits");
   const [characterId, setCharacterId] = useState("");
-  const [image, setImage] = useState<{ file: File; preview: string; path?: string } | null>(null);
+  const [image, setImage] = useState<Picked | null>(null);
+  // Up to MAX_EXTRA_IMAGES more images for the vibe or outfit; a slot is null until something is added.
+  const [extras, setExtras] = useState<(Picked | null)[]>(Array(MAX_EXTRA_IMAGES).fill(null));
   const [options, setOptions] = useState<Set<VariantOptionId>>(new Set(["pose", "camera"]));
   const [slides, setSlides] = useState(5);
   const [count, setCount] = useState<number>(DEFAULT_VARIANT_COUNT);
@@ -66,7 +71,11 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
     try {
       const path = image.path ?? (await uploadImage(image.file, "target"));
       setImage({ ...image, path });
-      const common = { characterId: characterId || null, note };
+      // Extra images are uploaded once and reused on the next run.
+      const uploaded = await Promise.all(extras.map(async (x) => (x ? { ...x, path: x.path ?? (await uploadImage(x.file, "target")) } : null)));
+      setExtras(uploaded);
+      const extraPaths = uploaded.filter((x): x is Picked & { path: string } => !!x?.path).map((x) => x.path);
+      const common = { characterId: characterId || null, note, extraPaths };
       const res =
         mode === "edits"
           ? await writeVariantEdits({ imagePath: path, options: [...options], count, ...common })
@@ -77,6 +86,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       }
       setResult({
         path,
+        extraPaths,
         characterId: characterId || null,
         mode,
         attach: res.attach,
@@ -119,6 +129,46 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
           setResult(null);
         }}
       />
+
+      <section className="flex flex-col gap-2" aria-labelledby="extras-title">
+        <div>
+          <h2 id="extras-title" className="text-sm font-medium">More images <span className="text-xs font-normal text-neutral-500">optional, up to {MAX_EXTRA_IMAGES}</span></h2>
+          <p className="text-xs text-neutral-500">
+            Show the AI the vibe, an outfit or anything else you want carried into the {mode === "edits" ? "variants" : "slides"}. Say how to use them in the {mode === "edits" ? "note" : "theme"}.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {extras.map((x, i) => (
+            <div key={i} className="flex flex-col gap-1">
+              <ImageDrop
+                title={`Extra image ${i + 1}`}
+                hint="Click, drop, or paste with Ctrl+V."
+                preview={x?.preview}
+                disabled={busy}
+                onPick={(file) => {
+                  setExtras((list) => list.map((old, j) => (j === i ? { file, preview: URL.createObjectURL(file) } : old)));
+                  setResult(null);
+                }}
+              />
+              {x && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="self-start"
+                  disabled={busy}
+                  onClick={() => {
+                    setExtras((list) => list.map((old, j) => (j === i ? null : old)));
+                    setResult(null);
+                  }}
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="flex flex-col gap-2">
         <Label htmlFor="character">Character <span className="text-xs font-normal text-neutral-500">optional</span></Label>
@@ -221,7 +271,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                 <GenerateImage
                   prompt={item.prompt}
                   characterId={result.characterId}
-                  extraPaths={[result.path]}
+                  extraPaths={[result.path, ...result.extraPaths]}
                   kind={result.mode === "edits" ? "variant" : "carousel"}
                   runSignal={runAll}
                 />

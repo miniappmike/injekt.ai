@@ -29,15 +29,32 @@ const profileLines = (c: CharacterContext) =>
     .filter(Boolean)
     .join("\n");
 
-function imageList(references: LabeledImage[], image: LabeledImage, imageLabel: string) {
-  const all = [...references, image];
-  const lines = [...references.map((r, i) => `@image${i + 1}: ${r.label}`), `@image${all.length}: ${imageLabel}`];
-  return { all, target: `@image${all.length}`, lines };
+/** Extra images (vibe, outfit) a user can add after the main one. */
+export const MAX_EXTRA_IMAGES = 2;
+export const EXTRA_IMAGE_LABEL = "extra image from the user (vibe, outfit or styling reference)";
+
+// @image order: the character's references, the main image, then any extra images.
+function imageList(references: LabeledImage[], image: LabeledImage, imageLabel: string, extras: LabeledImage[] = []) {
+  const all = [...references, image, ...extras];
+  const at = (i: number) => `@image${i + 1}`;
+  const lines = [
+    ...references.map((r, i) => `${at(i)}: ${r.label}`),
+    `${at(references.length)}: ${imageLabel}`,
+    ...extras.map((e, i) => `${at(references.length + 1 + i)}: ${e.label}`),
+  ];
+  const extraTags = extras.map((_, i) => at(references.length + 1 + i));
+  return { all, target: at(references.length), lines, extraTags };
 }
 
+// What the model is told about the extra images, if there are any.
+const extrasRule = (extraTags: string[], use: string) =>
+  extraTags.length
+    ? `\nThe user added ${extraTags.join(" and ")} to show ${use}. Study ${extraTags.length === 1 ? "it" : "them"} and carry that over where it fits the user's note, and name ${extraTags.length === 1 ? "it" : "them"} by label in a prompt whenever that prompt uses ${extraTags.length === 1 ? "it" : "them"}.`
+    : "";
+
 /** What the user should attach, in order, when they run the prompts elsewhere. */
-export const attachOrder = (references: LabeledImage[], imageLabel: string) =>
-  [...references.map((r) => r.label), imageLabel].map((label, i) => `@image${i + 1}: ${label}`);
+export const attachOrder = (references: LabeledImage[], imageLabel: string, extras: LabeledImage[] = []) =>
+  [...references.map((r) => r.label), imageLabel, ...extras.map((e) => e.label)].map((label, i) => `@image${i + 1}: ${label}`);
 
 /** How many variants Edits mode writes when the user doesn't choose. */
 export const DEFAULT_VARIANT_COUNT = 4;
@@ -61,10 +78,11 @@ export function buildVariantTask(args: {
   options: VariantOptionId[];
   count?: number;
   note?: string;
+  extras?: LabeledImage[];
 }): TaskInput {
-  const { character, references, image, options, note } = args;
+  const { character, references, image, options, note, extras = [] } = args;
   const count = Math.min(Math.max(Math.round(args.count ?? DEFAULT_VARIANT_COUNT) || DEFAULT_VARIANT_COUNT, 1), MAX_VARIANT_COUNT);
-  const { all, target, lines } = imageList(references, image, "image to edit");
+  const { all, target, lines, extraTags } = imageList(references, image, "image to edit", extras);
   const chosen = VARIANT_OPTIONS.filter((o) => options.includes(o.id));
   const keep = VARIANT_OPTIONS.filter((o) => !options.includes(o.id));
 
@@ -76,7 +94,7 @@ ${chosen.map((o) => `- ${o.change}`).join("\n")}
 ${keep.length ? `Everything else stays exactly as it is in ${target}: ${keep.map((o) => o.change.replace(/ \(.*\)$/, "")).join(", ")}.` : ""}
 Make the ${count} variations clearly different from each other, like alternate shots from the same moment. Be specific and concrete.
 
-Each prompt starts with "Edit ${target}." ${identityRule(references)} Each prompt stands on its own.
+Each prompt starts with "Edit ${target}." ${identityRule(references)} Each prompt stands on its own.${extrasRule(extraTags, "the look they want for the changes (for example an outfit, pose or vibe)")}
 ${REALISM_INSTRUCTIONS}
 
 Return ONE JSON object and nothing else:
@@ -98,9 +116,10 @@ export function buildCarouselTask(args: {
   cover: LabeledImage;
   slides: number;
   note?: string;
+  extras?: LabeledImage[];
 }): TaskInput {
-  const { character, references, cover, slides, note } = args;
-  const { all, target, lines } = imageList(references, cover, "cover image");
+  const { character, references, cover, slides, note, extras = [] } = args;
+  const { all, target, lines, extraTags } = imageList(references, cover, "cover image", extras);
   const theme = note?.trim();
 
   return {
@@ -113,7 +132,7 @@ angle, framing, moment or detail that fits the vibe. You decide what each slide 
 
 For each slide write an image-editing prompt that starts with "Edit ${target}." and describes the new shot concretely: pose, body language,
 expression, camera angle and distance, framing and what is in view. Keep the outfit, setting, styling and colour of ${target} unless the slide
-is deliberately a different spot from the same day. ${identityRule(references)}
+is deliberately a different spot from the same day. ${identityRule(references)}${extrasRule(extraTags, "more of the vibe, outfit or styling they want across the carousel")}
 ${REALISM_INSTRUCTIONS}
 
 Return ONE JSON object and nothing else:
