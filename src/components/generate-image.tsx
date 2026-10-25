@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { InfoTip } from "@/components/info-tip";
 import { checkImageGeneration, quoteImageGeneration, startImageGeneration } from "@/app/(app)/generate/actions";
-import { openHistory } from "@/lib/panel-events";
+import { openHistory, reportGeneration, viewImage } from "@/lib/panel-events";
+import { featureLabel } from "@/lib/ledger-types";
 import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageAspectRatio, type ImageOutputFormat, type ImageResolution } from "@/lib/ai/providers/types";
 
@@ -90,8 +91,12 @@ export function GenerateImage({
     setPhase("starting");
     setMessage(undefined);
     setResult(null);
+    // Every press shows up in the tray at the bottom of the page.
+    const tray = { key: crypto.randomUUID(), label: featureLabel(`image:${kind}`), prompt };
+    reportGeneration({ ...tray, state: "generating" });
     const started = await startImageGeneration(request);
     if (!started.ok) {
+      reportGeneration({ ...tray, state: "failed", error: started.error });
       if (started.redirectTo) return router.push(started.redirectTo);
       setPhase("failed");
       return setMessage(started.error);
@@ -102,16 +107,19 @@ export function GenerateImage({
       if (!alive.current) return;
       const status = await checkImageGeneration(started.generationId);
       if (!status.ok) {
+        reportGeneration({ ...tray, state: "failed", error: status.error });
         setPhase("failed");
         return setMessage(status.error);
       }
       if (status.state === "complete") {
+        reportGeneration({ ...tray, state: "ready", url: status.url, downloadUrl: status.downloadUrl });
         setResult({ generationId: started.generationId, url: status.url, downloadUrl: status.downloadUrl });
         setPhase("done");
         router.refresh();
         return;
       }
       if (status.state === "failed") {
+        reportGeneration({ ...tray, state: "failed", error: status.error });
         setPhase("failed");
         return setMessage(status.error);
       }
@@ -170,8 +178,15 @@ export function GenerateImage({
 
       {result && (
         <div className="flex flex-col gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={result.url} alt="Generated" className="max-h-96 w-auto max-w-full rounded-md" />
+          <button
+            type="button"
+            onClick={() => viewImage({ url: result.url, downloadUrl: result.downloadUrl, prompt, title: featureLabel(`image:${kind}`) })}
+            className="self-start rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+            aria-label="View full size"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={result.url} alt="Generated" className="max-h-96 w-auto max-w-full cursor-zoom-in rounded-md" />
+          </button>
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <a href={result.downloadUrl} className="text-neutral-100 underline">Download</a>
             <button type="button" onClick={() => openHistory("images")} className="text-neutral-400 underline">All images</button>

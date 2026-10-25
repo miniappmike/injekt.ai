@@ -2,6 +2,8 @@ import Link from "next/link";
 import { MainNav } from "@/components/main-nav";
 import { HistoryPanel } from "@/components/history-panel";
 import { ProfileMenu } from "@/components/profile-menu";
+import { GenerationTray } from "@/components/generation-tray";
+import { ImageViewer } from "@/components/image-viewer";
 import { requireUser } from "@/lib/auth";
 
 // Opening the Images tab finishes any job that completed while you were away, which downloads and stores the image.
@@ -20,6 +22,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
       <main className="mx-auto max-w-6xl p-4 sm:p-6">{children}</main>
+      <GenerationTray />
+      <ImageViewer />
     </div>
   );
 }

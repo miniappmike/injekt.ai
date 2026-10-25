@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ExpiryBadge } from "@/components/expiry-badge";
 import { RetentionNotice } from "@/components/retention-notice";
 import { formatUsd } from "@/lib/pricing";
+import { viewImage } from "@/lib/panel-events";
 import type { GenerationItem } from "@/lib/history-types";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -49,10 +50,15 @@ export function HistoryImages({
           return (
             <li key={i.id} className="flex gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
               {i.previewUrl ? (
-                <a href={i.previewUrl} target="_blank" rel="noreferrer" aria-label="Open image" className="shrink-0">
+                <button
+                  type="button"
+                  onClick={() => viewImage({ url: i.previewUrl as string, downloadUrl: i.downloadUrl, prompt: i.prompt, title: i.kindLabel })}
+                  aria-label={`View ${i.kindLabel} image`}
+                  className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={i.previewUrl} alt="" className="h-20 w-20 rounded-md object-cover" />
-                </a>
+                  <img src={i.previewUrl} alt="" className="h-20 w-20 cursor-zoom-in rounded-md object-cover" />
+                </button>
               ) : (
                 <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-md bg-neutral-800 px-1 text-center text-xs text-neutral-500">
                   {PLACEHOLDER[i.state]}

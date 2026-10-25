@@ -10,7 +10,7 @@ import { GenerateImage } from "@/components/generate-image";
 import { checkImageGeneration } from "@/app/(app)/generate/actions";
 import { deleteAllHistory, deleteHistoryEntry, getFreeImagesLeft, getGenerations, getHistory } from "@/app/(app)/history/actions";
 import { filterHistory, historyCharacters } from "@/lib/history-filter";
-import { OPEN_HISTORY_EVENT, type HistoryTab } from "@/lib/panel-events";
+import { OPEN_HISTORY_EVENT, viewImage, type HistoryTab } from "@/lib/panel-events";
 import { historyGenerationKind, type GenerationItem, type HistoryItem } from "@/lib/history-types";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -301,8 +301,15 @@ export function HistoryPanel() {
                         return (
                           <li key={i.id} className="flex gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
                             {i.thumbnail && (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={i.thumbnail} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => viewImage({ url: i.thumbnail as string, prompt: i.prompt, title: i.label })}
+                                aria-label={`View the photo for ${i.label}`}
+                                className="shrink-0 self-start rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={i.thumbnail} alt="" className="h-14 w-14 cursor-zoom-in rounded-md object-cover" />
+                              </button>
                             )}
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium">{i.label}</p>
