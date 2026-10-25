@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CharacterForm } from "@/components/character-form";
@@ -64,6 +65,9 @@ export default async function EditCharacterPage({
         <p className="text-sm text-neutral-400">
           Click to upload, drop a file, or paste with Ctrl+V while a box is focused. Photo metadata (location, device) is stripped on upload.
           The profile photo is only for display and is never sent to an AI model.
+        </p>
+        <p className="text-sm text-neutral-400">
+          No sheets yet? <Link href={`/reference-sheet?character=${c.id}`} className="underline">Make them from photos</Link>: a face sheet from one face photo, then a face and body sheet.
         </p>
         <ImageSlot label="Profile photo" slot="profile_photo" characterId={c.id} images={imgs([c.profile_photo_path])} />
         <ImageSlot label="Face sheet" slot="face_sheet" characterId={c.id} images={imgs([c.face_sheet_path])} hint="A sheet of the face from several angles, or one clear face photo." />

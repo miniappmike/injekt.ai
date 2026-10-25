@@ -76,13 +76,13 @@ const verified = { id: U, email_confirmed_at: "2026-01-01T00:00:00Z" };
 const unverified = { id: U, email_confirmed_at: null };
 
 // The signed-in user's client: their character, signed links, and their generation rows.
-function userClient(opts: { refs?: string[] } = {}) {
+function userClient(opts: { refs?: string[]; noCharacter?: boolean } = {}) {
   const refs = opts.refs ?? [`${U}/characters/${C}/face.jpg`, `${U}/characters/${C}/ref1.jpg`];
   return {
     from: (table: string) => ({
       select: () => ({
         eq: (_c: string, id: string) => ({
-          maybeSingle: async () => (table === "characters" ? { data: { face_sheet_path: refs[0] ?? null, body_sheet_path: null, reference_paths: refs.slice(1) } } : { data: db.rows.find((r) => r.id === id) ?? null }),
+          maybeSingle: async () => (table === "characters" ? (opts.noCharacter ? { data: null } : { data: { face_sheet_path: refs[0] ?? null, body_sheet_path: null, reference_paths: refs.slice(1) } }) : { data: db.rows.find((r) => r.id === id) ?? null }),
         }),
       }),
     }),
@@ -121,6 +121,7 @@ beforeEach(() => {
 describe("parseGenerationRequest", () => {
   it("accepts a good request and rejects bad ones with a plain message", () => {
     expect(parseGenerationRequest(request()).kind).toBe("inject");
+    expect(parseGenerationRequest(request({ kind: "reference_sheet" })).kind).toBe("reference_sheet");
     expect(() => parseGenerationRequest(request({ prompt: "   " }))).toThrow(/Write a prompt/);
     expect(() => parseGenerationRequest(request({ prompt: "x".repeat(5001) }))).toThrow(/too long/);
     expect(() => parseGenerationRequest(request({ resolution: "8k" }))).toThrow(UserFacingError);
@@ -215,6 +216,49 @@ describe("startGeneration: inputs", () => {
   it("needs at least one picture and never accepts someone else's files", async () => {
     await expect(startGeneration(userClient({ refs: [] }), verified, request({ extraPaths: [] }))).rejects.toThrow(/at least one image/);
     await expect(startGeneration(userClient(), verified, request({ extraPaths: [`${U}x/a.jpg`] }))).rejects.toThrow(/couldn't be used/);
+  });
+
+  describe("reference sheets", () => {
+    const sheet = (over: Record<string, unknown> = {}) => request({ kind: "reference_sheet", prompt: "Create a 3x3 character face sheet of the person in @image1", extraPaths: [`${U}/targets/face.jpg`], aspectRatio: "1:1", ...over });
+
+    it("are made only from the pictures given, not from the character's existing references", async () => {
+      await startGeneration(userClient(), verified, sheet());
+      expect(h.submit.mock.calls[0][0].input.imageUrls).toEqual([`https://signed.test/${U}/targets/face.jpg`]);
+      expect(h.submit.mock.calls[0][0].input.aspectRatio).toBe("1:1");
+    });
+
+    it("are recorded against the character, so the sheet can be saved to it", async () => {
+      await startGeneration(userClient(), verified, sheet());
+      expect(db.rows[0]).toMatchObject({ kind: "reference_sheet", character_id: C, user_id: U });
+    });
+
+    it("still refuse a character that isn't the person's own", async () => {
+      await expect(startGeneration(userClient({ noCharacter: true }), verified, sheet())).rejects.toThrow(/Character not found/);
+      expect(db.rows).toHaveLength(0);
+      expect(h.submit).not.toHaveBeenCalled();
+    });
+
+    it("need a picture to work from", async () => {
+      await expect(startGeneration(userClient(), verified, sheet({ extraPaths: [] }))).rejects.toThrow(/at least one image/);
+    });
+
+    it("a normal generation still sends the character's references first", async () => {
+      await startGeneration(userClient(), verified, request());
+      expect(h.submit.mock.calls[0][0].input.imageUrls).toEqual([
+        `https://signed.test/${U}/characters/${C}/face.jpg`,
+        `https://signed.test/${U}/characters/${C}/ref1.jpg`,
+        `https://signed.test/${U}/targets/t.jpg`,
+      ]);
+    });
+  });
+
+  it("carousel and variant images send only the character's sheets, then the photo", async () => {
+    for (const kind of ["carousel", "variant"]) {
+      h.submit.mockClear();
+      await startGeneration(userClient(), verified, request({ kind }));
+      // The character has a face sheet and one reference photo; the photo is left out.
+      expect(h.submit.mock.calls[0][0].input.imageUrls).toEqual([`https://signed.test/${U}/characters/${C}/face.jpg`, `https://signed.test/${U}/targets/t.jpg`]);
+    }
   });
 
   it("works without a character, using only the pictures given", async () => {

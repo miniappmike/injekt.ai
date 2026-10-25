@@ -6,7 +6,17 @@ export interface HistoryItem {
   label: string;
   prompt: string;
   thumbnail: string | null;
+  /** The photo the prompt was written for, sent after the character's references when generating again. */
+  imagePath: string | null;
+  /** More images sent after imagePath when generating again (vibe or outfit references). */
+  extraPaths: string[];
   createdAt: string;
+}
+
+/** The image job a saved prompt runs as. Likeness entries hold a report, not an image prompt, so they have none. */
+export const HISTORY_GENERATION_KIND = { inject: "inject", variant: "variant", carousel: "carousel" } as const;
+export function historyGenerationKind(kind: string) {
+  return Object.hasOwn(HISTORY_GENERATION_KIND, kind) ? HISTORY_GENERATION_KIND[kind as keyof typeof HISTORY_GENERATION_KIND] : null;
 }
 
 /** An image the person generated, as the History panel shows it. */

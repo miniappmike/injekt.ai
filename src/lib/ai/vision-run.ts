@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { loadForVision, referenceList } from "@/lib/character-images";
+import { loadForVision, referencesFor } from "@/lib/character-images";
 import { getUserTextClient } from "./text-client";
 import type { TextFeature } from "@/lib/ledger";
 import type { CharacterProfile } from "@/lib/characters";
@@ -33,7 +33,8 @@ export async function prepareVision(
       .eq("id", characterId)
       .maybeSingle();
     if (!c) throw new Error("Character not found");
-    const refs = referenceList(c);
+    // Variants and carousels see only the sheets, the same images their generations send; see referencesFor.
+    const refs = referencesFor(feature === "variants" ? "variant" : feature, c);
     if (!refs.length) throw new Error("This character needs a face sheet, body sheet or reference photo first.");
     character = { ...c, profile: c.profile as CharacterProfile };
     references = await loadForVision(supabase, refs, imageMaxEdge);

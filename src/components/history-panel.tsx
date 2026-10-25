@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/toast";
 import { HistoryImages } from "@/components/history-images";
+import { GenerateImage } from "@/components/generate-image";
 import { checkImageGeneration } from "@/app/(app)/generate/actions";
-import { deleteAllHistory, deleteHistoryEntry, getGenerations, getHistory } from "@/app/(app)/history/actions";
+import { deleteAllHistory, deleteHistoryEntry, getFreeImagesLeft, getGenerations, getHistory } from "@/app/(app)/history/actions";
 import { filterHistory, historyCharacters } from "@/lib/history-filter";
-import { OPEN_HISTORY_EVENT, type HistoryTab } from "@/lib/panel-events";
-import type { GenerationItem, HistoryItem } from "@/lib/history-types";
+import { OPEN_HISTORY_EVENT, viewImage, type HistoryTab } from "@/lib/panel-events";
+import { historyGenerationKind, type GenerationItem, type HistoryItem } from "@/lib/history-types";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
@@ -45,6 +46,9 @@ export function HistoryPanel() {
   const [characterId, setCharacterId] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  // Entries with their Generate controls open, and the free images left (loaded the first time one opens; null means Pro).
+  const [generating, setGenerating] = useState<Set<string>>(new Set());
+  const [freeLeft, setFreeLeft] = useState<number | null | undefined>(undefined);
   const { toast, show } = useToast(2500);
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -141,6 +145,15 @@ export function HistoryPanel() {
       if (!next.delete(id)) next.add(id);
       return next;
     });
+
+  function toggleGenerate(id: string) {
+    setGenerating((s) => {
+      const next = new Set(s);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+    if (freeLeft === undefined) getFreeImagesLeft().then(setFreeLeft, () => setFreeLeft(null));
+  }
 
   async function remove(id: string) {
     setItems((list) => list?.filter((i) => i.id !== id) ?? null);
@@ -282,11 +295,21 @@ export function HistoryPanel() {
                     <ul className="flex flex-col gap-3">
                       {shown.map((i) => {
                         const isOpen = expanded.has(i.id);
+                        const genKind = historyGenerationKind(i.kind);
+                        const canGenerate = !!genKind && !!i.imagePath;
+                        const showGenerate = canGenerate && generating.has(i.id);
                         return (
                           <li key={i.id} className="flex gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
                             {i.thumbnail && (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={i.thumbnail} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => viewImage({ url: i.thumbnail as string, prompt: i.prompt, title: i.label })}
+                                aria-label={`View the photo for ${i.label}`}
+                                className="shrink-0 self-start rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={i.thumbnail} alt="" className="h-14 w-14 cursor-zoom-in rounded-md object-cover" />
+                              </button>
                             )}
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium">{i.label}</p>
@@ -295,8 +318,32 @@ export function HistoryPanel() {
                               <div className="mt-1 flex gap-1">
                                 <Button type="button" size="sm" variant="ghost" onClick={() => copy(i.prompt)}>Copy</Button>
                                 <Button type="button" size="sm" variant="ghost" onClick={() => toggle(i.id)}>{isOpen ? "Collapse" : "Expand"}</Button>
+                                {canGenerate && (
+                                  <Button type="button" size="sm" variant="ghost" aria-expanded={showGenerate} onClick={() => toggleGenerate(i.id)}>
+                                    {showGenerate ? "Hide" : "Generate"}
+                                  </Button>
+                                )}
                                 <Button type="button" size="sm" variant="ghost" onClick={() => remove(i.id)}>Delete</Button>
                               </div>
+                              {showGenerate && (
+                                <div className="mt-2">
+                                  {freeLeft === undefined ? (
+                                    <p className="text-xs text-neutral-500">Loading...</p>
+                                  ) : (
+                                    <GenerateImage
+                                      prompt={i.prompt}
+                                      characterId={i.characterId}
+                                      extraPaths={[i.imagePath as string, ...i.extraPaths]}
+                                      kind={genKind}
+                                      freeImagesLeft={freeLeft}
+                                    />
+                                  )}
+                                  <p className="mt-2 text-xs text-neutral-500">
+                                    Uses {i.characterId ? `${i.characterName}'s current reference images, then ` : ""}the photo this prompt was written for
+                                    {i.extraPaths.length ? ` and its ${i.extraPaths.length} extra image${i.extraPaths.length === 1 ? "" : "s"}` : ""}.
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           </li>
                         );

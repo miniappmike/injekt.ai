@@ -12,9 +12,10 @@ import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { planCarousel, writeVariantEdits } from "@/app/(app)/variants/actions";
-import { VARIANT_OPTIONS, type VariantOptionId } from "@/lib/ai/tasks/variants";
+import { DEFAULT_VARIANT_COUNT, MAX_EXTRA_IMAGES, MAX_VARIANT_COUNT, VARIANT_OPTIONS, type VariantOptionId } from "@/lib/ai/tasks/variants";
 
 type Mode = "edits" | "carousel";
+type Picked = { file: File; preview: string; path?: string };
 interface Item {
   title: string;
   prompt: string;
@@ -24,6 +25,8 @@ interface Result {
   attach: string[];
   /** The uploaded image the prompts refer to, and the character they were written for. */
   path: string;
+  /** Extra images (vibe, outfit) the prompts refer to after the main image. */
+  extraPaths: string[];
   characterId: string | null;
   mode: Mode;
 }
@@ -32,13 +35,18 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("edits");
   const [characterId, setCharacterId] = useState("");
-  const [image, setImage] = useState<{ file: File; preview: string; path?: string } | null>(null);
+  const [image, setImage] = useState<Picked | null>(null);
+  // Up to MAX_EXTRA_IMAGES more images for the vibe or outfit; a slot is null until something is added.
+  const [extras, setExtras] = useState<(Picked | null)[]>(Array(MAX_EXTRA_IMAGES).fill(null));
   const [options, setOptions] = useState<Set<VariantOptionId>>(new Set(["pose", "camera"]));
   const [slides, setSlides] = useState(5);
+  const [count, setCount] = useState<number>(DEFAULT_VARIANT_COUNT);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [result, setResult] = useState<Result | null>(null);
+  // Goes up by one each time "Generate all" is pressed; every slide or variant that hasn't run yet starts.
+  const [runAll, setRunAll] = useState(0);
   const { toast, show } = useToast(2000);
 
   const character = characters.find((c) => c.id === characterId);
@@ -63,10 +71,14 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
     try {
       const path = image.path ?? (await uploadImage(image.file, "target"));
       setImage({ ...image, path });
-      const common = { characterId: characterId || null, note };
+      // Extra images are uploaded once and reused on the next run.
+      const uploaded = await Promise.all(extras.map(async (x) => (x ? { ...x, path: x.path ?? (await uploadImage(x.file, "target")) } : null)));
+      setExtras(uploaded);
+      const extraPaths = uploaded.filter((x): x is Picked & { path: string } => !!x?.path).map((x) => x.path);
+      const common = { characterId: characterId || null, note, extraPaths };
       const res =
         mode === "edits"
-          ? await writeVariantEdits({ imagePath: path, options: [...options], ...common })
+          ? await writeVariantEdits({ imagePath: path, options: [...options], count, ...common })
           : await planCarousel({ coverPath: path, slides, ...common });
       if (!res.ok) {
         if (res.redirectTo) return router.push(res.redirectTo);
@@ -74,6 +86,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       }
       setResult({
         path,
+        extraPaths,
         characterId: characterId || null,
         mode,
         attach: res.attach,
@@ -117,6 +130,46 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         }}
       />
 
+      <section className="flex flex-col gap-2" aria-labelledby="extras-title">
+        <div>
+          <h2 id="extras-title" className="text-sm font-medium">More images <span className="text-xs font-normal text-neutral-500">optional, up to {MAX_EXTRA_IMAGES}</span></h2>
+          <p className="text-xs text-neutral-500">
+            Show the AI the vibe, an outfit or anything else you want carried into the {mode === "edits" ? "variants" : "slides"}. Say how to use them in the {mode === "edits" ? "note" : "theme"}.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {extras.map((x, i) => (
+            <div key={i} className="flex flex-col gap-1">
+              <ImageDrop
+                title={`Extra image ${i + 1}`}
+                hint="Click, drop, or paste with Ctrl+V."
+                preview={x?.preview}
+                disabled={busy}
+                onPick={(file) => {
+                  setExtras((list) => list.map((old, j) => (j === i ? { file, preview: URL.createObjectURL(file) } : old)));
+                  setResult(null);
+                }}
+              />
+              {x && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="self-start"
+                  disabled={busy}
+                  onClick={() => {
+                    setExtras((list) => list.map((old, j) => (j === i ? null : old)));
+                    setResult(null);
+                  }}
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="flex flex-col gap-2">
         <Label htmlFor="character">Character <span className="text-xs font-normal text-neutral-500">optional</span></Label>
         <select
@@ -151,6 +204,16 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
               </label>
             ))}
           </div>
+          <p className="text-xs text-neutral-500">Every variant changes all of the selected things together, and nothing else.</p>
+          <Label htmlFor="variant-count" className="mt-2">How many variants</Label>
+          <select
+            id="variant-count"
+            value={count}
+            onChange={(e) => setCount(Number(e.target.value))}
+            className="h-9 w-32 rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm"
+          >
+            {Array.from({ length: MAX_VARIANT_COUNT }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
         </fieldset>
       ) : (
         <section className="flex flex-col gap-2">
@@ -182,7 +245,19 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         <section className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="font-medium">{mode === "edits" ? "Variant edits" : "Carousel plan"}</h2>
-            <Button type="button" size="sm" variant="secondary" onClick={() => copy(result.items.map((i) => i.prompt).join("\n\n"))}>Copy all</Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  const n = result.items.length;
+                  if (window.confirm(`Generate all ${n} ${mode === "edits" ? "variants" : "slides"}? This starts ${n} images on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
+                }}
+              >
+                Generate all
+              </Button>
+              <Button type="button" size="sm" variant="secondary" onClick={() => copy(result.items.map((i) => i.prompt).join("\n\n"))}>Copy all</Button>
+            </div>
           </div>
           <p className="text-xs text-neutral-500">Attach the images in this order: {result.attach.join(", ")}.</p>
           {result.items.map((item, i) => (
@@ -196,8 +271,9 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                 <GenerateImage
                   prompt={item.prompt}
                   characterId={result.characterId}
-                  extraPaths={[result.path]}
+                  extraPaths={[result.path, ...result.extraPaths]}
                   kind={result.mode === "edits" ? "variant" : "carousel"}
+                  runSignal={runAll}
                 />
               </CardContent>
             </Card>

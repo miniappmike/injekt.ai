@@ -16,7 +16,8 @@ export function InfoTip({ label, children }: { label: string; children: React.Re
       <span
         role="tooltip"
         id={id}
-        className="pointer-events-none invisible absolute bottom-full left-1/2 z-20 mb-2 w-64 -translate-x-1/2 rounded-md border border-neutral-700 bg-neutral-900 p-2 text-xs font-normal text-neutral-200 opacity-0 shadow-lg transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100"
+        // Not just invisible but taken out of the layout while hidden, so it never widens the page on a phone.
+        className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-64 max-w-[80vw] -translate-x-1/2 rounded-md border border-neutral-700 bg-neutral-900 p-2 text-xs font-normal text-neutral-200 shadow-lg group-focus-within:block group-hover:block"
       >
         {children}
       </span>
