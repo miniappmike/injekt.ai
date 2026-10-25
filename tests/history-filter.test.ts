@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { filterHistory, historyCharacters } from "@/lib/history-filter";
-import type { HistoryItem } from "@/lib/history-types";
+import { historyGenerationKind, type HistoryItem } from "@/lib/history-types";
 
 const item = (over: Partial<HistoryItem>): HistoryItem => ({
   id: "1",
@@ -10,6 +10,7 @@ const item = (over: Partial<HistoryItem>): HistoryItem => ({
   label: "Inject · Juno",
   prompt: "Use @image1 as the strict identity reference",
   thumbnail: null,
+  imagePath: null,
   createdAt: "2026-10-23T12:00:00Z",
   ...over,
 });
@@ -44,5 +45,17 @@ describe("historyCharacters", () => {
       { id: "c2", name: "Audra" },
       { id: "c1", name: "Juno" },
     ]);
+  });
+});
+
+describe("historyGenerationKind", () => {
+  it("runs inject, variant and carousel prompts as their own image job", () => {
+    expect(historyGenerationKind("inject")).toBe("inject");
+    expect(historyGenerationKind("variant")).toBe("variant");
+    expect(historyGenerationKind("carousel")).toBe("carousel");
+  });
+
+  it("gives likeness reports and unknown kinds no Generate button", () => {
+    for (const k of ["likeness", "profile", "", "toString", "__proto__"]) expect(historyGenerationKind(k)).toBeNull();
   });
 });

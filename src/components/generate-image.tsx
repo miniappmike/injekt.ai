@@ -34,6 +34,7 @@ export function GenerateImage({
   defaultResolution = "1k",
   actionLabel = "Generate image",
   renderActions,
+  runSignal = 0,
 }: {
   prompt: string;
   characterId?: string | null;
@@ -49,6 +50,8 @@ export function GenerateImage({
   actionLabel?: string;
   /** Extra controls shown under the finished image, such as saving it somewhere. */
   renderActions?: (result: Result) => React.ReactNode;
+  /** Each time this goes up, the image is generated as if the button were pressed (used by "Generate all"). */
+  runSignal?: number;
 }) {
   const router = useRouter();
   const free = freeImagesLeft !== null;
@@ -118,6 +121,16 @@ export function GenerateImage({
   }
 
   const busy = phase === "starting" || phase === "running";
+  const ready = !!prompt.trim() && extraPaths.length > 0;
+
+  // "Generate all": start when the signal goes up, unless this one is already running or done.
+  const lastSignal = useRef(runSignal);
+  useEffect(() => {
+    if (runSignal === lastSignal.current) return;
+    lastSignal.current = runSignal;
+    if (!busy && phase !== "done" && ready) void generate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runSignal]);
   const label = free ? `Generate my free image (${freeImagesLeft} left)` : `${actionLabel}${price ? ` · about $${Number(price).toFixed(3)}` : ""}`;
 
   return (

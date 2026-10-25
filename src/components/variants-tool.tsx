@@ -39,6 +39,8 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [result, setResult] = useState<Result | null>(null);
+  // Goes up by one each time "Generate all" is pressed; every slide or variant that hasn't run yet starts.
+  const [runAll, setRunAll] = useState(0);
   const { toast, show } = useToast(2000);
 
   const character = characters.find((c) => c.id === characterId);
@@ -182,7 +184,19 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         <section className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="font-medium">{mode === "edits" ? "Variant edits" : "Carousel plan"}</h2>
-            <Button type="button" size="sm" variant="secondary" onClick={() => copy(result.items.map((i) => i.prompt).join("\n\n"))}>Copy all</Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  const n = result.items.length;
+                  if (window.confirm(`Generate all ${n} ${mode === "edits" ? "variants" : "slides"}? This starts ${n} images on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
+                }}
+              >
+                Generate all
+              </Button>
+              <Button type="button" size="sm" variant="secondary" onClick={() => copy(result.items.map((i) => i.prompt).join("\n\n"))}>Copy all</Button>
+            </div>
           </div>
           <p className="text-xs text-neutral-500">Attach the images in this order: {result.attach.join(", ")}.</p>
           {result.items.map((item, i) => (
@@ -198,6 +212,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                   characterId={result.characterId}
                   extraPaths={[result.path]}
                   kind={result.mode === "edits" ? "variant" : "carousel"}
+                  runSignal={runAll}
                 />
               </CardContent>
             </Card>

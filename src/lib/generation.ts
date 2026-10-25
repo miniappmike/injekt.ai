@@ -121,7 +121,8 @@ export type StartResult = { generationId: string; free: boolean };
 
 export async function startGeneration(supabase: SupabaseClient, user: Actor, raw: unknown): Promise<StartResult> {
   const request = parseGenerationRequest(raw);
-  await enforceRateLimit(user.id, "image", 6, 60);
+  // 12 a minute leaves room for "Generate all" on the largest carousel (7 slides) or variant set (8).
+  await enforceRateLimit(user.id, "image", 12, 60);
 
   const access = await resolveAccess(supabase, user);
   let submitted = false;
