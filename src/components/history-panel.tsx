@@ -5,9 +5,12 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/toast";
-import { deleteAllHistory, deleteHistoryEntry, getHistory } from "@/app/(app)/history/actions";
+import { HistoryImages } from "@/components/history-images";
+import { checkImageGeneration } from "@/app/(app)/generate/actions";
+import { deleteAllHistory, deleteHistoryEntry, getGenerations, getHistory } from "@/app/(app)/history/actions";
 import { filterHistory, historyCharacters } from "@/lib/history-filter";
-import type { HistoryItem } from "@/lib/history-types";
+import { OPEN_HISTORY_EVENT, type HistoryTab } from "@/lib/panel-events";
+import type { GenerationItem, HistoryItem } from "@/lib/history-types";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
@@ -20,13 +23,24 @@ function download(name: string, text: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
+const TABS: { id: HistoryTab; label: string }[] = [
+  { id: "prompts", label: "Prompts" },
+  { id: "images", label: "Images" },
+];
+const POLL_MS = 4000;
+const MAX_POLLS = 75; // about 5 minutes
+
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-// Header button plus a panel that slides in from the right. Loads the history fresh each time it opens.
+// Header button plus a panel that slides in from the right, with the prompts you saved and the images you made.
+// Loads fresh each time it opens. Anything in the app can open it on a tab with openHistory().
 export function HistoryPanel() {
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<HistoryTab>("prompts");
   const [items, setItems] = useState<HistoryItem[] | null>(null);
   const [error, setError] = useState(false);
+  const [images, setImages] = useState<GenerationItem[] | null>(null);
+  const [imagesError, setImagesError] = useState(false);
   const [query, setQuery] = useState("");
   const [characterId, setCharacterId] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -41,16 +55,65 @@ export function HistoryPanel() {
   }, []);
 
   useEffect(() => {
+    const onOpen = (e: Event) => {
+      const wanted = (e as CustomEvent<{ tab?: HistoryTab }>).detail?.tab;
+      setTab(wanted === "images" ? "images" : "prompts");
+      setOpen(true);
+    };
+    window.addEventListener(OPEN_HISTORY_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_HISTORY_EVENT, onOpen);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
+    let current = true;
     setError(false);
-    getHistory().then(setItems, () => setError(true));
-    panel.current?.querySelector<HTMLElement>("button")?.focus();
+    getHistory().then(
+      (list) => current && setItems(list),
+      () => current && setError(true),
+    );
+    panel.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
+      current = false;
       document.body.style.overflow = prevOverflow;
     };
   }, [open]);
+
+  // Images load when you look at them, and again each time you come back to the tab. Loading also finishes any job that completed while you were away.
+  useEffect(() => {
+    if (!open || tab !== "images") return;
+    let current = true;
+    setImagesError(false);
+    getGenerations().then(
+      (list) => current && setImages(list),
+      () => current && setImagesError(true),
+    );
+    return () => {
+      current = false;
+    };
+  }, [open, tab]);
+
+  // While an image is still being made, keep checking it, and reload the list when one finishes or fails.
+  const generatingKey = (images ?? []).filter((i) => i.state === "generating").map((i) => i.id).join(",");
+  useEffect(() => {
+    if (!open || tab !== "images" || !generatingKey) return;
+    let stopped = false;
+    let ticks = 0;
+    const timer = setInterval(async () => {
+      if (stopped) return;
+      if (++ticks > MAX_POLLS) return clearInterval(timer);
+      const results = await Promise.all(generatingKey.split(",").map((id) => checkImageGeneration(id)));
+      if (stopped || !results.some((r) => r.ok && (r.state === "complete" || r.state === "failed"))) return;
+      const fresh = await getGenerations().catch(() => null);
+      if (!stopped && fresh) setImages(fresh);
+    }, POLL_MS);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [open, tab, generatingKey]);
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Escape") return close();
@@ -92,12 +155,36 @@ export function HistoryPanel() {
     setBusy(false);
   }
 
+  async function copy(text: string) {
+    await navigator.clipboard.writeText(text);
+    show("Copied");
+  }
+
+  // Left and right arrows move between the tabs.
+  function onTabKeyDown(e: React.KeyboardEvent) {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    const next = TABS[(TABS.findIndex((t) => t.id === tab) + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length].id;
+    setTab(next);
+    panel.current?.querySelector<HTMLElement>(`#history-tab-${next}`)?.focus();
+  }
+
+  const readyImages = (images ?? []).filter((i) => i.state === "ready").length;
+  const subtitle =
+    tab === "prompts"
+      ? items ? `${items.length} saved` : "Loading..."
+      : images ? `${readyImages} ready to download` : "Loading...";
+
+
   return (
     <>
       <button
         ref={trigger}
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setTab("prompts");
+          setOpen(true);
+        }}
         aria-haspopup="dialog"
         className="text-sm text-neutral-400 hover:text-neutral-100"
       >
@@ -117,90 +204,112 @@ export function HistoryPanel() {
               aria-labelledby="history-title"
               className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-neutral-800 bg-neutral-950 shadow-xl"
             >
-              <div className="flex items-center justify-between gap-2 border-b border-neutral-800 p-4">
+              <div className="flex items-center justify-between gap-2 p-4 pb-3">
                 <div>
                   <h2 id="history-title" className="font-semibold">History</h2>
-                  <p className="text-xs text-neutral-500">{items ? `${items.length} saved` : "Loading..."}</p>
+                  <p className="text-xs text-neutral-500">{subtitle}</p>
                 </div>
                 <div className="flex gap-1">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    disabled={!items?.length}
-                    onClick={() =>
-                      download("model-spawn-history.json", JSON.stringify((items ?? []).map(({ thumbnail: _t, ...rest }) => rest), null, 2), "application/json")
-                    }
-                  >
-                    Export
-                  </Button>
-                  <Button type="button" size="sm" variant="ghost" disabled={!items?.length || busy} onClick={removeAll}>
-                    Delete all
-                  </Button>
+                  {tab === "prompts" && (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={!items?.length}
+                        onClick={() =>
+                          download("model-spawn-history.json", JSON.stringify((items ?? []).map(({ thumbnail: _t, ...rest }) => rest), null, 2), "application/json")
+                        }
+                      >
+                        Export
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" disabled={!items?.length || busy} onClick={removeAll}>
+                        Delete all
+                      </Button>
+                    </>
+                  )}
                   <Button type="button" size="sm" variant="ghost" onClick={close} aria-label="Close history">
                     ✕
                   </Button>
                 </div>
               </div>
 
-              <div className="flex gap-2 border-b border-neutral-800 p-3">
-                <Input placeholder="Search prompts" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search history" />
-                <select
-                  value={characterId}
-                  onChange={(e) => setCharacterId(e.target.value)}
-                  aria-label="Filter by character"
-                  className="h-9 max-w-[9rem] rounded-md border border-neutral-700 bg-neutral-900 px-2 text-sm"
-                >
-                  <option value="">All characters</option>
-                  {characters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+              <div role="tablist" aria-label="History" onKeyDown={onTabKeyDown} className="flex gap-1 border-b border-neutral-800 px-4">
+                {TABS.map((t) => (
+                  <button
+                    key={t.id}
+                    id={`history-tab-${t.id}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === t.id}
+                    aria-controls="history-tabpanel"
+                    tabIndex={tab === t.id ? 0 : -1}
+                    onClick={() => setTab(t.id)}
+                    className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+                      tab === t.id ? "border-neutral-100 font-medium text-neutral-100" : "border-transparent text-neutral-400 hover:text-neutral-100"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3">
-                {error && <p role="alert" className="text-sm text-red-400">Couldn&apos;t load your history. Close and reopen to try again.</p>}
-                {!error && items === null && <p className="text-sm text-neutral-400">Loading...</p>}
-                {items && !shown.length && (
-                  <p className="text-sm text-neutral-400">{items.length ? "Nothing matches." : "Nothing saved yet. Prompts you write will show up here."}</p>
+              {tab === "prompts" && (
+                <div className="flex gap-2 border-b border-neutral-800 p-3">
+                  <Input placeholder="Search prompts" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search history" />
+                  <select
+                    value={characterId}
+                    onChange={(e) => setCharacterId(e.target.value)}
+                    aria-label="Filter by character"
+                    className="h-9 max-w-[9rem] rounded-md border border-neutral-700 bg-neutral-900 px-2 text-sm"
+                  >
+                    <option value="">All characters</option>
+                    {characters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <div id="history-tabpanel" role="tabpanel" aria-labelledby={`history-tab-${tab}`} className="flex-1 overflow-y-auto p-3">
+                {tab === "images" ? (
+                  <HistoryImages images={images} error={imagesError} onCopy={copy} onNavigate={() => setOpen(false)} />
+                ) : (
+                  <>
+                    {error && <p role="alert" className="text-sm text-red-400">Couldn&apos;t load your history. Close and reopen to try again.</p>}
+                    {!error && items === null && <p className="text-sm text-neutral-400">Loading...</p>}
+                    {items && !shown.length && (
+                      <p className="text-sm text-neutral-400">{items.length ? "Nothing matches." : "Nothing saved yet. Prompts you write will show up here."}</p>
+                    )}
+                    <ul className="flex flex-col gap-3">
+                      {shown.map((i) => {
+                        const isOpen = expanded.has(i.id);
+                        return (
+                          <li key={i.id} className="flex gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+                            {i.thumbnail && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={i.thumbnail} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium">{i.label}</p>
+                              <p className="text-xs text-neutral-500">{i.characterName} · {when(i.createdAt)}</p>
+                              <p className={`mt-1 whitespace-pre-wrap text-sm text-neutral-300 ${isOpen ? "" : "line-clamp-2"}`}>{i.prompt}</p>
+                              <div className="mt-1 flex gap-1">
+                                <Button type="button" size="sm" variant="ghost" onClick={() => copy(i.prompt)}>Copy</Button>
+                                <Button type="button" size="sm" variant="ghost" onClick={() => toggle(i.id)}>{isOpen ? "Collapse" : "Expand"}</Button>
+                                <Button type="button" size="sm" variant="ghost" onClick={() => remove(i.id)}>Delete</Button>
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
                 )}
-                <ul className="flex flex-col gap-3">
-                  {shown.map((i) => {
-                    const isOpen = expanded.has(i.id);
-                    return (
-                      <li key={i.id} className="flex gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
-                        {i.thumbnail && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={i.thumbnail} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium">{i.label}</p>
-                          <p className="text-xs text-neutral-500">{i.characterName} · {when(i.createdAt)}</p>
-                          <p className={`mt-1 whitespace-pre-wrap text-sm text-neutral-300 ${isOpen ? "" : "line-clamp-2"}`}>{i.prompt}</p>
-                          <div className="mt-1 flex gap-1">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={async () => {
-                                await navigator.clipboard.writeText(i.prompt);
-                                show("Copied");
-                              }}
-                            >
-                              Copy
-                            </Button>
-                            <Button type="button" size="sm" variant="ghost" onClick={() => toggle(i.id)}>{isOpen ? "Collapse" : "Expand"}</Button>
-                            <Button type="button" size="sm" variant="ghost" onClick={() => remove(i.id)}>Delete</Button>
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
               </div>
             </div>
             {toast}
           </div>,
-        document.body,
-      )}
+          document.body,
+        )}
     </>
   );
 }

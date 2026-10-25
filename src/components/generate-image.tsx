@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { InfoTip } from "@/components/info-tip";
 import { checkImageGeneration, quoteImageGeneration, startImageGeneration } from "@/app/(app)/generate/actions";
+import { openHistory } from "@/lib/panel-events";
 import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageAspectRatio, type ImageOutputFormat, type ImageResolution } from "@/lib/ai/providers/types";
 
@@ -100,7 +100,7 @@ export function GenerateImage({
       }
     }
     setPhase("failed");
-    setMessage("Still working on it. It will show up on the Generations page when it's ready.");
+    setMessage("Still working on it. It will show up in History, under Images, when it's ready.");
   }
 
   const busy = phase === "starting" || phase === "running";
@@ -145,7 +145,7 @@ export function GenerateImage({
           <img src={result.url} alt="Generated" className="max-h-96 w-auto max-w-full rounded-md" />
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <a href={result.downloadUrl} className="text-neutral-100 underline">Download</a>
-            <Link href="/generations" className="text-neutral-400 underline">Generations</Link>
+            <button type="button" onClick={() => openHistory("images")} className="text-neutral-400 underline">All images</button>
             <span className="flex items-center gap-1.5 text-xs text-neutral-500">
               Kept for {GENERATION_RETENTION_HOURS} hours
               <InfoTip label="About expiry">Generated images are deleted {GENERATION_RETENTION_HOURS} hours after they are created. Download any you want to keep.</InfoTip>

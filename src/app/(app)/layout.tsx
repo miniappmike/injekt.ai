@@ -1,8 +1,11 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { MainNav } from "@/components/main-nav";
 import { HistoryPanel } from "@/components/history-panel";
+import { ProfileMenu } from "@/components/profile-menu";
 import { requireUser } from "@/lib/auth";
+
+// Opening the Images tab finishes any job that completed while you were away, which downloads and stores the image.
+export const maxDuration = 60;
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = await requireUser();
@@ -12,14 +15,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/characters" className="font-semibold">Model Spawn</Link>
         <MainNav />
         <div className="ml-auto flex items-center gap-3">
-          <Link href="/generations" className="text-sm text-neutral-400 hover:text-neutral-100">Generations</Link>
-          <Link href="/ledger" className="text-sm text-neutral-400 hover:text-neutral-100">Ledger</Link>
           <HistoryPanel />
-          <Link href="/settings/api-keys" className="text-sm text-neutral-400 hover:text-neutral-100">API keys</Link>
-          <span className="hidden text-sm text-neutral-500 sm:inline">{user.email}</span>
-          <form action="/auth/signout" method="post">
-            <Button type="submit" variant="ghost" size="sm">Log out</Button>
-          </form>
+          <ProfileMenu email={user.email ?? "Account"} />
         </div>
       </header>
       <main className="mx-auto max-w-6xl p-4 sm:p-6">{children}</main>
