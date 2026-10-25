@@ -26,7 +26,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
 
   let event;
   try {
-    event = getImageProvider(provider).parseWebhook(raw);
+    const parse = getImageProvider(provider).parseWebhook;
+    if (!parse) return NextResponse.json({ error: "no webhooks for this provider" }, { status: 404 });
+    event = parse(raw);
   } catch {
     return NextResponse.json({ error: "bad payload" }, { status: 400 });
   }

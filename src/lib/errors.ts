@@ -29,3 +29,11 @@ export class LimitReachedError extends Error {
     this.name = "LimitReachedError";
   }
 }
+
+/** A problem the user can fix, with a message that is safe to show as written. Not logged as a bug. */
+export class UserFacingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UserFacingError";
+  }
+}

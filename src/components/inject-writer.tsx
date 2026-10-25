@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { GenerateImage } from "@/components/generate-image";
 import { uploadImage } from "@/components/image-slot";
 import { writeReplacementPrompts } from "@/app/(app)/characters/ai-actions";
 import type { PromptStyle } from "@/lib/ai/tasks/prompt-writer";
@@ -18,6 +19,8 @@ interface Target {
   file: File;
   preview: string;
   path?: string;
+  /** The character the prompt was written for, so generating uses the same one even if the picker changes. */
+  characterId?: string;
   prompt?: string;
   error?: string;
 }
@@ -74,7 +77,7 @@ export function InjectWriter({ characters }: { characters: { id: string; name: s
       }
       for (const r of res.results) {
         const t = ready.find((x) => x.path === r.path);
-        if (t) update(t.id, { prompt: r.prompt, error: r.error });
+        if (t) update(t.id, { prompt: r.prompt, error: r.error, characterId });
       }
     } finally {
       setBusy(false);
@@ -175,6 +178,9 @@ export function InjectWriter({ characters }: { characters: { id: string; name: s
                     )}
                   </div>
                   {t.prompt ? <pre className="whitespace-pre-wrap text-sm">{t.prompt}</pre> : <p className="text-sm text-red-400">{t.error}</p>}
+                  {t.prompt && t.path && (
+                    <GenerateImage prompt={t.prompt} characterId={t.characterId ?? characterId} extraPaths={[t.path]} kind="inject" />
+                  )}
                 </CardContent>
               </Card>
             ) : null,

@@ -2,7 +2,8 @@
 
 import { requireUser } from "@/lib/auth";
 import { HISTORY_LIMIT, removeUnusedImages } from "@/lib/history";
-import type { HistoryItem } from "@/lib/history-types";
+import type { GenerationItem, HistoryItem } from "@/lib/history-types";
+import { listGenerations } from "@/lib/generation-list";
 import { signedUrlMap } from "@/lib/media-urls";
 
 // Loaded each time the side panel opens, so new prompts are always there.
@@ -29,6 +30,12 @@ export async function getHistory(): Promise<HistoryItem[]> {
     thumbnail: r.image_path ? (urls[r.image_path] ?? null) : null,
     createdAt: r.created_at,
   }));
+}
+
+// The Images tab: the person's generated images, newest first. Also finishes anything that completed while they were away.
+export async function getGenerations(): Promise<GenerationItem[]> {
+  const { supabase, user } = await requireUser();
+  return listGenerations(supabase, user);
 }
 
 export async function deleteHistoryEntry(id: string) {

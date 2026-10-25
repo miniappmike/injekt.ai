@@ -53,12 +53,26 @@ describe("resolveApiKey", () => {
 
 describe("master prompt guard", () => {
   it("always prepends the master prompt", async () => {
-    const complete = vi.fn(async (_a: { system: string; text: string; images?: string[]; apiKey: string }) => "ok");
+    const complete = vi.fn(async (_a: { system: string; text: string; images?: string[]; apiKey: string }) => ({ text: "ok" }));
     const client = createGuardedClient({ id: "x", complete }, "k");
     await client.run({ instructions: "Write a prompt.", text: "hi", images: ["u"] });
     const call = complete.mock.calls[0]![0];
     expect(call.system.startsWith(MASTER_PROMPT)).toBe(true);
     expect(call.system).toContain("Write a prompt.");
     expect(call.apiKey).toBe("k");
+  });
+
+  it("returns the text, reports token use, and never lets tracking break the call", async () => {
+    const onUsage = vi.fn(async () => {
+      throw new Error("ledger down");
+    });
+    const client = createGuardedClient({ id: "x", complete: async () => ({ text: "done", usage: { inputTokens: 10, outputTokens: 2 } }) }, "k", { onUsage });
+    expect(await client.run({ instructions: "i", text: "t" })).toBe("done");
+    expect(onUsage).toHaveBeenCalledWith({ inputTokens: 10, outputTokens: 2 });
+
+    const seen = vi.fn();
+    const quiet = createGuardedClient({ id: "x", complete: async () => ({ text: "ok" }) }, "k", { onUsage: seen });
+    await quiet.run({ instructions: "i", text: "t" });
+    expect(seen).toHaveBeenCalledWith(undefined); // still counted as a call
   });
 });

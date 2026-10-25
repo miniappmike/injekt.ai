@@ -6,6 +6,8 @@ import { FREE_LIMITS } from "@/lib/limits";
 
 // Runs the real migrations in an in-process Postgres with minimal stand-ins for Supabase's auth schema and roles.
 const db = new PGlite();
+let legacyUser = "";
+let legacyGeneration = "";
 const migration = (f: string) => readFileSync(join(__dirname, "../../supabase/migrations", f), "utf8");
 
 async function asUser(id: string | null, role: "authenticated" | "service_role" | "postgres" = "authenticated") {
@@ -45,6 +47,24 @@ beforeAll(async () => {
   await db.exec(migration("0005_prompt_history.sql"));
   await db.exec(migration("0003_storage.sql"));
   await db.exec(migration("0006_generation_retention.sql"));
+  await db.exec(migration("0007_spend_tracking.sql"));
+  // Rows written by the old ledger, so the next migration has something to carry over.
+  const legacy = await db.query<{ id: string }>("insert into auth.users (email) values ('legacy@x.com') returning id");
+  legacyUser = legacy.rows[0].id;
+  const gen = await db.query<{ id: string }>(
+    "insert into public.generations (user_id, kind, status, provider) values ($1, 'inject', 'complete', 'spicyapi') returning id",
+    [legacyUser],
+  );
+  legacyGeneration = gen.rows[0].id;
+  await db.query(
+    `insert into public.usage_ledger (user_id, provider, key_source, cost_usd, job, feature, model, input_tokens, output_tokens, cost_known, generation_id, created_at) values
+       ($1, 'anthropic', 'byok', 0.0123, 'vision', 'profile', 'claude-sonnet-5-5', 4000, 600, true, null, '2026-10-01T10:00:00Z'),
+       ($1, 'spicyapi', 'byok', 0.04, 'image', 'image:inject', 'seedream', null, null, true, $2, '2026-10-02T10:00:00Z'),
+       ($1, 'openai', 'byok', 0, 'vision', null, 'gpt-4o', 10, 1, false, null, '2026-10-03T10:00:00Z'),
+       ($1, 'spicyapi', 'server', 0.5, null, null, null, null, null, true, null, '2026-10-04T10:00:00Z')`,
+    [legacyUser, legacyGeneration],
+  );
+  await db.exec(migration("0008_api_ledger.sql"));
   // Storage tables are only stand-ins here; turn on row-level security so the policies are actually tested.
   await db.exec(`alter table storage.objects enable row level security; grant usage on schema storage to authenticated; grant select on storage.objects to authenticated;`);
 });
@@ -207,5 +227,125 @@ describe("generation files expire", () => {
   it("backfills old rows so they expire 72 hours after completion", async () => {
     const m = migration("0006_generation_retention.sql");
     expect(m).toContain("interval '72 hours'");
+  });
+});
+
+describe("the api ledger", () => {
+  const day = "2026-10-24T00:00:00Z";
+  const month = "2026-10-01T00:00:00Z";
+  const base = { platform: "anthropic", job: "vision", feature: "profile", model: "m", key_source: "byok", status: "succeeded", input_tokens: 1000, output_tokens: 100, cost_usd: 0.01, cost_known: true, cost_source: "list_price", created_at: "2026-10-24T10:00:00Z" };
+  async function ledger(u: string, over: Record<string, unknown> = {}) {
+    const r = { ...base, ...over };
+    await db.exec("reset role");
+    await db.query(
+      `insert into public.api_ledger (user_id, platform, job, feature, model, key_source, status, input_tokens, output_tokens, cost_usd, cost_known, cost_source, created_at)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [u, r.platform, r.job, r.feature, r.model, r.key_source, r.status, r.input_tokens, r.output_tokens, r.cost_usd, r.cost_known, r.cost_source, r.created_at],
+    );
+  }
+  const summary = async (u: string, job: string | null = null) => {
+    await asUser(u);
+    return (await db.query<Record<string, string>>("select * from ledger_summary($1, $2, $3)", [day, month, job])).rows;
+  };
+  const row = (rows: Record<string, string>[], platform: string) => rows.find((r) => r.platform === platform)!;
+
+  it("carries over what the old ledger held, then removes the old table and its estimate functions", async () => {
+    await db.exec("reset role");
+    const rows = (await db.query<Record<string, any>>("select * from api_ledger where user_id = $1 order by id", [legacyUser])).rows;
+    expect(rows).toHaveLength(3); // the row with no job was not a real call and is not carried over
+    expect(rows[0]).toMatchObject({ platform: "anthropic", job: "vision", feature: "profile", model: "claude-sonnet-5-5", input_tokens: 4000, cost_known: true, cost_source: null, status: "succeeded" });
+    expect(Number(rows[0].cost_usd)).toBeCloseTo(0.0123);
+    expect(rows[1]).toMatchObject({ platform: "spicyapi", job: "image", cost_source: "provider", generation_id: legacyGeneration });
+    expect(rows[2]).toMatchObject({ platform: "openai", feature: "other", cost_known: false, cost_source: null });
+    expect((await db.query<{ t: string | null }>("select to_regclass('public.usage_ledger') as t")).rows[0].t).toBeNull();
+    await expect(db.query("select * from spend_summary(now(), now())")).rejects.toThrow();
+    await expect(db.query("select * from typical_costs()")).rejects.toThrow();
+  });
+
+  it("adds up today, this month and all time per platform, with calls, tokens and unpriced calls", async () => {
+    const u = await newUser("w@x.com");
+    await ledger(u, { cost_usd: 0.012 });
+    await ledger(u, { cost_usd: 0.03, created_at: "2026-10-10T10:00:00Z" }); // this month, not today
+    await ledger(u, { cost_usd: 0, cost_known: false, cost_source: null });
+    await ledger(u, { cost_usd: 9, created_at: "2026-09-30T10:00:00Z" }); // last month
+    await ledger(u, { platform: "spicyapi", job: "image", feature: "image:inject", cost_usd: 0.04, cost_source: "provider", input_tokens: null, output_tokens: null });
+    const rows = await summary(u);
+    expect(rows.map((r) => r.platform)).toEqual(["anthropic", "spicyapi"]); // biggest spender first
+    const a = row(rows, "anthropic");
+    expect(Number(a.day_cost)).toBeCloseTo(0.012);
+    expect(Number(a.month_cost)).toBeCloseTo(0.042);
+    expect(Number(a.all_cost)).toBeCloseTo(9.042);
+    expect(Number(a.calls)).toBe(4);
+    expect(Number(a.month_calls)).toBe(3);
+    expect(Number(a.input_tokens)).toBe(4000);
+    expect(Number(a.unpriced_calls)).toBe(1);
+    expect(Number(row(rows, "spicyapi").month_cost)).toBeCloseTo(0.04);
+  });
+
+  it("can be narrowed to one job", async () => {
+    const u = await newUser("x@x.com");
+    await ledger(u, { job: "vision", cost_usd: 0.1 });
+    await ledger(u, { job: "image", feature: "image:edit", cost_usd: 0.2 });
+    expect(Number(row(await summary(u, "image"), "anthropic").all_cost)).toBeCloseTo(0.2);
+    expect(Number(row(await summary(u, "vision"), "anthropic").all_cost)).toBeCloseTo(0.1);
+    expect(Number(row(await summary(u), "anthropic").all_cost)).toBeCloseTo(0.3);
+  });
+
+  it("leaves out calls the platform paid for", async () => {
+    const u = await newUser("y@x.com");
+    await ledger(u, { platform: "spicyapi", key_source: "server", cost_usd: 0.05 });
+    expect(await summary(u)).toEqual([]);
+    await asUser(u);
+    expect((await db.query("select * from api_ledger")).rows).toHaveLength(1); // still listed, just not counted
+  });
+
+  it("only ever shows a person their own rows and totals", async () => {
+    const [a, b] = [await newUser("z@x.com"), await newUser("aa@x.com")];
+    await ledger(a, { cost_usd: 0.5 });
+    await ledger(b, { cost_usd: 0.25 });
+    expect(Number((await summary(a))[0].all_cost)).toBeCloseTo(0.5);
+    expect(Number((await summary(b))[0].all_cost)).toBeCloseTo(0.25);
+    await asUser(a);
+    expect((await db.query("select * from api_ledger")).rows).toHaveLength(1);
+  });
+
+  it("cannot be written, changed or deleted by a signed-in user", async () => {
+    const u = await newUser("bb@x.com");
+    await ledger(u, { cost_usd: 0.5 });
+    await asUser(u);
+    await expect(
+      db.query("insert into api_ledger (user_id, platform, job, feature, key_source) values ($1, 'x', 'vision', 'f', 'byok')", [u]),
+    ).rejects.toThrow(/row-level security/);
+    await db.query("update api_ledger set cost_usd = 0");
+    await db.query("delete from api_ledger");
+    expect(Number((await summary(u))[0].all_cost)).toBeCloseTo(0.5);
+  });
+
+  it("refuses rows that make no sense", async () => {
+    const u = await newUser("cc@x.com");
+    await expect(ledger(u, { job: "bogus" })).rejects.toThrow();
+    await expect(ledger(u, { key_source: "friend" })).rejects.toThrow();
+    await expect(ledger(u, { status: "weird" })).rejects.toThrow();
+    await expect(ledger(u, { cost_usd: -1 })).rejects.toThrow();
+    await expect(ledger(u, { cost_source: "guess" })).rejects.toThrow();
+    await expect(ledger(u, { cost_known: false, cost_source: "provider" })).rejects.toThrow(); // an unpriced call has no source
+  });
+
+  it("keeps fractions of a cent", async () => {
+    const u = await newUser("dd@x.com");
+    await ledger(u, { cost_usd: 0.000123 });
+    expect(Number((await summary(u))[0].all_cost)).toBeCloseTo(0.000123, 6);
+  });
+
+  it("keeps the ledger row when a generation is deleted", async () => {
+    const u = await newUser("ee@x.com");
+    await db.exec("reset role");
+    const g = await db.query<{ id: string }>("insert into generations (user_id, kind, status, provider) values ($1, 'edit', 'complete', 'spicyapi') returning id", [u]);
+    await db.query("insert into api_ledger (user_id, platform, job, feature, key_source, cost_usd, generation_id) values ($1, 'spicyapi', 'image', 'image:edit', 'byok', 0.04, $2)", [u, g.rows[0].id]);
+    await db.query("delete from generations where id = $1", [g.rows[0].id]);
+    const rows = (await db.query<{ generation_id: string | null; cost_usd: string }>("select generation_id, cost_usd from api_ledger where user_id = $1", [u])).rows;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].generation_id).toBeNull();
+    expect(Number(rows[0].cost_usd)).toBeCloseTo(0.04);
   });
 });

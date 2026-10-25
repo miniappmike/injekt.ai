@@ -4,10 +4,11 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { detectProvider } from "@/lib/ai/providers/detect";
+import { defaultModelFor, detectProvider } from "@/lib/ai/providers/detect";
 import {
   removeRoleKey,
   saveRoleKey,
+  updateRolePrice,
   shareRoleKey,
   testRoleKey,
   updateRoleModel,
@@ -24,28 +25,39 @@ export interface SavedRole {
   sharedFrom?: string;
   /** Labels of jobs that reuse this job's key. */
   usedBy?: string[];
+  /** Text jobs: the price used to turn tokens into dollars, and where it came from (null: none known). */
+  price?: { input: number; output: number } | null;
+  priceSource?: "you" | "list" | null;
 }
 
 export interface ShareSource {
   id: string;
   label: string;
   providerLabel: string;
+  /** The source's model, prefilled for text jobs. */
   model: string;
+  /** The model to prefill for the Image job when it borrows this key. */
+  imageModel: string;
 }
 
-export function RoleKeyForm({ role, saved, shareSource }: { role: string; saved?: SavedRole; shareSource?: ShareSource }) {
+export function RoleKeyForm({ role, saved, shareSources = [] }: { role: "vision" | "llm" | "image"; saved?: SavedRole; shareSources?: ShareSource[] }) {
   const [state, action, pending] = useActionState<KeyFormState, FormData>(saveRoleKey, {});
   const [modelState, modelAction, modelPending] = useActionState<KeyFormState, FormData>(updateRoleModel, {});
   const [shareState, shareAction, sharePending] = useActionState<KeyFormState, FormData>(shareRoleKey, {});
   const [testState, testAction, testPending] = useActionState<KeyFormState, FormData>(testRoleKey, {});
+  const [priceState, priceAction, pricePending] = useActionState<KeyFormState, FormData>(updateRolePrice, {});
   const [replacing, setReplacing] = useState(false);
+
   const [key, setKey] = useState("");
   const [model, setModel] = useState("");
   const [forceCustom, setForceCustom] = useState(false);
 
   const trimmed = key.trim();
-  const detected = forceCustom ? null : detectProvider(trimmed);
-  const unknown = !detected && trimmed.length >= 8;
+  const isImage = role === "image";
+  const detected = forceCustom && !isImage ? null : detectProvider(trimmed);
+  // Image generation only works with providers that have an adapter, so there is no "other provider" path for it.
+  const imageUnsupported = isImage && trimmed.length >= 8 && detected?.id !== "spicyapi";
+  const unknown = !isImage && !detected && trimmed.length >= 8;
 
   if (saved && !replacing) {
     return (
@@ -80,33 +92,64 @@ export function RoleKeyForm({ role, saved, shareSource }: { role: string; saved?
             <Button type="submit" size="sm" variant="ghost">Remove</Button>
           </form>
         </div>
-        {testState.tested === role && <p role="status" className="text-sm text-emerald-400">Works. The provider answered with this model.</p>}
+        {testState.tested === role && (
+          <p role="status" className="text-sm text-emerald-400">
+            {testState.detail ? `Works. ${testState.detail}` : "Works. The provider answered with this model."}
+          </p>
+        )}
         {testState.error && <p role="alert" className="text-sm text-red-400">{testState.error}</p>}
+        {role !== "image" && (
+          <details className="rounded-md border border-neutral-800 p-3 text-sm" open={!saved.price}>
+            <summary className="cursor-pointer text-neutral-300">Cost for your ledger</summary>
+            <p className="mt-2 text-xs text-neutral-500">
+              {saved.priceSource === "list"
+                ? `Using the provider's list price: $${saved.price?.input} in / $${saved.price?.output} out per million tokens.`
+                : saved.priceSource === "you"
+                  ? `Using your price: $${saved.price?.input} in / $${saved.price?.output} out per million tokens.`
+                  : "We don't know what this model costs, so its calls show as unpriced in your ledger. Enter its price per million tokens (it's on your provider's pricing page) to see dollars."}
+            </p>
+            <form action={priceAction} className="mt-2 flex flex-wrap items-end gap-2">
+              <input type="hidden" name="role" value={role} />
+              <label className="flex flex-col gap-1 text-xs text-neutral-400">
+                Input $ / million tokens
+                <Input name="priceInput" inputMode="decimal" defaultValue={saved.priceSource === "you" ? saved.price?.input : ""} placeholder={saved.price ? String(saved.price.input) : "e.g. 2"} className="w-32" />
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-neutral-400">
+                Output $ / million tokens
+                <Input name="priceOutput" inputMode="decimal" defaultValue={saved.priceSource === "you" ? saved.price?.output : ""} placeholder={saved.price ? String(saved.price.output) : "e.g. 10"} className="w-32" />
+              </label>
+              <Button type="submit" size="sm" variant="secondary" disabled={pricePending}>{pricePending ? "Saving..." : "Save price"}</Button>
+            </form>
+            <p className="mt-1 text-xs text-neutral-500">Applies to new calls only. Leave both empty and save to go back to the list price (if there is one).</p>
+            {priceState.error && <p role="alert" className="mt-1 text-xs text-red-400">{priceState.error}</p>}
+            {priceState.saved === role && <p role="status" className="mt-1 text-xs text-emerald-400">Saved.</p>}
+          </details>
+        )}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-5">
-      {shareSource && (
-        <form action={shareAction} className="flex flex-col gap-2 rounded-md border border-neutral-800 p-3">
+      {shareSources.map((source) => (
+        <form key={source.id} action={shareAction} className="flex flex-col gap-2 rounded-md border border-neutral-800 p-3">
           <input type="hidden" name="role" value={role} />
-          <input type="hidden" name="from" value={shareSource.id} />
-          <p className="text-sm font-medium">Use the same key as {shareSource.label} ({shareSource.providerLabel})</p>
+          <input type="hidden" name="from" value={source.id} />
+          <p className="text-sm font-medium">Use the same key as {source.label} ({source.providerLabel})</p>
           <p className="text-xs text-neutral-500">One key, a different model for this job if you want one.</p>
           <div className="flex gap-2">
-            <Input name="model" defaultValue={shareSource.model} aria-label="Model name" required />
+            <Input name="model" defaultValue={role === "image" ? source.imageModel : source.model} aria-label="Model name" required />
             <Button type="submit" variant="secondary" disabled={sharePending}>{sharePending ? "Saving..." : "Use it"}</Button>
           </div>
-          {shareState.error && <p role="alert" className="text-sm text-red-400">{shareState.error}</p>}
         </form>
-      )}
+      ))}
+      {shareState.error && <p role="alert" className="text-sm text-red-400">{shareState.error}</p>}
 
       <form action={action} className="flex flex-col gap-3">
         <input type="hidden" name="role" value={role} />
         {forceCustom && <input type="hidden" name="custom" value="1" />}
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`key-${role}`}>{shareSource ? "Or paste a different key" : "Paste your API key"}</Label>
+          <Label htmlFor={`key-${role}`}>{shareSources.length ? "Or paste a different key" : "Paste your API key"}</Label>
           <Input
             id={`key-${role}`}
             name="key"
@@ -137,13 +180,16 @@ export function RoleKeyForm({ role, saved, shareSource }: { role: string; saved?
               <Input
                 id={`model-${role}`}
                 name="model"
-                value={model || detected.defaultModel}
+                value={model || defaultModelFor(detected, role)}
                 onChange={(e) => setModel(e.target.value)}
                 placeholder={detected.id === "openrouter" ? "e.g. anthropic/claude-sonnet-4.5" : undefined}
                 required
               />
             </div>
           </>
+        )}
+        {imageUnsupported && (
+          <p className="text-sm text-neutral-300">Image generation works with SpicyAPI keys for now (they start with sk-spicy-). More providers are coming.</p>
         )}
         {unknown && (
           <>

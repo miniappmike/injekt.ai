@@ -6,10 +6,13 @@ import { saveUserKey } from "@/lib/key-store";
 import { MODEL_PATTERN, resolveRoleSetup } from "@/lib/ai/role-setup";
 import { dropRole, isShared, readRoles, ROLES, shareRole, type RoleId, type RolePrefs } from "@/lib/ai/roles";
 import { enforceRateLimit } from "@/lib/ratelimit";
+import { parsePrice } from "@/lib/pricing";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { toFailure } from "@/lib/ai/failure";
+import { getUserImageConfig, resolveUserImageKey } from "@/lib/ai/image-setup";
+import { getImageProvider } from "@/lib/ai/providers/registry";
 
-export type KeyFormState = { error?: string; saved?: string; tested?: string };
+export type KeyFormState = { error?: string; saved?: string; tested?: string; detail?: string };
 
 type Supabase = Awaited<ReturnType<typeof requireUser>>["supabase"];
 
@@ -43,6 +46,7 @@ export async function saveRoleKey(_: KeyFormState, formData: FormData): Promise<
     model: String(formData.get("model") ?? ""),
     baseUrl: String(formData.get("baseUrl") ?? ""),
     custom: formData.get("custom") === "1",
+    role,
   });
   if (!setup.ok) return { error: setup.error };
 
@@ -99,7 +103,35 @@ export async function updateRoleModel(_: KeyFormState, formData: FormData): Prom
   const roles = readRoles(prefs);
   const current = roles[role];
   if (!current) return { error: "Add a key first" };
-  roles[role] = { ...current, model };
+  // A price entered for the old model no longer applies to the new one.
+  const { price: _old, ...rest } = current;
+  roles[role] = { ...rest, model };
+  await writeRoles(supabase, user.id, prefs, roles);
+  revalidatePath("/settings/api-keys");
+  return { saved: role };
+}
+
+// Lets the person enter what their model costs, so spend can be shown in dollars. Both blank clears it.
+export async function updateRolePrice(_: KeyFormState, formData: FormData): Promise<KeyFormState> {
+  const { supabase, user } = await requireUser();
+  const role = roleOf(formData.get("role"));
+  if (!role || role === "image") return { error: "Unknown setting" };
+  const input = String(formData.get("priceInput") ?? "");
+  const output = String(formData.get("priceOutput") ?? "");
+
+  const prefs = await loadPrefs(supabase, user.id);
+  const roles = readRoles(prefs);
+  const current = roles[role];
+  if (!current) return { error: "Add a key first" };
+
+  const { price: _old, ...rest } = current;
+  if (!input.trim() && !output.trim()) {
+    roles[role] = rest;
+  } else {
+    const price = parsePrice(input, output);
+    if (!price) return { error: "Enter both prices as numbers, for example 2 and 10." };
+    roles[role] = { ...rest, price };
+  }
   await writeRoles(supabase, user.id, prefs, roles);
   revalidatePath("/settings/api-keys");
   return { saved: role };
@@ -124,7 +156,14 @@ export async function testRoleKey(_: KeyFormState, formData: FormData): Promise<
   if (!role) return { error: "Unknown setting" };
   try {
     await enforceRateLimit(user.id, "test-key", 5, 60);
-    const { client } = await getUserTextClient(supabase, user.id, role);
+    if (role === "image") {
+      // A free balance check, so testing never spends anything.
+      const cfg = await getUserImageConfig(supabase, user.id);
+      if (!cfg) return { error: "Add an image key first." };
+      const { detail } = await getImageProvider("spicyapi").check({ apiKey: await resolveUserImageKey(user.id, cfg) });
+      return { tested: role, detail };
+    }
+    const { client } = await getUserTextClient(supabase, user.id, role, "test");
     const reply = await client.run({ instructions: "Reply with the single word: ok", text: "Connection test." });
     return reply.trim() ? { tested: role } : { error: "The provider answered with an empty reply." };
   } catch (e) {

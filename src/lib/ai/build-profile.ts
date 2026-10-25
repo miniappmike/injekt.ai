@@ -34,7 +34,7 @@ export async function runProfileBuild(supabase: SupabaseClient, userId: string, 
 
     allowance = await entitlements.useAllowance(userId, "profile_builds");
 
-    const { client, imageMaxEdge } = await getUserTextClient(supabase, userId);
+    const { client, imageMaxEdge } = await getUserTextClient(supabase, userId, "vision", "profile");
     const images = await loadForVision(supabase, refs, imageMaxEdge);
     const reply = await client.run(buildProfileTask(c, images));
     const profile = parseProfileResponse(reply);

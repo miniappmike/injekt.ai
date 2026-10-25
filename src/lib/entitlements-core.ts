@@ -38,6 +38,12 @@ export function createEntitlements(deps: EntitlementDeps) {
       };
     },
 
+    /** Gives a unit back later, when the job it was taken for is found to have failed. Does nothing for unlimited accounts. */
+    async releaseAllowance(userId: string, key: AllowanceKey): Promise<void> {
+      if (await isUnlimited(userId)) return;
+      await deps.release(userId, key);
+    },
+
     /** Features that are not part of the free plan at all. */
     async requirePro(userId: string, feature: ProFeature): Promise<void> {
       if (!(await isUnlimited(userId))) throw new LimitReachedError(feature);

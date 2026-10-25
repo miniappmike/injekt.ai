@@ -9,7 +9,7 @@ Model Spawn is bring-your-own-key. Users pay their own model providers; the plat
 | Keys | Bring your own | Bring your own, or use the platform's key through prepaid credits |
 | Characters | 1 at a time (built) | Unlimited |
 | Profile generations | 3 lifetime attempts; each result is saved and the page stays open for another try (built) | Unlimited |
-| Image generation | 1 lifetime, verified email, house key (limit defined, generation not built) | Own key, or credits |
+| Image generation | 1 lifetime image at 1k, verified email, platform key (built) | Own Image key, or credits (credits not built) |
 | House-key credits | Can buy, 25% markup over cost, $5 minimum top-up | Same |
 | Prompt writing | Not included (built) | Unlimited with own key |
 
@@ -37,7 +37,7 @@ Admins (`profiles.is_admin`) are unlimited and may use the server key. `profiles
 - `profiles.plan` (`free` | `pro`), `profiles.plan_renews_at`.
 - `usage_counters(user_id, key, count)` for lifetime limits (`characters`, `profile_rebuilds`, `free_images`).
 - `wallets(user_id, balance_micro_usd)`; `wallet_ledger(id, user_id, kind topup|hold|settle|release|adjust, amount_micro_usd, generation_id, created_at)`.
-- Add `charged_usd` next to the existing `usage_ledger.cost_usd`.
+- Add `charged_usd` next to the existing `api_ledger.cost_usd` (the provider cost), so the markup stays separate from what we paid.
 - All limits are enforced on the server in the actions that spend (character create, profile build, generation), never only in the UI.
 
 ## Costs to cover (check current prices before relying on these)

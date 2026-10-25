@@ -1,4 +1,4 @@
-import { ApiKeyRequiredError, LimitReachedError, RateLimitError } from "@/lib/errors";
+import { ApiKeyRequiredError, LimitReachedError, RateLimitError, UserFacingError } from "@/lib/errors";
 import { limitMessage } from "@/lib/limits";
 import { ProviderError } from "./providers/text";
 
@@ -9,7 +9,7 @@ export function toFailure(e: unknown): AiFailure {
   if (e instanceof ApiKeyRequiredError) return { ok: false, error: "Add an API key to continue.", redirectTo: e.redirectTo };
   if (e instanceof LimitReachedError) return { ok: false, error: limitMessage(e.key) };
   if (e instanceof RateLimitError) return { ok: false, error: `Too many requests. Try again in ${e.retryAfterSeconds}s.` };
-  if (e instanceof ProviderError) return { ok: false, error: e.message };
+  if (e instanceof ProviderError || e instanceof UserFacingError) return { ok: false, error: e.message };
   console.error("ai call failed", e instanceof Error ? e.message : e);
   return { ok: false, error: e instanceof Error ? e.message : "Something went wrong" };
 }

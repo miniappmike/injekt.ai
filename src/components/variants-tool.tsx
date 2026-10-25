@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { GenerateImage } from "@/components/generate-image";
 import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
@@ -21,6 +22,10 @@ interface Item {
 interface Result {
   items: Item[];
   attach: string[];
+  /** The uploaded image the prompts refer to, and the character they were written for. */
+  path: string;
+  characterId: string | null;
+  mode: Mode;
 }
 
 export function VariantsTool({ characters }: { characters: { id: string; name: string; ready: boolean }[] }) {
@@ -68,6 +73,9 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         return setError(res.error);
       }
       setResult({
+        path,
+        characterId: characterId || null,
+        mode,
         attach: res.attach,
         items: "variants" in res ? res.variants.map((v) => ({ title: v.label, prompt: v.prompt })) : res.slides,
       });
@@ -185,6 +193,12 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                   <Button type="button" size="sm" variant="ghost" onClick={() => copy(item.prompt)}>Copy</Button>
                 </div>
                 <p className="whitespace-pre-wrap">{item.prompt}</p>
+                <GenerateImage
+                  prompt={item.prompt}
+                  characterId={result.characterId}
+                  extraPaths={[result.path]}
+                  kind={result.mode === "edits" ? "variant" : "carousel"}
+                />
               </CardContent>
             </Card>
           ))}

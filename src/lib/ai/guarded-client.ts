@@ -1,15 +1,28 @@
 import { buildSystemPrompt } from "./master-prompt";
 import type { GuardedTextClient, TextBackend } from "./providers/types";
+import type { TokenUsage } from "@/lib/pricing";
+
+export interface GuardedClientOptions {
+  /** Called after every successful call. `usage` is undefined when the provider did not report tokens. */
+  onUsage?: (usage: TokenUsage | undefined) => void | Promise<void>;
+}
 
 // Wraps any vision/LLM backend so the master prompt cannot be skipped.
-export function createGuardedClient(backend: TextBackend, apiKey: string): GuardedTextClient {
+export function createGuardedClient(backend: TextBackend, apiKey: string, options: GuardedClientOptions = {}): GuardedTextClient {
   return {
-    run: (task) =>
-      backend.complete({
+    run: async (task) => {
+      const result = await backend.complete({
         system: buildSystemPrompt(task.instructions),
         text: task.text,
         images: task.images,
         apiKey,
-      }),
+      });
+      try {
+        await options.onUsage?.(result.usage);
+      } catch {
+        // Tracking spend must never break the work the person asked for.
+      }
+      return result.text;
+    },
   };
 }

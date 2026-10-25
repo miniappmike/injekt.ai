@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { parseDataUri } from "@/lib/images";
 import { assertPublicHttpsUrl } from "@/lib/ssrf";
+import { isSpicyHost } from "../roles";
+import type { TokenUsage } from "@/lib/pricing";
 import type { TextBackend } from "./types";
 
 export class ProviderError extends Error {
@@ -15,6 +17,12 @@ export class ProviderError extends Error {
 }
 
 const TIMEOUT_MS = 55_000;
+
+// Providers report token use under different names. Anything that is not a plain number counts as not reported.
+export function readUsage(input: unknown, output: unknown): TokenUsage | undefined {
+  const ok = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0;
+  return ok(input) && ok(output) ? { inputTokens: input, outputTokens: output } : undefined;
+}
 
 // Turns a provider failure into a message a user can act on. The key itself is never included.
 export function describeProviderError(provider: string, status: number, detail: string, model: string, apiKey: string): string {
@@ -75,7 +83,7 @@ export function anthropicBackend(model: string): TextBackend {
       );
       const out = (json?.content ?? []).filter((b: { type: string }) => b.type === "text").map((b: { text: string }) => b.text).join("");
       if (!out) throw new ProviderError("anthropic", 200, "anthropic returned no text");
-      return out;
+      return { text: out, usage: readUsage(json?.usage?.input_tokens, json?.usage?.output_tokens) };
     },
   };
 }
@@ -115,7 +123,7 @@ export function openaiCompatBackend(id: "openai" | "openrouter" | "google" | "cu
       );
       const out = json?.choices?.[0]?.message?.content;
       if (typeof out !== "string" || !out) throw new ProviderError(id, 200, `${id} returned no text`);
-      return out;
+      return { text: out, usage: readUsage(json?.usage?.prompt_tokens, json?.usage?.completion_tokens) };
     },
   };
 }
@@ -149,7 +157,7 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
       );
       const out = json?.choices?.[0]?.message?.content;
       if (typeof out !== "string" || !out) throw new ProviderError("spicyapi", 200, "spicyapi returned no text");
-      return out;
+      return { text: out, usage: readUsage(json?.usage?.prompt_tokens, json?.usage?.completion_tokens) };
     },
   };
 }
@@ -157,10 +165,11 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
 export function getTextBackend(provider: string, model: string, baseUrl?: string): TextBackend {
   if (provider === "anthropic") return anthropicBackend(model);
   if (provider === "openai" || provider === "openrouter" || provider === "google") return openaiCompatBackend(provider, model);
+  if (provider === "spicyapi") return spicyapiBackend(model);
   if (provider === "custom") {
     if (!baseUrl) throw new Error("A base URL is required for this provider");
     // SpicyAPI rejects unknown fields and needs reasoning kept low, so it gets its own request shape.
-    if (new URL(baseUrl).hostname.endsWith("spicyapi.ai")) return spicyapiBackend(model, baseUrl);
+    if (isSpicyHost(baseUrl)) return spicyapiBackend(model, baseUrl);
     return openaiCompatBackend("custom", model, baseUrl);
   }
   throw new Error(`Unknown text provider: ${provider}`);

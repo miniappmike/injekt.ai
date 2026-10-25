@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadForVision, referenceList } from "@/lib/character-images";
 import { getUserTextClient } from "./text-client";
+import type { TextFeature } from "@/lib/ledger";
 import type { CharacterProfile } from "@/lib/characters";
 import type { LabeledImage } from "./tasks/profile-builder";
 
@@ -19,10 +20,11 @@ export async function prepareVision(
   userId: string,
   characterId: string | null,
   extra: { label: string; path: string }[] = [],
+  feature: TextFeature,
 ) {
   let character: VisionCharacter | null = null;
   let references: LabeledImage[] = [];
-  const { client, imageMaxEdge } = await getUserTextClient(supabase, userId);
+  const { client, imageMaxEdge } = await getUserTextClient(supabase, userId, "vision", feature);
 
   if (characterId) {
     const { data: c } = await supabase
