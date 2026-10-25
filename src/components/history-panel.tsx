@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/toast";
@@ -103,98 +104,102 @@ export function HistoryPanel() {
         History
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-40" onKeyDown={onKeyDown}>
-          <div className="absolute inset-0 bg-black/60" onClick={close} aria-hidden="true" />
-          <div
-            ref={panel}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="history-title"
-            className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-neutral-800 bg-neutral-950 shadow-xl"
-          >
-            <div className="flex items-center justify-between gap-2 border-b border-neutral-800 p-4">
-              <div>
-                <h2 id="history-title" className="font-semibold">History</h2>
-                <p className="text-xs text-neutral-500">{items ? `${items.length} saved` : "Loading..."}</p>
+      {/* Drawn on the page body, not inside the header: the header's blur makes it the anchor for anything fixed within it,
+          which squashed the panel into the header strip and let the page show through. */}
+      {open &&
+        createPortal(
+          <div className="fixed inset-0 z-40" onKeyDown={onKeyDown}>
+            <div className="absolute inset-0 bg-black/60" onClick={close} aria-hidden="true" />
+            <div
+              ref={panel}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="history-title"
+              className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-neutral-800 bg-neutral-950 shadow-xl"
+            >
+              <div className="flex items-center justify-between gap-2 border-b border-neutral-800 p-4">
+                <div>
+                  <h2 id="history-title" className="font-semibold">History</h2>
+                  <p className="text-xs text-neutral-500">{items ? `${items.length} saved` : "Loading..."}</p>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={!items?.length}
+                    onClick={() =>
+                      download("model-spawn-history.json", JSON.stringify((items ?? []).map(({ thumbnail: _t, ...rest }) => rest), null, 2), "application/json")
+                    }
+                  >
+                    Export
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" disabled={!items?.length || busy} onClick={removeAll}>
+                    Delete all
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={close} aria-label="Close history">
+                    ✕
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={!items?.length}
-                  onClick={() =>
-                    download("model-spawn-history.json", JSON.stringify((items ?? []).map(({ thumbnail: _t, ...rest }) => rest), null, 2), "application/json")
-                  }
+
+              <div className="flex gap-2 border-b border-neutral-800 p-3">
+                <Input placeholder="Search prompts" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search history" />
+                <select
+                  value={characterId}
+                  onChange={(e) => setCharacterId(e.target.value)}
+                  aria-label="Filter by character"
+                  className="h-9 max-w-[9rem] rounded-md border border-neutral-700 bg-neutral-900 px-2 text-sm"
                 >
-                  Export
-                </Button>
-                <Button type="button" size="sm" variant="ghost" disabled={!items?.length || busy} onClick={removeAll}>
-                  Delete all
-                </Button>
-                <Button type="button" size="sm" variant="ghost" onClick={close} aria-label="Close history">
-                  ✕
-                </Button>
+                  <option value="">All characters</option>
+                  {characters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3">
+                {error && <p role="alert" className="text-sm text-red-400">Couldn&apos;t load your history. Close and reopen to try again.</p>}
+                {!error && items === null && <p className="text-sm text-neutral-400">Loading...</p>}
+                {items && !shown.length && (
+                  <p className="text-sm text-neutral-400">{items.length ? "Nothing matches." : "Nothing saved yet. Prompts you write will show up here."}</p>
+                )}
+                <ul className="flex flex-col gap-3">
+                  {shown.map((i) => {
+                    const isOpen = expanded.has(i.id);
+                    return (
+                      <li key={i.id} className="flex gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+                        {i.thumbnail && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={i.thumbnail} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium">{i.label}</p>
+                          <p className="text-xs text-neutral-500">{i.characterName} · {when(i.createdAt)}</p>
+                          <p className={`mt-1 whitespace-pre-wrap text-sm text-neutral-300 ${isOpen ? "" : "line-clamp-2"}`}>{i.prompt}</p>
+                          <div className="mt-1 flex gap-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={async () => {
+                                await navigator.clipboard.writeText(i.prompt);
+                                show("Copied");
+                              }}
+                            >
+                              Copy
+                            </Button>
+                            <Button type="button" size="sm" variant="ghost" onClick={() => toggle(i.id)}>{isOpen ? "Collapse" : "Expand"}</Button>
+                            <Button type="button" size="sm" variant="ghost" onClick={() => remove(i.id)}>Delete</Button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             </div>
-
-            <div className="flex gap-2 border-b border-neutral-800 p-3">
-              <Input placeholder="Search prompts" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search history" />
-              <select
-                value={characterId}
-                onChange={(e) => setCharacterId(e.target.value)}
-                aria-label="Filter by character"
-                className="h-9 max-w-[9rem] rounded-md border border-neutral-700 bg-neutral-900 px-2 text-sm"
-              >
-                <option value="">All characters</option>
-                {characters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3">
-              {error && <p role="alert" className="text-sm text-red-400">Couldn&apos;t load your history. Close and reopen to try again.</p>}
-              {!error && items === null && <p className="text-sm text-neutral-400">Loading...</p>}
-              {items && !shown.length && (
-                <p className="text-sm text-neutral-400">{items.length ? "Nothing matches." : "Nothing saved yet. Prompts you write will show up here."}</p>
-              )}
-              <ul className="flex flex-col gap-3">
-                {shown.map((i) => {
-                  const isOpen = expanded.has(i.id);
-                  return (
-                    <li key={i.id} className="flex gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
-                      {i.thumbnail && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={i.thumbnail} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium">{i.label}</p>
-                        <p className="text-xs text-neutral-500">{i.characterName} · {when(i.createdAt)}</p>
-                        <p className={`mt-1 whitespace-pre-wrap text-sm text-neutral-300 ${isOpen ? "" : "line-clamp-2"}`}>{i.prompt}</p>
-                        <div className="mt-1 flex gap-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={async () => {
-                              await navigator.clipboard.writeText(i.prompt);
-                              show("Copied");
-                            }}
-                          >
-                            Copy
-                          </Button>
-                          <Button type="button" size="sm" variant="ghost" onClick={() => toggle(i.id)}>{isOpen ? "Collapse" : "Expand"}</Button>
-                          <Button type="button" size="sm" variant="ghost" onClick={() => remove(i.id)}>Delete</Button>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </div>
-          {toast}
-        </div>
+            {toast}
+          </div>,
+        document.body,
       )}
     </>
   );
