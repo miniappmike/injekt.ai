@@ -29,6 +29,10 @@ export interface TrayGeneration {
   url?: string;
   downloadUrl?: string;
   error?: string;
+  /** Set once the job has started. */
+  generationId?: string;
+  /** The Generate button that started it is gone, so the tray checks the job itself. */
+  detached?: boolean;
 }
 
 /** Tells the bottom tray about a generation started on this page, or about its result. */

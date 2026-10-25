@@ -1,6 +1,7 @@
 import { PROFILE_FIELDS, type CharacterProfile } from "@/lib/characters";
 import type { TaskInput } from "../master-prompt";
 import type { LabeledImage } from "./profile-builder";
+import { REALISM_INSTRUCTIONS } from "./realism";
 
 export type PromptStyle = "sectioned" | "match";
 
@@ -36,6 +37,7 @@ Rules for this task:
 - Keep the target's pose, setting, lighting and framing unless the user's outfit note says otherwise.
 - Replace the person in the target with the character. Do not describe the original person.
 ${STYLE_INSTRUCTIONS[style]}
+${REALISM_INSTRUCTIONS}
 Output only the prompt text.`,
     text: `Character: ${character.name}
 ${profileText || "(no saved profile yet, rely on the reference images)"}

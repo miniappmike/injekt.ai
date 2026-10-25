@@ -11,6 +11,8 @@ import {
   attachOrder,
   buildCarouselTask,
   buildVariantTask,
+  DEFAULT_VARIANT_COUNT,
+  MAX_VARIANT_COUNT,
   parseCarousel,
   parseVariants,
   VARIANT_OPTIONS,
@@ -25,6 +27,8 @@ export async function writeVariantEdits(input: {
   imagePath: string;
   characterId?: string | null;
   options: VariantOptionId[];
+  /** How many variations to write; each changes all the chosen options. */
+  count?: number;
   note?: string;
 }): Promise<Ok<{ variants: { label: string; prompt: string }[]; attach: string[] }>> {
   try {
@@ -39,8 +43,9 @@ export async function writeVariantEdits(input: {
     const { client, character, references, extras } = await prepareVision(supabase, user.id, input.characterId ?? null, [
       { label: "image to edit", path: input.imagePath },
     ], "variants");
-    const reply = await client.run(buildVariantTask({ character, references, image: extras[0], options, note: input.note }));
-    const variants = parseVariants(reply, options.length);
+    const count = Math.min(Math.max(Math.round(Number(input.count)) || DEFAULT_VARIANT_COUNT, 1), MAX_VARIANT_COUNT);
+    const reply = await client.run(buildVariantTask({ character, references, image: extras[0], options, count, note: input.note }));
+    const variants = parseVariants(reply, count);
 
     await saveHistory(
       supabase,

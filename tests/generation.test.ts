@@ -252,6 +252,15 @@ describe("startGeneration: inputs", () => {
     });
   });
 
+  it("carousel and variant images send only the character's sheets, then the photo", async () => {
+    for (const kind of ["carousel", "variant"]) {
+      h.submit.mockClear();
+      await startGeneration(userClient(), verified, request({ kind }));
+      // The character has a face sheet and one reference photo; the photo is left out.
+      expect(h.submit.mock.calls[0][0].input.imageUrls).toEqual([`https://signed.test/${U}/characters/${C}/face.jpg`, `https://signed.test/${U}/targets/t.jpg`]);
+    }
+  });
+
   it("works without a character, using only the pictures given", async () => {
     await startGeneration(userClient(), verified, request({ characterId: null }));
     expect(h.submit.mock.calls[0][0].input.imageUrls).toEqual([`https://signed.test/${U}/targets/t.jpg`]);

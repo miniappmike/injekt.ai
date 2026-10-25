@@ -9,6 +9,7 @@ import { saveHistory } from "@/lib/history";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { runProfileBuild } from "@/lib/ai/build-profile";
 import { buildReplacementPromptTask, type PromptStyle } from "@/lib/ai/tasks/prompt-writer";
+import { withRealism } from "@/lib/ai/tasks/realism";
 import { loadForVision, referenceList } from "@/lib/character-images";
 import { isOwnPath } from "@/lib/uploads";
 import type { CharacterProfile } from "@/lib/characters";
@@ -68,7 +69,7 @@ export async function writeReplacementPrompts(input: {
         const prompt = await client.run(
           buildReplacementPromptTask({ character: { ...c, profile: c.profile as CharacterProfile }, references, target, outfit: input.outfit, style: input.style }),
         );
-        results.push({ path, prompt: prompt.trim() });
+        results.push({ path, prompt: withRealism(prompt) });
       } catch (e) {
         const f = failure(e);
         if (f.redirectTo) return f;

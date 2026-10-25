@@ -101,10 +101,13 @@ export function GenerateImage({
       setPhase("failed");
       return setMessage(started.error);
     }
+    // If this button goes away (another tab, a new result) or gives up waiting, the tray keeps checking the job.
+    const handOff = () => reportGeneration({ ...tray, state: "generating", generationId: started.generationId, detached: true });
+    if (!alive.current) return handOff();
     setPhase("running");
-    for (let i = 0; i < MAX_POLLS && alive.current; i++) {
+    for (let i = 0; i < MAX_POLLS; i++) {
       await new Promise((r) => setTimeout(r, POLL_MS));
-      if (!alive.current) return;
+      if (!alive.current) return handOff();
       const status = await checkImageGeneration(started.generationId);
       if (!status.ok) {
         reportGeneration({ ...tray, state: "failed", error: status.error });
@@ -124,8 +127,9 @@ export function GenerateImage({
         return setMessage(status.error);
       }
     }
+    handOff();
     setPhase("failed");
-    setMessage("Still working on it. It will show up in History, under Images, when it's ready.");
+    setMessage("Still working on it. It will show up in the tray below and in History, under Images, when it's ready.");
   }
 
   const busy = phase === "starting" || phase === "running";

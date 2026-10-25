@@ -14,7 +14,7 @@ import { getUserImageConfig, resolveUserImageKey } from "@/lib/ai/image-setup";
 import { getImageProvider } from "@/lib/ai/providers/registry";
 import { SPICY_IMAGE_MODEL } from "@/lib/ai/providers/spicyapi";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageJobInput, type ImageResolution } from "@/lib/ai/providers/types";
-import { referenceList } from "@/lib/character-images";
+import { referencesFor } from "@/lib/character-images";
 import { MEDIA_BUCKET } from "@/lib/images";
 import { isOwnPath } from "@/lib/uploads";
 import { GENERATION_RETENTION_HOURS, generationExpiry } from "@/lib/retention";
@@ -93,7 +93,7 @@ async function inputImageUrls(supabase: SupabaseClient, userId: string, request:
       .maybeSingle();
     if (!c) throw new UserFacingError("Character not found.");
     // A reference sheet is made only from the pictures you give it, not from the character's existing references.
-    if (request.kind !== "reference_sheet") paths.push(...referenceList(c).map((r) => r.path));
+    if (request.kind !== "reference_sheet") paths.push(...referencesFor(request.kind, c).map((r) => r.path));
   }
   for (const p of request.extraPaths) {
     if (!isOwnPath(userId, p)) throw new UserFacingError("One of the images couldn't be used. Upload it again.");

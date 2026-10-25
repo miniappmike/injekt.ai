@@ -12,7 +12,7 @@ import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { planCarousel, writeVariantEdits } from "@/app/(app)/variants/actions";
-import { VARIANT_OPTIONS, type VariantOptionId } from "@/lib/ai/tasks/variants";
+import { DEFAULT_VARIANT_COUNT, MAX_VARIANT_COUNT, VARIANT_OPTIONS, type VariantOptionId } from "@/lib/ai/tasks/variants";
 
 type Mode = "edits" | "carousel";
 interface Item {
@@ -35,6 +35,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   const [image, setImage] = useState<{ file: File; preview: string; path?: string } | null>(null);
   const [options, setOptions] = useState<Set<VariantOptionId>>(new Set(["pose", "camera"]));
   const [slides, setSlides] = useState(5);
+  const [count, setCount] = useState<number>(DEFAULT_VARIANT_COUNT);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -68,7 +69,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       const common = { characterId: characterId || null, note };
       const res =
         mode === "edits"
-          ? await writeVariantEdits({ imagePath: path, options: [...options], ...common })
+          ? await writeVariantEdits({ imagePath: path, options: [...options], count, ...common })
           : await planCarousel({ coverPath: path, slides, ...common });
       if (!res.ok) {
         if (res.redirectTo) return router.push(res.redirectTo);
@@ -153,6 +154,16 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
               </label>
             ))}
           </div>
+          <p className="text-xs text-neutral-500">Every variant changes all of the selected things together, and nothing else.</p>
+          <Label htmlFor="variant-count" className="mt-2">How many variants</Label>
+          <select
+            id="variant-count"
+            value={count}
+            onChange={(e) => setCount(Number(e.target.value))}
+            className="h-9 w-32 rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm"
+          >
+            {Array.from({ length: MAX_VARIANT_COUNT }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
         </fieldset>
       ) : (
         <section className="flex flex-col gap-2">

@@ -1,8 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { checkImageGeneration } from "@/app/(app)/generate/actions";
+
+const POLL_MS = 4000;
+const MAX_POLLS = 150; // about 10 minutes
 import { GENERATION_EVENT, openHistory, viewImage, type TrayGeneration } from "@/lib/panel-events";
 
 // A strip along the bottom of the page with every image generated on it, newest first. It empties when you go to
@@ -12,26 +16,56 @@ export function GenerationTray() {
   const [items, setItems] = useState<TrayGeneration[]>([]);
   const [collapsed, setCollapsed] = useState(false);
 
+  // Adds a generation, or merges news about one already in the tray.
+  const update = useCallback((u: Partial<TrayGeneration> & { key: string }) => {
+    setItems((list) => {
+      const at = list.findIndex((i) => i.key === u.key);
+      if (at === -1) return [u as TrayGeneration, ...list];
+      const next = [...list];
+      next[at] = { ...next[at], ...u };
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
-    const onUpdate = (e: Event) => {
-      const update = (e as CustomEvent<TrayGeneration>).detail;
-      setItems((list) => {
-        const at = list.findIndex((i) => i.key === update.key);
-        if (at === -1) return [update, ...list];
-        const next = [...list];
-        next[at] = { ...next[at], ...update };
-        return next;
-      });
-    };
+    const onUpdate = (e: Event) => update((e as CustomEvent<TrayGeneration>).detail);
     window.addEventListener(GENERATION_EVENT, onUpdate);
     return () => window.removeEventListener(GENERATION_EVENT, onUpdate);
-  }, []);
+  }, [update]);
 
   // A new page starts with an empty tray.
   useEffect(() => {
     setItems([]);
     setCollapsed(false);
   }, [pathname]);
+
+  // Jobs whose Generate button went away are checked from here until they finish.
+  const watchKey = items
+    .filter((i) => i.state === "generating" && i.detached && i.generationId)
+    .map((i) => `${i.key}:${i.generationId}`)
+    .join(",");
+  useEffect(() => {
+    if (!watchKey) return;
+    let stopped = false;
+    let ticks = 0;
+    const timer = setInterval(async () => {
+      if (stopped || ++ticks > MAX_POLLS) return clearInterval(timer);
+      await Promise.all(
+        watchKey.split(",").map(async (pair) => {
+          const [key, id] = pair.split(":");
+          const status = await checkImageGeneration(id).catch(() => null);
+          if (stopped || !status) return;
+          if (!status.ok) return; // A check that errors is tried again on the next tick.
+          if (status.state === "complete") update({ key, state: "ready", url: status.url, downloadUrl: status.downloadUrl });
+          else if (status.state === "failed") update({ key, state: "failed", error: status.error });
+        }),
+      );
+    }, POLL_MS);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [watchKey]);
 
   if (!items.length) return null;
   const running = items.filter((i) => i.state === "generating").length;

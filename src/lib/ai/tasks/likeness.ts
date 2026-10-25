@@ -3,6 +3,7 @@ import { PROFILE_FIELDS, type CharacterProfile } from "@/lib/characters";
 import { extractJson } from "../json";
 import type { TaskInput } from "../master-prompt";
 import type { LabeledImage } from "./profile-builder";
+import { REALISM_INSTRUCTIONS, withRealism } from "./realism";
 
 export const LIKENESS_TRAITS = [
   "Face shape",
@@ -48,7 +49,8 @@ Return ONE JSON object and nothing else:
 Use exactly these trait names, in this order: ${LIKENESS_TRAITS.join(", ")}.
 "fix_phrases" lists the most useful fixes to add to a prompt, best first, at most 6.
 "edit_prompt" is a ready-to-use prompt that edits ${generatedLabel} to fix the biggest gaps while keeping everything else
-(pose, setting, lighting, framing). Refer to the references by their @imageN labels.`,
+(pose, setting, lighting, framing). Refer to the references by their @imageN labels.
+For "edit_prompt" only: ${REALISM_INSTRUCTIONS}`,
     text: `Character: ${character.name}
 ${profileText || "(no saved profile yet, rely on the reference images)"}
 ${character.always_keep ? `Always keep: ${character.always_keep}` : ""}
@@ -96,7 +98,7 @@ export function parseLikenessReport(reply: string): LikenessReport {
       .filter((t) => t.name && Number.isFinite(t.score))
       .map((t) => ({ ...t, score: clamp(t.score, 0, 10) })),
     fixPhrases: r.fix_phrases.filter(Boolean).slice(0, 6),
-    editPrompt: r.edit_prompt,
+    editPrompt: withRealism(r.edit_prompt),
   };
 }
 
