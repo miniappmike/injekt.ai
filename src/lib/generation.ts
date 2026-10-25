@@ -20,7 +20,7 @@ import { isOwnPath } from "@/lib/uploads";
 import { GENERATION_RETENTION_HOURS, generationExpiry } from "@/lib/retention";
 import { recordLedgerEntry } from "@/lib/ledger";
 
-export const GENERATION_KINDS = ["inject", "direct_swap", "edit", "variant", "carousel", "face_fix"] as const;
+export const GENERATION_KINDS = ["inject", "direct_swap", "edit", "variant", "carousel", "face_fix", "reference_sheet"] as const;
 export const GENERATIONS_BUCKET = "generations";
 /** How long the image provider has to fetch the pictures we hand it. */
 export const INPUT_URL_SECONDS = 1800;
@@ -92,7 +92,8 @@ async function inputImageUrls(supabase: SupabaseClient, userId: string, request:
       .eq("id", request.characterId)
       .maybeSingle();
     if (!c) throw new UserFacingError("Character not found.");
-    paths.push(...referenceList(c).map((r) => r.path));
+    // A reference sheet is made only from the pictures you give it, not from the character's existing references.
+    if (request.kind !== "reference_sheet") paths.push(...referenceList(c).map((r) => r.path));
   }
   for (const p of request.extraPaths) {
     if (!isOwnPath(userId, p)) throw new UserFacingError("One of the images couldn't be used. Upload it again.");

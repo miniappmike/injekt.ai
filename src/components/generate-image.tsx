@@ -11,6 +11,7 @@ import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageAspectRatio, type Ima
 
 type Phase = "idle" | "starting" | "running" | "done" | "failed";
 interface Result {
+  generationId: string;
   url: string;
   downloadUrl: string;
 }
@@ -29,18 +30,31 @@ export function GenerateImage({
   extraPaths,
   kind,
   freeImagesLeft = null,
+  aspectRatio: lockedAspectRatio,
+  defaultResolution = "1k",
+  actionLabel = "Generate image",
+  renderActions,
 }: {
   prompt: string;
   characterId?: string | null;
   extraPaths: string[];
-  kind: "inject" | "direct_swap" | "edit" | "variant" | "carousel" | "face_fix";
+  kind: "inject" | "direct_swap" | "edit" | "variant" | "carousel" | "face_fix" | "reference_sheet";
   /** Free plan: images left (generated at 1k, no price shown). `null` means a Pro or admin account. */
   freeImagesLeft?: number | null;
+  /** Fixes the shape and hides its choice (a sheet has a set layout). */
+  aspectRatio?: ImageAspectRatio;
+  /** The size to start on; a free account always gets 1k. */
+  defaultResolution?: ImageResolution;
+  /** What the button says before the price, for example "Make face sheet". */
+  actionLabel?: string;
+  /** Extra controls shown under the finished image, such as saving it somewhere. */
+  renderActions?: (result: Result) => React.ReactNode;
 }) {
   const router = useRouter();
   const free = freeImagesLeft !== null;
-  const [resolution, setResolution] = useState<ImageResolution>("1k");
-  const [aspectRatio, setAspectRatio] = useState<ImageAspectRatio>("auto");
+  const [resolution, setResolution] = useState<ImageResolution>(defaultResolution);
+  const [chosenAspectRatio, setAspectRatio] = useState<ImageAspectRatio>("auto");
+  const aspectRatio = lockedAspectRatio ?? chosenAspectRatio;
   const [outputFormat, setOutputFormat] = useState<ImageOutputFormat>("jpeg");
   const [price, setPrice] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -89,7 +103,7 @@ export function GenerateImage({
         return setMessage(status.error);
       }
       if (status.state === "complete") {
-        setResult({ url: status.url, downloadUrl: status.downloadUrl });
+        setResult({ generationId: started.generationId, url: status.url, downloadUrl: status.downloadUrl });
         setPhase("done");
         router.refresh();
         return;
@@ -104,7 +118,7 @@ export function GenerateImage({
   }
 
   const busy = phase === "starting" || phase === "running";
-  const label = free ? `Generate my free image (${freeImagesLeft} left)` : `Generate image${price ? ` · about $${Number(price).toFixed(3)}` : ""}`;
+  const label = free ? `Generate my free image (${freeImagesLeft} left)` : `${actionLabel}${price ? ` · about $${Number(price).toFixed(3)}` : ""}`;
 
   return (
     <div className="flex flex-col gap-3 border-t border-neutral-800 pt-3">
@@ -115,12 +129,14 @@ export function GenerateImage({
             {IMAGE_RESOLUTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         </label>
-        <label className="flex items-center gap-1.5 text-neutral-400">
-          Shape
-          <select className={select} value={aspectRatio} disabled={busy} onChange={(e) => setAspectRatio(e.target.value as ImageAspectRatio)}>
-            {IMAGE_ASPECT_RATIOS.map((r) => <option key={r} value={r}>{r === "auto" ? "match the photo" : r}</option>)}
-          </select>
-        </label>
+        {!lockedAspectRatio && (
+          <label className="flex items-center gap-1.5 text-neutral-400">
+            Shape
+            <select className={select} value={aspectRatio} disabled={busy} onChange={(e) => setAspectRatio(e.target.value as ImageAspectRatio)}>
+              {IMAGE_ASPECT_RATIOS.map((r) => <option key={r} value={r}>{r === "auto" ? "match the photo" : r}</option>)}
+            </select>
+          </label>
+        )}
         <label className="flex items-center gap-1.5 text-neutral-400">
           Format
           <select className={select} value={outputFormat} disabled={busy} onChange={(e) => setOutputFormat(e.target.value as ImageOutputFormat)}>
@@ -151,6 +167,7 @@ export function GenerateImage({
               <InfoTip label="About expiry">Generated images are deleted {GENERATION_RETENTION_HOURS} hours after they are created. Download any you want to keep.</InfoTip>
             </span>
           </div>
+          {renderActions?.(result)}
         </div>
       )}
     </div>

@@ -34,6 +34,7 @@ const FEATURES: Record<string, string> = {
   "image:variant": "Variant",
   "image:carousel": "Carousel slide",
   "image:face_fix": "Face fix",
+  "image:reference_sheet": "Reference sheet",
 };
 
 export const featureLabel = (feature: string) => FEATURES[feature] ?? feature;
