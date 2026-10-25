@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatUsd, parsePrice, priceFor, roughRunCost, tokenCost, ROUGH_TEXT_RUN } from "@/lib/pricing";
+import { formatUsd, parsePrice, priceFor, tokenCost } from "@/lib/pricing";
 
 describe("priceFor", () => {
   it("uses the provider's list price for models we have seen it for", () => {
@@ -46,10 +46,6 @@ describe("tokenCost", () => {
   });
   it("keeps fractions of a cent", () => {
     expect(tokenCost({ input: 2, output: 10 }, { inputTokens: 61, outputTokens: 0 })).toBeCloseTo(0.000122, 6);
-  });
-  it("gives a rough whole-run figure from a stated assumption", () => {
-    expect(ROUGH_TEXT_RUN).toEqual({ inputTokens: 10_000, outputTokens: 1_000 });
-    expect(roughRunCost({ input: 2, output: 10 })).toBeCloseTo(0.03, 6);
   });
 });
 

@@ -80,19 +80,6 @@ export const spicyapi: ImageProvider = {
     }
   },
 
-  // Both calls are free. Either can fail on its own (an old key, a model the key can't see) without hiding the other.
-  async info({ apiKey, model }) {
-    const c = client(apiKey);
-    const [balance, details] = await Promise.allSettled([c.getBalance(), c.getModel(model)]);
-    return {
-      balance: balance.status === "fulfilled" ? balance.value.available : undefined,
-      prices:
-        details.status === "fulfilled"
-          ? (details.value.pricing ?? []).map((p) => ({ label: p.variant || "per image", price: p.price }))
-          : undefined,
-    };
-  },
-
   async quote({ apiKey, model, input }) {
     try {
       const q = await client(apiKey).quoteTask({ model, input: buildSpicyInput(input) });

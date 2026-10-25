@@ -45,10 +45,6 @@ const round6 = (x: number) => Math.round(x * 1e6) / 1e6;
 export const tokenCost = (price: TokenPrice, usage: TokenUsage) =>
   round6((usage.inputTokens * price.input + usage.outputTokens * price.output) / 1_000_000);
 
-// Until there is history, a typical run is assumed to read a handful of images and write about a thousand tokens.
-export const ROUGH_TEXT_RUN: TokenUsage = { inputTokens: 10_000, outputTokens: 1_000 };
-export const roughRunCost = (price: TokenPrice) => tokenCost(price, ROUGH_TEXT_RUN);
-
 export function formatUsd(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return "$0.00";
   if (n < 0.001) return "<$0.001";

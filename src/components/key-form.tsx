@@ -1,10 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { notifySpend } from "@/lib/spend-events";
 import { defaultModelFor, detectProvider } from "@/lib/ai/providers/detect";
 import {
   removeRoleKey,
@@ -49,10 +48,6 @@ export function RoleKeyForm({ role, saved, shareSources = [] }: { role: "vision"
   const [priceState, priceAction, pricePending] = useActionState<KeyFormState, FormData>(updateRolePrice, {});
   const [replacing, setReplacing] = useState(false);
 
-  // A test call can cost a little, so let the spend meter know.
-  useEffect(() => {
-    if (testState.tested || testState.error) notifySpend();
-  }, [testState]);
   const [key, setKey] = useState("");
   const [model, setModel] = useState("");
   const [forceCustom, setForceCustom] = useState(false);
@@ -105,13 +100,13 @@ export function RoleKeyForm({ role, saved, shareSources = [] }: { role: "vision"
         {testState.error && <p role="alert" className="text-sm text-red-400">{testState.error}</p>}
         {role !== "image" && (
           <details className="rounded-md border border-neutral-800 p-3 text-sm" open={!saved.price}>
-            <summary className="cursor-pointer text-neutral-300">Spend tracking</summary>
+            <summary className="cursor-pointer text-neutral-300">Cost for your ledger</summary>
             <p className="mt-2 text-xs text-neutral-500">
               {saved.priceSource === "list"
                 ? `Using the provider's list price: $${saved.price?.input} in / $${saved.price?.output} out per million tokens.`
                 : saved.priceSource === "you"
                   ? `Using your price: $${saved.price?.input} in / $${saved.price?.output} out per million tokens.`
-                  : "We don't know what this model costs, so spend can't be shown in dollars yet. Enter its price per million tokens (it's on your provider's pricing page)."}
+                  : "We don't know what this model costs, so its calls show as unpriced in your ledger. Enter its price per million tokens (it's on your provider's pricing page) to see dollars."}
             </p>
             <form action={priceAction} className="mt-2 flex flex-wrap items-end gap-2">
               <input type="hidden" name="role" value={role} />
@@ -125,7 +120,7 @@ export function RoleKeyForm({ role, saved, shareSources = [] }: { role: "vision"
               </label>
               <Button type="submit" size="sm" variant="secondary" disabled={pricePending}>{pricePending ? "Saving..." : "Save price"}</Button>
             </form>
-            <p className="mt-1 text-xs text-neutral-500">Leave both empty and save to go back to the list price (if there is one).</p>
+            <p className="mt-1 text-xs text-neutral-500">Applies to new calls only. Leave both empty and save to go back to the list price (if there is one).</p>
             {priceState.error && <p role="alert" className="mt-1 text-xs text-red-400">{priceState.error}</p>}
             {priceState.saved === role && <p role="status" className="mt-1 text-xs text-emerald-400">Saved.</p>}
           </details>

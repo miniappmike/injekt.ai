@@ -7,10 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { CostHint } from "@/components/cost-hint";
 import { GenerateImage } from "@/components/generate-image";
 import { uploadImage } from "@/components/image-slot";
-import { notifySpend } from "@/lib/spend-events";
 import { writeReplacementPrompts } from "@/app/(app)/characters/ai-actions";
 import type { PromptStyle } from "@/lib/ai/tasks/prompt-writer";
 
@@ -73,7 +71,6 @@ export function InjectWriter({ characters }: { characters: { id: string; name: s
       if (!ready.length) return setMessage("None of the images could be uploaded.");
 
       const res = await writeReplacementPrompts({ characterId, targetPaths: ready.map((t) => t.path), outfit, style });
-      notifySpend();
       if (!res.ok) {
         if (res.redirectTo) return router.push(res.redirectTo);
         return setMessage(res.error);
@@ -166,7 +163,6 @@ export function InjectWriter({ characters }: { characters: { id: string; name: s
         </Button>
         {message && <p role="alert" className="text-sm text-red-400">{message}</p>}
       </div>
-      <div className="-mt-4"><CostHint feature="prompt" count={Math.max(targets.length, 1)} /></div>
 
       {targets.some((t) => t.prompt || t.error) && (
         <section className="flex flex-col gap-4">

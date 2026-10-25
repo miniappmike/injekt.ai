@@ -5,7 +5,7 @@ import { effectiveRole, readRoles } from "./roles";
 import { resolveApiKey } from "@/lib/keys";
 import { adminClient } from "@/lib/supabase/admin";
 import { priceFor } from "@/lib/pricing";
-import { recordTextUsage, type TextFeature } from "@/lib/spend";
+import { recordTextCall, type TextFeature } from "@/lib/ledger";
 import { keyResolverDeps } from "@/lib/key-store";
 import { ApiKeyRequiredError } from "@/lib/errors";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -21,11 +21,11 @@ export async function getUserTextClient(supabase: SupabaseClient, userId: string
   const { cfg, keyRole } = chosen;
   const { key, source } = await resolveApiKey(keyResolverDeps, userId, cfg.provider, keyRole);
   const backend = getTextBackend(cfg.provider, cfg.model, cfg.baseUrl);
-  const { price } = priceFor(cfg);
-  // Every call is logged as it finishes, so the spend meter and cost hints stay current.
+  const price = priceFor(cfg);
+  // Every call is written to the ledger as it finishes.
   const client = createGuardedClient(backend, key, {
     onUsage: (usage) =>
-      recordTextUsage(adminClient(), { userId, job: role, feature, provider: cfg.provider, model: cfg.model, keySource: source, usage, price }),
+      recordTextCall(adminClient(), { userId, job: role, feature, setup: cfg, keySource: source, usage, price }),
   });
   return { client, imageMaxEdge: backend.imageMaxEdge };
 }

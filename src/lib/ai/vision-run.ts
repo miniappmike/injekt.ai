@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadForVision, referenceList } from "@/lib/character-images";
 import { getUserTextClient } from "./text-client";
-import type { TextFeature } from "@/lib/spend";
+import type { TextFeature } from "@/lib/ledger";
 import type { CharacterProfile } from "@/lib/characters";
 import type { LabeledImage } from "./tasks/profile-builder";
 

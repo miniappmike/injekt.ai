@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { ExpiryBadge } from "@/components/expiry-badge";
 import { RetentionNotice } from "@/components/retention-notice";
@@ -5,6 +6,7 @@ import { GenerationPoller } from "@/components/generation-poller";
 import { requireUser } from "@/lib/auth";
 import { collectPending } from "@/lib/generation";
 import { timeLeft } from "@/lib/retention";
+import { formatUsd } from "@/lib/pricing";
 
 const BUCKET = "generations";
 
@@ -17,7 +19,7 @@ export default async function GenerationsPage() {
   await collectPending(supabase, user);
   const { data: rows } = await supabase
     .from("generations")
-    .select("id, kind, status, model, prompt, error, output_path, created_at, expires_at")
+    .select("id, kind, status, model, prompt, error, output_path, created_at, expires_at, cost_usd, params")
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -64,6 +66,12 @@ export default async function GenerationsPage() {
                   </div>
                   {r.prompt && <p className="mt-1 line-clamp-2 text-neutral-400">{r.prompt}</p>}
                   {r.error && <p className="mt-1 text-red-400">{r.error}</p>}
+                  {(r.status === "complete" || r.status === "failed") && r.cost_usd !== null && (
+                    <p className="mt-1 text-xs text-neutral-500">
+                      {(r.params as { free?: boolean } | null)?.free ? "Covered by Model Spawn" : `Cost ${formatUsd(Number(r.cost_usd))}`}
+                      {" · "}<Link href="/ledger" className="underline">Ledger</Link>
+                    </p>
+                  )}
                   {downloads.get(r.id) && (
                     <a href={downloads.get(r.id)} className="mt-2 inline-block text-neutral-200 underline">Download</a>
                   )}

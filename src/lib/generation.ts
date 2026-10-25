@@ -18,6 +18,7 @@ import { referenceList } from "@/lib/character-images";
 import { MEDIA_BUCKET } from "@/lib/images";
 import { isOwnPath } from "@/lib/uploads";
 import { GENERATION_RETENTION_HOURS, generationExpiry } from "@/lib/retention";
+import { recordLedgerEntry } from "@/lib/ledger";
 
 export const GENERATION_KINDS = ["inject", "direct_swap", "edit", "variant", "carousel", "face_fix"] as const;
 export const GENERATIONS_BUCKET = "generations";
@@ -222,11 +223,6 @@ async function view(supabase: SupabaseClient, row: Row): Promise<CollectResult> 
 }
 
 const extensionFor = (mime?: string) => (mime?.includes("png") ? "png" : mime?.includes("webp") ? "webp" : "jpg");
-const dollars = (text?: string) => {
-  const n = Number(text);
-  return Number.isFinite(n) && n > 0 ? n : null;
-};
-
 // Looks at a job once. When it has finished, copies the image into our storage, stamps its expiry and records the cost.
 export async function collectGeneration(supabase: SupabaseClient, user: Actor, generationId: string): Promise<CollectResult> {
   const columns = "id, kind, model, status, provider_job_id, params, output_path, error, expires_at";
@@ -252,32 +248,36 @@ export async function collectGeneration(supabase: SupabaseClient, user: Actor, g
 
   const db = adminClient();
   const keySource = row.params?.key_source === "server" ? "server" : "byok";
-  const cost = dollars(job.cost);
-  // Only the request that moves the row out of pending/processing records the cost or hands anything back.
-  const finish = async (patch: Record<string, unknown>) => {
+  // What the provider says the job cost (while it is still unsettled this is the held amount, the most it can charge).
+  const reported = job.cost !== undefined && Number.isFinite(Number(job.cost)) ? Number(job.cost) : null;
+  // Only the request that moves the row out of pending/processing writes the ledger or hands anything back, so two
+  // tabs checking the same job can never record it twice.
+  const finish = async (status: "succeeded" | "failed", patch: Record<string, unknown>) => {
     const { data: won } = await db
       .from("generations")
-      .update({ ...patch, completed_at: new Date().toISOString(), ...(cost !== null ? { cost_usd: cost } : {}) })
+      .update({ ...patch, completed_at: new Date().toISOString(), ...(reported !== null ? { cost_usd: reported } : {}) })
       .eq("id", row.id)
       .in("status", ["pending", "processing"])
       .select("id");
-    if (won?.length && cost !== null) {
-      await db.from("usage_ledger").insert({
-        user_id: user.id,
-        generation_id: row.id,
-        provider: "spicyapi",
-        key_source: keySource,
-        cost_usd: cost,
-        job: "image",
-        feature: `image:${row.kind}`,
-        model: row.model,
-      });
-    }
-    return !!won?.length;
+    if (!won?.length) return false;
+    // Every finished generation goes on the ledger, including a failed one (it usually costs nothing, but a refusal can be charged).
+    await recordLedgerEntry(db, {
+      userId: user.id,
+      platform: "spicyapi",
+      job: "image",
+      feature: `image:${row.kind}`,
+      model: row.model,
+      keySource,
+      status,
+      costUsd: reported,
+      costSource: reported !== null ? "provider" : null,
+      generationId: row.id,
+    });
+    return true;
   };
 
   if (job.status === "failed") {
-    const won = await finish({ status: "failed", error: job.error ?? "The image couldn't be generated." });
+    const won = await finish("failed", { status: "failed", error: job.error ?? "The image couldn't be generated." });
     if (won && row.params?.free) await entitlements.releaseAllowance(user.id, "free_images");
     return { state: "failed", error: job.error ?? "The image couldn't be generated." };
   }
@@ -286,7 +286,7 @@ export async function collectGeneration(supabase: SupabaseClient, user: Actor, g
   const path = `${user.id}/${row.id}.${extensionFor(job.mime ?? contentType)}`;
   const up = await db.storage.from(GENERATIONS_BUCKET).upload(path, bytes, { contentType: job.mime ?? contentType, upsert: true });
   if (up.error) throw new UserFacingError("Couldn't save the finished image. Try again in a moment.");
-  await finish({ status: "complete", output_path: path, expires_at: generationExpiry().toISOString() });
+  await finish("succeeded", { status: "complete", output_path: path, expires_at: generationExpiry().toISOString() });
 
   const { data: fresh } = await supabase.from("generations").select(columns).eq("id", row.id).maybeSingle();
   return view(supabase, (fresh as Row | null) ?? row);

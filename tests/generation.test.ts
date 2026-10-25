@@ -34,7 +34,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   adminClient: () => ({
     from: (table: string) => ({
       insert: (r: Row) => {
-        if (table === "usage_ledger") {
+        if (table === "api_ledger") {
           db.ledger.push(r);
           return Promise.resolve({ error: null });
         }
@@ -277,7 +277,21 @@ describe("collectGeneration", () => {
     expect(hours).toBeGreaterThan(71.9);
     expect(hours).toBeLessThan(72.1);
     expect(db.ledger).toEqual([
-      { user_id: U, generation_id: id, provider: "spicyapi", key_source: "server", cost_usd: 0.04, job: "image", feature: "image:inject", model: "bytedance/seedream-5.0-pro/edit" },
+      {
+        user_id: U,
+        platform: "spicyapi",
+        job: "image",
+        feature: "image:inject",
+        model: "bytedance/seedream-5.0-pro/edit",
+        key_source: "server",
+        status: "succeeded",
+        input_tokens: null,
+        output_tokens: null,
+        cost_usd: 0.04,
+        cost_known: true,
+        cost_source: "provider",
+        generation_id: id,
+      },
     ]);
 
     // Two tabs asking again: nothing is stored or charged twice.
@@ -325,6 +339,24 @@ describe("collectGeneration", () => {
     await collectGeneration(userClient(), verified, id);
     expect(h.releaseAllowance).not.toHaveBeenCalled();
     expect(db.ledger).toHaveLength(1); // a provider may still charge for a refusal, and that is recorded
+    expect(db.ledger[0]).toMatchObject({ status: "failed", cost_usd: 0.04, cost_known: true, key_source: "byok" });
+  });
+
+  it("puts a failed generation on the ledger even when it cost nothing", async () => {
+    const id = await started(false);
+    h.poll.mockResolvedValue({ status: "failed", error: "x", cost: "0", settled: true });
+    await collectGeneration(userClient(), verified, id);
+    expect(db.ledger).toHaveLength(1);
+    expect(db.ledger[0]).toMatchObject({ status: "failed", cost_usd: 0, cost_known: true, cost_source: "provider", generation_id: id });
+    expect(db.rows[0].cost_usd).toBe(0);
+  });
+
+  it("records a generation whose cost the provider did not report as unpriced, not as free", async () => {
+    const id = await started(false);
+    h.poll.mockResolvedValue({ status: "failed", error: "The finished image could not be stored." }); // no cost given
+    await collectGeneration(userClient(), verified, id);
+    expect(db.ledger[0]).toMatchObject({ status: "failed", cost_usd: 0, cost_known: false, cost_source: null });
+    expect(db.rows[0]).not.toHaveProperty("cost_usd", 0);
   });
 
   it("says so when the generation does not exist", async () => {
