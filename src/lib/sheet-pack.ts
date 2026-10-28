@@ -47,8 +47,15 @@ const busy = new Map<string, Promise<SheetPack | null>>();
  * person's own vision key and saved on the character. Returns null when she has no sheet, there is no vision key, or
  * reading failed recently; callers then fall back to sending the whole sheet.
  */
+/**
+ * Set when the database has no sheet_pack column (migration 0010 not run). A pack can't be saved then, so reading the
+ * sheet would cost two vision calls on every Inject and be thrown away; the whole sheet is used instead.
+ */
+let noPackColumn = false;
+
 export async function ensureSheetPack(supabase: SupabaseClient, userId: string, c: PackCharacter): Promise<SheetPack | null> {
   if (!c.face_sheet_path && !c.body_sheet_path) return null;
+  if (noPackColumn) return null;
   const have = currentPack(c);
   if (have) return have;
   const stored = c.sheet_pack as Stored | null | undefined;
@@ -153,6 +160,9 @@ export function packFiles(userId: string, pack: unknown): string[] {
 export async function selectCharacter<T = Record<string, unknown>>(supabase: SupabaseClient, id: string, columns: string): Promise<T | null> {
   const run = (cols: string) => supabase.from("characters").select(cols).eq("id", id).maybeSingle();
   let { data, error } = await run(columns);
-  if (error && /sheet_pack/.test(error.message)) ({ data, error } = await run(columns.replace(/,?\s*sheet_pack/, "")));
+  if (error && /sheet_pack/.test(error.message)) {
+    noPackColumn = true;
+    ({ data, error } = await run(columns.replace(/,?\s*sheet_pack/, "")));
+  }
   return error ? null : (data as T | null);
 }

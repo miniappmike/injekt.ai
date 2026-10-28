@@ -159,16 +159,18 @@ export function openaiCompatBackend(id: "openai" | "openrouter" | "google" | "cu
 // SpicyAPI: OpenAI-style chat completions. The endpoint rejects unknown fields, so only documented
 // ones are sent. Thinking shares the max_tokens budget, hence the roomy cap (billing is per token used, and a model
 // that can't take it gets its own maximum) and low effort. A reply that ran out while thinking is asked again once at
-// the lowest reasoning level the model offers.
+// the lowest reasoning level the model offers. Writing jobs start at that level ("none"): thinking first can add a
+// minute to a prompt that takes seconds to write.
 // Its docs list a 6000 image-token limit, so images are shrunk harder than for other providers.
 export const SPICY_MAX_TOKENS = 32000;
-export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.ai/v1"): TextBackend {
+export type SpicyEffort = "low" | "none";
+export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.ai/v1", effort: SpicyEffort = "low"): TextBackend {
   return {
     id: "spicyapi",
     imageMaxEdge: 768,
     async complete({ system, text, images = [], apiKey }) {
       await assertPublicHttpsUrl(baseUrl);
-      const ask = (effort: "low" | "none") =>
+      const ask = (effort: SpicyEffort) =>
         post(
           "spicyapi",
           `${baseUrl}/chat/completions`,
@@ -187,10 +189,10 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
           },
           apiKey,
         );
-      let json = await ask("low");
+      let json = await ask(effort);
       let r = readChoice("spicyapi", json);
       let usage = readUsage(json?.usage?.prompt_tokens, json?.usage?.completion_tokens);
-      if ("empty" in r && r.empty === "thinking") {
+      if ("empty" in r && r.empty === "thinking" && effort !== "none") {
         json = await ask("none");
         r = readChoice("spicyapi", json);
         const again = readUsage(json?.usage?.prompt_tokens, json?.usage?.completion_tokens);
@@ -203,14 +205,15 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
   };
 }
 
-export function getTextBackend(provider: string, model: string, baseUrl?: string): TextBackend {
+/** `effort` is how much SpicyAPI models may think first ("none" for writing jobs, which don't gain from it). */
+export function getTextBackend(provider: string, model: string, baseUrl?: string, effort?: SpicyEffort): TextBackend {
   if (provider === "anthropic") return anthropicBackend(model);
   if (provider === "openai" || provider === "openrouter" || provider === "google") return openaiCompatBackend(provider, model);
-  if (provider === "spicyapi") return spicyapiBackend(model);
+  if (provider === "spicyapi") return spicyapiBackend(model, undefined, effort);
   if (provider === "custom") {
     if (!baseUrl) throw new Error("A base URL is required for this provider");
     // SpicyAPI rejects unknown fields and needs reasoning kept low, so it gets its own request shape.
-    if (isSpicyHost(baseUrl)) return spicyapiBackend(model, baseUrl);
+    if (isSpicyHost(baseUrl)) return spicyapiBackend(model, baseUrl, effort);
     return openaiCompatBackend("custom", model, baseUrl);
   }
   throw new Error(`Unknown text provider: ${provider}`);

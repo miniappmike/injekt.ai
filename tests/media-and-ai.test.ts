@@ -96,6 +96,15 @@ describe("empty replies", () => {
     expect(bodies[0].max_tokens).toBe(32000);
   });
 
+  it("writing jobs ask SpicyAPI not to think first, and a reply that is still empty is an error, not a second call", async () => {
+    const fn = queue(reply({ content: "prompt" }));
+    expect((await getTextBackend("spicyapi", "anthropic/claude-sonnet-5.5/chat", undefined, "none").complete({ text: "t", apiKey: "k" })).text).toBe("prompt");
+    expect(JSON.parse((fn.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).reasoning_effort).toBe("none");
+    const again = queue(reply({ content: null }, "length"), reply({ content: "x" }));
+    await expect(spicyapiBackend("m", undefined, "none").complete({ text: "t", apiKey: "k" })).rejects.toThrow(/thinking/);
+    expect(again).toHaveBeenCalledTimes(1);
+  });
+
   it("says plainly when the model only thought, or declined", async () => {
     queue(reply({ content: null }, "length"), reply({ content: "" }, "length"));
     await expect(spicyapiBackend("moonshot/kimi-k3/chat").complete({ text: "t", apiKey: "k" })).rejects.toThrow(/used its whole reply budget thinking/);

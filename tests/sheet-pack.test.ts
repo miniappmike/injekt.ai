@@ -153,6 +153,8 @@ describe("selectCharacter", () => {
     };
     expect(await selectCharacter(client as never, "c1", "id, face_sheet_path, sheet_pack")).toEqual({ id: "c1" });
     expect(asked).toEqual(["id, face_sheet_path, sheet_pack", "id, face_sheet_path"]);
+    // With nowhere to save a pack, the sheet isn't read on every run (two vision calls thrown away each time).
+    expect(await ensureSheetPack({ from: () => { throw new Error("should not be called"); } } as never, "u", { id: "c1", face_sheet_path: "u/f.jpg", body_sheet_path: null } as never)).toBeNull();
   });
 });
 
