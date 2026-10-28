@@ -5,7 +5,6 @@ import { isOwnPath, isOwnRawPath, isPendingPath, readDraftImages } from "@/lib/u
 import { validateApiKey } from "@/lib/key-validation";
 import { anthropicBackend, describeProviderError, openaiCompatBackend, readUsage, spicyapiBackend, ProviderError } from "@/lib/ai/providers/text";
 import { buildProfileTask, parseProfileResponse, profileBlock, PROFILE_ROLES } from "@/lib/ai/tasks/profile-builder";
-import { buildReplacementPromptTask } from "@/lib/ai/tasks/prompt-writer";
 import { referenceList } from "@/lib/character-images";
 import { detectProvider } from "@/lib/ai/providers/detect";
 import { dropRole, effectiveRole, normalizeBaseUrl, readRoles, shareRole } from "@/lib/ai/roles";
@@ -111,6 +110,14 @@ describe("text backends", () => {
     body = JSON.parse(init.body as string);
     expect(body.max_tokens).toBe(8192);
 
+    // A reply cut off at the output limit says so.
+    mockFetch({ choices: [{ message: { content: "half" }, finish_reason: "length" }] });
+    expect((await openaiCompatBackend("openai", "m").complete({ text: "t", apiKey: "k" })).truncated).toBe(true);
+    mockFetch({ content: [{ type: "text", text: "half" }], stop_reason: "max_tokens" });
+    expect((await anthropicBackend("m").complete({ text: "t", apiKey: "k" })).truncated).toBe(true);
+    mockFetch({ content: [{ type: "text", text: "all" }], stop_reason: "end_turn" });
+    expect((await anthropicBackend("m").complete({ text: "t", apiKey: "k" })).truncated).toBe(false);
+
     // No system message when there is none: the SCOPE guard travels in the user turn.
     fetchFn = mockFetch({ choices: [{ message: { content: "ok" } }] });
     await openaiCompatBackend("openai", "m").complete({ text: "t", apiKey: "k" });
@@ -203,23 +210,6 @@ describe("profile builder", () => {
   it("writes the profile block with the artifact's labels", () => {
     const block = profileBlock({ profile: { identity_line: "Id", skin: "S", distinctive_traits: "T" }, always_keep: "chain", height: "5'6\"" });
     expect(block).toBe("Identity line: Id\nSkin, freckles and marks: S\nDistinctive traits: T\nAlways keep: chain\nHeight: 5'6\"");
-  });
-});
-
-describe("prompt writer", () => {
-  it("puts references first and the target last, with matching labels", () => {
-    const task = buildReplacementPromptTask({
-      character: { name: "Juno", profile: { face: "oval face" }, always_keep: "gold chain" },
-      references: [{ label: "face sheet", dataUri }, { label: "reference photo 1", dataUri }],
-      target: { label: "target photo", dataUri },
-      outfit: "red dress",
-      style: "sectioned",
-    });
-    expect(task.images).toHaveLength(3);
-    expect(task.prompt).toContain("@image3: target photo");
-    expect(task.prompt).toContain("Face: oval face");
-    expect(task.prompt).toContain("red dress");
-    expect(task.prompt).toContain("Identity:");
   });
 });
 

@@ -10,6 +10,8 @@ export interface HistoryItem {
   imagePath: string | null;
   /** More images sent after imagePath when generating again (vibe or outfit references). */
   extraPaths: string[];
+  /** Inject prompts: what the server needs to frame them again (see InjectMeta). Empty for older entries. */
+  meta: Record<string, unknown>;
   createdAt: string;
 }
 

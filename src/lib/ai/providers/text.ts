@@ -16,7 +16,8 @@ export class ProviderError extends Error {
   }
 }
 
-const TIMEOUT_MS = 55_000;
+// Four long Inject versions can take a couple of minutes to write.
+const TIMEOUT_MS = 170_000;
 
 // Providers report token use under different names. Anything that is not a plain number counts as not reported.
 export function readUsage(input: unknown, output: unknown): TokenUsage | undefined {
@@ -83,7 +84,7 @@ export function anthropicBackend(model: string): TextBackend {
       );
       const out = (json?.content ?? []).filter((b: { type: string }) => b.type === "text").map((b: { text: string }) => b.text).join("");
       if (!out) throw new ProviderError("anthropic", 200, "anthropic returned no text");
-      return { text: out, usage: readUsage(json?.usage?.input_tokens, json?.usage?.output_tokens) };
+      return { text: out, usage: readUsage(json?.usage?.input_tokens, json?.usage?.output_tokens), truncated: json?.stop_reason === "max_tokens" };
     },
   };
 }
@@ -121,7 +122,7 @@ export function openaiCompatBackend(id: "openai" | "openrouter" | "google" | "cu
       );
       const out = json?.choices?.[0]?.message?.content;
       if (typeof out !== "string" || !out) throw new ProviderError(id, 200, `${id} returned no text`);
-      return { text: out, usage: readUsage(json?.usage?.prompt_tokens, json?.usage?.completion_tokens) };
+      return { text: out, usage: readUsage(json?.usage?.prompt_tokens, json?.usage?.completion_tokens), truncated: json?.choices?.[0]?.finish_reason === "length" };
     },
   };
 }
@@ -155,7 +156,7 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
       );
       const out = json?.choices?.[0]?.message?.content;
       if (typeof out !== "string" || !out) throw new ProviderError("spicyapi", 200, "spicyapi returned no text");
-      return { text: out, usage: readUsage(json?.usage?.prompt_tokens, json?.usage?.completion_tokens) };
+      return { text: out, usage: readUsage(json?.usage?.prompt_tokens, json?.usage?.completion_tokens), truncated: json?.choices?.[0]?.finish_reason === "length" };
     },
   };
 }

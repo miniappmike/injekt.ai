@@ -7,12 +7,16 @@ type Row = { id: string; image_path: string | null; extra_image_paths?: string[]
 // `stillUsed` / `stillUsedAsExtra` are images other history rows still point to. `noExtrasColumn` acts like a database
 // where migration 0009 hasn't run; `lookupFails` makes the main lookup error.
 function fakeSupabase(
-  opts: { extra?: Row[]; stillUsed?: string[]; stillUsedAsExtra?: string[]; noExtrasColumn?: boolean; lookupFails?: boolean; extrasLookupFails?: boolean } = {},
+  opts: { extra?: Row[]; stillUsed?: string[]; stillUsedAsExtra?: string[]; noExtrasColumn?: boolean; lookupFails?: boolean; extrasLookupFails?: boolean; noMetaColumn?: boolean } = {},
 ) {
   const calls = { inserted: [] as Record<string, unknown>[], deletedIds: [] as string[], removedFiles: [] as string[], range: [] as number[] };
   const client = {
     from: vi.fn(() => ({
-      insert: async (rows: Record<string, unknown>[]) => void calls.inserted.push(...rows),
+      insert: async (rows: Record<string, unknown>[]) => {
+        if (opts.noMetaColumn && rows.some((r) => "meta" in r)) return { error: { message: "Could not find the 'meta' column of 'prompt_history'" } };
+        calls.inserted.push(...rows);
+        return { error: null };
+      },
       select: (cols: string) => {
         if (cols === "*") {
           return { order: () => ({ range: async (a: number, b: number) => (calls.range.push(a, b), { data: opts.extra ?? [] }) }) };
@@ -68,6 +72,18 @@ describe("saveHistory", () => {
     ]);
     expect(calls.inserted[0].extra_image_paths).toEqual(["u/x1.jpg", "u/x2.jpg"]);
     expect(calls.inserted[1].extra_image_paths).toEqual([]);
+  });
+
+  it("saves an Inject prompt's meta, and still saves the prompt before migration 0010 adds the column", async () => {
+    const meta = { edit: "New pose", frame: "face" };
+    const { client, calls } = fakeSupabase();
+    await saveHistory(client, "u", [{ kind: "inject", label: "a", prompt: "p", meta }, { kind: "inject", label: "b", prompt: "p" }]);
+    expect(calls.inserted[0].meta).toEqual(meta);
+    expect(calls.inserted[1]).not.toHaveProperty("meta");
+    const old = fakeSupabase({ noMetaColumn: true });
+    await saveHistory(old.client, "u", [{ kind: "inject", label: "a", prompt: "p", meta }]);
+    expect(old.calls.inserted).toEqual([expect.not.objectContaining({ meta })]);
+    expect(old.calls.inserted[0]).toMatchObject({ label: "a", prompt: "p" });
   });
 
   it("drops entries past the limit and deletes only images nothing else uses, extras included", async () => {

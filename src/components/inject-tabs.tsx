@@ -17,7 +17,7 @@ export function InjectTabs({
   isPro,
   freeImagesLeft,
 }: {
-  characters: (QuickCharacter & { ready: boolean })[];
+  characters: (QuickCharacter & { ready: boolean; hasProfile: boolean })[];
   isPro: boolean;
   freeImagesLeft: number | null;
 }) {

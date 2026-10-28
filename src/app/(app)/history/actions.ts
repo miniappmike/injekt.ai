@@ -32,6 +32,7 @@ export async function getHistory(): Promise<HistoryItem[]> {
     thumbnail: r.image_path ? (urls[r.image_path] ?? null) : null,
     imagePath: r.image_path,
     extraPaths: (r.extra_image_paths as string[] | null | undefined) ?? [],
+    meta: (r.meta as Record<string, unknown> | null | undefined) ?? {},
     createdAt: r.created_at,
   }));
 }

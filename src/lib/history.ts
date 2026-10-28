@@ -12,6 +12,8 @@ export interface NewHistoryEntry {
   imagePath?: string | null;
   /** Up to 2 more images the prompt refers to after imagePath (vibe, outfit), sent with it when generating again. */
   extraPaths?: string[];
+  /** What generating it again needs besides the text (Inject: in frame, outfit, the EDIT line, what may change). */
+  meta?: Record<string, unknown>;
 }
 
 export const MAX_HISTORY_EXTRA_IMAGES = 2;
@@ -24,17 +26,19 @@ export async function saveHistory(supabase: SupabaseClient, userId: string, entr
   if (!entries.length) return;
   // The extra-images column is only written when a batch has extras, so history keeps saving before migration 0009 is run.
   const withExtras = entries.some((e) => e.extraPaths?.length);
-  await supabase.from("prompt_history").insert(
-    entries.map((e) => ({
-      user_id: userId,
-      character_id: e.characterId ?? null,
-      kind: e.kind,
-      label: e.label.slice(0, 200),
-      prompt: e.prompt.slice(0, 20000),
-      image_path: e.imagePath ?? null,
-      ...(withExtras ? { extra_image_paths: (e.extraPaths ?? []).slice(0, MAX_HISTORY_EXTRA_IMAGES) } : {}),
-    })),
-  );
+  const rows = entries.map((e) => ({
+    user_id: userId,
+    character_id: e.characterId ?? null,
+    kind: e.kind,
+    label: e.label.slice(0, 200),
+    prompt: e.prompt.slice(0, 20000),
+    image_path: e.imagePath ?? null,
+    ...(withExtras ? { extra_image_paths: (e.extraPaths ?? []).slice(0, MAX_HISTORY_EXTRA_IMAGES) } : {}),
+    ...(e.meta ? { meta: e.meta } : {}),
+  }));
+  const { error } = await supabase.from("prompt_history").insert(rows);
+  // Before migration 0010 there is no meta column: save the prompts without it rather than lose them.
+  if (error && /\bmeta\b/.test(error.message)) await supabase.from("prompt_history").insert(rows.map(({ meta: _m, ...r }: Record<string, unknown>) => r));
 
   const { data: extra } = await supabase
     .from("prompt_history")

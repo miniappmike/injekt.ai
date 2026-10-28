@@ -1,7 +1,7 @@
 import "server-only";
-import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { UserFacingError } from "@/lib/errors";
+import type { InjectMeta } from "@/lib/inject-meta";
 import { isOwnPath } from "@/lib/uploads";
 import { referencesFor } from "@/lib/character-images";
 import { currentPack, ensureSheetPack, selectCharacter } from "@/lib/sheet-pack";
@@ -12,22 +12,6 @@ import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
 /** The image provider's prompt limit; longer prompts are condensed by the person's own text model. */
 export const PROMPT_LIMIT = 5000;
 
-/**
- * What an Inject prompt carries besides its text, so the server can frame it for the image model. With a target the
- * job is a photo edit: the target photo plus her references, and only the short EDIT line as the change.
- */
-export const injectMetaSchema = z.object({
-  /** The target photo, when it may be sent to the image model. */
-  target: z.string().max(300).optional(),
-  edit: z.string().max(600).optional(),
-  frame: z.string().max(200).optional(),
-  outfit: z.string().max(300).optional(),
-  clean: z.boolean().optional(),
-  chg: z
-    .object({ pose: z.boolean().optional(), outfit: z.boolean().optional(), hair: z.boolean().optional(), who: z.string().max(200).optional() })
-    .optional(),
-});
-export type InjectMeta = z.infer<typeof injectMetaSchema>;
 
 export interface JobCharacter {
   id: string;

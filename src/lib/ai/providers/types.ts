@@ -5,6 +5,8 @@ import type { TaskInput } from "../master-prompt";
 export interface TextResult {
   text: string;
   usage?: TokenUsage;
+  /** The reply hit the output limit and stops mid-way. */
+  truncated?: boolean;
 }
 
 // Raw text/vision backend. The guard is already in the text; `system` is only for callers that need one.
@@ -18,6 +20,8 @@ export interface TextBackend {
 // The only client callers get. It always puts the SCOPE guard first.
 export interface GuardedTextClient {
   run(task: TaskInput): Promise<string>;
+  /** Like run, and also says whether the reply was cut off at the output limit. */
+  complete?(task: TaskInput): Promise<{ text: string; truncated: boolean }>;
 }
 
 export type ImageJobStatus = "pending" | "processing" | "complete" | "failed";

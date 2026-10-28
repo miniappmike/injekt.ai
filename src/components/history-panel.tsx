@@ -12,6 +12,7 @@ import { deleteAllHistory, deleteHistoryEntry, getFreeImagesLeft, getGenerations
 import { filterHistory, historyCharacters } from "@/lib/history-filter";
 import { OPEN_HISTORY_EVENT, viewImage, type HistoryTab } from "@/lib/panel-events";
 import { historyGenerationKind, type GenerationItem, type HistoryItem } from "@/lib/history-types";
+import { metaForRun, readEditTarget, type InjectMeta } from "@/lib/inject-meta";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
@@ -296,7 +297,9 @@ export function HistoryPanel() {
                       {shown.map((i) => {
                         const isOpen = expanded.has(i.id);
                         const genKind = historyGenerationKind(i.kind);
-                        const canGenerate = !!genKind && !!i.imagePath;
+                        // Inject prompts written by the identity engine carry meta; the server frames them for the image model.
+                        const framed = genKind === "inject" && !!i.characterId && Object.keys(i.meta ?? {}).length > 0;
+                        const canGenerate = !!genKind && (!!i.imagePath || framed);
                         const showGenerate = canGenerate && generating.has(i.id);
                         return (
                           <li key={i.id} className="flex gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
@@ -333,14 +336,18 @@ export function HistoryPanel() {
                                     <GenerateImage
                                       prompt={i.prompt}
                                       characterId={i.characterId}
-                                      extraPaths={[i.imagePath as string, ...i.extraPaths]}
+                                      extraPaths={framed ? [] : [i.imagePath as string, ...i.extraPaths]}
                                       kind={genKind}
                                       freeImagesLeft={freeLeft}
+                                      meta={framed ? metaForRun(i.meta as InjectMeta, i.imagePath, readEditTarget()) : undefined}
                                     />
                                   )}
                                   <p className="mt-2 text-xs text-neutral-500">
-                                    Uses {i.characterId ? `${i.characterName}'s current reference images, then ` : ""}the photo this prompt was written for
-                                    {i.extraPaths.length ? ` and its ${i.extraPaths.length} extra image${i.extraPaths.length === 1 ? "" : "s"}` : ""}.
+                                    {framed
+                                      ? readEditTarget() && i.imagePath
+                                        ? `Edits the photo this prompt was written for, swapping in ${i.characterName} from her current references.`
+                                        : `Uses ${i.characterName}'s current references and the written prompt ("Edit the target photo" is off on the Inject page).`
+                                      : `Uses ${i.characterId ? `${i.characterName}'s current reference images, then ` : ""}the photo this prompt was written for${i.extraPaths.length ? ` and its ${i.extraPaths.length} extra image${i.extraPaths.length === 1 ? "" : "s"}` : ""}.`}
                                   </p>
                                 </div>
                               )}
