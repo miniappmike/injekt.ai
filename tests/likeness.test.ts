@@ -7,6 +7,7 @@ import {
   parseLikenessReport,
   parseQuickLikeness,
   quickLikenessPrompt,
+  MAKEUP_SCORE_RULE,
 } from "@/lib/ai/prompts/likeness";
 import { BODY_LOCK, MODS_RULE, REALISM_FIX, TEXT_SHORT } from "@/lib/ai/prompts/rules";
 import type { Anchors } from "@/lib/ai/prompts/identity";
@@ -65,6 +66,18 @@ describe("quick likeness (A17)", () => {
     const cmp = quickLikenessPrompt(["her face"], true);
     expect(cmp).toContain("The SECOND-TO-LAST image is the ORIGINAL photo before a likeness fix. The LAST image is a newly generated photo that should show the same woman (the fixed version of the original).");
     expect(cmp).toContain('Reply with only JSON: {"verdict": "better", "verdict_reason": "...", "differences"');
+  });
+
+  it("tells both checkers makeup isn't identity, and drops makeup fixes that slip through", () => {
+    expect(quickLikenessPrompt(["her face"], false)).toContain(MAKEUP_SCORE_RULE);
+    expect(likenessReportPrompt({ profile: "", refCount: 1, isSheet: true, used: "" })).toContain(MAKEUP_SCORE_RULE);
+    const q = parseQuickLikeness(
+      { fixes: ["warm hazel-brown eyes rather than green-grey", "natural pink lips rather than dark burgundy", "no heavy eyeliner", "small silver nose ring in the left nostril", "fuller lips with a defined cupid's bow"] },
+      false,
+    );
+    expect(q.fixes).toEqual(["warm hazel-brown eyes rather than green-grey", "small silver nose ring in the left nostril", "fuller lips with a defined cupid's bow"]);
+    const r = parseLikenessReport({ overall: 80, traits: [{ trait: "Lips", score: 6, fix: "soft nude lip colour" }, { trait: "Eyes", score: 7, fix: "hazel eyes" }] });
+    expect(r.traits.map((t) => t.fix)).toEqual(["", "hazel eyes"]);
   });
 
   it("weights face .45, hair .20, skin .10, upper .10 and lower .15 over what was visible", () => {
