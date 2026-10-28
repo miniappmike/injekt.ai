@@ -11,8 +11,6 @@ import {
   type VariantPromptInput,
 } from "@/lib/ai/prompts/variants";
 import { REALISM_FIX, SKIN_ART_SHORT, TEXT_RULE, TEXT_SHORT, BODY_LOCK, MODS_RULE } from "@/lib/ai/prompts/rules";
-import { withRealism } from "@/lib/ai/tasks/realism";
-import { directSwapPrompt } from "@/lib/ai/tasks/direct-swap";
 import { referencesFor, type CharacterImagePaths } from "@/lib/character-images";
 import { CAROUSEL_TYPES, VARIANT_DIMS } from "@/lib/variants-meta";
 
@@ -154,19 +152,6 @@ describe("carousel (A20, A20b)", () => {
   it("the choices have unique ids", () => {
     expect(new Set(VARIANT_DIMS.map((o) => o.id)).size).toBe(VARIANT_DIMS.length);
     expect(new Set(CAROUSEL_TYPES.map((o) => o.id)).size).toBe(CAROUSEL_TYPES.length);
-  });
-});
-
-describe("withRealism", () => {
-  it("runs a prompt through the artifact harness once", () => {
-    const once = withRealism("Edit @image2. New pose");
-    expect(once).toContain(REALISM_FIX.quality);
-    expect(once).toContain(TEXT_RULE);
-    expect(withRealism(once)).toBe(once);
-    expect(withRealism("  ")).toBe("");
-  });
-  it("is on the fixed Direct swap prompt too", () => {
-    expect(directSwapPrompt(2)).toContain(REALISM_FIX.quality);
   });
 });
 

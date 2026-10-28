@@ -93,7 +93,7 @@ export function GenerateImage({
 
   const request = { kind, characterId: characterId ?? null, extraPaths, prompt, resolution: free ? "1k" : resolution, aspectRatio, outputFormat, ...(meta ? { meta } : {}) };
   // Something to send: pictures, or (for a framed Inject prompt) a character whose references the server picks.
-  const hasImages = extraPaths.length > 0 || (!!meta && !!characterId);
+  const hasImages = extraPaths.length > 0 || (!!meta && (!!characterId || !!meta.target));
   const requestKey = JSON.stringify(request);
 
   // Show the price before anything is spent. Free images have no price, and a failed lookup just hides it.

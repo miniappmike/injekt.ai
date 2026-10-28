@@ -10,6 +10,8 @@ import { basePrompt, clampTags, condenseTask, fitCrops, framePrompt, lockRefs, m
 import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
 import { faceFixPrompt, likenessFixPrompt, type FixRefs } from "@/lib/ai/prompts/likeness";
 import { carouselSlidePrompt } from "@/lib/ai/prompts/variants";
+import { swapPrompt } from "@/lib/ai/prompts/swap";
+import { asksMakeup, makeupRule } from "@/lib/ai/prompts/rules";
 
 /** The image provider's prompt limit; longer prompts are condensed by the person's own text model. */
 export const PROMPT_LIMIT = 5000;
@@ -17,7 +19,7 @@ export const PROMPT_LIMIT = 5000;
 /** A path in the generations bucket (a generated image used as an input), told apart from character media paths. */
 export const GEN_PREFIX = "gen:";
 /** Kinds whose prompt the server writes from meta; the browser's prompt text is only a label for them. */
-export const SERVER_PROMPT_KINDS = ["likeness_fix", "face_fix"] as const;
+export const SERVER_PROMPT_KINDS = ["likeness_fix", "face_fix", "direct_swap"] as const;
 
 export interface JobCharacter {
   id: string;
@@ -130,6 +132,64 @@ export function carouselJob(c: JobCharacter | null, pack: SheetPack | null, slid
   return { prompt, paths: [...paths, cover, ...extras], photoEdit: false };
 }
 
+/** Artifact swapRefs: every pack crop, else the whole sheet, else up to 2 reference photos. */
+export function swapRefs(c: JobCharacter, pack: SheetPack | null, max: number): { paths: string[]; R: RefSet } {
+  if (pack?.crops.length) {
+    const cr = fitCrops(pack.crops, max);
+    return { paths: cr.map((x) => x.path), R: { roles: cr.map((x) => x.role), kinds: cr.map((x) => x.kind), anchors: pack.anchors } };
+  }
+  const s = sheetFor(c);
+  const paths = s.paths.slice(0, s.isSheet ? 1 : Math.min(2, max));
+  return { paths, R: { roles: paths.map(() => (s.isSheet ? "her character reference sheet" : "a reference photo of her")), kinds: [], anchors: null } };
+}
+
+/** Direct swap: the target photo first, her references after it, and the artifact's fixed swap prompt. */
+export function swapJob(c: JobCharacter, pack: SheetPack | null, target: string, meta: InjectMeta, max: number): BuiltJob {
+  const { paths, R } = swapRefs(c, pack, max - 1);
+  if (!paths.length) throw new UserFacingError("This character needs a reference sheet or photo first.");
+  return { prompt: swapPrompt(R, { who: meta.who, extra: meta.extra, clean: meta.clean, plen: PROMPT_LIMIT }), paths: [target, ...paths], photoEdit: true };
+}
+
+/** A reference Edit mode can send: her pack crops, her sheets and her photos. */
+export interface RefOption {
+  id: string;
+  label: string;
+  role: string;
+  path: string;
+  kind?: string;
+  /** Picked by default. */
+  on: boolean;
+}
+
+const CROP_LABELS: Record<string, string> = { front: "Face close-up", faces: "Face angles", side: "Side profile", body: "Full body" };
+
+/** Artifact edRefState: her crops (on by default), her sheets (on when there are no crops), her photos (on when nothing else). */
+export function refOptions(c: JobCharacter, pack: SheetPack | null): RefOption[] {
+  const crops = pack?.crops ?? [];
+  const out: RefOption[] = crops.map((x) => ({ id: x.kind, label: CROP_LABELS[x.kind] ?? x.kind, role: x.role, path: x.path, kind: x.kind, on: true }));
+  const sheetOn = !crops.length;
+  if (c.face_sheet_path) out.push({ id: "face_sheet", label: "Face sheet", role: "her face reference sheet, a grid of her face from many angles", path: c.face_sheet_path, on: sheetOn });
+  if (c.body_sheet_path) out.push({ id: "body_sheet", label: "Body sheet", role: "her character reference sheet", path: c.body_sheet_path, on: sheetOn });
+  const photosOn = !crops.length && !c.face_sheet_path && !c.body_sheet_path;
+  c.reference_paths.forEach((path, i) => out.push({ id: `photo${i + 1}`, label: `Photo ${i + 1}`, role: "a reference photo of her", path, on: photosOn }));
+  return out;
+}
+
+/**
+ * Edit: the person's own prompt. The target (if any) is @image1, then the references they picked, then their extra
+ * images. The makeup rule is added when there is a target and the prompt doesn't ask for a makeup change.
+ */
+export function editJob(c: JobCharacter | null, pack: SheetPack | null, text: string, meta: InjectMeta, extras: string[], max: number): BuiltJob {
+  const picked = new Set(meta.refs ?? []);
+  const refs = c ? refOptions(c, pack).filter((o) => picked.has(o.id)) : [];
+  const paths = [...(meta.target ? [meta.target] : []), ...refs.map((r) => r.path), ...extras];
+  if (!paths.length) throw new UserFacingError("Add a target photo or pick at least one reference.");
+  if (paths.length > max) throw new UserFacingError(`That's too many images (${max} at most).`);
+  const t = text.trim();
+  const prompt = meta.target && !asksMakeup(t) ? `${t.replace(/\s*$/, "")}${/[.!?]$/.test(t) ? " " : ". "}${makeupRule("@image1")}` : t;
+  return { prompt, paths, photoEdit: !!meta.target };
+}
+
 export interface JobRequest {
   kind: string;
   characterId?: string | null;
@@ -169,6 +229,13 @@ export async function buildJob(
     return fixJob(request.kind, c, await packOf(c), source, request.meta, opts.model, opts.max);
   }
   if (request.kind === "likeness_fix") throw new UserFacingError("A likeness fix needs the image and the character to fix it against.");
+
+  if (request.kind === "direct_swap" && request.meta?.target) {
+    if (!c) throw new UserFacingError("Pick a character.");
+    return swapJob(c, await packOf(c), request.meta.target, request.meta, opts.max);
+  }
+
+  if (request.kind === "edit" && request.meta) return editJob(c, c ? await packOf(c) : null, request.prompt, request.meta, request.extraPaths, opts.max);
 
   if (request.kind === "carousel" && request.meta?.person) {
     const [cover, ...extras] = request.extraPaths;

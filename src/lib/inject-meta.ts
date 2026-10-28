@@ -29,6 +29,11 @@ export const injectMetaSchema = z.object({
   note: z.string().max(160).optional(),
   /** Carousel: who is in the slide; the prompt carries {REF}, {PHOTO} and {EXTRAn} placeholders. */
   person: z.enum(["full", "partial", "none"]).optional(),
+  /** Direct swap: which person to replace, and extra direction added when it fits. */
+  who: z.string().max(200).optional(),
+  extra: z.string().max(2000).optional(),
+  /** Edit: which of her references to send after the target (ids from refOptions). */
+  refs: z.array(z.string().max(20)).max(12).optional(),
 });
 export type InjectMeta = z.infer<typeof injectMetaSchema>;
 /** What a likeness fix or face fix carries (the same schema; the job builder reads only its own fields). */
