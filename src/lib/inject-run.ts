@@ -80,7 +80,7 @@ export async function runInject(
     recolor: opt.recolor && !opt.newOutfit,
     hair: opt.hair,
     newOutfit: opt.newOutfit,
-    clean: false,
+    clean: opt.clean,
   };
 
   const { client, imageMaxEdge } = await getUserTextClient(supabase, userId, "vision", "prompt");
@@ -110,7 +110,7 @@ export async function runInject(
     const tags = [v.pose ? "Pose: " + v.pose : o.pose && "New pose", o.newOutfit && "New outfit", o.recolor && "Colours: " + plan.palette, o.hair && "Hair: " + plan.hair].filter(
       (x): x is string => !!x,
     );
-    return { text: h.text, fixed: h.fixed, tags, meta: { edit: v.edit, frame: v.frame, outfit: v.outfit, chg } };
+    return { text: h.text, fixed: h.fixed, tags, meta: { edit: v.edit, frame: v.frame, outfit: v.outfit, chg, ...(o.clean ? { clean: true } : {}) } };
   });
 
   await saveHistory(

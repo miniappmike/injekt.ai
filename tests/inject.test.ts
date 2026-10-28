@@ -239,6 +239,17 @@ describe("runInject", () => {
     expect(writes).toHaveLength(1);
   });
 
+  it("with cleaned targets, the prompt leaves overlays out and Generate adds the overlay rule", async () => {
+    h.complete.mockResolvedValue({ text: reply(1), truncated: false });
+    const { client } = db();
+    const r = await runInject(client, U, { characterId: "c1", targetPath: `${U}/t.jpg`, options: { clean: true } });
+    expect(h.complete.mock.calls[0][0].prompt).toContain("- OVERLAYS: the target may have app interface buttons");
+    expect(r.versions[0]!.meta.clean).toBe(true);
+    h.complete.mockClear();
+    const plain = await runInject(client, U, { characterId: "c1", targetPath: `${U}/t.jpg`, options: {} });
+    expect(plain.versions[0]!.meta).not.toHaveProperty("clean");
+  });
+
   it("refuses someone else's photo and bad options", async () => {
     const { client } = db();
     await expect(runInject(client, U, { characterId: "c1", targetPath: "other/t.jpg", options: {} })).rejects.toThrow(/couldn't be used/);

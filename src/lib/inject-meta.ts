@@ -67,6 +67,8 @@ export const injectOptionsSchema = z.object({
   newOutfit: z.boolean().default(false),
   /** Also send her reference photos to the prompt writer (costs more). */
   withRefs: z.boolean().default(false),
+  /** The targets were cleaned of overlays: the prompt and the image job leave them out. */
+  clean: z.boolean().default(false),
 });
 export type InjectOptionsInput = z.input<typeof injectOptionsSchema>;
 export const INJECT_DEFAULTS = injectOptionsSchema.parse({});

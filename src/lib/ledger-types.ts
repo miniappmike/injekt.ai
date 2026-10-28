@@ -5,7 +5,7 @@ import { isSpicyHost, ROLES } from "@/lib/ai/roles";
 
 export type LedgerJob = "vision" | "llm" | "image";
 export type CostSource = "provider" | "list_price" | "your_price";
-export type TextFeature = "profile" | "sheet" | "prompt" | "outfit" | "likeness" | "variants" | "carousel" | "condense" | "test";
+export type TextFeature = "profile" | "sheet" | "prompt" | "outfit" | "cleanup" | "likeness" | "variants" | "carousel" | "condense" | "test";
 export type LedgerRange = "today" | "week" | "month" | "all";
 
 export const LEDGER_RANGES: { id: LedgerRange; label: string }[] = [
@@ -27,6 +27,7 @@ const FEATURES: Record<string, string> = {
   condense: "Shorten image prompt",
   prompt: "Write replacement prompt",
   outfit: "Extract outfit",
+  cleanup: "Clean up overlays",
   likeness: "Likeness check",
   variants: "Variant edits",
   carousel: "Carousel plan",

@@ -11,7 +11,7 @@ import { GenerateImage } from "@/components/generate-image";
 import { InfoTip } from "@/components/info-tip";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
-import { deleteOutfit, extractOutfit, saveOutfit, warmSheetPack, writeInjectPrompts } from "@/app/(app)/inject/actions";
+import { cleanOverlays, deleteOutfit, extractOutfit, saveOutfit, warmSheetPack, writeInjectPrompts } from "@/app/(app)/inject/actions";
 import type { SavedOutfit } from "@/lib/outfits";
 import { INJECT_DEFAULTS, MAX_VERSIONS, metaForRun, readEditTarget, writeEditTarget, type InjectMeta, type InjectOptionsInput } from "@/lib/inject-meta";
 import { closestAspectRatio } from "@/lib/aspect";
@@ -48,6 +48,10 @@ interface Target {
   state?: "queued" | "busy" | "done" | "error";
   /** The character the versions were written for, so Generate uses the same one if the picker changes. */
   characterId?: string;
+  /** A copy cleaned of overlays (kept, so turning the option off goes back to the original). */
+  clean?: { path: string; removed: string[] };
+  /** The photo the versions were written for (the cleaned copy when cleaning was on). */
+  writtenPath?: string;
   versions?: (Version | null)[];
 }
 
@@ -151,8 +155,26 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
         continue;
       }
       update(t.id, { state: "busy", status: o.count > 1 ? `Writing ${o.count} versions in one call…` : "Reading the target image…" });
-      const path = await ensureUploaded(t);
-      if (!path) continue;
+      const uploaded = await ensureUploaded(t);
+      if (!uploaded) continue;
+      let path = uploaded;
+      if (o.clean) {
+        // Cleaned once and reused on later runs; if cleaning fails the original is used.
+        let clean = t.clean;
+        if (!clean) {
+          update(t.id, { status: "Cleaning up overlays…" });
+          const c = await cleanOverlays(uploaded);
+          if (c.ok) {
+            clean = { path: c.path, removed: c.removed };
+            update(t.id, { clean });
+          } else if (c.redirectTo) {
+            setRunning(false);
+            return router.push(c.redirectTo);
+          }
+        }
+        if (clean) path = clean.path;
+        update(t.id, { status: o.count > 1 ? `Writing ${o.count} versions in one call…` : "Reading the target image…" });
+      }
       const res = await writeInjectPrompts({ characterId, targetPath: path, options: { ...o } });
       if (!res.ok) {
         if (res.redirectTo) {
@@ -171,6 +193,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
       update(t.id, {
         state: "done",
         characterId,
+        writtenPath: path,
         versions: res.versions,
         status: res.truncated ? "Cut short. Try fewer versions or the Short style." : written < res.versions.length ? "Some versions were not written. Press Write prompts to try again." : "Done.",
       });
@@ -269,6 +292,11 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
             <div key={t.id} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={t.preview} alt="" className="h-24 w-24 rounded-md object-cover" />
+              {o.clean && t.clean && t.clean.removed.length > 0 && (
+                <span className="absolute bottom-1 left-1 rounded bg-emerald-950/90 px-1.5 py-0.5 text-[10px] text-emerald-300" title={`Removed: ${t.clean.removed.join(", ")}`}>
+                  Cleaned
+                </span>
+              )}
               {!running && (
                 <button
                   type="button"
@@ -389,6 +417,10 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={o.hair} onChange={(e) => set("hair", e.target.checked)} /> Hairstyle variant
           </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={o.clean} onChange={(e) => set("clean", e.target.checked)} /> Clean up overlays
+            <InfoTip label="About cleaning up overlays">Removes app buttons, watermarks, usernames, stickers and captions laid on top of a screenshot before the prompt is written: cropped off when they sit clear of the person, painted over otherwise. Your original is kept.</InfoTip>
+          </label>
         </div>
 
         <label className="flex flex-col gap-1.5 text-sm">
@@ -444,6 +476,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
                       <span role="status" className={`text-xs ${t.state === "error" ? "text-red-400" : "text-neutral-400"}`}>
                         {v ? t.status : t.state === "done" ? "This version was not written. Press Write prompts to try again." : t.status}
                       </span>
+                      {o.clean && t.clean && t.clean.removed.length > 0 && <span className="text-xs text-emerald-300">Cleaned. Removed: {t.clean.removed.join(", ")}</span>}
                     </div>
                     {v && (
                       <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
@@ -480,7 +513,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
                         characterId={t.characterId ?? characterId}
                         extraPaths={[]}
                         kind="inject"
-                        meta={metaForRun(v.meta, t.path ?? null, editTarget)}
+                        meta={metaForRun(v.meta, t.writtenPath ?? t.path ?? null, editTarget)}
                         autoAspectRatio={t.ratio}
                       />
                     </>

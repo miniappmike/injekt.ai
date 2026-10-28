@@ -10,6 +10,7 @@ import { PROMPT_LIMIT, refOptions, type JobCharacter } from "@/lib/generation-jo
 import { swapPrompt } from "@/lib/ai/prompts/swap";
 import { MEDIA_BUCKET, stripAndNormalize } from "@/lib/images";
 import { addOutfit, type SavedOutfit } from "@/lib/outfits";
+import { cleanTarget, type CleanResult } from "@/lib/overlay-cleanup";
 import type { InjectOptionsInput } from "@/lib/inject-meta";
 import { finalPath, isOwnPath } from "@/lib/uploads";
 import { loadForVision } from "@/lib/character-images";
@@ -116,4 +117,16 @@ export async function saveOutfit(input: { name: string; text: string }): Promise
 export async function deleteOutfit(id: string): Promise<void> {
   const { supabase } = await requireUser();
   await supabase.from("outfits").delete().eq("id", id);
+}
+
+/** "Clean up overlays": a cleaned copy of a target photo, without app UI, watermarks or stickers (artifact A3). */
+export async function cleanOverlays(path: string): Promise<({ ok: true } & CleanResult) | AiFailure> {
+  try {
+    const { supabase, user } = await requireUser();
+    await entitlements.requirePro(user.id, "prompt_writer");
+    await enforceRateLimit(user.id, "llm", 20, 60);
+    return { ok: true, ...(await cleanTarget(supabase, user.id, path)) };
+  } catch (e) {
+    return toFailure(e);
+  }
 }
