@@ -3,7 +3,7 @@ import { PROFILE_FIELDS, type CharacterProfile } from "@/lib/characters";
 import { extractJson } from "../json";
 import type { TaskInput } from "../master-prompt";
 import type { LabeledImage } from "./profile-builder";
-import { REALISM_INSTRUCTIONS, withRealism } from "./realism";
+import { legacyTask, REALISM_INSTRUCTIONS, withRealism } from "./realism";
 
 export const VARIANT_OPTIONS = [
   { id: "pose", label: "Pose", change: "the pose and body position" },
@@ -86,7 +86,7 @@ export function buildVariantTask(args: {
   const chosen = VARIANT_OPTIONS.filter((o) => options.includes(o.id));
   const keep = VARIANT_OPTIONS.filter((o) => !options.includes(o.id));
 
-  return {
+  return legacyTask({
     instructions: `Task: write ${count} image-editing prompt${count === 1 ? "" : "s"}, each making a different variation of the photo to edit (${target}).
 
 Every prompt changes ALL of these together, and nothing else:
@@ -105,7 +105,7 @@ ${note?.trim() ? `Note from the user: ${note.trim().slice(0, 1000)}\n` : ""}
 Images:
 ${lines.join("\n")}`.replace(/\n{3,}/g, "\n\n"),
     images: all.map((i) => i.dataUri),
-  };
+  });
 }
 
 // Carousel mode: the model acts as a social media creative director and plans the rest of an Instagram carousel from the
@@ -122,7 +122,7 @@ export function buildCarouselTask(args: {
   const { all, target, lines, extraTags } = imageList(references, cover, "cover image", extras);
   const theme = note?.trim();
 
-  return {
+  return legacyTask({
     instructions: `You are a creative director for social media, with an expert eye for poses, vibes and aesthetics. Study the cover image (${target})
 closely: the outfit, setting, light, mood, colour and the kind of creator who would post it.${theme ? " Then read the user's theme and let it steer every slide." : ""}
 
@@ -143,7 +143,7 @@ ${theme ? `Theme from the user: ${theme.slice(0, 1000)}\n` : "No theme given: ta
 Images:
 ${lines.join("\n")}`.replace(/\n{3,}/g, "\n\n"),
     images: all.map((i) => i.dataUri),
-  };
+  });
 }
 
 const text = z.coerce.string().trim();

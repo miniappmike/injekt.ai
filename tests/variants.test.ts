@@ -8,7 +8,9 @@ import {
   parseVariants,
   VARIANT_OPTIONS,
 } from "@/lib/ai/tasks/variants";
-import { REALISM_LINE, withRealism } from "@/lib/ai/tasks/realism";
+import { REALISM_INSTRUCTIONS, withRealism } from "@/lib/ai/tasks/realism";
+import { harness } from "@/lib/ai/prompts/harness";
+import { REALISM_FIX, TEXT_RULE } from "@/lib/ai/prompts/rules";
 import { directSwapPrompt } from "@/lib/ai/tasks/direct-swap";
 import { referencesFor, type CharacterImagePaths } from "@/lib/character-images";
 
@@ -16,51 +18,51 @@ const uri = "data:image/jpeg;base64,QUJD";
 const refs = [{ label: "face sheet (identity reference)", dataUri: uri }, { label: "body sheet (build reference)", dataUri: uri }];
 const image = { label: "image to edit", dataUri: uri };
 const character = { name: "Juno", profile: { face: "oval" }, always_keep: "gold chain" };
-const R = (p: string) => `${p} ${REALISM_LINE}`;
+const R = (p: string) => harness(p).text;
 
 describe("buildVariantTask", () => {
   it("labels the sheets first and the image last", () => {
     const task = buildVariantTask({ character, references: refs, image, options: ["camera", "pose"] });
     expect(task.images).toHaveLength(3);
-    expect(task.text).toContain("@image3: image to edit");
-    expect(task.instructions).toContain('starts with "Edit @image3."');
-    expect(task.instructions).toContain("@image1 (face sheet (identity reference)) and @image2 (body sheet (build reference)) as the strict identity reference");
-    expect(task.text).toContain("Always keep: gold chain");
+    expect(task.prompt).toContain("@image3: image to edit");
+    expect(task.prompt).toContain('starts with "Edit @image3."');
+    expect(task.prompt).toContain("@image1 (face sheet (identity reference)) and @image2 (body sheet (build reference)) as the strict identity reference");
+    expect(task.prompt).toContain("Always keep: gold chain");
   });
 
   it("makes every prompt change all the chosen things together, and keeps the rest", () => {
     const task = buildVariantTask({ character, references: refs, image, options: ["camera", "pose"], count: 3 });
-    expect(task.instructions).toContain("write 3 image-editing prompts");
-    expect(task.instructions).toContain("Every prompt changes ALL of these together, and nothing else:\n- the pose and body position\n- the camera angle and framing");
+    expect(task.prompt).toContain("write 3 image-editing prompts");
+    expect(task.prompt).toContain("Every prompt changes ALL of these together, and nothing else:\n- the pose and body position\n- the camera angle and framing");
     // Not one prompt per change.
-    expect(task.instructions).not.toMatch(/one .*per (requested )?variant/i);
+    expect(task.prompt).not.toMatch(/one .*per (requested )?variant/i);
     // Unchosen aspects are named as staying the same.
-    const keep = task.instructions.slice(task.instructions.indexOf("Everything else stays"));
+    const keep = task.prompt.slice(task.prompt.indexOf("Everything else stays"));
     expect(keep).toContain("the hairstyle");
     expect(keep).toContain("the lighting and time of day");
     expect(keep).not.toContain("the pose and body position");
-    expect(task.instructions).toContain("Exactly 3 entries");
+    expect(task.prompt).toContain("Exactly 3 entries");
   });
 
   it("defaults to 4 variants and keeps the count between 1 and 8", () => {
     expect(DEFAULT_VARIANT_COUNT).toBe(4);
-    expect(buildVariantTask({ character, references: refs, image, options: ["pose"] }).instructions).toContain("Exactly 4 entries");
-    expect(buildVariantTask({ character, references: refs, image, options: ["pose"], count: 50 }).instructions).toContain("Exactly 8 entries");
-    expect(buildVariantTask({ character, references: refs, image, options: ["pose"], count: -3 }).instructions).toContain("Exactly 1 entries");
-    expect(buildVariantTask({ character, references: refs, image, options: ["pose"], count: 0 }).instructions).toContain("Exactly 4 entries");
+    expect(buildVariantTask({ character, references: refs, image, options: ["pose"] }).prompt).toContain("Exactly 4 entries");
+    expect(buildVariantTask({ character, references: refs, image, options: ["pose"], count: 50 }).prompt).toContain("Exactly 8 entries");
+    expect(buildVariantTask({ character, references: refs, image, options: ["pose"], count: -3 }).prompt).toContain("Exactly 1 entries");
+    expect(buildVariantTask({ character, references: refs, image, options: ["pose"], count: 0 }).prompt).toContain("Exactly 4 entries");
   });
 
   it("asks for the realism line", () => {
-    expect(buildVariantTask({ character, references: refs, image, options: ["pose"] }).instructions).toContain(REALISM_LINE);
+    expect(buildVariantTask({ character, references: refs, image, options: ["pose"] }).prompt).toContain(REALISM_INSTRUCTIONS);
   });
 
   it("works with no character: just the image as @image1", () => {
     const task = buildVariantTask({ character: null, references: [], image, options: ["pose"], note: "beach" });
     expect(task.images).toHaveLength(1);
-    expect(task.text).toContain("@image1: image to edit");
-    expect(task.text).toContain("No saved character");
-    expect(task.text).toContain("beach");
-    expect(task.instructions).toContain("no reference sheets");
+    expect(task.prompt).toContain("@image1: image to edit");
+    expect(task.prompt).toContain("No saved character");
+    expect(task.prompt).toContain("beach");
+    expect(task.prompt).toContain("no reference sheets");
   });
 });
 
@@ -69,24 +71,24 @@ describe("buildCarouselTask", () => {
 
   it("briefs the model as a creative director with no fixed list of shots", () => {
     const task = buildCarouselTask({ character, references: refs, cover, slides: 5, note: "seductive goth vibes" });
-    expect(task.instructions).toContain("creative director for social media");
-    expect(task.instructions).toContain("Instagram carousel");
-    expect(task.instructions).toContain("don't follow a formula");
+    expect(task.prompt).toContain("creative director for social media");
+    expect(task.prompt).toContain("Instagram carousel");
+    expect(task.prompt).toContain("don't follow a formula");
     // The old fixed checklist is gone.
-    expect(task.instructions).not.toMatch(/flat lay|outfit detail\s+close-up/);
-    expect(task.instructions).toContain("let it steer every slide");
-    expect(task.text).toContain("Theme from the user: seductive goth vibes");
+    expect(task.prompt).not.toMatch(/flat lay|outfit detail\s+close-up/);
+    expect(task.prompt).toContain("let it steer every slide");
+    expect(task.prompt).toContain("Theme from the user: seductive goth vibes");
   });
 
   it("asks for slides 2 to N as edits of the cover, with the sheets for identity", () => {
     const task = buildCarouselTask({ character, references: refs, cover, slides: 5 });
-    expect(task.instructions).toContain("5-slide");
-    expect(task.instructions).toContain("Exactly 4 entries");
-    expect(task.text).toContain("@image3: cover image");
-    expect(task.instructions).toContain('starts with "Edit @image3."');
-    expect(task.instructions).toContain("@image1 (face sheet (identity reference)) and @image2 (body sheet (build reference))");
-    expect(task.instructions).toContain(REALISM_LINE);
-    expect(task.text).toContain("No theme given");
+    expect(task.prompt).toContain("5-slide");
+    expect(task.prompt).toContain("Exactly 4 entries");
+    expect(task.prompt).toContain("@image3: cover image");
+    expect(task.prompt).toContain('starts with "Edit @image3."');
+    expect(task.prompt).toContain("@image1 (face sheet (identity reference)) and @image2 (body sheet (build reference))");
+    expect(task.prompt).toContain(REALISM_INSTRUCTIONS);
+    expect(task.prompt).toContain("No theme given");
   });
 });
 
@@ -96,21 +98,21 @@ describe("extra images", () => {
   it("come after the main image, in @image order, and the model is told what they're for", () => {
     const task = buildVariantTask({ character, references: refs, image, extras: [extra(1), extra(2)], options: ["pose"] });
     expect(task.images).toEqual([uri, uri, uri, `${uri}#1`, `${uri}#2`]);
-    expect(task.text).toContain("@image3: image to edit\n@image4: extra image from the user");
-    expect(task.text).toContain("@image5: extra image from the user");
-    expect(task.instructions).toContain('starts with "Edit @image3."');
-    expect(task.instructions).toContain("The user added @image4 and @image5 to show");
+    expect(task.prompt).toContain("@image3: image to edit\n@image4: extra image from the user");
+    expect(task.prompt).toContain("@image5: extra image from the user");
+    expect(task.prompt).toContain('starts with "Edit @image3."');
+    expect(task.prompt).toContain("The user added @image4 and @image5 to show");
   });
 
   it("work in carousel mode too, with the cover staying the image to edit", () => {
     const task = buildCarouselTask({ character, references: refs, cover: { label: "cover image", dataUri: uri }, extras: [extra(1)], slides: 4 });
-    expect(task.text).toContain("@image3: cover image\n@image4: extra image");
-    expect(task.instructions).toContain('starts with "Edit @image3."');
-    expect(task.instructions).toContain("The user added @image4 to show");
+    expect(task.prompt).toContain("@image3: cover image\n@image4: extra image");
+    expect(task.prompt).toContain('starts with "Edit @image3."');
+    expect(task.prompt).toContain("The user added @image4 to show");
   });
 
   it("aren't mentioned when there are none", () => {
-    expect(buildVariantTask({ character, references: refs, image, options: ["pose"] }).instructions).not.toContain("The user added");
+    expect(buildVariantTask({ character, references: refs, image, options: ["pose"] }).prompt).not.toContain("The user added");
   });
 
   it("are listed in the attach order", () => {
@@ -134,7 +136,7 @@ describe("parseVariants", () => {
     const reply = '```json\n{"variants":[{"label":"Pose · stairs","prompt":"Edit @image3. New pose."},{"label":"","prompt":"Edit @image3. Other"},{"label":"x","prompt":"third"}]}\n```';
     expect(parseVariants(reply, 2)).toEqual([
       { label: "Pose · stairs", prompt: R("Edit @image3. New pose.") },
-      { label: "Variant 2", prompt: R("Edit @image3. Other.") },
+      { label: "Variant 2", prompt: R("Edit @image3. Other") },
     ]);
   });
   it("drops empty prompts and rejects empty or malformed replies", () => {
@@ -154,20 +156,22 @@ describe("parseCarousel", () => {
 });
 
 describe("withRealism", () => {
-  it("adds the line once, after a full stop", () => {
-    expect(withRealism("Edit @image2. New pose")).toBe(R("Edit @image2. New pose."));
-    expect(withRealism(R("Already there."))).toBe(R("Already there."));
+  it("runs a prompt through the artifact harness once", () => {
+    const once = withRealism("Edit @image2. New pose");
+    expect(once).toContain(REALISM_FIX.quality);
+    expect(once).toContain(TEXT_RULE);
+    expect(withRealism(once)).toBe(once);
     expect(withRealism("  ")).toBe("");
   });
 
-  it("covers the whole list the user asked for", () => {
-    for (const phrase of ["Realistic skin texture", "smartphone image grain", "natural depth, lighting and shadows", "No overlays or watermarks", "No shiny, glossy or waxy skin", "Real skin imperfections"]) {
-      expect(REALISM_LINE).toContain(phrase);
+  it("uses the artifact's realism wording: matte textured skin, real camera imperfections, no gloss", () => {
+    for (const phrase of ["visible pores", "sensor noise", "mild JPEG compression", "No smoothing, no glossy, waxy, plastic or porcelain skin", "no beauty filter"]) {
+      expect(REALISM_FIX.quality).toContain(phrase);
     }
   });
 
   it("is on the fixed Direct swap prompt too", () => {
-    expect(directSwapPrompt(2).endsWith(REALISM_LINE)).toBe(true);
+    expect(directSwapPrompt(2)).toContain(REALISM_FIX.quality);
   });
 });
 

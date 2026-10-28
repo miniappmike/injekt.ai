@@ -1,4 +1,4 @@
-import { buildSystemPrompt } from "./master-prompt";
+import { withScope } from "./master-prompt";
 import type { GuardedTextClient, TextBackend } from "./providers/types";
 import type { TokenUsage } from "@/lib/pricing";
 
@@ -7,16 +7,11 @@ export interface GuardedClientOptions {
   onUsage?: (usage: TokenUsage | undefined) => void | Promise<void>;
 }
 
-// Wraps any vision/LLM backend so the master prompt cannot be skipped.
+// Wraps any vision/LLM backend so the SCOPE guard cannot be skipped.
 export function createGuardedClient(backend: TextBackend, apiKey: string, options: GuardedClientOptions = {}): GuardedTextClient {
   return {
     run: async (task) => {
-      const result = await backend.complete({
-        system: buildSystemPrompt(task.instructions),
-        text: task.text,
-        images: task.images,
-        apiKey,
-      });
+      const result = await backend.complete({ text: withScope(task.prompt), images: task.images, apiKey });
       try {
         await options.onUsage?.(result.usage);
       } catch {

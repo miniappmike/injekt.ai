@@ -78,7 +78,7 @@ export function anthropicBackend(model: string): TextBackend {
         "anthropic",
         "https://api.anthropic.com/v1/messages",
         { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-        { model, max_tokens: 2048, system, messages: [{ role: "user", content }] },
+        { model, max_tokens: 8192, ...(system ? { system } : {}), messages: [{ role: "user", content }] },
         apiKey,
       );
       const out = (json?.content ?? []).filter((b: { type: string }) => b.type === "text").map((b: { text: string }) => b.text).join("");
@@ -103,9 +103,10 @@ export function openaiCompatBackend(id: "openai" | "openrouter" | "google" | "cu
     id,
     async complete({ system, text, images = [], apiKey }) {
       if (id === "custom") await assertPublicHttpsUrl(base);
+      // Images first, in order, then the text: the prompts refer to "the first attached image" and so on.
       const userContent = [
-        { type: "text", text },
         ...images.map((uri) => ({ type: "image_url", image_url: { url: uri } })),
+        { type: "text", text },
       ];
       const json = await post(
         id,
@@ -113,11 +114,8 @@ export function openaiCompatBackend(id: "openai" | "openrouter" | "google" | "cu
         { authorization: `Bearer ${apiKey}` },
         {
           model,
-          [id === "openai" ? "max_completion_tokens" : "max_tokens"]: 4096,
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: userContent },
-          ],
+          [id === "openai" ? "max_completion_tokens" : "max_tokens"]: 8192,
+          messages: [...(system ? [{ role: "system", content: system }] : []), { role: "user", content: userContent }],
         },
         apiKey,
       );
@@ -143,13 +141,13 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
         { authorization: `Bearer ${apiKey}`, "idempotency-key": randomUUID() },
         {
           model,
-          max_tokens: 4096,
+          max_tokens: 8192,
           reasoning_effort: "low",
           messages: [
-            { role: "system", content: system },
+            ...(system ? [{ role: "system", content: system }] : []),
             {
               role: "user",
-              content: [{ type: "text", text }, ...images.map((uri) => ({ type: "image_url", image_url: { url: uri } }))],
+              content: [...images.map((uri) => ({ type: "image_url", image_url: { url: uri } })), { type: "text", text }],
             },
           ],
         },

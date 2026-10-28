@@ -3,7 +3,7 @@ import { PROFILE_FIELDS, type CharacterProfile } from "@/lib/characters";
 import { extractJson } from "../json";
 import type { TaskInput } from "../master-prompt";
 import type { LabeledImage } from "./profile-builder";
-import { REALISM_INSTRUCTIONS, withRealism } from "./realism";
+import { legacyTask, REALISM_INSTRUCTIONS, withRealism } from "./realism";
 
 export const LIKENESS_TRAITS = [
   "Face shape",
@@ -31,7 +31,7 @@ export function buildLikenessTask(args: {
     .join("\n");
   const generatedLabel = `@image${images.length}`;
 
-  return {
+  return legacyTask({
     instructions: `Task: score how closely the generated image (${generatedLabel}) matches the character in the reference images.
 
 Compare trait by trait. Score each trait from 0 to 10 and give an overall score from 0 to 100.
@@ -60,7 +60,7 @@ Images:
 ${references.map((r, i) => `@image${i + 1}: ${r.label}`).join("\n")}
 ${generatedLabel}: generated image to check`.replace(/\n{3,}/g, "\n\n"),
     images: images.map((i) => i.dataUri),
-  };
+  });
 }
 
 const text = z.coerce.string().trim();

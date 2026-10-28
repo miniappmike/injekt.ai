@@ -7,15 +7,15 @@ export interface TextResult {
   usage?: TokenUsage;
 }
 
-// Raw text/vision backend. Implementations receive an already-built system prompt.
+// Raw text/vision backend. The guard is already in the text; `system` is only for callers that need one.
 export interface TextBackend {
   readonly id: string;
   /** Longest image edge to send, for providers that cap total image tokens per request. */
   readonly imageMaxEdge?: number;
-  complete(args: { system: string; text: string; images?: string[]; apiKey: string }): Promise<TextResult>;
+  complete(args: { system?: string; text: string; images?: string[]; apiKey: string }): Promise<TextResult>;
 }
 
-// The only client callers get. It always applies the master prompt.
+// The only client callers get. It always puts the SCOPE guard first.
 export interface GuardedTextClient {
   run(task: TaskInput): Promise<string>;
 }

@@ -127,6 +127,8 @@ describe("parseGenerationRequest", () => {
     expect(() => parseGenerationRequest(request({ resolution: "8k" }))).toThrow(UserFacingError);
     expect(() => parseGenerationRequest(request({ kind: "bogus" }))).toThrow(UserFacingError);
     expect(() => parseGenerationRequest(request({ extraPaths: Array(11).fill("a") }))).toThrow(UserFacingError);
+    expect(parseGenerationRequest(request({ kind: "likeness_fix" })).kind).toBe("likeness_fix");
+    expect(() => parseGenerationRequest(request({ meta: { edit: "x".repeat(601) } }))).toThrow(UserFacingError);
   });
 });
 
@@ -148,6 +150,17 @@ describe("startGeneration: free plan", () => {
     expect(db.rows[0]).toMatchObject({ status: "processing", provider_job_id: "job_1", cost_usd: "0.040000", user_id: U });
     expect(db.rows[0].params).toMatchObject({ free: true, key_source: "server", resolution: "1k", image_count: 3 });
     expect(JSON.stringify(db.rows[0])).not.toContain("sk-spicy");
+  });
+
+  it("frames an Inject prompt that carries meta: photo edit with the target first, and saves the prompt it sent", async () => {
+    await startGeneration(userClient(), verified, request({ extraPaths: [], prompt: "LONG SCENE", meta: { target: `${U}/targets/t.jpg`, edit: "New pose: sitting" } }));
+    const call = h.submit.mock.calls[0][0];
+    // No sheet pack and no body sheet here: the face sheet goes whole after the target.
+    expect(call.input.imageUrls).toEqual([`https://signed.test/${U}/targets/t.jpg`, `https://signed.test/${U}/characters/${C}/face.jpg`]);
+    expect(call.input.prompt).toMatch(/^Replace the person in @image1 with the woman from @image2\./);
+    expect(call.input.prompt).toContain("Change: New pose: sitting.");
+    expect(db.rows[0].prompt).toBe(call.input.prompt);
+    expect(db.rows[0].params).toMatchObject({ photo_edit: true, image_count: 2 });
   });
 
   it("needs a confirmed email, and uses nothing up when it is missing", async () => {

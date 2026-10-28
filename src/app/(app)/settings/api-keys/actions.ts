@@ -164,7 +164,7 @@ export async function testRoleKey(_: KeyFormState, formData: FormData): Promise<
       return { tested: role, detail };
     }
     const { client } = await getUserTextClient(supabase, user.id, role, "test");
-    const reply = await client.run({ instructions: "Reply with the single word: ok", text: "Connection test." });
+    const reply = await client.run({ prompt: "Connection test. Reply with the single word: ok" });
     return reply.trim() ? { tested: role } : { error: "The provider answered with an empty reply." };
   } catch (e) {
     return { error: toFailure(e).error };

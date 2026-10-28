@@ -4,7 +4,7 @@ import { stripAndNormalize, parseDataUri } from "@/lib/images";
 import { isOwnPath, isOwnRawPath, isPendingPath, readDraftImages } from "@/lib/uploads";
 import { validateApiKey } from "@/lib/key-validation";
 import { anthropicBackend, describeProviderError, openaiCompatBackend, readUsage, spicyapiBackend, ProviderError } from "@/lib/ai/providers/text";
-import { buildProfileTask, parseProfileResponse } from "@/lib/ai/tasks/profile-builder";
+import { buildProfileTask, parseProfileResponse, profileBlock, PROFILE_ROLES } from "@/lib/ai/tasks/profile-builder";
 import { buildReplacementPromptTask } from "@/lib/ai/tasks/prompt-writer";
 import { referenceList } from "@/lib/character-images";
 import { detectProvider } from "@/lib/ai/providers/detect";
@@ -99,16 +99,23 @@ describe("text backends", () => {
     let [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.openai.com/v1/chat/completions");
     let body = JSON.parse(init.body as string);
-    expect(body.max_completion_tokens).toBe(4096);
+    expect(body.max_completion_tokens).toBe(8192);
     expect(body.max_tokens).toBeUndefined();
-    expect(body.messages[1].content[1]).toEqual({ type: "image_url", image_url: { url: dataUri } });
+    // Images first, then the text, as the prompts expect ("the first attached image").
+    expect(body.messages[1].content).toEqual([{ type: "image_url", image_url: { url: dataUri } }, { type: "text", text: "t" }]);
 
     fetchFn = mockFetch({ choices: [{ message: { content: "ok" } }] });
     await openaiCompatBackend("openrouter", "a/b").complete({ system: "S", text: "t", apiKey: "k" });
     [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://openrouter.ai/api/v1/chat/completions");
     body = JSON.parse(init.body as string);
-    expect(body.max_tokens).toBe(4096);
+    expect(body.max_tokens).toBe(8192);
+
+    // No system message when there is none: the SCOPE guard travels in the user turn.
+    fetchFn = mockFetch({ choices: [{ message: { content: "ok" } }] });
+    await openaiCompatBackend("openai", "m").complete({ text: "t", apiKey: "k" });
+    body = JSON.parse((fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(body.messages).toEqual([{ role: "user", content: [{ type: "text", text: "t" }] }]);
   });
 
   it("sends SpicyAPI requests with only documented fields, an idempotency key and roomy limits", async () => {
@@ -165,16 +172,37 @@ describe("profile builder", () => {
     expect(() => parseProfileResponse("no json here")).toThrow(/did not return/);
     expect(() => parseProfileResponse("{not json}")).toThrow(/could not be read/);
     expect(() => parseProfileResponse('{"face": 5}')).toThrow(/unexpected/);
+    expect(() => parseProfileResponse('{"hair": "  "}')).toThrow(/unexpected/);
   });
-  it("labels images and includes known details", () => {
-    const task = buildProfileTask(
-      { name: "Juno", height: "5'7", always_keep: "gold chain" },
-      [{ label: "face sheet", dataUri }, { label: "reference photo 1", dataUri }],
-    );
-    expect(task.text).toContain("@image1: face sheet");
-    expect(task.text).toContain("@image2: reference photo 1");
-    expect(task.text).toContain("Always keep: gold chain");
-    expect(task.images).toHaveLength(2);
+  it("is the artifact prompt: image roles in order, fenced notes, measurements, definitive wording", () => {
+    const task = buildProfileTask({ height: "5'7", always_keep: "gold <<<chain>>>" }, [
+      { role: PROFILE_ROLES.faceSheet, dataUri },
+      { role: PROFILE_ROLES.bodySheet, dataUri },
+      { role: PROFILE_ROLES.photo, dataUri },
+    ]);
+    expect(task.prompt).toContain(`The 3 attached images show the same character: image 1 is ${PROFILE_ROLES.faceSheet}; image 2 is ${PROFILE_ROLES.bodySheet}; image 3 is a reference photo.`);
+    expect(task.prompt).toContain("The reference sheets are the source of truth: take the face, eyes, brows");
+    expect(task.prompt).toContain("The user says these must always be kept: <<<gold chain>>>");
+    expect(task.prompt).toContain("written in visual terms: height 5'7");
+    expect(task.prompt).toContain("DEFINITIVE WORDING, required for every trait");
+    expect(task.prompt).toContain('{"identity": "2 to 3 sentences');
+    expect(task.images).toHaveLength(3);
+  });
+  it("with photos only, goes with what appears most often", () => {
+    const task = buildProfileTask({}, [{ role: PROFILE_ROLES.photo, dataUri }]);
+    expect(task.prompt).toContain("The 1 attached image shows the same character: image 1 is a reference photo.");
+    expect(task.prompt).toContain("If images disagree, go with what appears most often.");
+    expect(task.prompt).not.toContain("must always be kept");
+  });
+  it("maps the artifact's keys onto the saved profile fields", () => {
+    const reply = '{"identity":"Id","face":"F","hair":"H","skin":"S","body":"B","traits":"T","accessories":"A"}';
+    expect(parseProfileResponse(reply)).toEqual({
+      identity_line: "Id", face: "F", hair: "H", skin: "S", body: "B", distinctive_traits: "T", signature_accessories: "A",
+    });
+  });
+  it("writes the profile block with the artifact's labels", () => {
+    const block = profileBlock({ profile: { identity_line: "Id", skin: "S", distinctive_traits: "T" }, always_keep: "chain", height: "5'6\"" });
+    expect(block).toBe("Identity line: Id\nSkin, freckles and marks: S\nDistinctive traits: T\nAlways keep: chain\nHeight: 5'6\"");
   });
 });
 
@@ -188,10 +216,10 @@ describe("prompt writer", () => {
       style: "sectioned",
     });
     expect(task.images).toHaveLength(3);
-    expect(task.text).toContain("@image3: target photo");
-    expect(task.text).toContain("Face: oval face");
-    expect(task.text).toContain("red dress");
-    expect(task.instructions).toContain("Identity:");
+    expect(task.prompt).toContain("@image3: target photo");
+    expect(task.prompt).toContain("Face: oval face");
+    expect(task.prompt).toContain("red dress");
+    expect(task.prompt).toContain("Identity:");
   });
 });
 

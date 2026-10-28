@@ -1,7 +1,7 @@
 import { PROFILE_FIELDS, type CharacterProfile } from "@/lib/characters";
 import type { TaskInput } from "../master-prompt";
 import type { LabeledImage } from "./profile-builder";
-import { REALISM_INSTRUCTIONS } from "./realism";
+import { legacyTask, REALISM_INSTRUCTIONS } from "./realism";
 
 export type PromptStyle = "sectioned" | "match";
 
@@ -28,7 +28,7 @@ export function buildReplacementPromptTask(args: {
   const ref = references.map((r, i) => `@image${i + 1}: ${r.label}`).join("\n");
   const targetLabel = `@image${images.length}`;
 
-  return {
+  return legacyTask({
     instructions: `Task: write one replacement prompt for an image-editing model. The result must show ${character.name}
 in the scene of the target photo (${targetLabel}), with the character's identity taken from the reference images.
 
@@ -49,5 +49,5 @@ Images:
 ${ref}
 ${targetLabel}: target photo (scene to edit)`.replace(/\n{3,}/g, "\n\n"),
     images: images.map((i) => i.dataUri),
-  };
+  });
 }

@@ -59,10 +59,10 @@ describe("buildLikenessTask", () => {
       promptUsed: "a woman in a park",
     });
     expect(task.images).toHaveLength(3);
-    expect(task.text).toContain("@image3: generated image to check");
-    expect(task.text).toContain("a woman in a park");
-    expect(task.text).toContain("Face: oval");
-    for (const trait of LIKENESS_TRAITS) expect(task.instructions).toContain(trait);
+    expect(task.prompt).toContain("@image3: generated image to check");
+    expect(task.prompt).toContain("a woman in a park");
+    expect(task.prompt).toContain("Face: oval");
+    for (const trait of LIKENESS_TRAITS) expect(task.prompt).toContain(trait);
   });
 });
 
