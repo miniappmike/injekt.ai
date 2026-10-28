@@ -8,6 +8,7 @@ import {
   parseQuickLikeness,
   quickLikenessPrompt,
   MAKEUP_SCORE_RULE,
+  DISTANCE_SCORE_RULE,
 } from "@/lib/ai/prompts/likeness";
 import { BODY_LOCK, MODS_RULE, REALISM_FIX, TEXT_SHORT } from "@/lib/ai/prompts/rules";
 import type { Anchors } from "@/lib/ai/prompts/identity";
@@ -71,6 +72,9 @@ describe("quick likeness (A17)", () => {
   it("tells both checkers makeup isn't identity, and drops makeup fixes that slip through", () => {
     expect(quickLikenessPrompt(["her face"], false)).toContain(MAKEUP_SCORE_RULE);
     expect(likenessReportPrompt({ profile: "", refCount: 1, isSheet: true, used: "" })).toContain(MAKEUP_SCORE_RULE);
+    // Fine details like iris colour aren't judged on a small or distant face.
+    expect(quickLikenessPrompt(["her face"], true)).toContain(DISTANCE_SCORE_RULE);
+    expect(likenessReportPrompt({ profile: "", refCount: 1, isSheet: true, used: "" })).toContain(DISTANCE_SCORE_RULE);
     const q = parseQuickLikeness(
       { fixes: ["warm hazel-brown eyes rather than green-grey", "natural pink lips rather than dark burgundy", "no heavy eyeliner", "small silver nose ring in the left nostril", "fuller lips with a defined cupid's bow"] },
       false,

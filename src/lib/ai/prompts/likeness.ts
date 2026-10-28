@@ -12,6 +12,13 @@ import { pickAnchors, type Anchors, type ModelFamily } from "./identity";
 export const MAKEUP_SCORE_RULE =
   "MAKEUP IS NOT IDENTITY: she may wear makeup on purpose, so ignore it like the outfit. Judge the features underneath: eye shape and iris colour, lip shape and fullness, brow shape, face shape and skin undertone. Never mark a trait down for lipstick or lip colour, eyeshadow, eyeliner, lashes, brow tint, blush, bronzer, contour, highlighter, foundation or powder, and never write a fix about makeup or lip colour. Freckles or marks covered by foundation count as hidden, not missing.";
 
+/**
+ * Fine details can't be judged on a small or distant face. Not in the artifact: added because iris colour was being
+ * marked down in full-body shots where the eyes are a few pixels across.
+ */
+export const DISTANCE_SCORE_RULE =
+  "SMALL OR DISTANT FACES: when the face in the generated image is small (a full-body or wide shot), soft, in shadow or low-resolution, fine details cannot be judged. Then do not score or mention iris colour, freckles, small moles, fine skin texture or small face piercings; score eyes on shape and spacing only, and the face on its overall shape and proportions, and give the benefit of the doubt. Only mark a fine detail down when it is clearly visible and clearly different, and never write a fix about a detail you could not see clearly.";
+
 /** A fix that is really about makeup (lip colour, eyeshadow...), which the prompts tell the checker not to write. */
 const makeupFix = (f: string) => asksMakeup(f) || /\blip(s)?\b[^;,.]*\b(colou?r|pink|red|nude|burgundy|berry|plum|dark|glossy|matte)\b|\b(pink|red|nude|burgundy|berry|plum|natural)\b[^;,.]*\blips?\b/i.test(f);
 
@@ -26,6 +33,7 @@ ${o.profile}
 
 Compare the face and identity of the person in the generated image with the reference. Ignore differences in pose, outfit, setting, lighting, camera and expression unless they hide a trait. Do not name or identify anyone.
 ${MAKEUP_SCORE_RULE}
+${DISTANCE_SCORE_RULE}
 
 Score each of these traits from 0 to 10, where 10 means indistinguishable from the reference, and skip any trait that cannot be seen in the generated image: Face shape, Eyes (colour and shape), Brows, Nose, Lips, Jaw and cheekbones, Skin tone, Freckles moles and marks, Hair colour, Hair texture length and hairline, Build, Body proportions (shoulders, bust, waist, hips, glutes, legs), Signature accessories.
 Give an overall likeness score from 0 to 100 for whether a viewer would see the same person, weighting eyes, nose, face shape and marks most, and body proportions heavily whenever the body is visible. Be honest; do not inflate.
@@ -88,8 +96,9 @@ export function likenessReportText(r: LikenessReport): string {
 export function quickLikenessPrompt(roles: string[], cmp: boolean): string {
   const n = roles.length;
   return `The first ${n} attached image${n > 1 ? "s show" : " shows"} one adult woman, the identity reference: ${roles.map((role, i) => `image ${i + 1} is ${role}`).join("; ")}. ${cmp ? "The SECOND-TO-LAST image is the ORIGINAL photo before a likeness fix. " : ""}The LAST image is a newly generated photo that should show the same woman${cmp ? " (the fixed version of the original)" : ""}. Compare identity only. Ignore pose, outfit, setting, light, camera and expression. Do not name or identify anyone. ${MAKEUP_SCORE_RULE}
+${DISTANCE_SCORE_RULE}
 First list the concrete differences you can see between the reference and the generated woman (face shape, eyes, nose, mouth, hair colour, hair cut and length, skin tone and freckles, tattoos and piercings, and the body shape and proportions that are visible: shoulders, bust, waist, hips, glutes, thighs). Then score each trait on its own from 0 to 10 with this scale: 10 indistinguishable, 8 clearly the same person with small differences, 6 the same type but noticeably different, 4 or less a different person. Use the full scale and score each trait independently; do not give the same number to everything.
-ONLY SCORE WHAT YOU CAN SEE in the generated image. If a trait is mostly hidden (for example the face or eyes behind a phone, hands, hair or sunglasses, a back view, hips and glutes hidden by a seated pose, a table or loose clothing, legs out of frame), set it to null instead of guessing or marking it down. If a trait is only partly visible, score just the visible part and do not penalise what is hidden. Never lower a score because something cannot be seen.
+ONLY SCORE WHAT YOU CAN SEE in the generated image. If a trait is mostly hidden (for example the face or eyes behind a phone, hands, hair or sunglasses, a back view, hips and glutes hidden by a seated pose, a table or loose clothing, legs out of frame), set it to null instead of guessing or marking it down. If a trait is only partly visible, score just the visible part and do not penalise what is hidden. Never lower a score because something cannot be seen. ${DISTANCE_SCORE_RULE}
 ${cmp ? `Score the LAST image. Then compare it directly with the ORIGINAL against the reference and set "verdict" to "better" if the fixed image is clearly closer to the reference woman, "worse" if the original was clearly closer, or "same" if the difference is small, with "verdict_reason" as one short sentence naming what changed.\n` : ""}Reply with only JSON: {${cmp ? '"verdict": "better", "verdict_reason": "...", ' : ""}"differences": ["..."], "face_shape": 0 or null, "eyes": 0 or null, "nose_mouth": 0 or null, "hair_colour": 0 or null, "hair_cut": 0 or null, "skin": 0 or null, "upper_body": 0 or null (shoulders, bust, arms), "lower_body": 0 or null (waist, hips, glutes, thighs, legs), "hidden": ["short names of the traits you set to null"], "fixes": ["one short concrete phrase per drifted trait that describes the REFERENCE version, for example deep burgundy wine-red hair rather than bright red, wide curvy hips and full rounded glutes with a narrow waist, or no navel piercing"]}`;
 }
 
