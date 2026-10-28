@@ -14,6 +14,7 @@ import { useToast } from "@/components/toast";
 import { extractOutfit, warmSheetPack, writeInjectPrompts } from "@/app/(app)/inject/actions";
 import { INJECT_DEFAULTS, MAX_VERSIONS, metaForRun, readEditTarget, writeEditTarget, type InjectMeta, type InjectOptionsInput } from "@/lib/inject-meta";
 import { closestAspectRatio } from "@/lib/aspect";
+import { SEND_TO_LIKENESS_KEY } from "@/lib/likeness-link";
 import type { ImageAspectRatio } from "@/lib/ai/providers/types";
 
 const MAX_TARGETS = 10;
@@ -403,7 +404,24 @@ export function InjectWriter({ characters }: { characters: InjectCharacter[] }) 
                       </span>
                     </div>
                     {v && (
-                      <Button type="button" size="sm" variant="secondary" onClick={() => { void navigator.clipboard.writeText(v.text); show("Copied."); }}>Copy</Button>
+                      <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
+                        <Button type="button" size="sm" variant="secondary" onClick={() => { void navigator.clipboard.writeText(v.text); show("Copied."); }}>Copy</Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            try {
+                              sessionStorage.setItem(SEND_TO_LIKENESS_KEY, JSON.stringify({ characterId: t.characterId ?? characterId, prompt: v.text }));
+                            } catch {
+                              // The page still opens; the prompt just isn't filled in.
+                            }
+                            router.push("/likeness");
+                          }}
+                        >
+                          Check likeness
+                        </Button>
+                      </div>
                     )}
                   </div>
                   {v && (

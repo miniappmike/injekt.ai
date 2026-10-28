@@ -8,14 +8,26 @@ import { referenceList } from "@/lib/character-images";
 // Calls a vision model with several images.
 export const maxDuration = 60;
 
-export default async function LikenessPage() {
+export default async function LikenessPage({ searchParams }: { searchParams: Promise<{ character?: string; generation?: string }> }) {
   const { supabase, user } = await requireUser();
   const isPro = await entitlements.isUnlimited(user.id);
+  const params = await searchParams;
   const { data } = await supabase
     .from("characters")
     .select("id, name, face_sheet_path, body_sheet_path, reference_paths")
     .order("name");
   const characters = (data ?? []).map((c) => ({ id: c.id, name: c.name, ready: referenceList(c).length > 0 }));
+
+  // "See likeness" on a generated image opens it here, ready to check.
+  let generated: { id: string; url: string } | null = null;
+  if (params.generation && /^[0-9a-f-]{36}$/i.test(params.generation)) {
+    const { data: g } = await supabase.from("generations").select("id, output_path, status").eq("id", params.generation).maybeSingle();
+    if (g?.output_path && g.status === "complete") {
+      const { data: s } = await supabase.storage.from("generations").createSignedUrl(g.output_path as string, 3600);
+      if (s) generated = { id: g.id as string, url: s.signedUrl };
+    }
+  }
+  const initialCharacter = characters.some((c) => c.id === params.character) ? params.character : undefined;
 
   return (
     <div className="max-w-3xl">
@@ -30,7 +42,7 @@ export default async function LikenessPage() {
           You need a character first. <Link href="/characters/new" className="underline">Create one</Link>.
         </p>
       ) : (
-        <LikenessChecker characters={characters} />
+        <LikenessChecker characters={characters} initialCharacterId={initialCharacter} generated={generated} />
       )}
     </div>
   );

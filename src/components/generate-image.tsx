@@ -10,6 +10,7 @@ import { featureLabel } from "@/lib/ledger-types";
 import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageAspectRatio, type ImageOutputFormat, type ImageResolution } from "@/lib/ai/providers/types";
 import type { InjectMeta } from "@/lib/inject-meta";
+import { LikenessPanel, type ImageRef } from "@/components/likeness-panel";
 
 type Phase = "idle" | "starting" | "running" | "done" | "failed";
 interface Result {
@@ -40,11 +41,13 @@ export function GenerateImage({
   runSignal = 0,
   meta,
   autoAspectRatio,
+  autoStart = false,
+  compareTo,
 }: {
   prompt: string;
   characterId?: string | null;
   extraPaths: string[];
-  kind: "inject" | "direct_swap" | "edit" | "variant" | "carousel" | "face_fix" | "reference_sheet";
+  kind: "inject" | "direct_swap" | "edit" | "variant" | "carousel" | "face_fix" | "likeness_fix" | "reference_sheet";
   /** Free plan: images left (generated at 1k, no price shown). `null` means a Pro or admin account. */
   freeImagesLeft?: number | null;
   /** Fixes the shape and hides its choice (a sheet has a set layout). */
@@ -61,6 +64,10 @@ export function GenerateImage({
   meta?: InjectMeta;
   /** What "match the photo" means when the first image sent isn't the photo (the ratio closest to the target). */
   autoAspectRatio?: ImageAspectRatio;
+  /** Start as soon as it appears (a fix the person just asked for). */
+  autoStart?: boolean;
+  /** For a fix: the image it fixes, so the likeness check says whether the fix got closer to her. */
+  compareTo?: ImageRef;
 }) {
   const router = useRouter();
   const free = freeImagesLeft !== null;
@@ -153,6 +160,14 @@ export function GenerateImage({
     if (!busy && phase !== "done" && ready) void generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runSignal]);
+  // A fix starts straight away: the person already chose it.
+  const started = useRef(false);
+  useEffect(() => {
+    if (!autoStart || started.current || !ready) return;
+    started.current = true;
+    void generate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, ready]);
   const label = free ? `Generate my free image (${freeImagesLeft} left)` : `${actionLabel}${price ? ` · about $${Number(price).toFixed(3)}` : ""}`;
 
   return (
@@ -210,6 +225,10 @@ export function GenerateImage({
             </span>
           </div>
           {renderActions?.(result)}
+          {/* Every generated image of a character gets a quick likeness check. Pro and admin only: it spends their key. */}
+          {!free && characterId && kind !== "reference_sheet" && (
+            <LikenessPanel characterId={characterId} image={{ generationId: result.generationId }} original={compareTo} frame={meta?.frame} />
+          )}
         </div>
       )}
     </div>

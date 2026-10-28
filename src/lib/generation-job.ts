@@ -8,10 +8,15 @@ import { currentPack, ensureSheetPack, selectCharacter } from "@/lib/sheet-pack"
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { basePrompt, clampTags, condenseTask, fitCrops, framePrompt, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
 import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
+import { faceFixPrompt, likenessFixPrompt, type FixRefs } from "@/lib/ai/prompts/likeness";
 
 /** The image provider's prompt limit; longer prompts are condensed by the person's own text model. */
 export const PROMPT_LIMIT = 5000;
 
+/** A path in the generations bucket (a generated image used as an input), told apart from character media paths. */
+export const GEN_PREFIX = "gen:";
+/** Kinds whose prompt the server writes from meta; the browser's prompt text is only a label for them. */
+export const SERVER_PROMPT_KINDS = ["likeness_fix", "face_fix"] as const;
 
 export interface JobCharacter {
   id: string;
@@ -67,6 +72,41 @@ export function injectJob(c: JobCharacter, pack: SheetPack | null, text: string,
   return { prompt: lockRefs(text, n, s.isSheet, ol), paths, photoEdit: false };
 }
 
+/** Artifact fixParts references: every pack crop, else the whole sheet, else 2 reference photos. */
+export function fixRefs(c: JobCharacter, pack: SheetPack | null, max: number): { paths: string[]; R: FixRefs } {
+  if (pack?.crops.length) {
+    const cr = fitCrops(pack.crops, max);
+    return { paths: cr.map((x) => x.path), R: { roles: cr.map((x) => x.role), kinds: cr.map((x) => x.kind), anchors: pack.anchors, usePack: true } };
+  }
+  const s = sheetFor(c);
+  const paths = s.paths.slice(0, Math.min(s.isSheet ? 1 : 2, max));
+  return { paths, R: { roles: paths.map(() => (s.isSheet ? "her character reference sheet" : "a reference photo of her")), kinds: [], anchors: null, usePack: false } };
+}
+
+/** Artifact faceRefs: her face crops, else the face sheet, else the body sheet (its face only), else 2 photos. */
+export function faceRefs(c: JobCharacter, pack: SheetPack | null): { paths: string[]; roles: string[]; anchors: SheetPack["anchors"] | null } {
+  const anchors = pack?.anchors ?? null;
+  const f = pack?.crops.filter((x) => x.kind === "front" || x.kind === "faces") ?? [];
+  if (f.length) return { paths: f.map((x) => x.path), roles: f.map((x) => x.role), anchors };
+  if (c.face_sheet_path) return { paths: [c.face_sheet_path], roles: ["her face reference sheet, a grid of her face from many angles"], anchors };
+  if (c.body_sheet_path) return { paths: [c.body_sheet_path], roles: ["her character reference sheet (use only her face from it)"], anchors };
+  const refs = c.reference_paths.slice(0, 2);
+  return { paths: refs, roles: refs.map(() => "a reference photo of her face"), anchors: null };
+}
+
+/** A likeness fix or face fix: the image to repaint is @image1, her references follow. */
+export function fixJob(kind: "likeness_fix" | "face_fix", c: JobCharacter, pack: SheetPack | null, source: string, meta: InjectMeta, model: string, max: number): BuiltJob {
+  if (kind === "face_fix") {
+    const F = faceRefs(c, pack);
+    if (!F.paths.length) throw new UserFacingError("This character has no sheet or reference photos to fix against.");
+    const paths = F.paths.slice(0, max - 1);
+    return { prompt: faceFixPrompt({ roles: F.roles.slice(0, paths.length), anchors: F.anchors }, { hair: !!meta.matchHair, note: meta.note }), paths: [source, ...paths], photoEdit: true };
+  }
+  const { paths, R } = fixRefs(c, pack, max - 1);
+  if (!paths.length) throw new UserFacingError("This character has no sheet or reference photos to fix against.");
+  return { prompt: likenessFixPrompt(R, meta.fixes ?? [], meta.frame, modelFamily(model)), paths: [source, ...paths], photoEdit: true };
+}
+
 export interface JobRequest {
   kind: string;
   characterId?: string | null;
@@ -94,17 +134,32 @@ export async function buildJob(
     if (!c) throw new UserFacingError("Character not found.");
   }
 
-  if (request.kind === "inject" && request.meta && c) {
-    // A price check never pays to read the sheet; it uses the pack only if one is already saved.
-    const pack = opts.forQuote ? currentPack(c) : await ensureSheetPack(supabase, userId, c);
-    return injectJob(c, pack, request.prompt, request.meta, opts.model, opts.max);
+  // A price check never pays to read the sheet; it uses the pack only if one is already saved.
+  const packOf = (ch: JobCharacter) => (opts.forQuote ? currentPack(ch) : ensureSheetPack(supabase, userId, ch));
+
+  if (request.kind === "inject" && request.meta && c) return injectJob(c, await packOf(c), request.prompt, request.meta, opts.model, opts.max);
+
+  if ((request.kind === "likeness_fix" || request.kind === "face_fix") && request.meta) {
+    if (!c) throw new UserFacingError("Pick the character to fix the likeness against.");
+    const source = request.meta.sourceGeneration ? await generationSource(supabase, request.meta.sourceGeneration) : request.extraPaths[0];
+    if (!source) throw new UserFacingError("Add the image to fix.");
+    return fixJob(request.kind, c, await packOf(c), source, request.meta, opts.model, opts.max);
   }
+  if (request.kind === "likeness_fix") throw new UserFacingError("A likeness fix needs the image and the character to fix it against.");
 
   const paths: string[] = [];
   // A reference sheet is made only from the pictures you give it, not from the character's existing references.
   if (c && request.kind !== "reference_sheet") paths.push(...referencesFor(request.kind, c).map((r) => r.path));
   paths.push(...request.extraPaths);
   return { prompt: request.prompt, paths, photoEdit: false };
+}
+
+/** A finished generated image the person owns, as an input path in the generations bucket. */
+async function generationSource(supabase: SupabaseClient, generationId: string): Promise<string> {
+  const { data } = await supabase.from("generations").select("output_path, status, expires_at").eq("id", generationId).maybeSingle();
+  if (!data?.output_path || data.status !== "complete") throw new UserFacingError("That image isn't ready, or has expired.");
+  if (data.expires_at && Date.parse(data.expires_at) <= Date.now()) throw new UserFacingError("That image has expired.");
+  return GEN_PREFIX + data.output_path;
 }
 
 /** Points tags at images that are sent and keeps the prompt within the provider's limit (artifact wsGenerate). */

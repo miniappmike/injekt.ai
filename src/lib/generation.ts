@@ -14,7 +14,7 @@ import { getUserImageConfig, resolveUserImageKey } from "@/lib/ai/image-setup";
 import { getImageProvider } from "@/lib/ai/providers/registry";
 import { SPICY_IMAGE_MODEL } from "@/lib/ai/providers/spicyapi";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageJobInput, type ImageResolution } from "@/lib/ai/providers/types";
-import { buildJob, fitPrompt } from "@/lib/generation-job";
+import { buildJob, fitPrompt, GEN_PREFIX, SERVER_PROMPT_KINDS } from "@/lib/generation-job";
 import { injectMetaSchema } from "@/lib/inject-meta";
 import { MEDIA_BUCKET } from "@/lib/images";
 import { GENERATION_RETENTION_HOURS, generationExpiry } from "@/lib/retention";
@@ -43,6 +43,11 @@ const requestSchema = z.object({
 export type GenerationRequest = z.infer<typeof requestSchema>;
 
 export function parseGenerationRequest(raw: unknown): GenerationRequest {
+  // The server writes the prompt for fixes; what the browser sends is only a label for it.
+  if (raw && typeof raw === "object" && (SERVER_PROMPT_KINDS as readonly string[]).includes((raw as { kind?: string }).kind ?? "") && (raw as { meta?: unknown }).meta) {
+    const r = raw as { prompt?: unknown };
+    if (typeof r.prompt !== "string" || !r.prompt.trim()) raw = { ...r, prompt: "Fix" };
+  }
   const parsed = requestSchema.safeParse(raw);
   if (!parsed.success) throw new UserFacingError(parsed.error.issues[0]?.message ?? "That request wasn't valid.");
   return parsed.data;
@@ -97,10 +102,15 @@ async function prepareInput(
   if (!paths.length) throw new UserFacingError("Add at least one image.");
   if (paths.length > MAX_INPUT_IMAGES) throw new UserFacingError(`That's too many images (${MAX_INPUT_IMAGES} at most).`);
 
-  const { data, error } = await supabase.storage.from(MEDIA_BUCKET).createSignedUrls(paths, INPUT_URL_SECONDS);
-  const byPath = new Map((data ?? []).map((d) => [d.path, d.signedUrl]));
+  // Character media and generated images (used as the image to fix) live in different buckets.
+  const media = paths.filter((p) => !p.startsWith(GEN_PREFIX));
+  const gens = paths.filter((p) => p.startsWith(GEN_PREFIX)).map((p) => p.slice(GEN_PREFIX.length));
+  const sign = async (bucket: string, list: string[]) =>
+    list.length ? supabase.storage.from(bucket).createSignedUrls(list, INPUT_URL_SECONDS) : { data: [] as { path: string | null; signedUrl: string }[], error: null };
+  const [m, g] = await Promise.all([sign(MEDIA_BUCKET, media), sign(GENERATIONS_BUCKET, gens)]);
+  const byPath = new Map([...(m.data ?? []).map((d) => [d.path, d.signedUrl] as const), ...(g.data ?? []).map((d) => [GEN_PREFIX + d.path, d.signedUrl] as const)]);
   const urls = paths.map((p) => byPath.get(p));
-  if (error || urls.some((u) => !u)) throw new UserFacingError("Couldn't load one of the images. Try again.");
+  if (m.error || g.error || urls.some((u) => !u)) throw new UserFacingError("Couldn't load one of the images. Try again.");
   const prompt = await fitPrompt(supabase, userId, job.prompt, paths.length, { forQuote });
   return { prompt, imageUrls: urls as string[], photoEdit: job.photoEdit };
 }

@@ -37,6 +37,7 @@ const FEATURES: Record<string, string> = {
   "image:variant": "Variant",
   "image:carousel": "Carousel slide",
   "image:face_fix": "Face fix",
+  "image:likeness_fix": "Likeness fix",
   "image:reference_sheet": "Reference sheet",
 };
 

@@ -20,8 +20,17 @@ export const injectMetaSchema = z.object({
   chg: z
     .object({ pose: z.boolean().optional(), outfit: z.boolean().optional(), hair: z.boolean().optional(), who: z.string().max(200).optional() })
     .optional(),
+  // Likeness fix and face fix: the generated image to repaint (or the first extra path), and what to correct.
+  sourceGeneration: z.string().uuid().optional(),
+  fixes: z.array(z.string().max(200)).max(8).optional(),
+  /** Face fix: also match her hair colour and hairline. */
+  matchHair: z.boolean().optional(),
+  /** Face fix: a short note from the person. */
+  note: z.string().max(160).optional(),
 });
 export type InjectMeta = z.infer<typeof injectMetaSchema>;
+/** What a likeness fix or face fix carries (the same schema; the job builder reads only its own fields). */
+export type FixMeta = Pick<InjectMeta, "sourceGeneration" | "fixes" | "matchHair" | "note" | "frame">;
 
 /** The Inject options as the browser sends them (artifact readOpts). */
 export const injectOptionsSchema = z.object({
