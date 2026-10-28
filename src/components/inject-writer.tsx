@@ -11,7 +11,8 @@ import { GenerateImage } from "@/components/generate-image";
 import { InfoTip } from "@/components/info-tip";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
-import { extractOutfit, warmSheetPack, writeInjectPrompts } from "@/app/(app)/inject/actions";
+import { deleteOutfit, extractOutfit, saveOutfit, warmSheetPack, writeInjectPrompts } from "@/app/(app)/inject/actions";
+import type { SavedOutfit } from "@/lib/outfits";
 import { INJECT_DEFAULTS, MAX_VERSIONS, metaForRun, readEditTarget, writeEditTarget, type InjectMeta, type InjectOptionsInput } from "@/lib/inject-meta";
 import { closestAspectRatio } from "@/lib/aspect";
 import { SEND_TO_LIKENESS_KEY } from "@/lib/likeness-link";
@@ -61,7 +62,7 @@ function loadOptions(): Options {
   }
 }
 
-export function InjectWriter({ characters }: { characters: InjectCharacter[] }) {
+export function InjectWriter({ characters, outfits: initialOutfits = [] }: { characters: InjectCharacter[]; outfits?: SavedOutfit[] }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const { toast, show } = useToast();
@@ -72,6 +73,8 @@ export function InjectWriter({ characters }: { characters: InjectCharacter[] }) 
   const [running, setRunning] = useState(false);
   const [summary, setSummary] = useState<{ text: string; good: boolean }>();
   const [extracting, setExtracting] = useState(false);
+  const [outfits, setOutfits] = useState<SavedOutfit[]>(initialOutfits);
+  const [outfitName, setOutfitName] = useState("");
   const stop = useRef(false);
   const rerunAfter = useRef(false);
   const lastRunFor = useRef<string | null>(null);
@@ -334,6 +337,45 @@ export function InjectWriter({ characters }: { characters: InjectCharacter[] }) 
               </Button>
             </div>
             <Textarea id="outfit" value={o.exText} maxLength={2000} onChange={(e) => set("exText", e.target.value)} placeholder="Describe the outfit, or extract it from a target photo." />
+            <div className="flex flex-wrap items-center gap-2">
+              <Input value={outfitName} maxLength={60} onChange={(e) => setOutfitName(e.target.value)} placeholder="Name, e.g. Black gym set" aria-label="Outfit name" className="max-w-56" />
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={!outfitName.trim() || !o.exText.trim()}
+                onClick={async () => {
+                  const r = await saveOutfit({ name: outfitName, text: o.exText });
+                  if (!r.ok) return show(r.error);
+                  setOutfits((list) => [r.outfit, ...list]);
+                  setOutfitName("");
+                  show("Outfit saved.");
+                }}
+              >
+                Save outfit
+              </Button>
+            </div>
+            {outfits.length > 0 && (
+              <div className="flex flex-wrap gap-1.5" aria-label="Saved outfits">
+                {outfits.map((x) => (
+                  <span key={x.id} className={`flex items-center gap-1 rounded-full border pl-2.5 pr-1 text-xs ${o.exText === x.text ? "border-neutral-300 bg-neutral-800" : "border-neutral-700"}`}>
+                    <button type="button" className="py-1" title={x.text} onClick={() => setO((v) => ({ ...v, exText: x.text, ward: "extracted" }))}>{x.name}</button>
+                    <button
+                      type="button"
+                      aria-label={`Delete outfit ${x.name}`}
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-700"
+                      onClick={() => {
+                        if (!window.confirm(`Delete the outfit "${x.name}"?`)) return;
+                        setOutfits((list) => list.filter((y) => y.id !== x.id));
+                        void deleteOutfit(x.id);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

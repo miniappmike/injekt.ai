@@ -9,6 +9,7 @@ import { currentPack, ensureSheetPack, selectCharacter, type PackCharacter } fro
 import { PROMPT_LIMIT, refOptions, type JobCharacter } from "@/lib/generation-job";
 import { swapPrompt } from "@/lib/ai/prompts/swap";
 import { MEDIA_BUCKET, stripAndNormalize } from "@/lib/images";
+import { addOutfit, type SavedOutfit } from "@/lib/outfits";
 import type { InjectOptionsInput } from "@/lib/inject-meta";
 import { finalPath, isOwnPath } from "@/lib/uploads";
 import { loadForVision } from "@/lib/character-images";
@@ -101,4 +102,18 @@ export async function addToReferences(input: { generationId: string; characterId
   } catch (e) {
     return toFailure(e);
   }
+}
+
+export async function saveOutfit(input: { name: string; text: string }): Promise<{ ok: true; outfit: SavedOutfit } | AiFailure> {
+  try {
+    const { supabase, user } = await requireUser();
+    return { ok: true, outfit: await addOutfit(supabase, user.id, input) };
+  } catch (e) {
+    return toFailure(e);
+  }
+}
+
+export async function deleteOutfit(id: string): Promise<void> {
+  const { supabase } = await requireUser();
+  await supabase.from("outfits").delete().eq("id", id);
 }

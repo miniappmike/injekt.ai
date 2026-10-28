@@ -67,6 +67,7 @@ beforeAll(async () => {
   await db.exec(migration("0008_api_ledger.sql"));
   await db.exec(migration("0009_history_extra_images.sql"));
   await db.exec(migration("0010_sheet_pack.sql"));
+  await db.exec(migration("0011_outfits.sql"));
   // Storage tables are only stand-ins here; turn on row-level security so the policies are actually tested.
   await db.exec(`alter table storage.objects enable row level security; grant usage on schema storage to authenticated; grant select on storage.objects to authenticated;`);
 });
@@ -228,6 +229,21 @@ describe("sheet pack and generation kinds (0010)", () => {
     await expect(insert("likeness_fix")).resolves.toBeTruthy();
     await expect(insert("reference_sheet")).resolves.toBeTruthy();
     await expect(insert("bogus")).rejects.toThrow();
+  });
+});
+
+describe("saved outfits (0011)", () => {
+  it("are private to their owner and need a name and text", async () => {
+    const [a, b] = [await newUser("out-a@x.com"), await newUser("out-b@x.com")];
+    await asUser(a);
+    await db.query("insert into outfits (user_id, name, text) values ($1, 'Gym', 'black sports bra')", [a]);
+    await expect(db.query("insert into outfits (user_id, name, text) values ($1, '', 'x')", [a])).rejects.toThrow();
+    await expect(db.query("insert into outfits (user_id, name, text) values ($1, 'x', 'y')", [b])).rejects.toThrow(/row-level security/);
+    await asUser(b);
+    expect((await db.query("select * from outfits")).rows).toHaveLength(0);
+    await db.query("delete from outfits");
+    await asUser(a);
+    expect((await db.query("select name from outfits")).rows).toEqual([{ name: "Gym" }]);
   });
 });
 

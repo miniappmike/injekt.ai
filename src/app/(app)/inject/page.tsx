@@ -4,6 +4,7 @@ import { entitlements } from "@/lib/entitlements";
 import { referenceList } from "@/lib/character-images";
 import { currentPack } from "@/lib/sheet-pack";
 import { refOptions } from "@/lib/generation-job";
+import { listOutfits } from "@/lib/outfits";
 
 // The prompt writer calls a vision model, one call per target image, with up to 4 versions in each.
 export const maxDuration = 300;
@@ -26,13 +27,15 @@ export default async function InjectPage() {
     return { id: c.id, name: c.name, refCount, ready: refCount > 0, hasProfile, refOptions: options };
   });
 
+  const outfits = isPro ? await listOutfits(supabase) : [];
+
   return (
     <div className="max-w-3xl">
       <h1 className="text-2xl font-semibold">Inject</h1>
       <p className="mt-1 text-sm text-neutral-400">
         Put your character into a photo. Write a prompt tailored to the photo, swap directly, or write your own prompt.
       </p>
-      <InjectTabs characters={characters} isPro={isPro} freeImagesLeft={isPro ? null : remaining.free_images} />
+      <InjectTabs characters={characters} outfits={outfits} isPro={isPro} freeImagesLeft={isPro ? null : remaining.free_images} />
     </div>
   );
 }
