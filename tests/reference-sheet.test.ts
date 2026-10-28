@@ -7,43 +7,45 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ratelimit", () => ({ enforceRateLimit: h.enforceRateLimit }));
 vi.mock("@/lib/generation", () => ({ GENERATIONS_BUCKET: "generations" }));
 
-import { bodySheetPrompt, faceSheetPrompt, MAX_BODY_PHOTOS, SHEET_ASPECT_RATIO } from "@/lib/ai/tasks/reference-sheet";
+import { sheetPrompts, tuneLine } from "@/lib/ai/prompts/sheets";
+import { SHEET_ASPECT_RATIO } from "@/lib/sheet-options";
 import { IMAGE_ASPECT_RATIOS } from "@/lib/ai/providers/types";
 import { UserFacingError } from "@/lib/errors";
 import { attachGeneratedSheet } from "@/lib/reference-sheet";
 
-describe("reference sheet prompts", () => {
-  it("the face sheet turns the one photo into a 3x3 grid of the same face", () => {
-    const p = faceSheetPrompt();
-    expect(p).toMatch(/3x3/);
-    expect(p).toMatch(/nine/);
-    expect(p).toMatch(/three rows of three/);
-    expect(p).toContain("@image1 as the strict identity reference");
-    // Only one picture goes in, so no other picture may be named.
-    expect(p).not.toMatch(/@image[2-9]/);
+describe("reference sheet prompts (A13b)", () => {
+  it("the face sheet is a 3x3 grid of beauty headshots in the artifact's panel order, with the realism block", () => {
+    const p = sheetPrompts(false, false).face;
+    expect(p.startsWith("Create a clean character face reference sheet of the woman in @image1 (face reference). Layout: a 3 by 3 grid of 9 equal portrait panels")).toBe(true);
+    expect(p).toContain("Row 1: front view, neutral relaxed expression, mouth closed;");
+    expect(p).toContain("Row 3: head tilted slightly down, eyes lowered, gentle smile; laughing with eyes crinkled, slight head tilt; back of the head showing the full hairstyle.");
+    expect(p).toContain("SKIN REALISM, always");
+    expect(p.endsWith("No text, labels, numbers, arrows, logos or watermarks anywhere.")).toBe(true);
   });
 
-  it("the face and body sheet names the face sheet first and then each body photo", () => {
-    const one = bodySheetPrompt(1);
-    expect(one).toContain("@image1 (a face sheet)");
-    expect(one).toContain("@image2 (a body photo)");
-    expect(one).not.toContain("@image3");
-
-    const two = bodySheetPrompt(2);
-    expect(two).toContain("@image2 and @image3 (body photos)");
-    expect(two).not.toContain("@image4");
-    for (const p of [one, two]) {
-      expect(p).toMatch(/front, side and back/);
-      expect(p).toMatch(/strict identity reference for the face/);
-    }
+  it("the turnaround takes her face from @image1 and her body from one or two body photos", () => {
+    const one = sheetPrompts(true, false).body;
+    expect(one).toContain("of the woman in @image1 (her face reference sheet), with her body taken from @image2 (body reference). Wide 16:9 layout");
+    expect(one).toContain("proportions and height exactly as in @image2, shown in a neutral");
+    expect(one).toContain("Outfit in all four views: a plain fitted white athletic-fit crop top and matching plain white athletic-fit shorts, with bare feet.");
+    expect(one).toContain(" Do not beautify, slim, age or change her. ");
+    const two = sheetPrompts(false, true).body;
+    expect(two).toContain("of the woman in @image1 (face reference), with her body taken from @image2 and @image3 (body references");
+    expect(two).toContain("from both body references");
   });
 
-  it("refuses a number of body photos it has no wording for", () => {
-    for (const n of [0, 3, -1, 1.5, NaN]) expect(() => bodySheetPrompt(n)).toThrow(/1 to 2 body photos/);
-    expect(MAX_BODY_PHOTOS).toBe(2);
+  it("outfit choices and body tuning", () => {
+    expect(sheetPrompts(true, false, { outfit: "photo" }).body).toContain("Outfit in all four views: the exact outfit she wears in @image2.");
+    expect(sheetPrompts(true, false, { outfit: "custom", outfitText: "a red <<<dress" }).body).toContain("Outfit in all four views: a red dress.");
+    expect(sheetPrompts(true, false, { outfit: "custom", outfitText: " " }).body).toContain("plain fitted white athletic-fit crop top");
+    const tuned = sheetPrompts(true, false, { gluteSize: "larger", gluteShape: "heart", cup: "D" }).body;
+    expect(tuned).toContain(" Body adjustments, applied the same way in every view: noticeably fuller, larger glutes than in the body photos; a heart-shaped glute shape, fuller at the lower curve; a natural bust proportionate to a D cup. Everything else about her body");
+    expect(tuned).toContain("Apart from the listed body adjustments, do not beautify, slim, age or change her.");
+    expect(tuneLine({ gluteSize: "match", cup: "Z" })).toBe("");
   });
 
   it("makes each sheet in a shape the image model accepts", () => {
+    expect(SHEET_ASPECT_RATIO).toEqual({ face: "4:5", body: "16:9" });
     for (const shape of Object.values(SHEET_ASPECT_RATIO)) expect(IMAGE_ASPECT_RATIOS).toContain(shape);
   });
 });

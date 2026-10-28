@@ -34,6 +34,18 @@ export const injectMetaSchema = z.object({
   extra: z.string().max(2000).optional(),
   /** Edit: which of her references to send after the target (ids from refOptions). */
   refs: z.array(z.string().max(20)).max(12).optional(),
+  /** Reference sheet: which sheet, whether @image1 is a face sheet (or a face photo), and the outfit and body options. */
+  sheet: z
+    .object({
+      kind: z.enum(["face", "body"]),
+      hasSheet: z.boolean().optional(),
+      outfit: z.enum(["default", "photo", "custom"]).optional(),
+      outfitText: z.string().max(500).optional(),
+      gluteSize: z.string().max(20).optional(),
+      gluteShape: z.string().max(20).optional(),
+      cup: z.string().max(4).optional(),
+    })
+    .optional(),
 });
 export type InjectMeta = z.infer<typeof injectMetaSchema>;
 /** What a likeness fix or face fix carries (the same schema; the job builder reads only its own fields). */

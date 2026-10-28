@@ -99,3 +99,31 @@ describe("buildJob for swap and edit", () => {
     expect(job.prompt.startsWith("Edit it. MAKEUP STAYS")).toBe(true);
   });
 });
+
+describe("reference sheet jobs", () => {
+  const client = (gen: Record<string, unknown> | null = null) =>
+    ({ from: (t: string) => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: t === "characters" ? c : gen, error: null }) }) }) }) }) as never;
+  const req = (meta: Record<string, unknown>, extraPaths: string[]) => ({ kind: "reference_sheet", characterId: "c1", extraPaths, prompt: "Sheet", meta });
+
+  it("step 1 sends the face photo; step 2 the face sheet then the body photos", async () => {
+    const face = await buildJob(client(), U, req({ sheet: { kind: "face" } }, [`${U}/f.jpg`]), { model: "x", max: 10 });
+    expect(face.paths).toEqual([`${U}/f.jpg`]);
+    expect(face.prompt.startsWith("Create a clean character face reference sheet")).toBe(true);
+    const body = await buildJob(client(), U, req({ sheet: { kind: "body", hasSheet: true, outfit: "photo" } }, [`${U}/fs.jpg`, `${U}/b1.jpg`, `${U}/b2.jpg`]), { model: "x", max: 10 });
+    expect(body.paths).toEqual([`${U}/fs.jpg`, `${U}/b1.jpg`, `${U}/b2.jpg`]);
+    expect(body.prompt).toContain("@image1 (her face reference sheet), with her body taken from @image2 and @image3");
+    expect(body.prompt).toContain("the exact outfit she wears in @image2");
+  });
+
+  it("step 2 can use a sheet just made in step 1, straight from Generated images", async () => {
+    const gen = { output_path: `${U}/g.png`, status: "complete", expires_at: new Date(Date.now() + 1e6).toISOString() };
+    const job = await buildJob(client(gen), U, req({ sheet: { kind: "body", hasSheet: true }, sourceGeneration: "3f2b8c1e-4d5a-4e6f-8a7b-9c0d1e2f3a4b" }, [`${U}/b1.jpg`]), { model: "x", max: 10 });
+    expect(job.paths).toEqual([`gen:${U}/g.png`, `${U}/b1.jpg`]);
+  });
+
+  it("needs a body photo, and no more than two", async () => {
+    await expect(buildJob(client(), U, req({ sheet: { kind: "body" } }, [`${U}/f.jpg`]), { model: "x", max: 10 })).rejects.toThrow(/at least one body photo/);
+    await expect(buildJob(client(), U, req({ sheet: { kind: "body" } }, [`${U}/f.jpg`, "a", "b", "c"].map((x) => (x.startsWith(U) ? x : `${U}/${x}`))), { model: "x", max: 10 })).rejects.toThrow(/at most 2/);
+    await expect(buildJob(client(), U, req({ sheet: { kind: "face" } }, []), { model: "x", max: 10 })).rejects.toThrow(/face photo/);
+  });
+});

@@ -11,6 +11,8 @@ import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
 import { faceFixPrompt, likenessFixPrompt, type FixRefs } from "@/lib/ai/prompts/likeness";
 import { carouselSlidePrompt } from "@/lib/ai/prompts/variants";
 import { swapPrompt } from "@/lib/ai/prompts/swap";
+import { sheetPrompts } from "@/lib/ai/prompts/sheets";
+import { MAX_BODY_PHOTOS } from "@/lib/sheet-options";
 import { asksMakeup, makeupRule } from "@/lib/ai/prompts/rules";
 
 /** The image provider's prompt limit; longer prompts are condensed by the person's own text model. */
@@ -19,7 +21,7 @@ export const PROMPT_LIMIT = 5000;
 /** A path in the generations bucket (a generated image used as an input), told apart from character media paths. */
 export const GEN_PREFIX = "gen:";
 /** Kinds whose prompt the server writes from meta; the browser's prompt text is only a label for them. */
-export const SERVER_PROMPT_KINDS = ["likeness_fix", "face_fix", "direct_swap"] as const;
+export const SERVER_PROMPT_KINDS = ["likeness_fix", "face_fix", "direct_swap", "reference_sheet"] as const;
 
 export interface JobCharacter {
   id: string;
@@ -229,6 +231,18 @@ export async function buildJob(
     return fixJob(request.kind, c, await packOf(c), source, request.meta, opts.model, opts.max);
   }
   if (request.kind === "likeness_fix") throw new UserFacingError("A likeness fix needs the image and the character to fix it against.");
+
+  if (request.kind === "reference_sheet" && request.meta?.sheet) {
+    // @image1 is the face photo or face sheet (a sheet just made in step 1 can be used straight from Generated images).
+    const sh = request.meta.sheet;
+    const face = request.meta.sourceGeneration ? await generationSource(supabase, request.meta.sourceGeneration) : request.extraPaths[0];
+    if (!face) throw new UserFacingError(sh.kind === "face" ? "Step 1 needs a face photo." : "Step 2 needs a face sheet or a face photo.");
+    if (sh.kind === "face") return { prompt: sheetPrompts(false, false).face, paths: [face], photoEdit: false };
+    const bodies = request.meta.sourceGeneration ? request.extraPaths : request.extraPaths.slice(1);
+    if (!bodies.length) throw new UserFacingError("Step 2 needs at least one body photo.");
+    if (bodies.length > MAX_BODY_PHOTOS) throw new UserFacingError(`Use at most ${MAX_BODY_PHOTOS} body photos.`);
+    return { prompt: sheetPrompts(!!sh.hasSheet, bodies.length > 1, sh).body, paths: [face, ...bodies], photoEdit: false };
+  }
 
   if (request.kind === "direct_swap" && request.meta?.target) {
     if (!c) throw new UserFacingError("Pick a character.");
