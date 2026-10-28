@@ -146,7 +146,7 @@ describe("pools and options", () => {
 
 // ---- the server run ----
 
-const h = vi.hoisted(() => ({ complete: vi.fn(), ensureSheetPack: vi.fn(), saveHistory: vi.fn(), getUserTextClient: vi.fn() }));
+const h = vi.hoisted(() => ({ complete: vi.fn(), ensureSheetPack: vi.fn(), saveHistory: vi.fn(async (_s: unknown, _u: unknown, e: unknown[]) => e.map((_, i) => `h${i + 1}`)), getUserTextClient: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: h.getUserTextClient }));
 vi.mock("@/lib/history", () => ({ saveHistory: h.saveHistory }));
@@ -217,6 +217,8 @@ describe("runInject", () => {
     const saved = h.saveHistory.mock.calls[0][2];
     expect(saved).toHaveLength(2);
     expect(saved[1]).toMatchObject({ characterId: "c1", kind: "inject", imagePath: `${U}/targets/t.jpg`, label: "Inject · Juno · version 2 · Pose: pose 2 · New outfit", meta: r.versions[1]!.meta });
+    // Each version knows its History entry, so an image made from it shows up there.
+    expect(r.versions.map((x) => x?.historyId)).toEqual(["h1", "h2"]);
     // Recent poses keep the newest 40, and the rest of the settings are kept.
     const prefs = writes[0].prefs as { recentPoses: string[]; roles: unknown };
     expect(prefs.recentPoses).toHaveLength(40);

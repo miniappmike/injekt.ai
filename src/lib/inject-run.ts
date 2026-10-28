@@ -26,6 +26,8 @@ export interface InjectVersion {
   tags: string[];
   /** What Generate needs to frame it (the target is added by the browser when "Edit the target photo" is on). */
   meta: InjectMeta;
+  /** Its History entry, so an image made from it can be found again ("Preview generation"). */
+  historyId?: string | null;
 }
 
 export type InjectRunResult = { versions: (InjectVersion | null)[]; truncated: boolean; characterName: string };
@@ -113,7 +115,7 @@ export async function runInject(
     return { text: h.text, fixed: h.fixed, tags, meta: { edit: v.edit, frame: v.frame, outfit: v.outfit, chg, ...(o.clean ? { clean: true } : {}) } };
   });
 
-  await saveHistory(
+  const historyIds = await saveHistory(
     supabase,
     userId,
     versions.flatMap((v, i) =>
@@ -131,6 +133,8 @@ export async function runInject(
         : [],
     ),
   );
+  let k = 0;
+  for (const v of versions) if (v) v.historyId = historyIds[k++] ?? null;
   await rememberPoses(supabase, userId, parsedVersions.map((v) => v.pose).filter(Boolean));
   return { versions, truncated: reply.truncated, characterName: c.name };
 }

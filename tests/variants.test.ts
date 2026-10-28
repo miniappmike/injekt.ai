@@ -173,7 +173,7 @@ describe("referencesFor", () => {
 
 // ---------- server runs ----------
 
-const h = vi.hoisted(() => ({ run: vi.fn(), getUserTextClient: vi.fn(), saveHistory: vi.fn(), ensureSheetPack: vi.fn() }));
+const h = vi.hoisted(() => ({ run: vi.fn(), getUserTextClient: vi.fn(), saveHistory: vi.fn(async (_s: unknown, _u: unknown, e: unknown[]) => e.map((_, i) => `h${i + 1}`)), ensureSheetPack: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: h.getUserTextClient }));
 vi.mock("@/lib/history", () => ({ saveHistory: h.saveHistory }));

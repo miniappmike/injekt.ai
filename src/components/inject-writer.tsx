@@ -35,6 +35,8 @@ interface Version {
   fixed: string[];
   tags: string[];
   meta: InjectMeta;
+  /** Its History entry, so History can open the image made from it. */
+  historyId?: string | null;
 }
 
 interface Target {
@@ -515,6 +517,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
                         kind="inject"
                         meta={metaForRun(v.meta, t.writtenPath ?? t.path ?? null, editTarget)}
                         autoAspectRatio={t.ratio}
+                        historyId={v.historyId}
                       />
                     </>
                   )}

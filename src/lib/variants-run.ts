@@ -46,7 +46,7 @@ async function character(supabase: SupabaseClient, id: string | null | undefined
 const traitsOf = (c: Row | null) => (c ? c.profile?.distinctive_traits || c.profile?.identity_line || "" : "");
 
 export interface VariantResult {
-  variants: { label: string; changes: string; prompt: string }[];
+  variants: { label: string; changes: string; prompt: string; historyId?: string | null }[];
   /** What to attach, in order, when running the prompts elsewhere. */
   attach: string[];
 }
@@ -101,11 +101,12 @@ export async function runVariants(
   if (!list.length) throw new UserFacingError("The model did not write any variants. Try again.");
   const variants = list.map((v) => ({ label: String(v.label || "Variant").slice(0, 40), changes: String(v.changes || "").slice(0, 80), prompt: finishVariant(String(v.prompt), vt, so, extra) }));
 
-  await saveHistory(
+  const variantIds = await saveHistory(
     supabase,
     userId,
     variants.map((v) => ({ characterId: c?.id ?? null, kind: "variant" as const, label: `Variant · ${v.label}`, prompt: v.prompt, imagePath: input.imagePath, extraPaths })),
   );
+  variants.forEach((v, i) => Object.assign(v, { historyId: variantIds[i] ?? null }));
   await rememberPoses(supabase, userId, variants.map((v) => v.label));
   const attach = [...refs.map((r) => r.label), "the image to edit", ...extraPaths.map(() => "extra image")].map((label, i) => `@image${i + 1}: ${label}`);
   return { variants, attach };
@@ -114,7 +115,7 @@ export async function runVariants(
 export interface CarouselResult {
   theme: string;
   /** Each slide with its placeholders (for Generate) and as the person copies it. */
-  slides: (Slide & { copy: string })[];
+  slides: (Slide & { copy: string; historyId?: string | null })[];
 }
 
 /** The carousel creative director (artifact writeCarousel): new slides that follow the cover. */
@@ -139,9 +140,9 @@ export async function runCarousel(
     Math.min(EDGE, imageMaxEdge ?? EDGE),
   );
   const plan = parseCarousel(await askJson(client, { prompt, images: images.map((x) => x.dataUri) }), n);
-  const slides = plan.slides.map((s) => ({ ...s, copy: slideCopyText(s, !!c) }));
+  const slides: CarouselResult["slides"] = plan.slides.map((s) => ({ ...s, copy: slideCopyText(s, !!c) }));
 
-  await saveHistory(
+  const slideIds = await saveHistory(
     supabase,
     userId,
     slides.map((s, i) => ({
@@ -155,5 +156,6 @@ export async function runCarousel(
       meta: { person: s.person, slidePrompt: s.prompt, type: s.type },
     })),
   );
+  slides.forEach((s, i) => (s.historyId = slideIds[i] ?? null));
   return { theme: plan.theme, slides };
 }

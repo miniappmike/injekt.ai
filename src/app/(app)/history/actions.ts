@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { entitlements } from "@/lib/entitlements";
 import { HISTORY_LIMIT, historyRowImages, removeUnusedImages } from "@/lib/history";
 import type { GenerationItem, HistoryItem } from "@/lib/history-types";
-import { listGenerations } from "@/lib/generation-list";
+import { generationPreview, latestForHistory, listGenerations } from "@/lib/generation-list";
 import { signedUrlMap } from "@/lib/media-urls";
 
 // Loaded each time the side panel opens, so new prompts are always there.
@@ -20,7 +20,10 @@ export async function getHistory(): Promise<HistoryItem[]> {
     supabase.from("characters").select("id, name"),
   ]);
   const names = new Map((characters ?? []).map((c) => [c.id, c.name]));
-  const urls = await signedUrlMap(supabase, (rows ?? []).map((r) => r.image_path));
+  const [urls, made] = await Promise.all([
+    signedUrlMap(supabase, (rows ?? []).map((r) => r.image_path)),
+    latestForHistory(supabase, (rows ?? []).map((r) => r.id as string)),
+  ]);
 
   return (rows ?? []).map((r) => ({
     id: r.id,
@@ -34,7 +37,15 @@ export async function getHistory(): Promise<HistoryItem[]> {
     extraPaths: (r.extra_image_paths as string[] | null | undefined) ?? [],
     meta: (r.meta as Record<string, unknown> | null | undefined) ?? {},
     createdAt: r.created_at,
+    generationId: made.get(r.id) ?? null,
   }));
+}
+
+// "Preview generation": fresh links to the image made from a prompt, or null once it has expired.
+export async function getGenerationPreview(id: string) {
+  const { supabase } = await requireUser();
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  return generationPreview(supabase, id);
 }
 
 // Free images left for the Generate buttons in the panel, or null for Pro and admin accounts (who use their own key).

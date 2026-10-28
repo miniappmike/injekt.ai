@@ -10,6 +10,7 @@ const item = (over: Partial<HistoryItem>): HistoryItem => ({
   label: "Inject · Juno",
   prompt: "Use @image1 as the strict identity reference",
   thumbnail: null,
+  generationId: null,
   meta: {},
   imagePath: null,
   extraPaths: [],

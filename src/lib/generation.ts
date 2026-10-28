@@ -38,6 +38,8 @@ const requestSchema = z.object({
   outputFormat: z.enum(["jpeg", "png"]),
   /** Inject only: what the server needs to frame the prompt for the image model (see generation-job). */
   meta: injectMetaSchema.optional(),
+  /** The History prompt this image was made from, so History can show it again ("Preview generation"). */
+  historyId: z.string().uuid().nullish(),
 });
 
 export type GenerationRequest = z.infer<typeof requestSchema>;
@@ -157,6 +159,7 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
           free: access.free,
           image_count: prepared.imageUrls.length,
           ...(prepared.photoEdit ? { photo_edit: true } : {}),
+          ...(request.historyId ? { history_id: request.historyId } : {}),
         },
       })
       .select("id")

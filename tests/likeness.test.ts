@@ -145,7 +145,7 @@ describe("face fix (A19)", () => {
 
 // ---------- jobs ----------
 
-const h = vi.hoisted(() => ({ ensureSheetPack: vi.fn(), getUserTextClient: vi.fn(), run: vi.fn(), saveHistory: vi.fn() }));
+const h = vi.hoisted(() => ({ ensureSheetPack: vi.fn(), getUserTextClient: vi.fn(), run: vi.fn(), saveHistory: vi.fn(async (_s: unknown, _u: unknown, e: unknown[]) => e.map((_, i) => `h${i + 1}`)) }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: h.getUserTextClient }));
 vi.mock("@/lib/history", () => ({ saveHistory: h.saveHistory }));

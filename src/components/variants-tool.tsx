@@ -37,6 +37,8 @@ interface Item {
   /** Carousel: the slide with placeholders, framed by the server when generating. */
   slidePrompt?: string;
   person?: SlidePerson;
+  /** Its History entry, so History can open the image made from it. */
+  historyId?: string | null;
 }
 interface Result {
   items: Item[];
@@ -106,7 +108,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
           if (res.redirectTo) return router.push(res.redirectTo);
           return setStatus({ text: res.error, good: false });
         }
-        setResult({ ...base, theme: "", attach: res.attach, items: res.variants.map((v) => ({ title: v.label, hint: v.changes, copy: v.prompt })) });
+        setResult({ ...base, theme: "", attach: res.attach, items: res.variants.map((v) => ({ title: v.label, hint: v.changes, copy: v.prompt, historyId: v.historyId })) });
         setStatus({ text: `${res.variants.length} edit prompts ready. Copy one and paste it into your generator's edit mode, or generate it here.`, good: true });
       } else {
         const res = await planCarousel({ coverPath: path, types: [...types], count: slides, ...common });
@@ -119,7 +121,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
           ...base,
           theme: res.theme,
           attach: [],
-          items: res.slides.map((s) => ({ title: s.label, hint: carouselTypeLabel(s.type) + who(s.person, s.type), copy: s.copy, slidePrompt: s.prompt, person: s.person })),
+          items: res.slides.map((s) => ({ title: s.label, hint: carouselTypeLabel(s.type) + who(s.person, s.type), copy: s.copy, slidePrompt: s.prompt, person: s.person, historyId: s.historyId })),
         });
         setStatus({ text: `Cover + ${res.slides.length} new slide${res.slides.length > 1 ? "s" : ""} planned. Generate them one by one or press Generate all.`, good: true });
       }
@@ -322,7 +324,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                 </div>
                 <p className="whitespace-pre-wrap break-words">{item.copy}</p>
                 {result.mode === "edits" ? (
-                  <GenerateImage prompt={item.copy} characterId={result.characterId} extraPaths={[result.path, ...result.extraPaths]} kind="variant" runSignal={runAll} />
+                  <GenerateImage prompt={item.copy} characterId={result.characterId} extraPaths={[result.path, ...result.extraPaths]} kind="variant" runSignal={runAll} historyId={item.historyId} />
                 ) : (
                   <GenerateImage
                     prompt={item.slidePrompt as string}
@@ -332,6 +334,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                     meta={{ person: item.person }}
                     runSignal={runAll}
                     checkLikeness={item.person === "full"}
+                    historyId={item.historyId}
                   />
                 )}
               </CardContent>

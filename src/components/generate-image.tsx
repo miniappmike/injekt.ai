@@ -44,6 +44,7 @@ export function GenerateImage({
   autoStart = false,
   compareTo,
   checkLikeness = true,
+  historyId,
 }: {
   prompt: string;
   characterId?: string | null;
@@ -71,6 +72,8 @@ export function GenerateImage({
   compareTo?: ImageRef;
   /** false for images that don't show her fully (a carousel detail or flat lay), so no likeness check runs. */
   checkLikeness?: boolean;
+  /** The History prompt this runs, so History can open the image from it. */
+  historyId?: string | null;
 }) {
   const router = useRouter();
   const free = freeImagesLeft !== null;
@@ -91,7 +94,7 @@ export function GenerateImage({
     };
   }, []);
 
-  const request = { kind, characterId: characterId ?? null, extraPaths, prompt, resolution: free ? "1k" : resolution, aspectRatio, outputFormat, ...(meta ? { meta } : {}) };
+  const request = { kind, characterId: characterId ?? null, extraPaths, prompt, resolution: free ? "1k" : resolution, aspectRatio, outputFormat, ...(meta ? { meta } : {}), ...(historyId ? { historyId } : {}) };
   // Something to send: pictures, or (for a framed Inject prompt) a character whose references the server picks.
   const hasImages = extraPaths.length > 0 || (!!meta && (!!characterId || !!meta.target));
   const requestKey = JSON.stringify(request);
