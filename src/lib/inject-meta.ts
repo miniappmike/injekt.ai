@@ -27,6 +27,8 @@ export const injectMetaSchema = z.object({
   matchHair: z.boolean().optional(),
   /** Face fix: a short note from the person. */
   note: z.string().max(160).optional(),
+  /** Carousel: who is in the slide; the prompt carries {REF}, {PHOTO} and {EXTRAn} placeholders. */
+  person: z.enum(["full", "partial", "none"]).optional(),
 });
 export type InjectMeta = z.infer<typeof injectMetaSchema>;
 /** What a likeness fix or face fix carries (the same schema; the job builder reads only its own fields). */

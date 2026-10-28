@@ -5,6 +5,7 @@ import { isOwnPath } from "@/lib/uploads";
 import { loadForVision } from "@/lib/character-images";
 import { ensureSheetPack, selectCharacter } from "@/lib/sheet-pack";
 import { saveHistory } from "@/lib/history";
+import { recentPoses, rememberPoses, RECENT_SEND } from "@/lib/recent-poses";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { harness } from "@/lib/ai/prompts/harness";
 import { sheetLines } from "@/lib/ai/prompts/identity";
@@ -15,8 +16,6 @@ import type { CharacterProfile } from "@/lib/characters";
 
 /** The target is sent to the prompt writer at this size (artifact: 1024). */
 const TARGET_EDGE = 1024;
-const RECENT_KEEP = 40;
-const RECENT_SEND = 20;
 
 export interface InjectVersion {
   /** The finished prompt, after the harness. */
@@ -42,24 +41,6 @@ interface Row {
   body_sheet_path: string | null;
   reference_paths: string[];
   sheet_pack?: unknown;
-}
-
-/** The person's recently used poses (artifact LS4), kept in their settings so every device avoids repeats. */
-async function recentPoses(supabase: SupabaseClient, userId: string): Promise<{ prefs: Record<string, unknown>; poses: string[] }> {
-  const { data } = await supabase.from("user_settings").select("prefs").eq("user_id", userId).maybeSingle();
-  const prefs = (data?.prefs as Record<string, unknown> | null) ?? {};
-  const poses = Array.isArray(prefs.recentPoses) ? prefs.recentPoses.filter((p): p is string => typeof p === "string") : [];
-  return { prefs, poses };
-}
-
-async function rememberPoses(supabase: SupabaseClient, userId: string, added: string[]) {
-  if (!added.length) return;
-  // Read again just before writing, so a key saved meanwhile on the API keys page isn't overwritten.
-  const { prefs, poses } = await recentPoses(supabase, userId);
-  await supabase
-    .from("user_settings")
-    .update({ prefs: { ...prefs, recentPoses: [...poses, ...added.map((p) => p.slice(0, 160))].slice(-RECENT_KEEP) } })
-    .eq("user_id", userId);
 }
 
 /**

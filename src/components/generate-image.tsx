@@ -43,6 +43,7 @@ export function GenerateImage({
   autoAspectRatio,
   autoStart = false,
   compareTo,
+  checkLikeness = true,
 }: {
   prompt: string;
   characterId?: string | null;
@@ -68,6 +69,8 @@ export function GenerateImage({
   autoStart?: boolean;
   /** For a fix: the image it fixes, so the likeness check says whether the fix got closer to her. */
   compareTo?: ImageRef;
+  /** false for images that don't show her fully (a carousel detail or flat lay), so no likeness check runs. */
+  checkLikeness?: boolean;
 }) {
   const router = useRouter();
   const free = freeImagesLeft !== null;
@@ -226,7 +229,7 @@ export function GenerateImage({
           </div>
           {renderActions?.(result)}
           {/* Every generated image of a character gets a quick likeness check. Pro and admin only: it spends their key. */}
-          {!free && characterId && kind !== "reference_sheet" && (
+          {!free && checkLikeness && characterId && kind !== "reference_sheet" && (
             <LikenessPanel characterId={characterId} image={{ generationId: result.generationId }} original={compareTo} frame={meta?.frame} />
           )}
         </div>

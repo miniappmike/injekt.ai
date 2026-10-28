@@ -14,7 +14,7 @@ export default async function VariantsPage() {
     .from("characters")
     .select("id, name, face_sheet_path, body_sheet_path, reference_paths")
     .order("name");
-  const characters = (data ?? []).map((c) => ({ id: c.id, name: c.name, ready: referenceList(c).length > 0 }));
+  const characters = (data ?? []).map((c) => ({ id: c.id, name: c.name, ready: referenceList(c).length > 0, hasSheet: !!(c.face_sheet_path || c.body_sheet_path) }));
 
   return (
     <div className="max-w-3xl">

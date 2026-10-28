@@ -9,6 +9,7 @@ import { getUserTextClient } from "@/lib/ai/text-client";
 import { basePrompt, clampTags, condenseTask, fitCrops, framePrompt, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
 import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
 import { faceFixPrompt, likenessFixPrompt, type FixRefs } from "@/lib/ai/prompts/likeness";
+import { carouselSlidePrompt } from "@/lib/ai/prompts/variants";
 
 /** The image provider's prompt limit; longer prompts are condensed by the person's own text model. */
 export const PROMPT_LIMIT = 5000;
@@ -107,6 +108,28 @@ export function fixJob(kind: "likeness_fix" | "face_fix", c: JobCharacter, pack:
   return { prompt: likenessFixPrompt(R, meta.fixes ?? [], meta.frame, modelFamily(model)), paths: [source, ...paths], photoEdit: true };
 }
 
+/**
+ * A carousel slide (artifact carJob): her pack crops (or whole sheet) for slides with her, then the cover, then any
+ * extra images; slides without her send only the cover and the extras.
+ */
+export function carouselJob(c: JobCharacter | null, pack: SheetPack | null, slidePrompt: string, person: "full" | "partial" | "none", cover: string, extras: string[], max: number): BuiltJob {
+  let paths: string[] = [];
+  let roles: string[] = [];
+  if (c && person !== "none") {
+    if (pack?.crops.length) {
+      const cr = fitCrops(pack.crops, Math.max(1, max - 1 - extras.length));
+      paths = cr.map((x) => x.path);
+      roles = cr.map((x) => x.role);
+    } else {
+      const s = sheetFor(c);
+      paths = s.paths.slice(0, 1);
+      roles = paths.map(() => (s.isSheet ? "her character reference sheet" : "a reference photo of her"));
+    }
+  }
+  const prompt = carouselSlidePrompt({ person, prompt: slidePrompt }, { roles, anchors: pack?.anchors ?? null }, extras.length);
+  return { prompt, paths: [...paths, cover, ...extras], photoEdit: false };
+}
+
 export interface JobRequest {
   kind: string;
   characterId?: string | null;
@@ -146,6 +169,13 @@ export async function buildJob(
     return fixJob(request.kind, c, await packOf(c), source, request.meta, opts.model, opts.max);
   }
   if (request.kind === "likeness_fix") throw new UserFacingError("A likeness fix needs the image and the character to fix it against.");
+
+  if (request.kind === "carousel" && request.meta?.person) {
+    const [cover, ...extras] = request.extraPaths;
+    if (!cover) throw new UserFacingError("Add the cover image.");
+    const pack = c && request.meta.person !== "none" ? await packOf(c) : null;
+    return carouselJob(c, pack, request.prompt, request.meta.person, cover, extras, opts.max);
+  }
 
   const paths: string[] = [];
   // A reference sheet is made only from the pictures you give it, not from the character's existing references.

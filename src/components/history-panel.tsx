@@ -299,6 +299,8 @@ export function HistoryPanel() {
                         const genKind = historyGenerationKind(i.kind);
                         // Inject prompts written by the identity engine carry meta; the server frames them for the image model.
                         const framed = genKind === "inject" && !!i.characterId && Object.keys(i.meta ?? {}).length > 0;
+                        // Carousel slides saved with their placeholders are framed again by the server.
+                        const slide = genKind === "carousel" && typeof i.meta?.slidePrompt === "string" && typeof i.meta?.person === "string" ? (i.meta as { slidePrompt: string; person: "full" | "partial" | "none" }) : null;
                         const canGenerate = !!genKind && (!!i.imagePath || framed);
                         const showGenerate = canGenerate && generating.has(i.id);
                         return (
@@ -334,12 +336,13 @@ export function HistoryPanel() {
                                     <p className="text-xs text-neutral-500">Loading...</p>
                                   ) : (
                                     <GenerateImage
-                                      prompt={i.prompt}
+                                      prompt={slide ? slide.slidePrompt : i.prompt}
                                       characterId={i.characterId}
                                       extraPaths={framed ? [] : [i.imagePath as string, ...i.extraPaths]}
                                       kind={genKind}
                                       freeImagesLeft={freeLeft}
-                                      meta={framed ? metaForRun(i.meta as InjectMeta, i.imagePath, readEditTarget()) : undefined}
+                                      meta={framed ? metaForRun(i.meta as InjectMeta, i.imagePath, readEditTarget()) : slide ? { person: slide.person } : undefined}
+                                      checkLikeness={!slide || slide.person === "full"}
                                     />
                                   )}
                                   <p className="mt-2 text-xs text-neutral-500">
