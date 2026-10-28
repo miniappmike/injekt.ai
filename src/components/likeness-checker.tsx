@@ -38,13 +38,13 @@ export function LikenessChecker({
   characters: { id: string; name: string; ready: boolean }[];
   initialCharacterId?: string;
   /** A generated image opened from "See likeness". */
-  generated?: { id: string; url: string } | null;
+  generated?: { id: string; url: string; prompt?: string } | null;
 }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [characterId, setCharacterId] = useState(initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id);
   const [picked, setPicked] = useState<Picked | null>(generated ? { preview: generated.url, image: { generationId: generated.id } } : null);
-  const [promptUsed, setPromptUsed] = useState("");
+  const [promptUsed, setPromptUsed] = useState(generated?.prompt ?? "");
   // Score rounds per character (R1 · 72 → R2 · 86), as in the artifact.
   const [rounds, setRounds] = useState<Round[]>([]);
   const [busy, setBusy] = useState(false);

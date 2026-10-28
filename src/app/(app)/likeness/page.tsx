@@ -8,6 +8,20 @@ import { referenceList } from "@/lib/character-images";
 // Calls a vision model with several images.
 export const maxDuration = 60;
 
+/**
+ * The prompt the person wrote for an image: its History prompt when it was made from one, or their own Edit prompt.
+ * Other images were sent with a prompt the server framed, which isn't one they could revise and run again, so none.
+ */
+async function promptFor(supabase: Awaited<ReturnType<typeof requireUser>>["supabase"], g: { kind: string; prompt: string | null; params: { history_id?: string } | null }) {
+  const historyId = g.params?.history_id;
+  if (historyId) {
+    const { data: h } = await supabase.from("prompt_history").select("prompt").eq("id", historyId).maybeSingle();
+    if (h?.prompt) return String(h.prompt).slice(0, 6000);
+  }
+  // An Edit is sent as their prompt with the makeup rule added; leave the rule off.
+  return g.kind === "edit" && g.prompt ? g.prompt.split(" MAKEUP STAYS:")[0].slice(0, 6000) : "";
+}
+
 export default async function LikenessPage({ searchParams }: { searchParams: Promise<{ character?: string; generation?: string }> }) {
   const { supabase, user } = await requireUser();
   const isPro = await entitlements.isUnlimited(user.id);
@@ -18,13 +32,16 @@ export default async function LikenessPage({ searchParams }: { searchParams: Pro
     .order("name");
   const characters = (data ?? []).map((c) => ({ id: c.id, name: c.name, ready: referenceList(c).length > 0 }));
 
-  // "See likeness" on a generated image opens it here, ready to check.
-  let generated: { id: string; url: string } | null = null;
+  // "See likeness" on a generated image opens it here, ready to check, with the prompt it was made from.
+  let generated: { id: string; url: string; prompt: string } | null = null;
   if (params.generation && /^[0-9a-f-]{36}$/i.test(params.generation)) {
-    const { data: g } = await supabase.from("generations").select("id, output_path, status").eq("id", params.generation).maybeSingle();
+    const { data: g } = await supabase.from("generations").select("id, kind, prompt, params, output_path, status").eq("id", params.generation).maybeSingle();
     if (g?.output_path && g.status === "complete") {
-      const { data: s } = await supabase.storage.from("generations").createSignedUrl(g.output_path as string, 3600);
-      if (s) generated = { id: g.id as string, url: s.signedUrl };
+      const [{ data: s }, prompt] = await Promise.all([
+        supabase.storage.from("generations").createSignedUrl(g.output_path as string, 3600),
+        promptFor(supabase, g),
+      ]);
+      if (s) generated = { id: g.id as string, url: s.signedUrl, prompt };
     }
   }
   const initialCharacter = characters.some((c) => c.id === params.character) ? params.character : undefined;
