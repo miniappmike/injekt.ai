@@ -95,6 +95,35 @@ const BASES = {
   google: "https://generativelanguage.googleapis.com/v1beta/openai",
 } as const;
 
+/**
+ * The text of a chat-completions reply, or a message a person can act on when there is none: the model declined, or
+ * it spent its whole output budget thinking (reasoning models report that as finish_reason "length" with no content).
+ */
+export function readChoice(provider: string, json: unknown): { text: string; truncated: boolean } | { empty: "refused" | "thinking" | "blank"; detail: string } {
+  const choice = (json as { choices?: { message?: { content?: unknown; refusal?: unknown; reasoning_content?: unknown }; finish_reason?: unknown }[] })?.choices?.[0];
+  const msg = choice?.message;
+  const content = msg?.content;
+  // Some providers send the content as a list of text parts.
+  const text =
+    typeof content === "string"
+      ? content
+      : Array.isArray(content)
+        ? content.map((p: { text?: unknown }) => (typeof p?.text === "string" ? p.text : "")).join("")
+        : "";
+  if (text.trim()) return { text, truncated: choice?.finish_reason === "length" };
+  if (typeof msg?.refusal === "string" && msg.refusal.trim()) return { empty: "refused", detail: msg.refusal.trim().slice(0, 300) };
+  if (choice?.finish_reason === "content_filter") return { empty: "refused", detail: "" };
+  if (choice?.finish_reason === "length") return { empty: "thinking", detail: "" };
+  return { empty: "blank", detail: "" };
+}
+
+function emptyReplyError(provider: string, model: string, r: { empty: "refused" | "thinking" | "blank"; detail: string }): ProviderError {
+  if (r.empty === "refused") return new ProviderError(provider, 200, `The model "${model}" declined this request.${r.detail ? ` It said: ${r.detail}` : ""} Try again, or pick a different model for this job on the API keys page.`);
+  if (r.empty === "thinking")
+    return new ProviderError(provider, 200, `The model "${model}" used its whole reply budget thinking and wrote no answer. Try fewer versions or the Short style, or pick a non-thinking model for this job on the API keys page.`);
+  return new ProviderError(provider, 200, `The model "${model}" sent back an empty reply. Try again, or pick a different model for this job on the API keys page.`);
+}
+
 // OpenAI, OpenRouter, Google and any "other" provider share the chat completions format.
 // A custom base URL is user supplied, so it is checked to be a public https address on every call.
 export function openaiCompatBackend(id: "openai" | "openrouter" | "google" | "custom", model: string, baseUrl?: string): TextBackend {
@@ -120,43 +149,56 @@ export function openaiCompatBackend(id: "openai" | "openrouter" | "google" | "cu
         },
         apiKey,
       );
-      const out = json?.choices?.[0]?.message?.content;
-      if (typeof out !== "string" || !out) throw new ProviderError(id, 200, `${id} returned no text`);
-      return { text: out, usage: readUsage(json?.usage?.prompt_tokens, json?.usage?.completion_tokens), truncated: json?.choices?.[0]?.finish_reason === "length" };
+      const r = readChoice(id, json);
+      if ("empty" in r) throw emptyReplyError(id, model, r);
+      return { text: r.text, usage: readUsage(json?.usage?.prompt_tokens, json?.usage?.completion_tokens), truncated: r.truncated };
     },
   };
 }
 
 // SpicyAPI: OpenAI-style chat completions. The endpoint rejects unknown fields, so only documented
-// ones are sent. Thinking shares the max_tokens budget, hence the roomy cap and low effort.
+// ones are sent. Thinking shares the max_tokens budget, hence the roomy cap (billing is per token used, and a model
+// that can't take it gets its own maximum) and low effort. A reply that ran out while thinking is asked again once at
+// the lowest reasoning level the model offers.
 // Its docs list a 6000 image-token limit, so images are shrunk harder than for other providers.
+export const SPICY_MAX_TOKENS = 32000;
 export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.ai/v1"): TextBackend {
   return {
     id: "spicyapi",
     imageMaxEdge: 768,
     async complete({ system, text, images = [], apiKey }) {
       await assertPublicHttpsUrl(baseUrl);
-      const json = await post(
-        "spicyapi",
-        `${baseUrl}/chat/completions`,
-        { authorization: `Bearer ${apiKey}`, "idempotency-key": randomUUID() },
-        {
-          model,
-          max_tokens: 8192,
-          reasoning_effort: "low",
-          messages: [
-            ...(system ? [{ role: "system", content: system }] : []),
-            {
-              role: "user",
-              content: [...images.map((uri) => ({ type: "image_url", image_url: { url: uri } })), { type: "text", text }],
-            },
-          ],
-        },
-        apiKey,
-      );
-      const out = json?.choices?.[0]?.message?.content;
-      if (typeof out !== "string" || !out) throw new ProviderError("spicyapi", 200, "spicyapi returned no text");
-      return { text: out, usage: readUsage(json?.usage?.prompt_tokens, json?.usage?.completion_tokens), truncated: json?.choices?.[0]?.finish_reason === "length" };
+      const ask = (effort: "low" | "none") =>
+        post(
+          "spicyapi",
+          `${baseUrl}/chat/completions`,
+          { authorization: `Bearer ${apiKey}`, "idempotency-key": randomUUID() },
+          {
+            model,
+            max_tokens: SPICY_MAX_TOKENS,
+            reasoning_effort: effort,
+            messages: [
+              ...(system ? [{ role: "system", content: system }] : []),
+              {
+                role: "user",
+                content: [...images.map((uri) => ({ type: "image_url", image_url: { url: uri } })), { type: "text", text }],
+              },
+            ],
+          },
+          apiKey,
+        );
+      let json = await ask("low");
+      let r = readChoice("spicyapi", json);
+      let usage = readUsage(json?.usage?.prompt_tokens, json?.usage?.completion_tokens);
+      if ("empty" in r && r.empty === "thinking") {
+        json = await ask("none");
+        r = readChoice("spicyapi", json);
+        const again = readUsage(json?.usage?.prompt_tokens, json?.usage?.completion_tokens);
+        // Both calls are charged, so both go on the ledger.
+        usage = usage && again ? { inputTokens: usage.inputTokens + again.inputTokens, outputTokens: usage.outputTokens + again.outputTokens } : (again ?? usage);
+      }
+      if ("empty" in r) throw emptyReplyError("spicyapi", model, r);
+      return { text: r.text, usage, truncated: r.truncated };
     },
   };
 }

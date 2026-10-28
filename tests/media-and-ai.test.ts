@@ -77,6 +77,42 @@ function mockFetch(body: unknown, status = 200) {
 }
 const dataUri = "data:image/jpeg;base64,QUJD";
 
+describe("empty replies", () => {
+  const reply = (message: Record<string, unknown>, finish = "stop", usage = { prompt_tokens: 10, completion_tokens: 5 }) => ({ choices: [{ message, finish_reason: finish }], usage });
+  const queue = (...bodies: unknown[]) => {
+    const fn = vi.fn(async () => new Response(JSON.stringify(bodies.shift()), { status: 200 }));
+    vi.stubGlobal("fetch", fn);
+    return fn;
+  };
+
+  it("SpicyAPI asks again at the lowest reasoning level when a thinking model runs out before answering", async () => {
+    const fn = queue(reply({ content: null, reasoning_content: "hmm..." }, "length", { prompt_tokens: 100, completion_tokens: 32000 }), reply({ content: "ok" }, "stop", { prompt_tokens: 100, completion_tokens: 20 }));
+    const out = await spicyapiBackend("moonshot/kimi-k3/chat").complete({ text: "t", apiKey: "k" });
+    expect(out.text).toBe("ok");
+    // Both calls are charged, so both are counted.
+    expect(out.usage).toEqual({ inputTokens: 200, outputTokens: 32020 });
+    const bodies = fn.mock.calls.map((c) => JSON.parse((c as unknown as [string, RequestInit])[1].body as string));
+    expect(bodies.map((b) => b.reasoning_effort)).toEqual(["low", "none"]);
+    expect(bodies[0].max_tokens).toBe(32000);
+  });
+
+  it("says plainly when the model only thought, or declined", async () => {
+    queue(reply({ content: null }, "length"), reply({ content: "" }, "length"));
+    await expect(spicyapiBackend("moonshot/kimi-k3/chat").complete({ text: "t", apiKey: "k" })).rejects.toThrow(/used its whole reply budget thinking/);
+    queue(reply({ content: null, refusal: "I can't help with that." }));
+    await expect(spicyapiBackend("m").complete({ text: "t", apiKey: "k" })).rejects.toThrow(/declined this request\. It said: I can't help with that\./);
+    queue(reply({ content: null }, "content_filter"));
+    await expect(openaiCompatBackend("openai", "m").complete({ text: "t", apiKey: "k" })).rejects.toThrow(/declined/);
+    queue(reply({ content: "  " }));
+    await expect(openaiCompatBackend("openai", "m").complete({ text: "t", apiKey: "k" })).rejects.toThrow(/empty reply/);
+  });
+
+  it("reads content sent as a list of text parts", async () => {
+    queue(reply({ content: [{ type: "text", text: "a" }, { type: "text", text: "b" }] }));
+    expect((await openaiCompatBackend("openrouter", "m").complete({ text: "t", apiKey: "k" })).text).toBe("ab");
+  });
+});
+
 describe("text backends", () => {
   it("sends Anthropic requests with the key in a header and images as base64 blocks", async () => {
     const fetchFn = mockFetch({ content: [{ type: "text", text: "hello" }], usage: { input_tokens: 12, output_tokens: 3 } });
