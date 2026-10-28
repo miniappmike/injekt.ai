@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { GenerateImage } from "@/components/generate-image";
 import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { saveReferenceSheet } from "@/app/(app)/reference-sheet/actions";
-import { bodySheetPrompt, faceSheetPrompt, SHEET_ASPECT_RATIO } from "@/lib/ai/tasks/reference-sheet";
+import { CUPS, GLUTE_SHAPES, GLUTE_SIZES, SHEET_ASPECT_RATIO, SHEET_OUTFITS } from "@/lib/sheet-options";
+import { Textarea } from "@/components/ui/textarea";
 import type { SheetSlot } from "@/lib/reference-sheet";
 
 export interface SheetImage {
@@ -96,6 +97,19 @@ function SaveSheet({
   );
 }
 
+// Hands a finished step-1 sheet to step 2 as soon as it's ready (artifact: the result fills the step-2 face slot).
+function UseInStep2({ generationId, url, onUse }: { generationId: string; url: string; onUse: (sheet: { id: string; url: string }) => void }) {
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current) return;
+    done.current = true;
+    onUse({ id: generationId, url });
+  }, [generationId, url, onUse]);
+  return <p className="text-xs text-neutral-500">Added to step 2 as her face sheet.</p>;
+}
+
+const select = "h-9 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm";
+
 // Step 1 turns one face photo into a 3x3 face sheet. Step 2 turns that face sheet and one or two body photos into a face
 // and body sheet. Each result can be saved onto a character, where it becomes the first image sent with every generation.
 export function ReferenceSheetMaker({
@@ -114,6 +128,9 @@ export function ReferenceSheetMaker({
   const [faceSheetUpload, pickFaceSheet] = usePhoto();
   const [body1, pickBody1] = usePhoto();
   const [body2, pickBody2] = usePhoto();
+  // A face sheet just made in step 1, used in step 2 without saving it first.
+  const [step1Sheets, setStep1Sheets] = useState<Record<string, { id: string; url: string }>>({});
+  const [opts, setOpts] = useState({ outfit: "default" as "default" | "photo" | "custom", outfitText: "", gluteSize: "match", gluteShape: "match", cup: "match" });
 
   const character = characters.find((c) => c.id === characterId);
   if (!character) {
@@ -125,14 +142,33 @@ export function ReferenceSheetMaker({
   }
 
   const savedFace = saved[character.id]?.face ?? character.faceSheet;
+  // Only a sheet made for this character is used for her step 2.
+  const step1Sheet = step1Sheets[character.id] ?? null;
+  const setStep1Sheet = (sheet: { id: string; url: string }) => setStep1Sheets((m) => ({ ...m, [character.id]: sheet }));
   const savedBody = saved[character.id]?.body ?? character.bodySheet;
   const remember = (key: "face" | "body") => (image: SheetImage) => setSaved((s) => ({ ...s, [character.id]: { ...s[character.id], [key]: image } }));
 
-  // Step 2's face sheet is the one you upload there, otherwise the character's saved one.
-  const facePath = faceSheetUpload?.path ?? (faceSheetUpload ? undefined : savedFace?.path);
+  // Step 2's face: a sheet uploaded there, else the one just made in step 1, else her saved one, else the step-1 photo.
+  const face: { path?: string; generation?: string; isSheet: boolean } | null = faceSheetUpload
+    ? { path: faceSheetUpload.path, isSheet: true }
+    : step1Sheet
+      ? { generation: step1Sheet.id, isSheet: true }
+      : savedFace
+        ? { path: savedFace.path, isSheet: true }
+        : facePhoto?.path
+          ? { path: facePhoto.path, isSheet: false }
+          : null;
+  const faceReady = !!face && (!!face.path || !!face.generation);
   const bodyPaths = [body1?.path, body2?.path].filter((p): p is string => !!p);
-  const bodyReady = !!facePath && bodyPaths.length > 0;
-  const missingForBody = !facePath && !bodyPaths.length ? "a face sheet and at least one body photo" : !facePath ? "a face sheet" : "at least one body photo";
+  const bodyReady = faceReady && bodyPaths.length > 0;
+  const missingForBody = !faceReady && !bodyPaths.length ? "a face sheet and at least one body photo" : !faceReady ? "a face sheet or a face photo in step 1" : "at least one body photo";
+  const sheetOpts = {
+    outfit: opts.outfit,
+    ...(opts.outfit === "custom" ? { outfitText: opts.outfitText.trim() } : {}),
+    ...(opts.gluteSize !== "match" ? { gluteSize: opts.gluteSize } : {}),
+    ...(opts.gluteShape !== "match" ? { gluteShape: opts.gluteShape } : {}),
+    ...(opts.cup !== "match" ? { cup: opts.cup } : {}),
+  };
 
   return (
     <div className="mt-6 flex flex-col gap-10">
@@ -157,16 +193,20 @@ export function ReferenceSheetMaker({
         <PhotoDrop title="Face photo" hint="A clear, front-facing photo. Click, drop, or paste with Ctrl+V." photo={facePhoto} onPick={pickFacePhoto} />
         <GenerateImage
           key={`face-${character.id}`}
-          prompt={faceSheetPrompt()}
+          prompt="Face sheet"
           characterId={character.id}
           extraPaths={facePhoto?.path ? [facePhoto.path] : []}
           kind="reference_sheet"
+          meta={facePhoto?.path ? { sheet: { kind: "face" } } : undefined}
           freeImagesLeft={freeImagesLeft}
           aspectRatio={SHEET_ASPECT_RATIO.face}
           defaultResolution="2k"
           actionLabel="Make face sheet"
           renderActions={(r) => (
-            <SaveSheet character={character} slot="face_sheet" generationId={r.generationId} current={savedFace} onSaved={remember("face")} />
+            <>
+              <SaveSheet character={character} slot="face_sheet" generationId={r.generationId} current={savedFace} onSaved={remember("face")} />
+              <UseInStep2 generationId={r.generationId} url={r.url} onUse={setStep1Sheet} />
+            </>
           )}
         />
       </section>
@@ -187,19 +227,54 @@ export function ReferenceSheetMaker({
                 ? `Using ${character.name}'s saved face sheet. Replace it to use a different one.`
                 : "Make one in step 1 and save it, or add one here."
           }
-          photo={faceSheetUpload ?? (savedFace ? { preview: savedFace.url, path: savedFace.path } : null)}
+          photo={faceSheetUpload ?? (step1Sheet ? { preview: step1Sheet.url } : savedFace ? { preview: savedFace.url, path: savedFace.path } : null)}
           onPick={pickFaceSheet}
         />
+        {!faceSheetUpload && step1Sheet && <p className="-mt-2 text-xs text-neutral-500">Using the face sheet you just made in step 1.</p>}
+        {!faceSheetUpload && !step1Sheet && !savedFace && facePhoto?.path && <p className="-mt-2 text-xs text-neutral-500">Using your step 1 face photo.</p>}
         <div className="grid gap-4 sm:grid-cols-2">
           <PhotoDrop title="Body photo 1" hint="Front, back or side." photo={body1} onPick={pickBody1} />
           <PhotoDrop title="Body photo 2 (optional)" hint="A different angle, if you have one." photo={body2} onPick={pickBody2} />
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5 text-sm">
+            Outfit in the body views
+            <select className={select} value={opts.outfit} onChange={(e) => setOpts((o) => ({ ...o, outfit: e.target.value as typeof o.outfit }))}>
+              {SHEET_OUTFITS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            Bust
+            <select className={select} value={opts.cup} onChange={(e) => setOpts((o) => ({ ...o, cup: e.target.value }))}>
+              {CUPS.map((c) => <option key={c} value={c}>{c === "match" ? "As in the photos" : `${c} cup`}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            Glute size
+            <select className={select} value={opts.gluteSize} onChange={(e) => setOpts((o) => ({ ...o, gluteSize: e.target.value }))}>
+              {GLUTE_SIZES.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            Glute shape
+            <select className={select} value={opts.gluteShape} onChange={(e) => setOpts((o) => ({ ...o, gluteShape: e.target.value }))}>
+              {GLUTE_SHAPES.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
+            </select>
+          </label>
+        </div>
+        {opts.outfit === "custom" && (
+          <label className="flex flex-col gap-1.5 text-sm">
+            The outfit
+            <Textarea value={opts.outfitText} maxLength={500} onChange={(e) => setOpts((o) => ({ ...o, outfitText: e.target.value }))} placeholder="e.g. a black ribbed tank top and grey biker shorts, white sneakers" />
+          </label>
+        )}
         {!bodyReady && <p className="text-xs text-neutral-500">Add {missingForBody} to make the sheet.</p>}
         <GenerateImage
           key={`body-${character.id}`}
-          prompt={bodyReady ? bodySheetPrompt(bodyPaths.length) : ""}
+          prompt="Face and body sheet"
           characterId={character.id}
-          extraPaths={bodyReady ? [facePath as string, ...bodyPaths] : []}
+          extraPaths={bodyReady ? (face?.generation ? bodyPaths : [face?.path as string, ...bodyPaths]) : []}
+          meta={bodyReady ? { sheet: { kind: "body", hasSheet: face?.isSheet, ...sheetOpts }, ...(face?.generation ? { sourceGeneration: face.generation } : {}) } : undefined}
           kind="reference_sheet"
           freeImagesLeft={freeImagesLeft}
           aspectRatio={SHEET_ASPECT_RATIO.body}

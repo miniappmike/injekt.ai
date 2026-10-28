@@ -88,6 +88,16 @@ export function HistoryImages({
                   {i.prompt && (
                     <Button type="button" size="sm" variant="ghost" onClick={() => onCopy(i.prompt as string)}>Copy prompt</Button>
                   )}
+                  {i.state === "ready" && (
+                    <Button asChild size="sm" variant="ghost">
+                      <Link
+                        href={`/likeness?${i.characterId ? `character=${encodeURIComponent(i.characterId)}&` : ""}generation=${encodeURIComponent(i.id)}`}
+                        onClick={onNavigate}
+                      >
+                        See likeness
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               </div>
             </li>

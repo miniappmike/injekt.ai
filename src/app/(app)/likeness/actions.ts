@@ -3,43 +3,31 @@
 import { requireUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { entitlements } from "@/lib/entitlements";
-import { saveHistory } from "@/lib/history";
-import { isOwnPath } from "@/lib/uploads";
 import { toFailure, type AiFailure } from "@/lib/ai/failure";
-import { prepareVision } from "@/lib/ai/vision-run";
-import { buildLikenessTask, likenessReportText, parseLikenessReport, type LikenessReport } from "@/lib/ai/tasks/likeness";
+import { runLikenessReport, runQuickLikeness, type ImageSource } from "@/lib/likeness-run";
+import type { LikenessReport, QuickLikeness } from "@/lib/ai/prompts/likeness";
 
-export async function checkLikeness(input: {
-  characterId: string;
-  imagePath: string;
-  promptUsed?: string;
-}): Promise<({ ok: true } & { report: LikenessReport }) | AiFailure> {
+export async function checkLikeness(input: { characterId: string; image: ImageSource; promptUsed?: string }): Promise<({ ok: true } & { report: LikenessReport }) | AiFailure> {
   try {
     const { supabase, user } = await requireUser();
     await entitlements.requirePro(user.id, "likeness");
-    if (!isOwnPath(user.id, input.imagePath)) return { ok: false, error: "Add the generated image to check." };
     await enforceRateLimit(user.id, "llm", 20, 60);
+    return { ok: true, report: await runLikenessReport(supabase, user.id, input) };
+  } catch (e) {
+    return toFailure(e);
+  }
+}
 
-    const { client, character, references, extras } = await prepareVision(supabase, user.id, input.characterId, [
-      { label: "generated image", path: input.imagePath },
-    ], "likeness");
-    if (!character) return { ok: false, error: "Pick a character." };
-
-    const reply = await client.run(
-      buildLikenessTask({ character, references, generated: extras[0], promptUsed: input.promptUsed }),
-    );
-    const report = parseLikenessReport(reply);
-
-    await saveHistory(supabase, user.id, [
-      {
-        characterId: input.characterId,
-        kind: "likeness",
-        label: `Likeness · ${character.name} · ${report.overall}/100`,
-        prompt: likenessReportText(report),
-        imagePath: input.imagePath,
-      },
-    ]);
-    return { ok: true, report };
+/**
+ * The quick score shown under every generated image of a character. Pro and admin only: it runs on its own after each
+ * image, so free accounts never have it spend anything.
+ */
+export async function quickLikeness(input: { characterId: string; image: ImageSource; original?: ImageSource }): Promise<({ ok: true } & { result: QuickLikeness }) | AiFailure> {
+  try {
+    const { supabase, user } = await requireUser();
+    await entitlements.requirePro(user.id, "likeness");
+    await enforceRateLimit(user.id, "llm", 30, 60);
+    return { ok: true, result: await runQuickLikeness(supabase, user.id, input) };
   } catch (e) {
     return toFailure(e);
   }

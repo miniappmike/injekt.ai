@@ -81,6 +81,22 @@ export function ImageViewer() {
     };
   }, [image]);
 
+  // Esc closes the viewer wherever focus is (clicking or dragging the picture moves focus off the viewer), before
+  // anything underneath, such as the History panel, sees it.
+  useEffect(() => {
+    if (!image) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      // In full screen the browser uses Esc to leave it; the viewer stays open.
+      if (document.fullscreenElement) return;
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [image, close]);
+
   // Zooms by `factor`, keeping the point under (cx, cy) (relative to the stage centre) still.
   const zoomAt = useCallback(
     (factor: number, cx = 0, cy = 0) => {
@@ -140,10 +156,6 @@ export function ImageViewer() {
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Escape") {
-      e.stopPropagation();
-      return close();
-    }
     if (e.key === "+" || e.key === "=") zoomAt(1.25);
     else if (e.key === "-") zoomAt(0.8);
     else if (e.key === "0") fit();

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { InjectWriter } from "@/components/inject-writer";
 import { QuickGenerate, type QuickCharacter } from "@/components/quick-generate";
 import { limitMessage } from "@/lib/limits";
+import type { SavedOutfit } from "@/lib/outfits";
 
 type Tab = "write" | "direct_swap" | "edit";
 const TABS: { id: Tab; label: string }[] = [
@@ -14,10 +15,12 @@ const TABS: { id: Tab; label: string }[] = [
 
 export function InjectTabs({
   characters,
+  outfits = [],
   isPro,
   freeImagesLeft,
 }: {
-  characters: (QuickCharacter & { ready: boolean })[];
+  characters: (QuickCharacter & { ready: boolean; hasProfile: boolean })[];
+  outfits?: SavedOutfit[];
   isPro: boolean;
   freeImagesLeft: number | null;
 }) {
@@ -43,7 +46,7 @@ export function InjectTabs({
       {tab === "write" &&
         (isPro ? (
           characters.length ? (
-            <InjectWriter characters={characters} />
+            <InjectWriter characters={characters} outfits={outfits} />
           ) : (
             <QuickGenerate mode="edit" characters={[]} freeImagesLeft={null} />
           )

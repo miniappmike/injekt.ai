@@ -10,7 +10,11 @@ export interface HistoryItem {
   imagePath: string | null;
   /** More images sent after imagePath when generating again (vibe or outfit references). */
   extraPaths: string[];
+  /** Inject prompts: what the server needs to frame them again (see InjectMeta). Empty for older entries. */
+  meta: Record<string, unknown>;
   createdAt: string;
+  /** The newest image made from this prompt that can still be viewed, or null when there is none ("Preview generation"). */
+  generationId: string | null;
 }
 
 /** The image job a saved prompt runs as. Likeness entries hold a report, not an image prompt, so they have none. */
@@ -36,4 +40,6 @@ export interface GenerationItem {
   free: boolean;
   previewUrl: string | null;
   downloadUrl: string | null;
+  /** The character it was made for, so "See likeness" can open on her. */
+  characterId: string | null;
 }

@@ -8,10 +8,11 @@ import { useToast } from "@/components/toast";
 import { HistoryImages } from "@/components/history-images";
 import { GenerateImage } from "@/components/generate-image";
 import { checkImageGeneration } from "@/app/(app)/generate/actions";
-import { deleteAllHistory, deleteHistoryEntry, getFreeImagesLeft, getGenerations, getHistory } from "@/app/(app)/history/actions";
+import { deleteAllHistory, deleteHistoryEntry, getFreeImagesLeft, getGenerationPreview, getGenerations, getHistory } from "@/app/(app)/history/actions";
 import { filterHistory, historyCharacters } from "@/lib/history-filter";
-import { OPEN_HISTORY_EVENT, viewImage, type HistoryTab } from "@/lib/panel-events";
+import { GENERATION_EVENT, OPEN_HISTORY_EVENT, viewImage, type HistoryTab, type TrayGeneration } from "@/lib/panel-events";
 import { historyGenerationKind, type GenerationItem, type HistoryItem } from "@/lib/history-types";
+import { metaForRun, readEditTarget, type InjectMeta } from "@/lib/inject-meta";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
@@ -84,6 +85,27 @@ export function HistoryPanel() {
       document.body.style.overflow = prevOverflow;
     };
   }, [open]);
+
+  // An image finished while the panel is open (from its Generate buttons): reload so "Preview generation" shows on its prompt.
+  useEffect(() => {
+    if (!open) return;
+    const onGen = (e: Event) => {
+      if ((e as CustomEvent<TrayGeneration>).detail?.state !== "ready") return;
+      getHistory().then((list) => setItems(list), () => {});
+    };
+    window.addEventListener(GENERATION_EVENT, onGen);
+    return () => window.removeEventListener(GENERATION_EVENT, onGen);
+  }, [open]);
+
+  async function preview(i: HistoryItem) {
+    const p = i.generationId ? await getGenerationPreview(i.generationId).catch(() => null) : null;
+    if (!p) {
+      // It expired since the list loaded: drop the button.
+      setItems((list) => list?.map((x) => (x.id === i.id ? { ...x, generationId: null } : x)) ?? list);
+      return show("That image has expired (images are kept for 72 hours).");
+    }
+    viewImage({ url: p.url, downloadUrl: p.downloadUrl, prompt: p.prompt, title: i.label });
+  }
 
   // Images load when you look at them, and again each time you come back to the tab. Loading also finishes any job that completed while you were away.
   useEffect(() => {
@@ -296,7 +318,11 @@ export function HistoryPanel() {
                       {shown.map((i) => {
                         const isOpen = expanded.has(i.id);
                         const genKind = historyGenerationKind(i.kind);
-                        const canGenerate = !!genKind && !!i.imagePath;
+                        // Inject prompts written by the identity engine carry meta; the server frames them for the image model.
+                        const framed = genKind === "inject" && !!i.characterId && Object.keys(i.meta ?? {}).length > 0;
+                        // Carousel slides saved with their placeholders are framed again by the server.
+                        const slide = genKind === "carousel" && typeof i.meta?.slidePrompt === "string" && typeof i.meta?.person === "string" ? (i.meta as { slidePrompt: string; person: "full" | "partial" | "none" }) : null;
+                        const canGenerate = !!genKind && (!!i.imagePath || framed);
                         const showGenerate = canGenerate && generating.has(i.id);
                         return (
                           <li key={i.id} className="flex gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
@@ -315,13 +341,16 @@ export function HistoryPanel() {
                               <p className="text-sm font-medium">{i.label}</p>
                               <p className="text-xs text-neutral-500">{i.characterName} · {when(i.createdAt)}</p>
                               <p className={`mt-1 whitespace-pre-wrap text-sm text-neutral-300 ${isOpen ? "" : "line-clamp-2"}`}>{i.prompt}</p>
-                              <div className="mt-1 flex gap-1">
+                              <div className="mt-1 flex flex-wrap gap-1">
                                 <Button type="button" size="sm" variant="ghost" onClick={() => copy(i.prompt)}>Copy</Button>
                                 <Button type="button" size="sm" variant="ghost" onClick={() => toggle(i.id)}>{isOpen ? "Collapse" : "Expand"}</Button>
                                 {canGenerate && (
                                   <Button type="button" size="sm" variant="ghost" aria-expanded={showGenerate} onClick={() => toggleGenerate(i.id)}>
                                     {showGenerate ? "Hide" : "Generate"}
                                   </Button>
+                                )}
+                                {i.generationId && (
+                                  <Button type="button" size="sm" variant="ghost" onClick={() => preview(i)}>Preview generation</Button>
                                 )}
                                 <Button type="button" size="sm" variant="ghost" onClick={() => remove(i.id)}>Delete</Button>
                               </div>
@@ -331,16 +360,22 @@ export function HistoryPanel() {
                                     <p className="text-xs text-neutral-500">Loading...</p>
                                   ) : (
                                     <GenerateImage
-                                      prompt={i.prompt}
+                                      prompt={slide ? slide.slidePrompt : i.prompt}
                                       characterId={i.characterId}
-                                      extraPaths={[i.imagePath as string, ...i.extraPaths]}
+                                      extraPaths={framed ? [] : [i.imagePath as string, ...i.extraPaths]}
                                       kind={genKind}
                                       freeImagesLeft={freeLeft}
+                                      meta={framed ? metaForRun(i.meta as InjectMeta, i.imagePath, readEditTarget()) : slide ? { person: slide.person } : undefined}
+                                      checkLikeness={!slide || slide.person === "full"}
+                                      historyId={i.id}
                                     />
                                   )}
                                   <p className="mt-2 text-xs text-neutral-500">
-                                    Uses {i.characterId ? `${i.characterName}'s current reference images, then ` : ""}the photo this prompt was written for
-                                    {i.extraPaths.length ? ` and its ${i.extraPaths.length} extra image${i.extraPaths.length === 1 ? "" : "s"}` : ""}.
+                                    {framed
+                                      ? readEditTarget() && i.imagePath
+                                        ? `Edits the photo this prompt was written for, swapping in ${i.characterName} from her current references.`
+                                        : `Uses ${i.characterName}'s current references and the written prompt ("Edit the target photo" is off on the Inject page).`
+                                      : `Uses ${i.characterId ? `${i.characterName}'s current reference images, then ` : ""}the photo this prompt was written for${i.extraPaths.length ? ` and its ${i.extraPaths.length} extra image${i.extraPaths.length === 1 ? "" : "s"}` : ""}.`}
                                   </p>
                                 </div>
                               )}

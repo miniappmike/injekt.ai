@@ -12,6 +12,8 @@ export interface NewHistoryEntry {
   imagePath?: string | null;
   /** Up to 2 more images the prompt refers to after imagePath (vibe, outfit), sent with it when generating again. */
   extraPaths?: string[];
+  /** What generating it again needs besides the text (Inject: in frame, outfit, the EDIT line, what may change). */
+  meta?: Record<string, unknown>;
 }
 
 export const MAX_HISTORY_EXTRA_IMAGES = 2;
@@ -20,21 +22,26 @@ export const MAX_HISTORY_EXTRA_IMAGES = 2;
 export const historyRowImages = (r: { image_path: string | null; extra_image_paths?: string[] | null }) => [r.image_path, ...(r.extra_image_paths ?? [])];
 
 // Saves entries, then drops anything beyond the newest HISTORY_LIMIT along with its stored image.
-export async function saveHistory(supabase: SupabaseClient, userId: string, entries: NewHistoryEntry[]) {
-  if (!entries.length) return;
+/** Saves the entries and returns their ids in the same order (null when they couldn't be saved). */
+export async function saveHistory(supabase: SupabaseClient, userId: string, entries: NewHistoryEntry[]): Promise<(string | null)[]> {
+  if (!entries.length) return [];
   // The extra-images column is only written when a batch has extras, so history keeps saving before migration 0009 is run.
   const withExtras = entries.some((e) => e.extraPaths?.length);
-  await supabase.from("prompt_history").insert(
-    entries.map((e) => ({
-      user_id: userId,
-      character_id: e.characterId ?? null,
-      kind: e.kind,
-      label: e.label.slice(0, 200),
-      prompt: e.prompt.slice(0, 20000),
-      image_path: e.imagePath ?? null,
-      ...(withExtras ? { extra_image_paths: (e.extraPaths ?? []).slice(0, MAX_HISTORY_EXTRA_IMAGES) } : {}),
-    })),
-  );
+  const rows = entries.map((e) => ({
+    user_id: userId,
+    character_id: e.characterId ?? null,
+    kind: e.kind,
+    label: e.label.slice(0, 200),
+    prompt: e.prompt.slice(0, 20000),
+    image_path: e.imagePath ?? null,
+    ...(withExtras ? { extra_image_paths: (e.extraPaths ?? []).slice(0, MAX_HISTORY_EXTRA_IMAGES) } : {}),
+    ...(e.meta ? { meta: e.meta } : {}),
+  }));
+  let { data: saved, error } = await supabase.from("prompt_history").insert(rows).select("id");
+  // Before migration 0010 there is no meta column: save the prompts without it rather than lose them.
+  if (error && /\bmeta\b/.test(error.message))
+    ({ data: saved, error } = await supabase.from("prompt_history").insert(rows.map(({ meta: _m, ...r }: Record<string, unknown>) => r)).select("id"));
+  const ids = entries.map((_, i) => ((saved?.[i] as { id?: string } | undefined)?.id ?? null));
 
   const { data: extra } = await supabase
     .from("prompt_history")
@@ -45,6 +52,7 @@ export async function saveHistory(supabase: SupabaseClient, userId: string, entr
     await supabase.from("prompt_history").delete().in("id", extra.map((r) => r.id));
     await removeUnusedImages(supabase, extra.flatMap(historyRowImages));
   }
+  return ids;
 }
 
 // Deletes stored images that no remaining history entry points to.

@@ -87,8 +87,8 @@ function userClient(opts: { refs?: string[]; noCharacter?: boolean } = {}) {
       }),
     }),
     storage: {
-      from: () => ({
-        createSignedUrls: async (paths: string[]) => ({ data: paths.map((path) => ({ path, signedUrl: `https://signed.test/${path}` })), error: null }),
+      from: (bucket: string) => ({
+        createSignedUrls: async (paths: string[]) => ({ data: paths.map((path) => ({ path, signedUrl: bucket === "generations" ? `https://signed.test/gen/${path}` : `https://signed.test/${path}` })), error: null }),
         createSignedUrl: async (path: string, _ttl: number, opts?: { download?: boolean }) => ({ data: { signedUrl: `https://signed.test/${path}${opts?.download ? "?dl" : ""}` }, error: null }),
       }),
     },
@@ -127,6 +127,8 @@ describe("parseGenerationRequest", () => {
     expect(() => parseGenerationRequest(request({ resolution: "8k" }))).toThrow(UserFacingError);
     expect(() => parseGenerationRequest(request({ kind: "bogus" }))).toThrow(UserFacingError);
     expect(() => parseGenerationRequest(request({ extraPaths: Array(11).fill("a") }))).toThrow(UserFacingError);
+    expect(parseGenerationRequest(request({ kind: "likeness_fix" })).kind).toBe("likeness_fix");
+    expect(() => parseGenerationRequest(request({ meta: { edit: "x".repeat(601) } }))).toThrow(UserFacingError);
   });
 });
 
@@ -148,6 +150,27 @@ describe("startGeneration: free plan", () => {
     expect(db.rows[0]).toMatchObject({ status: "processing", provider_job_id: "job_1", cost_usd: "0.040000", user_id: U });
     expect(db.rows[0].params).toMatchObject({ free: true, key_source: "server", resolution: "1k", image_count: 3 });
     expect(JSON.stringify(db.rows[0])).not.toContain("sk-spicy");
+  });
+
+  it("frames an Inject prompt that carries meta: photo edit with the target first, and saves the prompt it sent", async () => {
+    await startGeneration(userClient(), verified, request({ extraPaths: [], prompt: "LONG SCENE", meta: { target: `${U}/targets/t.jpg`, edit: "New pose: sitting" } }));
+    const call = h.submit.mock.calls[0][0];
+    // No sheet pack and no body sheet here: the face sheet goes whole after the target.
+    expect(call.input.imageUrls).toEqual([`https://signed.test/${U}/targets/t.jpg`, `https://signed.test/${U}/characters/${C}/face.jpg`]);
+    expect(call.input.prompt).toMatch(/^Replace the person in @image1 with the woman from @image2\./);
+    expect(call.input.prompt).toContain("Change: New pose: sitting.");
+    expect(db.rows[0].prompt).toBe(call.input.prompt);
+    expect(db.rows[0].params).toMatchObject({ photo_edit: true, image_count: 2 });
+  });
+
+  it("a likeness fix repaints a generated image: it goes first, signed from the generations bucket, with a server-written prompt", async () => {
+    const G = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
+    db.rows.push({ id: G, output_path: `${U}/${G}.png`, status: "complete", expires_at: new Date(Date.now() + 3600_000).toISOString() });
+    await startGeneration(userClient(), verified, request({ kind: "likeness_fix", prompt: "", extraPaths: [], meta: { sourceGeneration: G, fixes: ["dark brown eyes"] } }));
+    const call = h.submit.mock.calls[0][0];
+    expect(call.input.imageUrls).toEqual([`https://signed.test/gen/${U}/${G}.png`, `https://signed.test/${U}/characters/${C}/face.jpg`]);
+    expect(call.input.prompt).toMatch(/^Replace the woman in @image1 with the woman from @image2\. @image2 is her character reference sheet\./);
+    expect(call.input.prompt).toContain("In particular: dark brown eyes.");
   });
 
   it("needs a confirmed email, and uses nothing up when it is missing", async () => {

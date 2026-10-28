@@ -9,6 +9,8 @@ import { openHistory, reportGeneration, viewImage } from "@/lib/panel-events";
 import { featureLabel } from "@/lib/ledger-types";
 import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageAspectRatio, type ImageOutputFormat, type ImageResolution } from "@/lib/ai/providers/types";
+import type { InjectMeta } from "@/lib/inject-meta";
+import { LikenessPanel, type ImageRef } from "@/components/likeness-panel";
 
 type Phase = "idle" | "starting" | "running" | "done" | "failed";
 interface Result {
@@ -23,7 +25,8 @@ const select = "h-8 rounded-md border border-neutral-700 bg-neutral-900 px-2 tex
 
 /**
  * Turns a prompt into an image. The pictures it uses are the character's references first, then `extraPaths`,
- * which is the order the prompts were written for (@image1, @image2, ...).
+ * which is the order the prompts were written for (@image1, @image2, ...). An Inject prompt passes `meta` instead, and
+ * the server picks and frames the images (a photo edit of the target, or her references alone).
  */
 export function GenerateImage({
   prompt,
@@ -36,11 +39,17 @@ export function GenerateImage({
   actionLabel = "Generate image",
   renderActions,
   runSignal = 0,
+  meta,
+  autoAspectRatio,
+  autoStart = false,
+  compareTo,
+  checkLikeness = true,
+  historyId,
 }: {
   prompt: string;
   characterId?: string | null;
   extraPaths: string[];
-  kind: "inject" | "direct_swap" | "edit" | "variant" | "carousel" | "face_fix" | "reference_sheet";
+  kind: "inject" | "direct_swap" | "edit" | "variant" | "carousel" | "face_fix" | "likeness_fix" | "reference_sheet";
   /** Free plan: images left (generated at 1k, no price shown). `null` means a Pro or admin account. */
   freeImagesLeft?: number | null;
   /** Fixes the shape and hides its choice (a sheet has a set layout). */
@@ -53,12 +62,24 @@ export function GenerateImage({
   renderActions?: (result: Result) => React.ReactNode;
   /** Each time this goes up, the image is generated as if the button were pressed (used by "Generate all"). */
   runSignal?: number;
+  /** Inject: what the server needs to frame the prompt for the image model. */
+  meta?: InjectMeta;
+  /** What "match the photo" means when the first image sent isn't the photo (the ratio closest to the target). */
+  autoAspectRatio?: ImageAspectRatio;
+  /** Start as soon as it appears (a fix the person just asked for). */
+  autoStart?: boolean;
+  /** For a fix: the image it fixes, so the likeness check says whether the fix got closer to her. */
+  compareTo?: ImageRef;
+  /** false for images that don't show her fully (a carousel detail or flat lay), so no likeness check runs. */
+  checkLikeness?: boolean;
+  /** The History prompt this runs, so History can open the image from it. */
+  historyId?: string | null;
 }) {
   const router = useRouter();
   const free = freeImagesLeft !== null;
   const [resolution, setResolution] = useState<ImageResolution>(defaultResolution);
   const [chosenAspectRatio, setAspectRatio] = useState<ImageAspectRatio>("auto");
-  const aspectRatio = lockedAspectRatio ?? chosenAspectRatio;
+  const aspectRatio = lockedAspectRatio ?? (chosenAspectRatio === "auto" && autoAspectRatio ? autoAspectRatio : chosenAspectRatio);
   const [outputFormat, setOutputFormat] = useState<ImageOutputFormat>("jpeg");
   const [price, setPrice] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -73,19 +94,21 @@ export function GenerateImage({
     };
   }, []);
 
-  const request = { kind, characterId: characterId ?? null, extraPaths, prompt, resolution: free ? "1k" : resolution, aspectRatio, outputFormat };
+  const request = { kind, characterId: characterId ?? null, extraPaths, prompt, resolution: free ? "1k" : resolution, aspectRatio, outputFormat, ...(meta ? { meta } : {}), ...(historyId ? { historyId } : {}) };
+  // Something to send: pictures, or (for a framed Inject prompt) a character whose references the server picks.
+  const hasImages = extraPaths.length > 0 || (!!meta && (!!characterId || !!meta.target));
   const requestKey = JSON.stringify(request);
 
   // Show the price before anything is spent. Free images have no price, and a failed lookup just hides it.
   useEffect(() => {
     setPrice(null);
-    if (free || !prompt.trim() || !extraPaths.length) return;
+    if (free || !prompt.trim() || !hasImages) return;
     const t = setTimeout(async () => {
       const q = await quoteImageGeneration(JSON.parse(requestKey));
       if (alive.current && q.ok) setPrice(q.estimatedCost);
     }, 400);
     return () => clearTimeout(t);
-  }, [requestKey, free, prompt, extraPaths.length]);
+  }, [requestKey, free, prompt, hasImages]);
 
   async function generate() {
     setPhase("starting");
@@ -133,7 +156,7 @@ export function GenerateImage({
   }
 
   const busy = phase === "starting" || phase === "running";
-  const ready = !!prompt.trim() && extraPaths.length > 0;
+  const ready = !!prompt.trim() && hasImages;
 
   // "Generate all": start when the signal goes up, unless this one is already running or done.
   const lastSignal = useRef(runSignal);
@@ -143,6 +166,14 @@ export function GenerateImage({
     if (!busy && phase !== "done" && ready) void generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runSignal]);
+  // A fix starts straight away: the person already chose it.
+  const started = useRef(false);
+  useEffect(() => {
+    if (!autoStart || started.current || !ready) return;
+    started.current = true;
+    void generate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, ready]);
   const label = free ? `Generate my free image (${freeImagesLeft} left)` : `${actionLabel}${price ? ` · about $${Number(price).toFixed(3)}` : ""}`;
 
   return (
@@ -157,7 +188,7 @@ export function GenerateImage({
         {!lockedAspectRatio && (
           <label className="flex items-center gap-1.5 text-neutral-400">
             Shape
-            <select className={select} value={aspectRatio} disabled={busy} onChange={(e) => setAspectRatio(e.target.value as ImageAspectRatio)}>
+            <select className={select} value={chosenAspectRatio} disabled={busy} onChange={(e) => setAspectRatio(e.target.value as ImageAspectRatio)}>
               {IMAGE_ASPECT_RATIOS.map((r) => <option key={r} value={r}>{r === "auto" ? "match the photo" : r}</option>)}
             </select>
           </label>
@@ -173,7 +204,7 @@ export function GenerateImage({
       {free && <p className="text-xs text-neutral-500">Your free image is made at 1k, and you can only make one.</p>}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" size="sm" onClick={generate} disabled={busy || !prompt.trim() || !extraPaths.length}>
+        <Button type="button" size="sm" onClick={generate} disabled={busy || !ready}>
           {phase === "starting" ? "Starting..." : phase === "running" ? "Generating..." : label}
         </Button>
         {phase === "running" && <p className="text-xs text-neutral-500">This usually takes under a minute. Once started, it can't be cancelled.</p>}
@@ -200,6 +231,10 @@ export function GenerateImage({
             </span>
           </div>
           {renderActions?.(result)}
+          {/* Every generated image of a character gets a quick likeness check. Pro and admin only: it spends their key. */}
+          {!free && checkLikeness && characterId && kind !== "reference_sheet" && (
+            <LikenessPanel characterId={characterId} image={{ generationId: result.generationId }} original={compareTo} frame={meta?.frame} />
+          )}
         </div>
       )}
     </div>

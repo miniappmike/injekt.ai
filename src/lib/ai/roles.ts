@@ -1,6 +1,6 @@
 export const ROLES = [
-  { id: "vision", label: "Vision", description: "Reads images: profile builder, prompt writer, likeness checks." },
-  { id: "llm", label: "Text", description: "Writes and plans text. Used for text-only steps." },
+  { id: "vision", label: "Vision", description: "Does every job that looks at a photo: writing prompts (Inject, Variants, Carousel), the profile builder, reading sheets, likeness checks and overlay cleanup. This is the one that sets how fast prompts are written." },
+  { id: "llm", label: "Text", description: "Only for steps with no photo: shortening a prompt that's too long for the image model. Rarely used; a fast, cheap model is fine." },
   { id: "image", label: "Image", description: "Generates images: inject, direct swap, edits, variants." },
 ] as const;
 

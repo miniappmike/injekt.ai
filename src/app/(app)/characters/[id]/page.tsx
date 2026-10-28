@@ -8,11 +8,29 @@ import { signedUrlMap } from "@/lib/media-urls";
 import { entitlements } from "@/lib/entitlements";
 import { FREE_LIMITS } from "@/lib/limits";
 import { referenceList } from "@/lib/character-images";
+import { SheetPackStatus } from "@/components/sheet-pack-status";
+import { currentPack, selectCharacter } from "@/lib/sheet-pack";
+import { packStateText } from "@/lib/ai/prompts/identity";
 import type { CharacterProfile } from "@/lib/characters";
 import { deleteCharacter, updateCharacter } from "../actions";
 
 // The profile builder calls a vision model from this page.
 export const maxDuration = 60;
+
+interface CharacterRow {
+  id: string;
+  name: string;
+  always_keep: string | null;
+  height: string | null;
+  weight: string | null;
+  lore: string | null;
+  profile: unknown;
+  profile_photo_path: string | null;
+  face_sheet_path: string | null;
+  body_sheet_path: string | null;
+  reference_paths: string[];
+  sheet_pack?: unknown;
+}
 
 const NOTICES: Record<string, { text: string; good: boolean }> = {
   saved: { text: "Character saved.", good: true },
@@ -34,15 +52,17 @@ export default async function EditCharacterPage({
   const { notice } = await searchParams;
   const banner = notice ? NOTICES[notice] : undefined;
   const { supabase, user } = await requireUser();
-  const { data: c } = await supabase
-    .from("characters")
-    .select("id, name, always_keep, height, weight, lore, profile, profile_photo_path, face_sheet_path, body_sheet_path, reference_paths")
-    .eq("id", id)
-    .maybeSingle();
+  const c = await selectCharacter<CharacterRow>(
+    supabase,
+    id,
+    "id, name, always_keep, height, weight, lore, profile, profile_photo_path, face_sheet_path, body_sheet_path, reference_paths, sheet_pack",
+  );
   if (!c) notFound();
 
   const { profile_builds: buildsLeft } = await entitlements.remaining(user.id);
   const urls = await signedUrlMap(supabase, [c.profile_photo_path, c.face_sheet_path, c.body_sheet_path, ...c.reference_paths]);
+  const pack = currentPack(c);
+  const packState = packStateText({ hasBody: !!c.body_sheet_path, hasFace: !!c.face_sheet_path, pack });
   const imgs = (paths: (string | null)[]) => paths.filter((p): p is string => !!p && !!urls[p]).map((p) => ({ path: p, url: urls[p] }));
 
   return (
@@ -73,6 +93,7 @@ export default async function EditCharacterPage({
         <ImageSlot label="Face sheet" slot="face_sheet" characterId={c.id} images={imgs([c.face_sheet_path])} hint="A sheet of the face from several angles, or one clear face photo." />
         <ImageSlot label="Body sheet" slot="body_sheet" characterId={c.id} images={imgs([c.body_sheet_path])} hint="Front, back and side of the body." />
         <ImageSlot label="Reference images (up to 3)" slot="reference" characterId={c.id} images={imgs(c.reference_paths)} max={3} />
+        <SheetPackStatus key={packState} characterId={c.id} state={packState} read={!!pack} />
       </section>
 
       <CharacterForm
