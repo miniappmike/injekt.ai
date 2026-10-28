@@ -10,6 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { FixRun, type ImageRef } from "@/components/likeness-panel";
+import { GenerateImage } from "@/components/generate-image";
+import { REFERENCES_RUN, type RevisedRun } from "@/lib/revised-run";
 import { checkLikeness } from "@/app/(app)/likeness/actions";
 import type { LikenessReport } from "@/lib/ai/prompts/likeness";
 import { SEND_TO_LIKENESS_KEY } from "@/lib/likeness-link";
@@ -38,13 +40,16 @@ export function LikenessChecker({
   characters: { id: string; name: string; ready: boolean }[];
   initialCharacterId?: string;
   /** A generated image opened from "See likeness". */
-  generated?: { id: string; url: string; prompt?: string } | null;
+  generated?: { id: string; url: string; prompt?: string; run?: RevisedRun } | null;
 }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [characterId, setCharacterId] = useState(initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id);
   const [picked, setPicked] = useState<Picked | null>(generated ? { preview: generated.url, image: { generationId: generated.id } } : null);
   const [promptUsed, setPromptUsed] = useState(generated?.prompt ?? "");
+  // How "Generate" on a revised prompt runs: like the prompt the image came from, else her references alone.
+  const revisedRunWith = generated?.run ?? REFERENCES_RUN;
+  const top = useRef<HTMLElement>(null);
   // Score rounds per character (R1 · 72 → R2 · 86), as in the artifact.
   const [rounds, setRounds] = useState<Round[]>([]);
   const [busy, setBusy] = useState(false);
@@ -127,6 +132,7 @@ export function LikenessChecker({
       </section>
 
       <section
+        ref={top}
         className="flex flex-col gap-3 rounded-lg border border-dashed border-neutral-700 p-4"
         tabIndex={0}
         aria-label="Generated image"
@@ -255,6 +261,36 @@ export function LikenessChecker({
                   </div>
                 </div>
                 <p className="whitespace-pre-wrap">{latest.report.revisedPrompt}</p>
+                <div className="border-t border-neutral-800 pt-3">
+                  <GenerateImage
+                    key={`${latest.n}-${characterId}`}
+                    prompt={latest.report.revisedPrompt}
+                    characterId={characterId}
+                    extraPaths={revisedRunWith.extraPaths}
+                    kind={revisedRunWith.kind}
+                    meta={revisedRunWith.meta}
+                    actionLabel="Generate with revised prompt"
+                    checkLikeness={false}
+                    renderActions={(result) => (
+                      <div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            // Next round: this image, with the prompt that made it.
+                            setPicked({ preview: result.url, image: { generationId: result.generationId } });
+                            setPromptUsed(latest.report.revisedPrompt);
+                            top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                            show("Loaded. Press Check likeness to score it.");
+                          }}
+                        >
+                          Check this image
+                        </Button>
+                      </div>
+                    )}
+                  />
+                  <p className="mt-2 text-xs text-neutral-500">{revisedRunWith.note}</p>
+                </div>
               </CardContent>
             </Card>
           )}

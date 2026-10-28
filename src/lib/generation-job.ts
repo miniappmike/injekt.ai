@@ -182,8 +182,8 @@ export function refOptions(c: JobCharacter, pack: SheetPack | null): RefOption[]
  * images. The makeup rule is added when there is a target and the prompt doesn't ask for a makeup change.
  */
 export function editJob(c: JobCharacter | null, pack: SheetPack | null, text: string, meta: InjectMeta, extras: string[], max: number): BuiltJob {
-  const picked = new Set(meta.refs ?? []);
-  const refs = c ? refOptions(c, pack).filter((o) => picked.has(o.id)) : [];
+  // No picks sent (the Likeness page's revised prompt): the references that are on by default.
+  const refs = c ? refOptions(c, pack).filter((o) => (meta.refs ? meta.refs.includes(o.id) : o.on)) : [];
   const paths = [...(meta.target ? [meta.target] : []), ...refs.map((r) => r.path), ...extras];
   if (!paths.length) throw new UserFacingError("Add a target photo or pick at least one reference.");
   if (paths.length > max) throw new UserFacingError(`That's too many images (${max} at most).`);

@@ -73,6 +73,8 @@ describe("Edit references", () => {
     expect(editJob(c, pack, "Red lipstick.", { target: "t", refs: [] }, [], 10).prompt).toBe("Red lipstick.");
     expect(editJob(null, null, "Edit it.", { target: "t", refs: ["front"] }, [], 10).paths).toEqual(["t"]);
     expect(() => editJob(c, pack, "x", { refs: [] }, [], 10)).toThrow(/Add a target photo/);
+    // No picks at all (a revised prompt from the Likeness page): the references that are on by default.
+    expect(editJob(c, pack, "Revised.", {}, [], 10).paths).toEqual(pack.crops.map((x) => x.path));
     expect(() => editJob(c, pack, "x", { target: "t", refs: ["front", "faces", "side", "body"] }, ["a", "b"], 5)).toThrow(/too many/);
   });
 });
