@@ -7,7 +7,7 @@ const item =
   "block w-full rounded-md px-3 py-2 text-left text-sm text-neutral-200 hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none";
 
 // Your profile in the header. Hover it to open the menu; on a touch screen or with the keyboard, tap or press it instead.
-export function ProfileMenu({ email }: { email: string }) {
+export function ProfileMenu({ email, admin = false }: { email: string; admin?: boolean }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -86,7 +86,8 @@ export function ProfileMenu({ email }: { email: string }) {
             <p className="truncate px-3 py-2 text-xs text-neutral-500" title={email}>Signed in as {email}</p>
             <div role="menu" aria-label="Profile">
               <Link href="/ledger" role="menuitem" onClick={close} className={item}>Ledger</Link>
-              <Link href="/settings/api-keys" role="menuitem" onClick={close} className={item}>API keys</Link>
+              <Link href="/settings/api-keys" role="menuitem" onClick={close} className={item}>Settings</Link>
+              {admin && <Link href="/admin" role="menuitem" onClick={close} className={item}>Admin</Link>}
               <form action="/auth/signout" method="post" className="mt-1 border-t border-neutral-800 pt-1">
                 <button type="submit" role="menuitem" className={item}>Log out</button>
               </form>

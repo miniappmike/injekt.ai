@@ -2,7 +2,7 @@
 
 import { requireUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/ratelimit";
-import { entitlements } from "@/lib/entitlements";
+import { withDaily } from "@/lib/daily-limits";
 import { toFailure, type AiFailure } from "@/lib/ai/failure";
 import { runCarousel, runVariants, type CarouselResult, type VariantResult } from "@/lib/variants-run";
 import type { CarouselTypeId, PlatformId, VariantDimId } from "@/lib/variants-meta";
@@ -20,9 +20,8 @@ export async function writeVariantEdits(input: {
 }): Promise<Ok<VariantResult>> {
   try {
     const { supabase, user } = await requireUser();
-    await entitlements.requirePro(user.id, "variants");
     await enforceRateLimit(user.id, "llm", 20, 60);
-    return { ok: true, ...(await runVariants(supabase, user.id, input)) };
+    return { ok: true, ...(await withDaily(supabase, user.id, "runs", () => runVariants(supabase, user.id, input))) };
   } catch (e) {
     return toFailure(e);
   }
@@ -44,9 +43,8 @@ export async function planCarousel(input: {
 }): Promise<Ok<CarouselResult>> {
   try {
     const { supabase, user } = await requireUser();
-    await entitlements.requirePro(user.id, "variants");
     await enforceRateLimit(user.id, "llm", 20, 60);
-    return { ok: true, ...(await runCarousel(supabase, user.id, input)) };
+    return { ok: true, ...(await withDaily(supabase, user.id, "runs", () => runCarousel(supabase, user.id, input))) };
   } catch (e) {
     return toFailure(e);
   }

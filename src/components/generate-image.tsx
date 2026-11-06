@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useGeneration } from "@/components/app-context";
 import { InfoTip } from "@/components/info-tip";
 import { Spinner } from "@/components/ui/spinner";
 import { checkImageGeneration, quoteImageGeneration, startImageGeneration } from "@/app/(app)/generate/actions";
@@ -29,7 +30,14 @@ const select = "h-8 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px
  * which is the order the prompts were written for (@image1, @image2, ...). An Inject prompt passes `meta` instead, and
  * the server picks and frames the images (a photo edit of the target, or her references alone).
  */
-export function GenerateImage({
+/** Generate controls, shown only when image generation is on for the account (own Image key + turned on in Settings). */
+export function GenerateImage(props: GenerateImageProps) {
+  return useGeneration() ? <GenerateImageInner {...props} /> : null;
+}
+
+type GenerateImageProps = Parameters<typeof GenerateImageInner>[0];
+
+function GenerateImageInner({
   prompt,
   characterId,
   extraPaths,

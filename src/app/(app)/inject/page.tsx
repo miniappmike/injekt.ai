@@ -1,6 +1,6 @@
 import { InjectTabs } from "@/components/inject-tabs";
+import { HowItWorks } from "@/components/how-it-works";
 import { requireUser } from "@/lib/auth";
-import { entitlements } from "@/lib/entitlements";
 import { referenceList } from "@/lib/character-images";
 import { currentPack } from "@/lib/sheet-pack";
 import { refOptions } from "@/lib/generation-job";
@@ -11,8 +11,7 @@ import { characterAvatars } from "@/lib/character-avatars";
 export const maxDuration = 300;
 
 export default async function InjectPage() {
-  const { supabase, user } = await requireUser();
-  const [isPro, remaining] = await Promise.all([entitlements.isUnlimited(user.id), entitlements.remaining(user.id)]);
+  const { supabase } = await requireUser();
   const { data } = await supabase
     .from("characters")
     .select("id, name, profile, profile_photo_path, face_sheet_path, body_sheet_path, reference_paths")
@@ -29,15 +28,16 @@ export default async function InjectPage() {
     return { id: c.id, name: c.name, refCount, ready: refCount > 0, hasProfile, refOptions: options, photo: photos.get(c.id) ?? null };
   });
 
-  const outfits = isPro ? await listOutfits(supabase) : [];
+  const outfits = await listOutfits(supabase);
 
   return (
     <div className="max-w-3xl">
       <h1 className="page-title">Inject</h1>
       <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
-        Put your character into a photo. Write a prompt tailored to the photo, swap directly, or write your own prompt.
+        Put your character into any photo. Add a photo you like, and get a prompt that swaps her in, ready to paste into your image generator.
       </p>
-      <InjectTabs characters={characters} outfits={outfits} isPro={isPro} freeImagesLeft={isPro ? null : remaining.free_images} />
+      <HowItWorks />
+      <InjectTabs characters={characters} outfits={outfits} />
     </div>
   );
 }

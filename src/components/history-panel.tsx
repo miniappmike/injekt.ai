@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/toast";
 import { HistoryImages } from "@/components/history-images";
 import { GenerateImage } from "@/components/generate-image";
+import { useGeneration } from "@/components/app-context";
+import { GENERATOR } from "@/lib/links";
 import { checkImageGeneration } from "@/app/(app)/generate/actions";
-import { deleteAllHistory, deleteHistoryEntry, getFreeImagesLeft, getGenerationPreview, getGenerations, getHistory } from "@/app/(app)/history/actions";
+import { deleteAllHistory, deleteHistoryEntry, getGenerationPreview, getGenerations, getHistory } from "@/app/(app)/history/actions";
 import { filterHistory, historyCharacters } from "@/lib/history-filter";
 import { GENERATION_EVENT, OPEN_HISTORY_EVENT, viewImage, type HistoryTab, type TrayGeneration } from "@/lib/panel-events";
 import { historyGenerationKind, type GenerationItem, type HistoryItem } from "@/lib/history-types";
@@ -47,9 +49,10 @@ export function HistoryPanel() {
   const [characterId, setCharacterId] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
-  // Entries with their Generate controls open, and the free images left (loaded the first time one opens; null means Pro).
+  // Entries with their Generate controls open (only with image generation on).
+  const generation = useGeneration();
+  const tabs = generation ? TABS : TABS.filter((t) => t.id === "prompts");
   const [generating, setGenerating] = useState<Set<string>>(new Set());
-  const [freeLeft, setFreeLeft] = useState<number | null | undefined>(undefined);
   const { toast, show } = useToast(2500);
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -174,7 +177,6 @@ export function HistoryPanel() {
       if (!next.delete(id)) next.add(id);
       return next;
     });
-    if (freeLeft === undefined) getFreeImagesLeft().then(setFreeLeft, () => setFreeLeft(null));
   }
 
   async function remove(id: string) {
@@ -199,7 +201,7 @@ export function HistoryPanel() {
   function onTabKeyDown(e: React.KeyboardEvent) {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
-    const next = TABS[(TABS.findIndex((t) => t.id === tab) + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length].id;
+    const next = tabs[(tabs.findIndex((t) => t.id === tab) + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length].id;
     setTab(next);
     panel.current?.querySelector<HTMLElement>(`#history-tab-${next}`)?.focus();
   }
@@ -274,7 +276,7 @@ export function HistoryPanel() {
               </div>
 
               <div role="tablist" aria-label="History" onKeyDown={onTabKeyDown} className="flex gap-1 border-b border-neutral-800 px-4">
-                {TABS.map((t) => (
+                {tabs.map((t) => (
                   <button
                     key={t.id}
                     id={`history-tab-${t.id}`}
@@ -326,7 +328,7 @@ export function HistoryPanel() {
                         const framed = genKind === "inject" && !!i.characterId && Object.keys(i.meta ?? {}).length > 0;
                         // Carousel slides saved with their placeholders are framed again by the server.
                         const slide = genKind === "carousel" && typeof i.meta?.slidePrompt === "string" && typeof i.meta?.person === "string" ? (i.meta as { slidePrompt: string; person: "full" | "partial" | "none" }) : null;
-                        const canGenerate = !!genKind && (!!i.imagePath || framed);
+                        const canGenerate = generation && !!genKind && (!!i.imagePath || framed);
                         const showGenerate = canGenerate && generating.has(i.id);
                         return (
                           <li key={i.id} className="flex gap-3 rounded-xl border border-neutral-800 bg-neutral-900/80 p-3 transition-colors duration-200 hover:border-neutral-700 hover:bg-neutral-900">
@@ -346,6 +348,18 @@ export function HistoryPanel() {
                               <p className="text-xs text-neutral-500">{i.characterName} · {when(i.createdAt)}</p>
                               <p className={`mt-1 whitespace-pre-wrap text-sm text-neutral-300 ${isOpen ? "" : "line-clamp-2"}`}>{i.prompt}</p>
                               <div className="mt-1 flex flex-wrap gap-1">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-brand-300 hover:text-brand-200"
+                                  onClick={() => {
+                                    window.open(GENERATOR.url, "_blank", "noopener,noreferrer");
+                                    void copy(i.prompt);
+                                  }}
+                                >
+                                  Copy &amp; open {GENERATOR.name}
+                                </Button>
                                 <Button type="button" size="sm" variant="ghost" onClick={() => copy(i.prompt)}>Copy</Button>
                                 <Button type="button" size="sm" variant="ghost" onClick={() => toggle(i.id)}>{isOpen ? "Collapse" : "Expand"}</Button>
                                 {canGenerate && (
@@ -360,20 +374,15 @@ export function HistoryPanel() {
                               </div>
                               {showGenerate && (
                                 <div className="mt-2">
-                                  {freeLeft === undefined ? (
-                                    <p className="text-xs text-neutral-500">Loading...</p>
-                                  ) : (
-                                    <GenerateImage
-                                      prompt={slide ? slide.slidePrompt : i.prompt}
-                                      characterId={i.characterId}
-                                      extraPaths={framed ? [] : [i.imagePath as string, ...i.extraPaths]}
-                                      kind={genKind}
-                                      freeImagesLeft={freeLeft}
-                                      meta={framed ? metaForRun(i.meta as InjectMeta, i.imagePath, readEditTarget()) : slide ? { person: slide.person } : undefined}
-                                      checkLikeness={!slide || slide.person === "full"}
-                                      historyId={i.id}
-                                    />
-                                  )}
+                                  <GenerateImage
+                                    prompt={slide ? slide.slidePrompt : i.prompt}
+                                    characterId={i.characterId}
+                                    extraPaths={framed ? [] : [i.imagePath as string, ...i.extraPaths]}
+                                    kind={genKind}
+                                    meta={framed ? metaForRun(i.meta as InjectMeta, i.imagePath, readEditTarget()) : slide ? { person: slide.person } : undefined}
+                                    checkLikeness={!slide || slide.person === "full"}
+                                    historyId={i.id}
+                                  />
                                   <p className="mt-2 text-xs text-neutral-500">
                                     {framed
                                       ? readEditTarget() && i.imagePath

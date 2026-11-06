@@ -1,5 +1,6 @@
 "use client";
 
+import { usageChanged } from "@/lib/panel-events";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -10,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Step } from "@/components/ui/step";
 import { GenerateImage } from "@/components/generate-image";
+import { useGeneration } from "@/components/app-context";
+import { CopyOpen } from "@/components/copy-open";
 import { AttachStrip, TaggedPrompt, type AttachTile } from "@/components/attach-strip";
 import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
@@ -74,7 +77,11 @@ const chip = chipItem;
 
 export function VariantsTool({ characters }: { characters: { id: string; name: string; ready: boolean; hasSheet?: boolean; photo?: string | null }[] }) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("edits");
+  const generation = useGeneration();
+  // Without image generation, finished prompts to paste lead.
+  const [mode, setMode] = useState<Mode>(generation ? "edits" : "write");
+  const modes: Mode[] = generation ? ["edits", "carousel", "write"] : ["write", "edits", "carousel"];
+  const modeLabel = (m: Mode) => (generation ? MODE_LABEL[m] : m === "write" ? "Variations" : m === "edits" ? "Edit prompts" : "Carousel");
   const [characterId, setCharacterId] = useState("");
   const [image, setImage] = useState<Picked | null>(null);
   // Up to MAX_EXTRA_IMAGES more images for the vibe or outfit; a slot is null until something is added.
@@ -129,6 +136,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       const who = (p: SlidePerson, type: string) => (p === "none" ? " · no person" : p === "partial" ? " · partly her" : type === "pose" ? "" : " · with her");
       if (mode === "edits") {
         const res = await writeVariantEdits({ imagePath: path, dims: [...dims], count, ...common });
+        usageChanged();
         if (!res.ok) {
           if (res.redirectTo) return router.push(res.redirectTo);
           return setStatus({ text: res.error, good: false });
@@ -137,6 +145,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         setStatus({ text: `${res.variants.length} edit prompts ready. Copy one and paste it into your generator's edit mode, or generate it here.`, good: true });
       } else if (mode === "write") {
         const res = await planCarousel({ coverPath: path, types: [...writeTypes], count: writeCount, writeOnly: true, ...where, ...common });
+        usageChanged();
         if (!res.ok) {
           if (res.redirectTo) return router.push(res.redirectTo);
           return setStatus({ text: res.error, good: false });
@@ -150,6 +159,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         setStatus({ text: `${res.slides.length} prompt${res.slides.length > 1 ? "s" : ""} ready to paste into another generator. Attach the images listed on each one, in that order.`, good: true });
       } else {
         const res = await planCarousel({ coverPath: path, types: [...types], count: slides, ...where, ...common });
+        usageChanged();
         if (!res.ok) {
           if (res.redirectTo) return router.push(res.redirectTo);
           return setStatus({ text: res.error, good: false });
@@ -173,15 +183,17 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
     ? "Picking one restates the character's key traits in every edit, so the face doesn't drift."
     : mode === "write"
       ? `Prompts with her name ${character.name}'s ${character.hasSheet ? "reference sheets" : "first reference photo"} as the first images to attach, and spell out her look, so another generator keeps her face and body.`
-      : mode === "edits"
+      : mode === "edits" && generation
       ? `Generate sends ${character.name}'s ${character.hasSheet ? "reference sheets" : "first reference photo"} first and your image after them, so the face stays locked to the ${character.hasSheet ? "sheet" : "reference"}.`
+      : mode === "edits"
+      ? `Each edit restates ${character.name}'s key traits so the face doesn't drift. Attach her ${character.hasSheet ? "reference sheets" : "reference photo"} and your image with it.`
       : `Slides with her get ${character.name}'s face and body references; slides without her use only your cover.`;
 
   return (
     <div className="mt-6 flex flex-col gap-6">
       {toast}
       <div className={segTrack} role="tablist">
-        {(["edits", "carousel", "write"] as const).map((m) => (
+        {modes.map((m) => (
           <button
             key={m}
             role="tab"
@@ -193,7 +205,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
             }}
             className={segItem(mode === m)}
           >
-            {MODE_LABEL[m]}
+            {modeLabel(m)}
           </button>
         ))}
       </div>
@@ -400,7 +412,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-medium">{result.mode === "edits" ? "Variant edits" : result.mode === "write" ? "Variation prompts" : "Carousel plan"}</h2>
             <div className="flex gap-2">
-              {result.mode !== "write" && (
+              {generation && result.mode !== "write" && (
                 <Button
                   type="button"
                   size="sm"
@@ -444,8 +456,9 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                     <span className="font-medium">{result.mode === "carousel" ? `${i + 2} · ` : result.mode === "write" ? `${i + 1} · ` : ""}{item.title}</span>
                     {item.hint && <p className="text-xs text-neutral-500">{item.hint}</p>}
                   </div>
-                  <Button type="button" size="sm" variant="ghost" onClick={() => copy(item.copy)}>Copy</Button>
+                  {generation && result.mode !== "write" && <Button type="button" size="sm" variant="ghost" onClick={() => copy(item.copy)}>Copy</Button>}
                 </div>
+                {(!generation || result.mode === "write") && <CopyOpen text={item.copy} />}
                 {result.mode === "write" && item.attachItems?.length ? (
                   <>
                     <AttachStrip items={item.attachItems} photo={result.preview} extras={result.extraPreviews} />

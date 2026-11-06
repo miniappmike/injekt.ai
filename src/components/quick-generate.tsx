@@ -11,7 +11,11 @@ import { GenerateImage } from "@/components/generate-image";
 import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
-import { addToReferences, swapPromptFor } from "@/app/(app)/inject/actions";
+import { addToReferences, swapPromptFor, writeSwapStandalone } from "@/app/(app)/inject/actions";
+import { useGeneration } from "@/components/app-context";
+import { CopyOpen } from "@/components/copy-open";
+import { AttachStrip, TaggedPrompt } from "@/components/attach-strip";
+import type { StandalonePrompt } from "@/lib/inject-standalone";
 import { chipItem } from "@/components/ui/segmented";
 import { CharacterPicker } from "@/components/character-picker";
 
@@ -35,8 +39,10 @@ const MAX_EDIT_EXTRAS = 2;
  * "Direct swap" swaps her straight into a photo with the artifact's fixed swap prompt (the photo first, her references
  * after it). "Edit" sends your own prompt: the photo as @image1, then the references you pick, then extra images.
  */
-export function QuickGenerate({ mode, characters, freeImagesLeft }: { mode: "direct_swap" | "edit"; characters: QuickCharacter[]; freeImagesLeft: number | null }) {
+export function QuickGenerate({ mode, characters }: { mode: "direct_swap" | "edit"; characters: QuickCharacter[] }) {
   const router = useRouter();
+  const generation = useGeneration();
+  const [swap, setSwap] = useState<{ busy?: boolean; prompt?: StandalonePrompt; error?: string }>({});
   const { toast, show } = useToast(2500);
   const [characterId, setCharacterId] = useState(characters.find((c) => c.refCount > 0)?.id ?? characters[0]?.id ?? "");
   const [photo, setPhoto] = useState<Photo | null>(null);
@@ -154,11 +160,11 @@ export function QuickGenerate({ mode, characters, freeImagesLeft }: { mode: "dir
       {characterSelect}
 
       <ImageDrop
-        title={mode === "edit" ? "Target photo (optional)" : "Target photo"}
+        title={mode === "edit" || !generation ? "Target photo (optional)" : "Target photo"}
         preview={photo?.preview}
         disabled={photo?.busy}
         onPick={(f) => upload(f, setPhoto)}
-        hint={mode === "edit" ? "The photo to edit, sent as @image1. Leave it empty to make an image from her references alone." : "The photo to put your character into. Click, drop, or paste with Ctrl+V."}
+        hint={mode === "edit" ? "The photo to edit, sent as @image1. Leave it empty to make an image from her references alone." : generation ? "The photo to put your character into. Click, drop, or paste with Ctrl+V." : "Only to show it in the list of images to attach. The prompt is the same either way."}
       />
       {photo?.busy && <p className="-mt-4 text-xs text-neutral-500">Uploading...</p>}
       {photo?.error && <p role="alert" className="-mt-4 text-sm text-red-400">{photo.error}</p>}
@@ -166,7 +172,9 @@ export function QuickGenerate({ mode, characters, freeImagesLeft }: { mode: "dir
       {mode === "direct_swap" ? (
         <section className="flex flex-col gap-3">
           <p className="text-sm text-neutral-400">
-            Swaps her straight into the photo: the photo goes first, then her face and body references, with a fixed swap prompt. No prompt-writing step. For a prompt tailored to the photo, use Write prompts.
+            {generation
+              ? "Swaps her straight into the photo: the photo goes first, then her face and body references, with a fixed swap prompt. No prompt-writing step. For a prompt tailored to the photo, use Write prompts."
+              : "A ready-made swap prompt that puts her into any photo, keeping its pose, outfit and background. Instant and free: it doesn't use any of your daily prompts. For a prompt tailored to the photo, use Write prompts."}
           </p>
           <label className="flex flex-col gap-1.5 text-sm">
             <span>Which person <span className="text-xs text-neutral-500">optional</span></span>
@@ -238,14 +246,41 @@ export function QuickGenerate({ mode, characters, freeImagesLeft }: { mode: "dir
         </>
       )}
 
-      {mode === "direct_swap" ? (
+      {mode === "direct_swap" && !generation ? (
+        <section className="flex flex-col gap-3">
+          <div>
+            <Button
+              type="button"
+              size="lg"
+              disabled={!characterId || !refCount || swap.busy}
+              onClick={async () => {
+                setSwap({ busy: true });
+                const r = await writeSwapStandalone({ characterId, who: who.trim() || undefined, extra: extra.trim() || undefined });
+                if (!r.ok && r.redirectTo) return router.push(r.redirectTo);
+                setSwap(r.ok ? { prompt: r.prompt } : { error: r.error });
+              }}
+            >
+              {swap.busy ? "Writing..." : swap.prompt ? "Write it again" : "Write swap prompt"}
+            </Button>
+          </div>
+          {swap.error && <p role="alert" className="text-sm text-red-400">{swap.error}</p>}
+          {swap.prompt && (
+            <article className="panel flex animate-fade-up flex-col gap-3 p-5">
+              <AttachStrip items={swap.prompt.attachItems} photo={photo?.preview ?? ""} />
+              <CopyOpen text={swap.prompt.copy} />
+              <div className="max-h-96 overflow-auto text-sm">
+                <TaggedPrompt text={swap.prompt.copy} />
+              </div>
+            </article>
+          )}
+        </section>
+      ) : mode === "direct_swap" ? (
         <GenerateImage
           prompt="Direct swap"
           characterId={characterId || null}
           extraPaths={[]}
           kind="direct_swap"
           meta={photo?.path && refCount ? { target: photo.path, who: who.trim() || undefined, extra: extra.trim() || undefined } : undefined}
-          freeImagesLeft={freeImagesLeft}
           renderActions={(r) => (characterId ? <AddToReferences generationId={r.generationId} characterId={characterId} /> : null)}
         />
       ) : (
@@ -255,7 +290,6 @@ export function QuickGenerate({ mode, characters, freeImagesLeft }: { mode: "dir
           extraPaths={extraPaths}
           kind="edit"
           meta={{ ...(photo?.path ? { target: photo.path } : {}), refs: characterId ? [...picked] : [] }}
-          freeImagesLeft={freeImagesLeft}
         />
       )}
     </div>

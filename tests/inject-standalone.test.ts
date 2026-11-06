@@ -6,7 +6,7 @@ vi.mock("@/env", () => ({ env: {} }));
 vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: vi.fn() }));
 vi.mock("@/lib/sheet-pack", async (orig) => ({ ...(await orig<typeof import("@/lib/sheet-pack")>()), ensureSheetPack: h.ensureSheetPack }));
 
-import { injectStandalone, runInjectStandalone } from "@/lib/inject-standalone";
+import { injectStandalone, runInjectStandalone, swapStandalone } from "@/lib/inject-standalone";
 import { standaloneRefs } from "@/lib/standalone";
 
 const U = "u1";
@@ -37,10 +37,22 @@ describe("Inject Write only", () => {
     expect(injectStandalone(refs, anchors, "x", meta, { cleanedPath: `${U}/clean.jpg` }).attachItems[2]).toMatchObject({ label: "your target photo (cleaned copy)", path: `${U}/clean.jpg` });
     const p = injectStandalone(refs, anchors, "Photo of her on a red sofa, black pinstripe shirt.", meta, null);
     expect(p.attach).toEqual(["@image1: Holly's face sheet", "@image2: Holly's body sheet"]);
-    expect(p.copy.startsWith("Use @image1 and @image2 as the strict identity reference.")).toBe(true);
+    // Framed for Seedream 5: her sheet's words lead as the IDENTITY block, then the identity reference.
+    expect(p.copy.startsWith("IDENTITY (follow exactly;")).toBe(true);
+    expect(p.copy).toContain("hair: jet black waves");
+    expect(p.copy).toContain("Use @image1 and @image2 as the strict identity reference.");
     expect(p.copy).toContain("Photo of her on a red sofa, black pinstripe shirt.");
     expect(p.copy).toContain("beauty filter");
     expect(p.copy).toContain("Final identity check");
+  });
+
+  it("Direct swap as a prompt: her sheets first, the target photo last", () => {
+    const p = swapStandalone(refs, anchors, { who: "on the left" });
+    expect(p.attach).toEqual(["@image1: Holly's face sheet", "@image2: Holly's body sheet", "@image3: your target photo"]);
+    expect(p.copy.startsWith("Replace the person on the left in @image3 with the woman from @image1 and @image2.")).toBe(true);
+    expect(p.copy).toContain("Keep everything else in @image3 exactly");
+    expect(p.copy).not.toMatch(/@image[4-9]/);
+    expect(() => swapStandalone([], null, {})).toThrow(/needs a reference/);
   });
 
   it("with only reference photos, her first photo is the reference; with nothing, it says so", () => {

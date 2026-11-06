@@ -1,5 +1,6 @@
 "use client";
 
+import { usageChanged } from "@/lib/panel-events";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -9,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { GenerateImage } from "@/components/generate-image";
 import { AttachStrip, TaggedPrompt } from "@/components/attach-strip";
+import { CopyOpen } from "@/components/copy-open";
+import { useGeneration } from "@/components/app-context";
 import { InfoTip } from "@/components/info-tip";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
@@ -84,7 +87,10 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
   const [targets, setTargets] = useState<Target[]>([]);
   const [o, setO] = useState<Options>({ ...INJECT_DEFAULTS });
   const [editTarget, setEditTarget] = useState(true);
-  const [writeOnly, setWriteOnly] = useState(false);
+  const generation = useGeneration();
+  const [writeOnlyChoice, setWriteOnly] = useState(false);
+  // Without image generation turned on, every prompt is written to paste into a generator.
+  const writeOnly = !generation || writeOnlyChoice;
   // Write only: each target's finished prompts, for the versions and settings they were made from.
   const [standalone, setStandalone] = useState<Record<string, { key: string; prompts?: StandalonePrompt[]; error?: string }>>({});
   const [running, setRunning] = useState(false);
@@ -194,6 +200,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
         update(t.id, { status: o.count > 1 ? `Writing ${o.count} versions in one call…` : "Reading the target image…" });
       }
       const res = await writeInjectPrompts({ characterId, targetPath: path, options: { ...o } });
+      usageChanged();
       if (!res.ok) {
         if (res.redirectTo) {
           setRunning(false);
@@ -507,8 +514,9 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
 
       <div className="panel flex flex-wrap items-end justify-between gap-4 p-4">
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 text-sm font-medium">How you'll use the prompts</legend>
+          <legend className="mb-1.5 text-sm font-medium">{generation ? "How you'll use the prompts" : "Prompt options"}</legend>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+{generation && (
             <div role="radiogroup" aria-label="What to do with the prompts" className={segTrack}>
               {([false, true] as const).map((w) => (
                 <button
@@ -530,6 +538,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
                 </button>
               ))}
             </div>
+            )}
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={editTarget} onChange={(e) => { setEditTarget(e.target.checked); writeEditTarget(e.target.checked); }} />
               Edit the target photo
@@ -598,18 +607,19 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
                     </div>
                     {v && (
                       <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          disabled={writeOnly && !ready}
-                          onClick={() => {
-                            void navigator.clipboard.writeText(writeOnly && ready ? ready.copy : v.text);
-                            show("Copied.");
-                          }}
-                        >
-                          Copy
-                        </Button>
+                        {!writeOnly && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(v.text);
+                              show("Copied.");
+                            }}
+                          >
+                            Copy
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           size="sm"
@@ -633,6 +643,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
                       {ready ? (
                         <>
                           <AttachStrip items={ready.attachItems} photo={t.preview} />
+                          <CopyOpen text={ready.copy} />
                           <div className="max-h-96 overflow-auto text-sm">
                             <TaggedPrompt text={ready.copy} />
                           </div>
