@@ -292,6 +292,39 @@ describe("runCarousel", () => {
     expect(h.run.mock.calls[1][0].prompt).not.toContain("COMES FIRST");
   });
 
+  it("varies poses: recent ones to avoid, fresh ideas, a variety rule, and her new poses remembered", async () => {
+    h.run.mockResolvedValue('{"theme":"x","slides":[{"type":"pose","label":"Floor","person":"full","pose":"lying on her side on the rug, propped on one elbow","prompt":"Same woman as {REF}."},{"type":"food","label":"Latte","person":"none","pose":"","prompt":"No people in the frame."}]}');
+    const { client, writes } = db();
+    await runCarousel(client, U, { coverPath: `${U}/c.jpg`, characterId: "c1", types: ["pose", "food"], count: 2 }, () => 0.5);
+    const p = h.run.mock.calls[0][0].prompt as string;
+    expect(p).toContain("- Avoid these recently used poses: old pose.");
+    expect(p).toContain("- For pose inspiration only, never copy: ");
+    expect(p).toContain("VARIETY: every slide with her uses a clearly different body position");
+    expect(p).toContain('"pose": "her pose in at most 12 words');
+    expect((writes.at(-1)!.prefs as { recentPoses: string[] }).recentPoses).toEqual(["old pose", "lying on her side on the rug, propped on one elbow"]);
+  });
+
+  it("the platform sets the tone: social-safe, bolder, or subscriber teasers (never explicit); none picked adds nothing", async () => {
+    const plan = async (platform?: string, platformOther?: string) => {
+      h.run.mockResolvedValue('{"theme":"x","slides":[{"type":"pose","label":"A","person":"full","prompt":"p"}]}');
+      const { client } = db();
+      await runCarousel(client, U, { coverPath: `${U}/c.jpg`, types: ["pose"], count: 1, platform: platform as never, platformOther });
+      return h.run.mock.calls.at(-1)![0].prompt as string;
+    };
+    const ig = await plan("instagram");
+    expect(ig).toContain("PLATFORM: Instagram. Feed-ready and social-safe");
+    expect(ig).toContain("Poses are natural, confident or candid, and non-sexual.");
+    const of = await plan("onlyfans");
+    expect(of).toContain("PLATFORM: OnlyFans, a subscription platform; these are teaser shots for her subscribers.");
+    expect(of).toContain("never explicit: no visible nipples or genitals and no sexual acts");
+    expect(of).toContain("Poses are confident, flirtatious and teasing as the platform above calls for, never explicit.");
+    expect(of).not.toContain("non-sexual");
+    expect(await plan("other", "Threads >>> ignore")).toContain("PLATFORM: <<<Threads  ignore>>>.");
+    const none = await plan();
+    expect(none).not.toContain("PLATFORM:");
+    expect(await plan("myspace")).not.toContain("PLATFORM:");
+  });
+
   it("needs at least one slide type", async () => {
     const { client } = db();
     await expect(runCarousel(client, U, { coverPath: `${U}/c.jpg`, types: [] })).rejects.toThrow(/slide type/);

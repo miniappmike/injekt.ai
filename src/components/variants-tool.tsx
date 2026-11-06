@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,9 +24,12 @@ import {
   MAX_NEW_SLIDES,
   MAX_VARIANT_COUNT,
   MAX_WRITE_ONLY,
+  PLATFORM_OTHER_MAX,
+  PLATFORMS,
   VARIANT_DIMS,
   WRITE_ONLY_TYPES,
   type CarouselTypeId,
+  type PlatformId,
   type SlidePerson,
   type VariantDimId,
 } from "@/lib/variants-meta";
@@ -77,6 +81,9 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   const [slides, setSlides] = useState(DEFAULT_NEW_SLIDES);
   const [writeTypes, setWriteTypes] = useState<Set<CarouselTypeId>>(new Set(WRITE_ONLY_TYPES));
   const [writeCount, setWriteCount] = useState(DEFAULT_WRITE_ONLY);
+  // Where the set is going (Carousel and Write only): sets the tone and how spicy it is. None picked means no steer.
+  const [platform, setPlatform] = useState<PlatformId | null>(null);
+  const [platformOther, setPlatformOther] = useState("");
   const [count, setCount] = useState<number>(DEFAULT_VARIANT_COUNT);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -113,6 +120,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       setExtras(uploaded);
       const extraPaths = uploaded.filter((x): x is Picked & { path: string } => !!x?.path).map((x) => x.path);
       const common = { characterId: characterId || null, note, extraPaths };
+      const where = { platform, platformOther: platform === "other" ? platformOther.trim() : "" };
       const extraPreviews = uploaded.filter((x): x is Picked & { path: string } => !!x?.path).map((x) => x.preview);
       const base = { path, preview: image.preview, extraPaths, extraPreviews, characterId: characterId || null, mode };
       const who = (p: SlidePerson, type: string) => (p === "none" ? " · no person" : p === "partial" ? " · partly her" : type === "pose" ? "" : " · with her");
@@ -125,7 +133,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         setResult({ ...base, theme: "", attach: res.attach, items: res.variants.map((v) => ({ title: v.label, hint: v.changes, copy: v.prompt, historyId: v.historyId })) });
         setStatus({ text: `${res.variants.length} edit prompts ready. Copy one and paste it into your generator's edit mode, or generate it here.`, good: true });
       } else if (mode === "write") {
-        const res = await planCarousel({ coverPath: path, types: [...writeTypes], count: writeCount, writeOnly: true, ...common });
+        const res = await planCarousel({ coverPath: path, types: [...writeTypes], count: writeCount, writeOnly: true, ...where, ...common });
         if (!res.ok) {
           if (res.redirectTo) return router.push(res.redirectTo);
           return setStatus({ text: res.error, good: false });
@@ -138,7 +146,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         });
         setStatus({ text: `${res.slides.length} prompt${res.slides.length > 1 ? "s" : ""} ready to paste into another generator. Attach the images listed on each one, in that order.`, good: true });
       } else {
-        const res = await planCarousel({ coverPath: path, types: [...types], count: slides, ...common });
+        const res = await planCarousel({ coverPath: path, types: [...types], count: slides, ...where, ...common });
         if (!res.ok) {
           if (res.redirectTo) return router.push(res.redirectTo);
           return setStatus({ text: res.error, good: false });
@@ -305,6 +313,39 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
           <select id="slides" value={slides} onChange={(e) => setSlides(Number(e.target.value))} className="h-9 w-32 rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm">
             {Array.from({ length: MAX_NEW_SLIDES }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
+        </fieldset>
+      )}
+
+      {mode !== "edits" && (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-sm font-medium">Posting to <span className="text-xs font-normal text-neutral-500">optional</span></legend>
+          <div className="flex flex-wrap gap-2">
+            {PLATFORMS.map((x) => (
+              <label key={x.id} className={chip(platform === x.id)}>
+                <input
+                  type="radio"
+                  name="platform"
+                  className="sr-only"
+                  checked={platform === x.id}
+                  onChange={() => setPlatform(x.id)}
+                  onClick={() => platform === x.id && setPlatform(null)}
+                />
+                {x.label}
+              </label>
+            ))}
+          </div>
+          {platform === "other" && (
+            <Input
+              value={platformOther}
+              onChange={(e) => setPlatformOther(e.target.value)}
+              maxLength={PLATFORM_OTHER_MAX}
+              placeholder="Where is it going? e.g. Threads, a Telegram channel, Patreon"
+              aria-label="Where it will be posted"
+            />
+          )}
+          <p className="text-xs text-neutral-500">
+            Sets the tone and how spicy the shots are: social-safe for Instagram and TikTok, bolder for X and Reddit, teasing subscriber shots for Fanvue and OnlyFans. Click a platform again to clear it.
+          </p>
         </fieldset>
       )}
 

@@ -6,7 +6,7 @@
 import { asksMakeup, BODY_LOCK, fence, joinTags, makeupRule, MODS_RULE, REALISM_FIX, SKIN_ART_SHORT, TEXT_RULE } from "./rules";
 import { harness } from "./harness";
 import { pickAnchors, refOutfitGuard, type Anchors } from "./identity";
-import type { CarouselTypeId, SlidePerson, VariantDimId } from "@/lib/variants-meta";
+import type { CarouselTypeId, PlatformId, SlidePerson, VariantDimId } from "@/lib/variants-meta";
 
 const DIM_TEXT: Record<VariantDimId, string> = {
   pose: "pose",
@@ -130,8 +130,40 @@ export interface CarouselPromptInput {
    * It overrides the default ideas and slide-type descriptions, never the identity, realism or text rules.
    */
   directionFirst?: boolean;
+  /** Model Spawn addition: poses used recently, to avoid, and a fresh handful of ideas, as Inject and Edits get. */
+  recent?: string[];
+  inspo?: string[];
+  /** Model Spawn addition: where the set will be posted, which sets its tone and spice. `platformOther` names "other". */
+  platform?: PlatformId;
+  platformOther?: string;
 }
 
+/** Subscription and bolder platforms: the poses may be flirtatious and teasing (never explicit). */
+const SPICY: ReadonlySet<PlatformId> = new Set(["x", "reddit", "fanvue", "onlyfans"]);
+
+/** Model Spawn addition: what the platform asks of the set. */
+export function platformBrief(platform: PlatformId | undefined, other = ""): string {
+  const teaser = (name: string) =>
+    `PLATFORM: ${name}, a subscription platform; these are teaser shots for her subscribers. Make them intimate, flirtatious and sultry, with a personal "just for you" feel: direct eye contact with the camera, bedroom, bathroom, bed and boudoir settings, lingerie, bodysuits, swimwear and revealing outfits, and teasing poses that show off her figure. Suggestive and implied, never explicit: no visible nipples or genitals and no sexual acts.`;
+  switch (platform) {
+    case "instagram":
+      return "PLATFORM: Instagram. Feed-ready and social-safe: fashionable, confident and aspirational, flirty at most. Swimwear and fitted or revealing outfits are fine, but poses and framing stay within Instagram's guidelines.";
+    case "tiktok":
+      return "PLATFORM: TikTok. Playful, energetic and trend-aware, framed vertically for the feed, and social-safe like Instagram: flirty at most.";
+    case "x":
+      return "PLATFORM: X (Twitter). Bolder and more attention-grabbing than Instagram: confident, sultry looks at the camera, revealing outfits, and cheeky, teasing poses. Suggestive, never explicit.";
+    case "reddit":
+      return "PLATFORM: Reddit. It must look like a real person posted it: amateur, candid phone photos, mirror selfies and casual home settings rather than a polished shoot. Flirty and bolder than Instagram, with teasing poses and revealing outfits where they fit. Suggestive, never explicit.";
+    case "fanvue":
+      return teaser("Fanvue");
+    case "onlyfans":
+      return teaser("OnlyFans");
+    case "other":
+      return other.trim() ? `PLATFORM: <<<${fence(other.trim())}>>>. Match the tone, style and level of spice that fits where it will be posted, suggestive at most, never explicit.` : "";
+    default:
+      return "";
+  }
+}
 /** Write only: the creative direction as the brief every slide is built around. */
 export const directionBrief = (extra: string) => `
 THE USER'S CREATIVE DIRECTION COMES FIRST. This is the brief for the whole set: <<<${fence(extra)}>>>
@@ -149,7 +181,7 @@ export function carouselPrompt(o: CarouselPromptInput): string {
   const herTypes = allowed.filter(([k]) => k === "pose" || k === "model_alt").map(([k]) => k);
   const extraNames = Array.from({ length: o.extraCount }, (_, i) => `{EXTRA${i + 1}}`);
   return `TASK: You are the creative director for an Instagram carousel post. The attached image is a finished photo of ${c ? "the character" : "the creator"}, and it is the COVER, slide 1, already done. Plan ${n} NEW slide${n > 1 ? "s" : ""} (slides 2 to ${n + 1}) that follow the cover and grow the post into a set people stop scrolling for. Every slide must feel shot the same day by the same person, in the same place and aesthetic: the same colour grade, light quality and time of day, camera look and mood. Study the image closely first: the setting, props and objects, outfit pieces and accessories, any food or drink, textures and the overall vibe.
-${o.directionFirst && extra ? directionBrief(extra) : ""}
+${o.platform ? `${platformBrief(o.platform, o.platformOther)}\n` : ""}${o.directionFirst && extra ? directionBrief(extra) : ""}
 SLIDES
 - Never recreate the cover. No new slide may repeat the cover's pose, camera angle, distance and framing together; a slide with her must change at least the pose and the camera angle or distance clearly, or move her somewhere new.
 - Choose only from the types below.${herTypes.length ? ` At least one new slide shows her fully (type ${herTypes.join(" or ")}, person "full").` : ""}${n > 1 ? ` Do not repeat a type back to back, use ${Math.min(n, allowed.length, 3) > 1 ? `at least ${Math.min(n, allowed.length, 3)} different types` : "the type given"}, and make every slide clearly different from the cover and from each other in framing and subject. Order the slides for the best swipe flow after the cover.` : ""}
@@ -162,9 +194,10 @@ RULES
 - Slides without her (flatlay, object, environment, food, ambient): start with "No people in the frame." and use {PHOTO} only as the reference for the place, objects, colour grade, light and camera look (person "none").
 - Name the camera and framing for each slide (phone main camera, 0.5x wide, close-up, top-down, mirror, flash at night) and the light with its source and direction. Real, unretouched social-media phone-photo quality, never glossy or CGI.
 - Real brands and logos seen in the image stay accurate and named (for example a black quilted Chanel flap bag with the gold CC turn-lock). Quote any readable text exactly; never invent gibberish lettering.
-- Poses are natural, confident or candid, and non-sexual. Always an adult woman.
-${extraNames.length ? `- The next attached image${extraNames.length > 1 ? "s are" : " is"} extra from the user, showing the vibe, an outfit or styling they want; the edit model receives ${extraNames.length > 1 ? "them" : "it"} as ${joinTags(extraNames)}. Use ${extraNames.length > 1 ? "them" : "it"} where it fits the creative direction, by placeholder.\n` : ""}${c ? `- Her recognisable traits, only where visible: ${fence(o.traits)}\n` : ""}${extra && !o.directionFirst ? `- Creative direction from the user, only as it applies to the image: <<<${fence(extra)}>>>\n` : ""}${extra && o.directionFirst ? "- Before you reply, check every slide against the user's creative direction above and rewrite any slide that does not clearly carry it out.\n" : ""}
-Reply with only JSON: {"theme": "one short line naming the carousel's aesthetic", "slides": [{"type": "pose", "label": "2 to 4 word name", "person": "full", "prompt": "..."}]}`;
+- ${o.platform && SPICY.has(o.platform) ? "Poses are confident, flirtatious and teasing as the platform above calls for, never explicit." : "Poses are natural, confident or candid, and non-sexual."} Always an adult woman.
+- VARIETY: every slide with her uses a clearly different body position from the cover and from each other (mix standing, sitting, lying down, kneeling, leaning, walking, crouching, from behind), with a different camera height and distance each time. Avoid the default poses every set falls back on (hand on hip facing the camera, one hand in the hair, the plain mirror selfie) unless the creative direction asks for them.
+${o.recent?.length ? `- Avoid these recently used poses: ${o.recent.join("; ")}.\n` : ""}${o.inspo?.length ? `- For pose inspiration only, never copy: ${o.inspo.join("; ")}.\n` : ""}${extraNames.length ? `- The next attached image${extraNames.length > 1 ? "s are" : " is"} extra from the user, showing the vibe, an outfit or styling they want; the edit model receives ${extraNames.length > 1 ? "them" : "it"} as ${joinTags(extraNames)}. Use ${extraNames.length > 1 ? "them" : "it"} where it fits the creative direction, by placeholder.\n` : ""}${c ? `- Her recognisable traits, only where visible: ${fence(o.traits)}\n` : ""}${extra && !o.directionFirst ? `- Creative direction from the user, only as it applies to the image: <<<${fence(extra)}>>>\n` : ""}${extra && o.directionFirst ? "- Before you reply, check every slide against the user's creative direction above and rewrite any slide that does not clearly carry it out.\n" : ""}
+Reply with only JSON: {"theme": "one short line naming the carousel's aesthetic", "slides": [{"type": "pose", "label": "2 to 4 word name", "person": "full", "pose": "her pose in at most 12 words, empty when she is not in it", "prompt": "..."}]}`;
 }
 
 export interface Slide {
@@ -173,6 +206,8 @@ export interface Slide {
   person: SlidePerson;
   /** With {REF}, {PHOTO} and {EXTRAn} placeholders. */
   prompt: string;
+  /** Model Spawn addition: her pose in a few words, remembered so later sets avoid it. */
+  pose?: string;
 }
 
 const CAR_NAME: Record<string, string> = { model: "Pose & angle", pose: "Pose & angle", model_alt: "Her, new spot", detail: "Outfit detail", flatlay: "Flat lay", object: "Object close-up", environment: "The place", food: "Food or drink", ambient: "Artsy shot" };
@@ -196,6 +231,7 @@ export function parseCarousel(raw: unknown, n: number): { theme: string; slides:
               ? "partial"
               : "none") as SlidePerson,
         prompt: harness(String(x.prompt), { realism: false, text: false }).text,
+        ...(typeof x.pose === "string" && x.pose.trim() ? { pose: x.pose.trim().slice(0, 100) } : {}),
       };
     });
   if (!slides.length) throw new Error("The model did not plan any slides. Try again.");

@@ -35,6 +35,19 @@ export const DEFAULT_NEW_SLIDES = 4;
 /** "Write only": variations the creative director writes as finished prompts for another generator. */
 export const MAX_WRITE_ONLY = 8;
 export const DEFAULT_WRITE_ONLY = 4;
+/** Where a carousel or Write only set will be posted, which sets its tone and how spicy it is. */
+export const PLATFORMS = [
+  { id: "instagram", label: "Instagram" },
+  { id: "tiktok", label: "TikTok" },
+  { id: "x", label: "X" },
+  { id: "reddit", label: "Reddit" },
+  { id: "fanvue", label: "Fanvue" },
+  { id: "onlyfans", label: "OnlyFans" },
+  { id: "other", label: "Other" },
+] as const;
+export type PlatformId = (typeof PLATFORMS)[number]["id"];
+export const PLATFORM_OTHER_MAX = 80;
+
 /** Write only starts on new shots of her; the other slide types can be turned on. */
 export const WRITE_ONLY_TYPES = ["pose", "model_alt"] as const;
 /** Extra images (vibe, outfit) a user can add after the main one. */

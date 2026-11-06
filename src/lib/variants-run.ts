@@ -9,7 +9,7 @@ import { saveHistory } from "@/lib/history";
 import { recentPoses, rememberPoses, RECENT_SEND } from "@/lib/recent-poses";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { askJson } from "@/lib/ai/json";
-import { HAIRSTYLES, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
+import { HAIRSTYLES, POSE_HINTS, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
 import { carouselPrompt, carouselSlidePrompt, dimText, finishVariant, parseCarousel, slideCopyText, variantPrompt, variantTags, type Slide } from "@/lib/ai/prompts/variants";
 import {
   CAROUSEL_TYPES,
@@ -21,7 +21,10 @@ import {
   MAX_VARIANT_COUNT,
   MAX_WRITE_ONLY,
   VARIANT_DIMS,
+  PLATFORMS,
+  PLATFORM_OTHER_MAX,
   type CarouselTypeId,
+  type PlatformId,
   type VariantDimId,
 } from "@/lib/variants-meta";
 import type { CharacterProfile } from "@/lib/characters";
@@ -180,7 +183,18 @@ export function standaloneSlide(
 export async function runCarousel(
   supabase: SupabaseClient,
   userId: string,
-  input: { coverPath: string; characterId?: string | null; types: CarouselTypeId[]; count?: number; note?: string; extraPaths?: string[]; writeOnly?: boolean },
+  input: {
+    coverPath: string;
+    characterId?: string | null;
+    types: CarouselTypeId[];
+    count?: number;
+    note?: string;
+    extraPaths?: string[];
+    writeOnly?: boolean;
+    platform?: PlatformId | null;
+    platformOther?: string;
+  },
+  random: () => number = Math.random,
 ): Promise<CarouselResult> {
   if (!isOwnPath(userId, input.coverPath)) throw new UserFacingError("Add the image to build the carousel around.");
   const valid = new Set<string>(CAROUSEL_TYPES.map((t) => t.id));
@@ -191,8 +205,15 @@ export async function runCarousel(
   const c = await character(supabase, input.characterId);
 
   const { client, imageMaxEdge } = await getUserTextClient(supabase, userId, "vision", "carousel");
+  const platform = PLATFORMS.some((x) => x.id === input.platform) ? (input.platform as PlatformId) : undefined;
+  // Poses used lately and a fresh handful of ideas, so sets don't keep landing on the same poses.
+  const recent = (await recentPoses(supabase, userId)).poses.slice(-RECENT_SEND);
   const prompt = carouselPrompt({
     n,
+    recent,
+    inspo: shuffleArr([...POSE_HINTS, ...SOCIAL_POSES], random).slice(0, 6),
+    platform,
+    platformOther: platform === "other" ? String(input.platformOther ?? "").slice(0, PLATFORM_OTHER_MAX) : "",
     types,
     hasCharacter: !!c,
     traits: traitsOf(c),
@@ -212,6 +233,7 @@ export async function runCarousel(
     input.writeOnly ? { ...s, ...standaloneSlide(s, c, anchors, extraPaths.length) } : { ...s, copy: slideCopyText(s, !!c) },
   );
   if (input.writeOnly) await linkRefs(supabase, slides);
+  await rememberPoses(supabase, userId, slides.filter((s) => s.person !== "none").map((s) => s.pose || s.label));
 
   const slideIds = await saveHistory(
     supabase,

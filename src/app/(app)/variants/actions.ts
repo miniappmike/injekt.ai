@@ -5,7 +5,7 @@ import { enforceRateLimit } from "@/lib/ratelimit";
 import { entitlements } from "@/lib/entitlements";
 import { toFailure, type AiFailure } from "@/lib/ai/failure";
 import { runCarousel, runVariants, type CarouselResult, type VariantResult } from "@/lib/variants-run";
-import type { CarouselTypeId, VariantDimId } from "@/lib/variants-meta";
+import type { CarouselTypeId, PlatformId, VariantDimId } from "@/lib/variants-meta";
 
 type Ok<T> = ({ ok: true } & T) | AiFailure;
 
@@ -38,6 +38,9 @@ export async function planCarousel(input: {
   extraPaths?: string[];
   /** Write only: finished prompts to paste into another generator, each with what to attach. */
   writeOnly?: boolean;
+  /** Where the set will be posted (sets its tone and spice); `platformOther` names it for "other". */
+  platform?: PlatformId | null;
+  platformOther?: string;
 }): Promise<Ok<CarouselResult>> {
   try {
     const { supabase, user } = await requireUser();
