@@ -19,12 +19,13 @@ import { INJECT_DEFAULTS, MAX_VERSIONS, metaForRun, readEditTarget, writeEditTar
 import { closestAspectRatio } from "@/lib/aspect";
 import { SEND_TO_LIKENESS_KEY } from "@/lib/likeness-link";
 import type { ImageAspectRatio } from "@/lib/ai/providers/types";
+import { segItem, segTrack } from "@/components/ui/segmented";
 
 const MAX_TARGETS = 10;
 const OPTIONS_KEY = "ms.injectOptions";
 /** Write only: prompts to paste into another generator instead of Generate buttons. Remembered per browser. */
 const WRITE_ONLY_KEY = "ms.injectWriteOnly";
-const select = "h-9 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm";
+const select = "h-10 w-full rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm";
 
 export interface InjectCharacter {
   id: string;
@@ -314,7 +315,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
       </section>
 
       <section
-        className="flex flex-col gap-3 rounded-lg border border-dashed border-neutral-700 p-4"
+        className="flex flex-col gap-3 dropzone p-5"
         tabIndex={0}
         aria-label="Target images"
         onPaste={(e) => addFiles(e.clipboardData.files)}
@@ -325,7 +326,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
         }}
       >
         <div className="flex items-center justify-between gap-2">
-          <h2 className="font-medium">1. Target images <span className="text-xs font-normal text-neutral-500">up to {MAX_TARGETS}</span></h2>
+          <h2 className="font-semibold">1. Target images <span className="text-xs font-normal text-neutral-500">up to {MAX_TARGETS}</span></h2>
           <Button type="button" size="sm" variant="secondary" disabled={running} onClick={() => input.current?.click()}>Add images</Button>
         </div>
         <p className="text-xs text-neutral-500">Click, drop, or paste with Ctrl+V. JPEG, PNG or WebP.</p>
@@ -334,7 +335,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
           {targets.map((t) => (
             <div key={t.id} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={t.preview} alt="" className="h-24 w-24 rounded-md object-cover" />
+              <img src={t.preview} alt="" className="thumb h-24 w-24 animate-pop-in object-cover ring-1 ring-white/10" />
               {o.clean && t.clean && t.clean.removed.length > 0 && (
                 <span className="absolute bottom-1 left-1 rounded bg-emerald-950/90 px-1.5 py-0.5 text-[10px] text-emerald-300" title={`Removed: ${t.clean.removed.join(", ")}`}>
                   Cleaned
@@ -353,8 +354,8 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
         </div>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="font-medium">2. Options</h2>
+      <section className="panel flex flex-col gap-4 p-5">
+        <h2 className="font-semibold">2. Options</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="flex items-center gap-1.5">Prompt for <InfoTip label="About Prompt for">With character sheet: the prompt opens with your reference tag, for generators that get her sheet. Text only: her identity is written out in full.</InfoTip></span>
@@ -429,7 +430,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
             {outfits.length > 0 && (
               <div className="flex flex-wrap gap-1.5" aria-label="Saved outfits">
                 {outfits.map((x) => (
-                  <span key={x.id} className={`flex items-center gap-1 rounded-full border pl-2.5 pr-1 text-xs ${o.exText === x.text ? "border-neutral-300 bg-neutral-800" : "border-neutral-700"}`}>
+                  <span key={x.id} className={`flex items-center gap-1 rounded-full border pl-2.5 pr-1 text-xs transition-colors ${o.exText === x.text ? "border-brand-500/70 bg-brand-500/15" : "border-neutral-700 hover:border-neutral-500"}`}>
                     <button type="button" className="py-1" title={x.text} onClick={() => setO((v) => ({ ...v, exText: x.text, ward: "extracted" }))}>{x.name}</button>
                     <button
                       type="button"
@@ -489,7 +490,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 text-sm font-medium">How you'll use the prompts</legend>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <div role="radiogroup" aria-label="What to do with the prompts" className="flex rounded-md border border-neutral-700 p-0.5 text-sm">
+          <div role="radiogroup" aria-label="What to do with the prompts" className={segTrack}>
             {([false, true] as const).map((w) => (
               <button
                 key={String(w)}
@@ -504,7 +505,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
                     // Not remembered in a private window.
                   }
                 }}
-                className={`rounded px-2.5 py-1 ${writeOnly === w ? "bg-neutral-800 font-medium text-neutral-100" : "text-neutral-400 hover:text-neutral-100"}`}
+                className={segItem(writeOnly === w)}
               >
                 {w ? "Write only" : "Generate here"}
               </button>
@@ -564,10 +565,10 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
               const sa = writeOnly && v ? standalone[t.id] : undefined;
               const ready = sa?.key === standaloneKey(t) ? sa.prompts?.[k] : undefined;
               return (
-                <article key={`${t.id}-${k}`} className="flex flex-col gap-3 rounded-lg border border-neutral-800 p-4">
+                <article key={`${t.id}-${k}`} className="panel flex animate-fade-up flex-col gap-3 p-5">
                   <div className="flex items-start gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={t.preview} alt={`Target ${ti + 1}`} className="h-14 w-14 shrink-0 rounded object-cover" />
+                    <img src={t.preview} alt={`Target ${ti + 1}`} className="h-14 w-14 shrink-0 rounded-lg object-cover ring-1 ring-white/10" />
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <b className="text-sm">{label}</b>
                       <span role="status" className={`text-xs ${t.state === "error" ? "text-red-400" : "text-neutral-400"}`}>

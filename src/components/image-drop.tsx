@@ -24,7 +24,7 @@ export function ImageDrop({
   };
   return (
     <section
-      className="flex flex-col gap-3 rounded-lg border border-dashed border-neutral-700 p-4"
+      className="flex flex-col gap-3 dropzone p-5"
       tabIndex={0}
       onPaste={(e) => take(e.clipboardData.files)}
       onDragOver={(e) => e.preventDefault()}
@@ -34,7 +34,7 @@ export function ImageDrop({
       }}
     >
       <div className="flex items-center justify-between">
-        <h2 className="font-medium">{title}</h2>
+        <h2 className="font-semibold">{title}</h2>
         <Button type="button" size="sm" variant="secondary" disabled={disabled} onClick={() => input.current?.click()}>
           {preview ? "Replace" : "Add image"}
         </Button>
@@ -52,7 +52,7 @@ export function ImageDrop({
       />
       {preview && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={preview} alt="" className="h-40 w-40 rounded-md object-cover" />
+        <img src={preview} alt="" className="thumb h-40 w-40 animate-pop-in object-cover ring-1 ring-white/10" />
       )}
     </section>
   );

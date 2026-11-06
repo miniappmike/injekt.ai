@@ -3,7 +3,13 @@ import { cn } from "@/lib/utils";
 
 export function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <div className={cn("rounded-lg border border-neutral-800 bg-neutral-900 text-neutral-100", className)} {...props} />
+    <div
+      className={cn(
+        "rounded-xl border border-neutral-800 bg-neutral-900/80 text-neutral-100 shadow-[0_1px_0_0_rgb(255_255_255/0.03)_inset,0_10px_30px_-18px_rgb(0_0_0/0.8)] transition-colors duration-200",
+        className,
+      )}
+      {...props}
+    />
   );
 }
 

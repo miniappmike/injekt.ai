@@ -21,9 +21,9 @@ export function AuthForm({
   const isLogin = mode === "login";
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-sm animate-pop-in bg-neutral-900/70 backdrop-blur-xl [animation-delay:60ms]">
       <CardHeader>
-        <CardTitle>{isLogin ? "Log in" : "Create account"}</CardTitle>
+        <CardTitle className="text-2xl font-bold">{isLogin ? "Log in" : "Create account"}</CardTitle>
         <CardDescription>
           {isLogin ? "Welcome back to Model Spawn." : "Bring your own API keys, keep your characters."}
         </CardDescription>
@@ -48,12 +48,12 @@ export function AuthForm({
           </div>
           {state.error && <p role="alert" className="text-sm text-red-400">{state.error}</p>}
           {state.message && <p role="status" className="text-sm text-emerald-400">{state.message}</p>}
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" size="lg" disabled={pending}>
             {pending ? "Please wait..." : isLogin ? "Log in" : "Sign up"}
           </Button>
           <p className="text-center text-sm text-neutral-400">
             {isLogin ? "New here? " : "Already have an account? "}
-            <Link href={isLogin ? "/signup" : "/login"} className="text-neutral-100 underline">
+            <Link href={isLogin ? "/signup" : "/login"} className="font-semibold text-brand-400 transition-colors hover:text-brand-300">
               {isLogin ? "Sign up" : "Log in"}
             </Link>
           </p>

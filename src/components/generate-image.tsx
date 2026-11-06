@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { InfoTip } from "@/components/info-tip";
+import { Spinner } from "@/components/ui/spinner";
 import { checkImageGeneration, quoteImageGeneration, startImageGeneration } from "@/app/(app)/generate/actions";
 import { openHistory, reportGeneration, viewImage } from "@/lib/panel-events";
 import { featureLabel } from "@/lib/ledger-types";
@@ -21,7 +22,7 @@ interface Result {
 
 const POLL_MS = 3000;
 const MAX_POLLS = 150; // about 7 minutes
-const select = "h-8 rounded-md border border-neutral-700 bg-neutral-900 px-2 text-sm";
+const select = "h-8 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-2 text-sm";
 
 /**
  * Turns a prompt into an image. The pictures it uses are the character's references first, then `extraPaths`,
@@ -205,10 +206,12 @@ export function GenerateImage({
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="button" size="sm" onClick={generate} disabled={busy || !ready}>
+          {busy && <Spinner className="h-3.5 w-3.5" />}
           {phase === "starting" ? "Starting..." : phase === "running" ? "Generating..." : label}
         </Button>
         {phase === "running" && <p className="text-xs text-neutral-500">This usually takes under a minute. Once started, it can't be cancelled.</p>}
         {message && <p role="alert" className="text-sm text-red-400">{message}</p>}
+        {busy && <div className="progress-indeterminate w-full basis-full" aria-hidden="true" />}
       </div>
 
       {result && (
@@ -216,15 +219,15 @@ export function GenerateImage({
           <button
             type="button"
             onClick={() => viewImage({ url: result.url, downloadUrl: result.downloadUrl, prompt, title: featureLabel(`image:${kind}`) })}
-            className="self-start rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+            className="self-start rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
             aria-label="View full size"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={result.url} alt="Generated" className="max-h-96 w-auto max-w-full cursor-zoom-in rounded-md" />
+            <img src={result.url} alt="Generated" className="thumb max-h-96 w-auto max-w-full animate-pop-in cursor-zoom-in ring-1 ring-white/10 shadow-[0_20px_50px_-25px_rgb(0_0_0/0.9)]" />
           </button>
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <a href={result.downloadUrl} className="text-neutral-100 underline">Download</a>
-            <button type="button" onClick={() => openHistory("images")} className="text-neutral-400 underline">All images</button>
+            <a href={result.downloadUrl} className="font-semibold text-brand-400 underline-offset-4 transition-colors hover:text-brand-300 hover:underline">Download</a>
+            <button type="button" onClick={() => openHistory("images")} className="text-neutral-400 underline-offset-4 transition-colors hover:text-neutral-100 hover:underline">All images</button>
             <span className="flex items-center gap-1.5 text-xs text-neutral-500">
               Kept for {GENERATION_RETENTION_HOURS} hours
               <InfoTip label="About expiry">Generated images are deleted {GENERATION_RETENTION_HOURS} hours after they are created. Download any you want to keep.</InfoTip>

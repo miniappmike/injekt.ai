@@ -17,7 +17,7 @@ export default async function NewCharacterPage() {
   if (atLimit) {
     return (
       <div className="max-w-2xl">
-        <h1 className="mb-2 text-2xl font-semibold">New character</h1>
+        <h1 className="page-title mb-2">New character</h1>
         <p className="mb-4 text-neutral-400">{limitMessage("characters")}</p>
         <Button asChild variant="outline"><Link href="/characters">Back to characters</Link></Button>
       </div>
@@ -28,7 +28,7 @@ export default async function NewCharacterPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold">New character</h1>
+      <h1 className="page-title mb-6">New character</h1>
       <CharacterForm action={createCharacter} submitLabel="Save character" buildsLeft={buildsLeft} buildsTotal={FREE_LIMITS.profile_builds} />
     </div>
   );

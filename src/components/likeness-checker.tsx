@@ -11,6 +11,7 @@ import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { FixRun, type ImageRef } from "@/components/likeness-panel";
 import { GenerateImage } from "@/components/generate-image";
+import { ScoreBar, ScoreRing } from "@/components/score-ring";
 import { REFERENCES_RUN, type RevisedRun } from "@/lib/revised-run";
 import { checkLikeness } from "@/app/(app)/likeness/actions";
 import type { LikenessReport } from "@/lib/ai/prompts/likeness";
@@ -119,7 +120,7 @@ export function LikenessChecker({
       {toast}
       <section className="flex flex-col gap-2">
         <Label htmlFor="character">Character</Label>
-        <select id="character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className="h-9 rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm">
+        <select id="character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
           {characters.map((c) => (
             <option key={c.id} value={c.id}>{c.name}{c.ready ? "" : " (no images yet)"}</option>
           ))}
@@ -133,7 +134,7 @@ export function LikenessChecker({
 
       <section
         ref={top}
-        className="flex flex-col gap-3 rounded-lg border border-dashed border-neutral-700 p-4"
+        className="flex flex-col gap-3 dropzone p-5"
         tabIndex={0}
         aria-label="Generated image"
         onPaste={(e) => pick(e.clipboardData.files)}
@@ -153,7 +154,7 @@ export function LikenessChecker({
         <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
         {picked && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={picked.preview} alt="Image to check" className="h-40 w-40 rounded-md object-cover" />
+          <img src={picked.preview} alt="Image to check" className="thumb h-40 w-40 animate-pop-in object-cover ring-1 ring-white/10" />
         )}
       </section>
 
@@ -170,22 +171,23 @@ export function LikenessChecker({
       </div>
 
       {latest && (
-        <section className="flex flex-col gap-4">
+        <section className="stagger flex flex-col gap-4">
           <p className="text-sm text-neutral-300" aria-label="Rounds">
             {mine.map((r, i) => (
-              <span key={r.n} className={r === latest ? "font-semibold text-neutral-100" : "text-neutral-400"}>
+              <span key={r.n} className={r === latest ? "font-semibold text-brand-300" : "text-neutral-400"}>
                 {i > 0 && " → "}R{r.n} · {r.report.overall}
               </span>
             ))}
           </p>
 
-          <Card>
-            <CardContent className="flex gap-4 pt-5">
+          <Card className="overflow-hidden bg-[radial-gradient(120%_140%_at_100%_0%,rgb(232_38_94/0.12),transparent_55%),rgb(29_29_34/0.8)]">
+            <CardContent className="flex flex-wrap items-center gap-5 pt-5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={latest.preview} alt="" className="h-24 w-24 shrink-0 rounded-md object-cover" />
-              <div>
-                <p className="text-3xl font-semibold">{latest.report.overall}<span className="text-base font-normal text-neutral-400"> / 100</span></p>
-                <p className="mt-1 text-sm text-neutral-300">{latest.report.verdict}</p>
+              <img src={latest.preview} alt="" className="thumb h-28 w-28 shrink-0 object-cover ring-1 ring-white/10" />
+              <ScoreRing score={latest.report.overall} />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Likeness <span className="normal-case tracking-normal">/ 100</span></p>
+                <p className="mt-1 text-[15px] leading-relaxed text-neutral-200">{latest.report.verdict}</p>
               </div>
             </CardContent>
           </Card>
@@ -194,9 +196,10 @@ export function LikenessChecker({
             <Card key={t.name}>
               <CardContent className="flex flex-col gap-1 pt-5 text-sm">
                 <div className="flex items-baseline justify-between">
-                  <span className="font-medium">{t.name}</span>
-                  <span className={t.score >= 9 ? "text-emerald-300" : t.score >= 7 ? "text-neutral-300" : "text-amber-300"}>{t.score}/10</span>
+                  <span className="font-semibold">{t.name}</span>
+                  <span className={`font-display font-bold ${t.score >= 9 ? "text-emerald-300" : t.score >= 7 ? "text-amber-300" : "text-brand-400"}`}>{t.score}/10</span>
                 </div>
+                <div className="mb-1.5"><ScoreBar score={t.score} /></div>
                 {t.reference && <p><span className="text-neutral-500">Reference:</span> {t.reference}</p>}
                 {t.generated && <p><span className="text-neutral-500">Generated:</span> {t.generated}</p>}
                 {t.fix && (

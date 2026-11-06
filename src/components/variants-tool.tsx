@@ -33,6 +33,7 @@ import {
   type SlidePerson,
   type VariantDimId,
 } from "@/lib/variants-meta";
+import { chipItem, segItem, segTrack } from "@/components/ui/segmented";
 
 /** Write only: the creative director writes variations as finished prompts for another generator, with no Generate. */
 type Mode = "edits" | "carousel" | "write";
@@ -67,7 +68,7 @@ interface Result {
   mode: Mode;
 }
 
-const chip = (on: boolean) => `cursor-pointer rounded-md border px-3 py-1.5 text-sm ${on ? "border-neutral-300 bg-neutral-800" : "border-neutral-700 text-neutral-400"}`;
+const chip = chipItem;
 
 export function VariantsTool({ characters }: { characters: { id: string; name: string; ready: boolean; hasSheet?: boolean }[] }) {
   const router = useRouter();
@@ -177,7 +178,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   return (
     <div className="mt-6 flex flex-col gap-6">
       {toast}
-      <div className="flex gap-1" role="tablist">
+      <div className={segTrack} role="tablist">
         {(["edits", "carousel", "write"] as const).map((m) => (
           <button
             key={m}
@@ -188,7 +189,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
               setResult(null);
               setStatus(undefined);
             }}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium ${mode === m ? "bg-neutral-800 text-neutral-100" : "text-neutral-400 hover:text-neutral-100"}`}
+            className={segItem(mode === m)}
           >
             {MODE_LABEL[m]}
           </button>
@@ -247,7 +248,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
 
       <section className="flex flex-col gap-2">
         <Label htmlFor="character">Character <span className="text-xs font-normal text-neutral-500">optional</span></Label>
-        <select id="character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className="h-9 rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm">
+        <select id="character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
           <option value="">No character, use the image only</option>
           {characters.map((c) => (
             <option key={c.id} value={c.id}>{c.name}{c.ready ? "" : " (no images yet)"}</option>
@@ -275,7 +276,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
           </div>
           <p className="text-xs text-neutral-500">Each edit changes one or two of these, and together the edits cover them. Everything else stays the same.</p>
           <Label htmlFor="variant-count" className="mt-2">How many edits</Label>
-          <select id="variant-count" value={count} onChange={(e) => setCount(Number(e.target.value))} className="h-9 w-32 rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm">
+          <select id="variant-count" value={count} onChange={(e) => setCount(Number(e.target.value))} className="h-10 w-32 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
             {Array.from({ length: MAX_VARIANT_COUNT }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </fieldset>
@@ -294,7 +295,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
             The creative director plans new shots from the same shoot: a new pose and camera angle, or her somewhere nearby, by default. Each prompt is complete, with her look, the realism and the rules written in, so it can be pasted into any generator.
           </p>
           <Label htmlFor="write-count" className="mt-2">How many prompts</Label>
-          <select id="write-count" value={writeCount} onChange={(e) => setWriteCount(Number(e.target.value))} className="h-9 w-32 rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm">
+          <select id="write-count" value={writeCount} onChange={(e) => setWriteCount(Number(e.target.value))} className="h-10 w-32 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
             {Array.from({ length: MAX_WRITE_ONLY }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </fieldset>
@@ -310,7 +311,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
             ))}
           </div>
           <Label htmlFor="slides" className="mt-2">New slides after the cover</Label>
-          <select id="slides" value={slides} onChange={(e) => setSlides(Number(e.target.value))} className="h-9 w-32 rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm">
+          <select id="slides" value={slides} onChange={(e) => setSlides(Number(e.target.value))} className="h-10 w-32 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
             {Array.from({ length: MAX_NEW_SLIDES }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </fieldset>

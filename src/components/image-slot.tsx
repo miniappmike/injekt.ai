@@ -101,7 +101,7 @@ export function ImageSlot({
   const full = max > 1 && current.length >= max;
   return (
     <div
-      className="flex flex-col gap-2 rounded-lg border border-dashed border-neutral-700 p-3"
+      className="flex flex-col gap-2 dropzone p-4"
       onPaste={(e) => add(e.clipboardData.files)}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
@@ -111,7 +111,7 @@ export function ImageSlot({
       tabIndex={0}
     >
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">{label}</span>
+        <span className="text-sm font-semibold">{label}</span>
         {!full && (
           <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => input.current?.click()}>
             {busy ? "Uploading..." : current.length && max === 1 ? "Replace" : "Upload"}
@@ -132,13 +132,13 @@ export function ImageSlot({
           {current.map((img) => (
             <div key={img.path} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img.url} alt={label} className="h-24 w-24 rounded-md object-cover" />
+              <img src={img.url} alt={label} className="thumb h-24 w-24 animate-pop-in object-cover ring-1 ring-white/10" />
               <button
                 type="button"
                 aria-label="Remove image"
                 disabled={busy}
                 onClick={() => remove(img.path)}
-                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-xs text-neutral-900"
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-xs text-neutral-900 shadow transition-colors hover:bg-brand-500 hover:text-white"
               >
                 ×
               </button>

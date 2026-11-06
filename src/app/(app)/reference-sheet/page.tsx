@@ -15,8 +15,8 @@ export default async function ReferenceSheetPage({ searchParams }: { searchParam
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-semibold">Reference Sheet</h1>
-      <p className="mt-1 text-sm text-neutral-400">
+      <h1 className="page-title">Reference Sheet</h1>
+      <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-neutral-400">
         A reference sheet shows your character from many angles in one image. Image models use it as the strict identity reference, which keeps the
         face and body the same from one picture to the next.
       </p>

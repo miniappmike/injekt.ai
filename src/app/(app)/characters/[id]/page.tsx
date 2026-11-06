@@ -68,7 +68,7 @@ export default async function EditCharacterPage({
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Edit {c.name}</h1>
+        <h1 className="page-title">Edit {c.name}</h1>
         <form action={deleteCharacter.bind(null, c.id)}>
           <Button type="submit" variant="destructive" size="sm">Delete</Button>
         </form>

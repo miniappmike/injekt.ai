@@ -114,8 +114,8 @@ export function CharacterForm({
       </div>
 
       {!characterId && (
-        <fieldset className="flex flex-col gap-3 rounded-lg border border-neutral-800 p-4">
-          <legend className="px-2 text-sm font-medium">Images <span className="font-normal text-neutral-500">optional</span></legend>
+        <fieldset className="panel flex flex-col gap-3 p-5">
+          <legend className="rounded-full border border-neutral-700 bg-neutral-900 px-3 py-0.5 text-sm font-semibold">Images <span className="font-normal text-neutral-500">optional</span></legend>
           <p className="text-sm text-neutral-400">
             Add them now or later. Click to upload, drop a file, or paste with Ctrl+V while a box is focused. Photo metadata (location,
             device) is stripped on upload. The profile photo is only for display and is never sent to an AI model.
@@ -131,8 +131,8 @@ export function CharacterForm({
         </fieldset>
       )}
 
-      <fieldset className="flex flex-col gap-4 rounded-lg border border-neutral-800 p-4">
-        <legend className="px-2 text-sm font-medium">Profile</legend>
+      <fieldset className="panel flex flex-col gap-4 p-5">
+        <legend className="rounded-full border border-neutral-700 bg-neutral-900 px-3 py-0.5 text-sm font-semibold">Profile</legend>
         <p className="text-sm text-neutral-400">
           The saved profile is the sole source of the character description.
           {characterId

@@ -221,8 +221,12 @@ export function HistoryPanel() {
           setOpen(true);
         }}
         aria-haspopup="dialog"
-        className="text-sm text-neutral-400 hover:text-neutral-100"
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-neutral-300 transition-colors hover:bg-neutral-800 hover:text-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
       >
+        <svg viewBox="0 0 20 20" aria-hidden="true" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8" strokeLinecap="round">
+          <circle cx="10" cy="10" r="7.2" />
+          <path d="M10 6v4l2.6 1.8" />
+        </svg>
         History
       </button>
 
@@ -231,17 +235,17 @@ export function HistoryPanel() {
       {open &&
         createPortal(
           <div className="fixed inset-0 z-40" onKeyDown={onKeyDown}>
-            <div className="absolute inset-0 bg-black/60" onClick={close} aria-hidden="true" />
+            <div className="absolute inset-0 animate-fade-in bg-black/60 backdrop-blur-[2px]" onClick={close} aria-hidden="true" />
             <div
               ref={panel}
               role="dialog"
               aria-modal="true"
               aria-labelledby="history-title"
-              className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-neutral-800 bg-neutral-950 shadow-xl"
+              className="absolute right-0 top-0 flex h-full w-full max-w-md animate-slide-in-right flex-col border-l border-neutral-800 bg-neutral-950 shadow-[-20px_0_60px_-20px_rgb(0_0_0/0.9)]"
             >
               <div className="flex items-center justify-between gap-2 p-4 pb-3">
                 <div>
-                  <h2 id="history-title" className="font-semibold">History</h2>
+                  <h2 id="history-title" className="text-lg font-bold">History</h2>
                   <p className="text-xs text-neutral-500">{subtitle}</p>
                 </div>
                 <div className="flex gap-1">
@@ -280,8 +284,8 @@ export function HistoryPanel() {
                     aria-controls="history-tabpanel"
                     tabIndex={tab === t.id ? 0 : -1}
                     onClick={() => setTab(t.id)}
-                    className={`-mb-px border-b-2 px-3 py-2 text-sm ${
-                      tab === t.id ? "border-neutral-100 font-medium text-neutral-100" : "border-transparent text-neutral-400 hover:text-neutral-100"
+                    className={`-mb-px border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                      tab === t.id ? "border-brand-500 text-neutral-50" : "border-transparent text-neutral-400 hover:border-neutral-600 hover:text-neutral-100"
                     }`}
                   >
                     {t.label}
@@ -296,7 +300,7 @@ export function HistoryPanel() {
                     value={characterId}
                     onChange={(e) => setCharacterId(e.target.value)}
                     aria-label="Filter by character"
-                    className="h-9 max-w-[9rem] rounded-md border border-neutral-700 bg-neutral-900 px-2 text-sm"
+                    className="h-10 max-w-[9rem] rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-2 text-sm"
                   >
                     <option value="">All characters</option>
                     {characters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -314,7 +318,7 @@ export function HistoryPanel() {
                     {items && !shown.length && (
                       <p className="text-sm text-neutral-400">{items.length ? "Nothing matches." : "Nothing saved yet. Prompts you write will show up here."}</p>
                     )}
-                    <ul className="flex flex-col gap-3">
+                    <ul className="stagger flex flex-col gap-3">
                       {shown.map((i) => {
                         const isOpen = expanded.has(i.id);
                         const genKind = historyGenerationKind(i.kind);
@@ -325,7 +329,7 @@ export function HistoryPanel() {
                         const canGenerate = !!genKind && (!!i.imagePath || framed);
                         const showGenerate = canGenerate && generating.has(i.id);
                         return (
-                          <li key={i.id} className="flex gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+                          <li key={i.id} className="flex gap-3 rounded-xl border border-neutral-800 bg-neutral-900/80 p-3 transition-colors duration-200 hover:border-neutral-700 hover:bg-neutral-900">
                             {i.thumbnail && (
                               <button
                                 type="button"
@@ -334,7 +338,7 @@ export function HistoryPanel() {
                                 className="shrink-0 self-start rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
                               >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={i.thumbnail} alt="" className="h-14 w-14 cursor-zoom-in rounded-md object-cover" />
+                                <img src={i.thumbnail} alt="" className="thumb h-14 w-14 cursor-zoom-in object-cover ring-1 ring-white/10" />
                               </button>
                             )}
                             <div className="min-w-0 flex-1">

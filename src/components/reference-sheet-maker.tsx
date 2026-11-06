@@ -108,7 +108,7 @@ function UseInStep2({ generationId, url, onUse }: { generationId: string; url: s
   return <p className="text-xs text-neutral-500">Added to step 2 as her face sheet.</p>;
 }
 
-const select = "h-9 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm";
+const select = "h-10 w-full rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm";
 
 // Step 1 turns one face photo into a 3x3 face sheet. Step 2 turns that face sheet and one or two body photos into a face
 // and body sheet. Each result can be saved onto a character, where it becomes the first image sent with every generation.
@@ -178,16 +178,16 @@ export function ReferenceSheetMaker({
           id="rs-character"
           value={character.id}
           onChange={(e) => setCharacterId(e.target.value)}
-          className="h-9 rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm"
+          className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm"
         >
           {characters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <p className="text-xs text-neutral-500">Sheets you make are saved to this character.</p>
       </section>
 
-      <section className="flex flex-col gap-4" aria-labelledby="rs-step1">
+      <section className="panel flex flex-col gap-4 p-5" aria-labelledby="rs-step1">
         <div>
-          <h2 id="rs-step1" className="text-lg font-semibold">Step 1 · Face sheet <span className="text-sm font-normal text-neutral-500">(optional)</span></h2>
+          <h2 id="rs-step1" className="border-l-[3px] border-brand-500 pl-3 text-xl font-bold">Step 1 · Face sheet <span className="text-sm font-normal text-neutral-500">(optional)</span></h2>
           <p className="text-sm text-neutral-400">One clear face photo becomes a 3×3 sheet of the same face from nine angles.</p>
         </div>
         <PhotoDrop title="Face photo" hint="A clear, front-facing photo. Click, drop, or paste with Ctrl+V." photo={facePhoto} onPick={pickFacePhoto} />
@@ -211,9 +211,9 @@ export function ReferenceSheetMaker({
         />
       </section>
 
-      <section className="flex flex-col gap-4" aria-labelledby="rs-step2">
+      <section className="panel flex flex-col gap-4 p-5" aria-labelledby="rs-step2">
         <div>
-          <h2 id="rs-step2" className="text-lg font-semibold">Step 2 · Face and body sheet</h2>
+          <h2 id="rs-step2" className="border-l-[3px] border-brand-500 pl-3 text-xl font-bold">Step 2 · Face and body sheet</h2>
           <p className="text-sm text-neutral-400">
             The face sheet plus one or two body photos (front, back or side) become one sheet with the face above the body from the front, side and back.
           </p>

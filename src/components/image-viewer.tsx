@@ -179,7 +179,7 @@ export function ImageViewer() {
       aria-modal="true"
       aria-label={image.title ?? "Image"}
       onKeyDown={onKeyDown}
-      className="fixed inset-0 z-50 flex flex-col bg-black/90 text-neutral-100"
+      className="fixed inset-0 z-50 flex animate-fade-in flex-col bg-black/90 text-neutral-100 backdrop-blur-md"
     >
       <div className="absolute right-3 top-3 z-10 flex flex-wrap justify-end gap-2">
         <Button type="button" size="sm" variant="secondary" onClick={fit}>Fit to screen</Button>
@@ -216,7 +216,7 @@ export function ImageViewer() {
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-2 p-3">
-        <div className="flex items-center gap-1 rounded-full bg-neutral-900 px-2 py-1">
+        <div className="flex items-center gap-1 rounded-full border border-neutral-800 bg-neutral-900/90 px-2 py-1 shadow-lg backdrop-blur">
           <Button type="button" size="sm" variant="ghost" onClick={() => zoomAt(0.8)} aria-label="Zoom out">−</Button>
           <span className="w-12 text-center text-sm tabular-nums" aria-live="polite">{natural ? `${Math.round(scale * 100)}%` : ""}</span>
           <Button type="button" size="sm" variant="ghost" onClick={() => zoomAt(1.25)} aria-label="Zoom in">+</Button>

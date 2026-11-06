@@ -95,9 +95,9 @@ export function LikenessPanel({ characterId, image, original, frame }: { charact
   const canFix = r.score != null && r.score < 90 && r.fixes.length > 0;
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-neutral-800 p-3 text-sm" aria-label="Likeness">
+    <div className="panel flex animate-fade-up flex-col gap-2 p-4 text-sm" aria-label="Likeness">
       <div className="flex flex-wrap items-center gap-2">
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.score == null ? "bg-neutral-800 text-neutral-300" : ok ? "bg-emerald-950 text-emerald-300" : "bg-amber-950 text-amber-300"}`}>
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${r.score == null ? "bg-neutral-800 text-neutral-300" : ok ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/30" : "bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/30"}`}>
           {r.score == null ? "Not scored" : `Match ${r.score}`}
         </span>
         {r.verdict && (
@@ -114,7 +114,7 @@ export function LikenessPanel({ characterId, image, original, frame }: { charact
       {r.hidden.length > 0 && <p className="text-xs text-neutral-500">Not scored (hidden): {r.hidden.join(", ")}</p>}
       {r.fixes.length > 0 && <p className="text-xs text-neutral-400">To fix: {r.fixes.join("; ")}</p>}
       <div className="flex flex-wrap gap-2">
-        <Link href={seeHref} className="inline-flex h-8 items-center rounded-md px-3 text-sm text-neutral-200 hover:bg-neutral-800">See likeness</Link>
+        <Link href={seeHref} className="inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-semibold text-neutral-200 transition-colors hover:bg-neutral-800 hover:text-neutral-50">See likeness</Link>
         {canFace && (
           <Button type="button" size="sm" variant="secondary" aria-expanded={faceOpts.open} onClick={() => setFaceOpts((o) => ({ ...o, open: !o.open }))}>
             Face fix

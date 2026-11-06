@@ -12,6 +12,7 @@ import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { addToReferences, swapPromptFor } from "@/app/(app)/inject/actions";
+import { chipItem } from "@/components/ui/segmented";
 
 export interface QuickCharacter {
   id: string;
@@ -129,7 +130,7 @@ export function QuickGenerate({ mode, characters, freeImagesLeft }: { mode: "dir
   const characterSelect = (
     <section className="flex flex-col gap-2">
       <Label htmlFor="qg-character">Character{mode === "edit" ? <span className="text-xs font-normal text-neutral-500"> optional</span> : null}</Label>
-      <select id="qg-character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className="h-9 rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm">
+      <select id="qg-character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
         {mode === "edit" && <option value="">No character</option>}
         {characters.map((c) => (
           <option key={c.id} value={c.id}>{c.name}{c.refCount ? "" : " (no images yet)"}</option>
@@ -179,7 +180,7 @@ export function QuickGenerate({ mode, characters, freeImagesLeft }: { mode: "dir
               <legend className="mb-1 text-sm font-medium">Her references to send</legend>
               <div className="flex flex-wrap gap-2">
                 {options.map((o) => (
-                  <label key={o.id} className={`cursor-pointer rounded-md border px-3 py-1.5 text-sm ${picked.has(o.id) ? "border-neutral-300 bg-neutral-800" : "border-neutral-700 text-neutral-400"}`}>
+                  <label key={o.id} className={chipItem(picked.has(o.id))}>
                     <input
                       type="checkbox"
                       className="sr-only"
@@ -218,7 +219,7 @@ export function QuickGenerate({ mode, characters, freeImagesLeft }: { mode: "dir
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5" aria-label="Insert an image tag">
                 {tags.map((t) => (
-                  <button key={t.tag} type="button" onClick={() => insertTag(t.tag)} className="rounded-full bg-neutral-800 px-2 py-0.5 text-xs text-neutral-200 hover:bg-neutral-700" title={`Insert ${t.tag}`}>
+                  <button key={t.tag} type="button" onClick={() => insertTag(t.tag)} className="rounded-full border border-neutral-700 bg-neutral-800 px-2.5 py-0.5 text-xs font-medium text-neutral-200 transition-all hover:border-brand-500/60 hover:bg-brand-500/15 hover:text-neutral-50 active:scale-95" title={`Insert ${t.tag}`}>
                     {t.tag} · {t.label}
                   </button>
                 ))}

@@ -5,6 +5,7 @@ import { InjectWriter } from "@/components/inject-writer";
 import { QuickGenerate, type QuickCharacter } from "@/components/quick-generate";
 import { limitMessage } from "@/lib/limits";
 import type { SavedOutfit } from "@/lib/outfits";
+import { segItem, segTrack } from "@/components/ui/segmented";
 
 type Tab = "write" | "direct_swap" | "edit";
 const TABS: { id: Tab; label: string }[] = [
@@ -29,14 +30,14 @@ export function InjectTabs({
 
   return (
     <div className="mt-6">
-      <div className="flex gap-1" role="tablist">
+      <div className={segTrack} role="tablist">
         {TABS.map((t) => (
           <button
             key={t.id}
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium ${tab === t.id ? "bg-neutral-800 text-neutral-100" : "text-neutral-400 hover:text-neutral-100"}`}
+            className={segItem(tab === t.id)}
           >
             {t.label}
           </button>
