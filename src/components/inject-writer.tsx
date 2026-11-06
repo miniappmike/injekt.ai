@@ -486,6 +486,38 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
         </details>
       </section>
 
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-sm font-medium">How you'll use the prompts</legend>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <div role="radiogroup" aria-label="What to do with the prompts" className="flex rounded-md border border-neutral-700 p-0.5 text-sm">
+            {([false, true] as const).map((w) => (
+              <button
+                key={String(w)}
+                type="button"
+                role="radio"
+                aria-checked={writeOnly === w}
+                onClick={() => {
+                  setWriteOnly(w);
+                  try {
+                    localStorage.setItem(WRITE_ONLY_KEY, w ? "1" : "0");
+                  } catch {
+                    // Not remembered in a private window.
+                  }
+                }}
+                className={`rounded px-2.5 py-1 ${writeOnly === w ? "bg-neutral-800 font-medium text-neutral-100" : "text-neutral-400 hover:text-neutral-100"}`}
+              >
+                {w ? "Write only" : "Generate here"}
+              </button>
+            ))}
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={editTarget} onChange={(e) => { setEditTarget(e.target.checked); writeEditTarget(e.target.checked); }} />
+            Edit the target photo
+            <InfoTip label="About editing the target photo">Sends the target photo with her references so the model swaps her into the real photo, which holds her body much closer to the sheet. Off: the written prompt is generated from her references alone. In Write only it decides whether the prompt is an edit of the target photo (attached after her sheets) or a new photo from her sheets. You can change both after writing; the prompts update without writing again.</InfoTip>
+          </label>
+        </div>
+      </fieldset>
+
       <div className="flex flex-wrap items-center gap-3">
         <Button type="button" onClick={() => void run()} disabled={running || !targets.length || !character.ready}>
           {running ? "Writing..." : "Write prompts"}
@@ -498,37 +530,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
 
       {results.length > 0 && (
         <section className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <h2 className="font-medium">Prompts</h2>
-              <div role="radiogroup" aria-label="What to do with the prompts" className="flex rounded-md border border-neutral-700 p-0.5 text-sm">
-                {([false, true] as const).map((w) => (
-                  <button
-                    key={String(w)}
-                    type="button"
-                    role="radio"
-                    aria-checked={writeOnly === w}
-                    onClick={() => {
-                      setWriteOnly(w);
-                      try {
-                        localStorage.setItem(WRITE_ONLY_KEY, w ? "1" : "0");
-                      } catch {
-                        // Not remembered in a private window.
-                      }
-                    }}
-                    className={`rounded px-2.5 py-1 ${writeOnly === w ? "bg-neutral-800 font-medium text-neutral-100" : "text-neutral-400 hover:text-neutral-100"}`}
-                  >
-                    {w ? "Write only" : "Generate here"}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={editTarget} onChange={(e) => { setEditTarget(e.target.checked); writeEditTarget(e.target.checked); }} />
-              Edit the target photo
-              <InfoTip label="About editing the target photo">Sends the target photo with her references so the model swaps her into the real photo, which holds her body much closer to the sheet. Off: the written prompt is generated from her references alone. In Write only it decides whether the prompt is an edit of the target photo (attach it first) or a new photo from her sheets.</InfoTip>
-            </label>
-          </div>
+          <h2 className="font-medium">Prompts</h2>
           {writeOnly && (
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-neutral-500">
