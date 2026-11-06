@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { Step } from "@/components/ui/step";
 import { GenerateImage } from "@/components/generate-image";
 import { AttachStrip, TaggedPrompt, type AttachTile } from "@/components/attach-strip";
 import { ImageDrop } from "@/components/image-drop";
@@ -196,29 +197,26 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         ))}
       </div>
 
-      <ImageDrop
-        title={mode === "edits" ? "Generated image" : mode === "write" ? "Image to vary" : "Cover image"}
-        preview={image?.preview}
-        disabled={busy}
-        onPick={(file) => {
-          setImage({ file, preview: URL.createObjectURL(file) });
-          setResult(null);
-        }}
-      />
-
-      <section className="flex flex-col gap-2" aria-labelledby="extras-title">
-        <div>
-          <h2 id="extras-title" className="text-sm font-medium">More images <span className="text-xs font-normal text-neutral-500">optional, up to {MAX_EXTRA_IMAGES}</span></h2>
-          <p className="text-xs text-neutral-500">
-            Show the AI the vibe, an outfit or anything else you want carried into the {mode === "carousel" ? "slides" : "variants"}. Say how to use them in the {mode === "carousel" ? "theme" : "creative direction"}.
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+      <section className="panel flex flex-col gap-3 p-4">
+        <Step n={1} title="Add your images" hint="Your main image, plus up to 2 extras for the vibe or an outfit." />
+        <div className="grid gap-3 sm:grid-cols-3 [&>*]:min-w-0">
+          <ImageDrop
+            layout="tile"
+            title={mode === "edits" ? "Generated image" : mode === "write" ? "Image to vary" : "Cover image"}
+            hint="Required. Click, drop or paste."
+            preview={image?.preview}
+            disabled={busy}
+            onPick={(file) => {
+              setImage({ file, preview: URL.createObjectURL(file) });
+              setResult(null);
+            }}
+          />
           {extras.map((x, i) => (
             <div key={i} className="flex flex-col gap-1">
               <ImageDrop
+                layout="tile"
                 title={`Extra image ${i + 1}`}
-                hint="Click, drop, or paste with Ctrl+V."
+                hint="Optional."
                 preview={x?.preview}
                 disabled={busy}
                 onPick={(file) => {
@@ -244,127 +242,148 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
             </div>
           ))}
         </div>
+        <p id="extras-title" className="text-xs text-neutral-500">
+          <span className="font-medium text-neutral-400">More images</span> are optional, up to {MAX_EXTRA_IMAGES}: show the AI the vibe, an outfit or anything else you want carried into the {mode === "carousel" ? "slides" : "variants"}, and say how to use them in the {mode === "carousel" ? "theme" : "creative direction"}.
+        </p>
       </section>
 
-      <section className="flex flex-col gap-2">
-        <Label htmlFor="character">Character <span className="text-xs font-normal text-neutral-500">optional</span></Label>
-        <select id="character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
-          <option value="">No character, use the image only</option>
-          {characters.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}{c.ready ? "" : " (no images yet)"}</option>
-          ))}
-        </select>
-        {noRefs ? (
-          <p className="text-sm text-amber-400">
-            Add reference images on <Link href={`/characters/${character!.id}`} className="underline">the character page</Link> first, or pick no character.
-          </p>
-        ) : (
-          <p className="text-xs text-neutral-500">{hint}</p>
-        )}
-      </section>
-
-      {mode === "edits" ? (
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium">What may change</legend>
-          <div className="flex flex-wrap gap-2">
-            {VARIANT_DIMS.map((d) => (
-              <label key={d.id} className={chip(dims.has(d.id))}>
-                <input type="checkbox" className="sr-only" checked={dims.has(d.id)} onChange={() => toggle(setDims, d.id)} />
-                {d.label}
-              </label>
-            ))}
+      <section className="panel flex flex-col gap-4 p-4">
+        <Step n={2} title={mode === "carousel" ? "Plan the carousel" : mode === "write" ? "Choose the variations" : "Choose what changes"} />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label htmlFor="character">Character <span className="text-xs font-normal text-neutral-500">optional</span></Label>
+            <select id="character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
+              <option value="">No character, use the image only</option>
+              {characters.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}{c.ready ? "" : " (no images yet)"}</option>
+              ))}
+            </select>
           </div>
-          <p className="text-xs text-neutral-500">Each edit changes one or two of these, and together the edits cover them. Everything else stays the same.</p>
-          <Label htmlFor="variant-count" className="mt-2">How many edits</Label>
-          <select id="variant-count" value={count} onChange={(e) => setCount(Number(e.target.value))} className="h-10 w-32 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
-            {Array.from({ length: MAX_VARIANT_COUNT }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </fieldset>
-      ) : mode === "write" ? (
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium">Kinds of variation</legend>
-          <div className="flex flex-wrap gap-2">
-            {CAROUSEL_TYPES.map((t) => (
-              <label key={t.id} className={chip(writeTypes.has(t.id))}>
-                <input type="checkbox" className="sr-only" checked={writeTypes.has(t.id)} onChange={() => toggle(setWriteTypes, t.id)} />
-                {t.label}
-              </label>
-            ))}
+          <div className="flex flex-col gap-1.5">
+            {mode === "edits" ? (
+              <>
+                <Label htmlFor="variant-count">How many edits</Label>
+                <select id="variant-count" value={count} onChange={(e) => setCount(Number(e.target.value))} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
+                  {Array.from({ length: MAX_VARIANT_COUNT }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </>
+            ) : mode === "write" ? (
+              <>
+                <Label htmlFor="write-count">How many prompts</Label>
+                <select id="write-count" value={writeCount} onChange={(e) => setWriteCount(Number(e.target.value))} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
+                  {Array.from({ length: MAX_WRITE_ONLY }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </>
+            ) : (
+              <>
+                <Label htmlFor="slides">New slides after the cover</Label>
+                <select id="slides" value={slides} onChange={(e) => setSlides(Number(e.target.value))} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
+                  {Array.from({ length: MAX_NEW_SLIDES }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </>
+            )}
           </div>
-          <p className="text-xs text-neutral-500">
-            The creative director plans new shots from the same shoot: a new pose and camera angle, or her somewhere nearby, by default. Each prompt is complete, with her look, the realism and the rules written in, so it can be pasted into any generator.
-          </p>
-          <Label htmlFor="write-count" className="mt-2">How many prompts</Label>
-          <select id="write-count" value={writeCount} onChange={(e) => setWriteCount(Number(e.target.value))} className="h-10 w-32 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
-            {Array.from({ length: MAX_WRITE_ONLY }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </fieldset>
-      ) : (
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium">Slide types</legend>
-          <div className="flex flex-wrap gap-2">
-            {CAROUSEL_TYPES.map((t) => (
-              <label key={t.id} className={chip(types.has(t.id))}>
-                <input type="checkbox" className="sr-only" checked={types.has(t.id)} onChange={() => toggle(setTypes, t.id)} />
-                {t.label}
-              </label>
-            ))}
-          </div>
-          <Label htmlFor="slides" className="mt-2">New slides after the cover</Label>
-          <select id="slides" value={slides} onChange={(e) => setSlides(Number(e.target.value))} className="h-10 w-32 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
-            {Array.from({ length: MAX_NEW_SLIDES }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </fieldset>
-      )}
-
-      {mode !== "edits" && (
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium">Posting to <span className="text-xs font-normal text-neutral-500">optional</span></legend>
-          <div className="flex flex-wrap gap-2">
-            {PLATFORMS.map((x) => (
-              <label key={x.id} className={chip(platform === x.id)}>
-                <input
-                  type="radio"
-                  name="platform"
-                  className="sr-only"
-                  checked={platform === x.id}
-                  onChange={() => setPlatform(x.id)}
-                  onClick={() => platform === x.id && setPlatform(null)}
-                />
-                {x.label}
-              </label>
-            ))}
-          </div>
-          {platform === "other" && (
-            <Input
-              value={platformOther}
-              onChange={(e) => setPlatformOther(e.target.value)}
-              maxLength={PLATFORM_OTHER_MAX}
-              placeholder="Where is it going? e.g. Threads, a Telegram channel, Patreon"
-              aria-label="Where it will be posted"
-            />
+          {noRefs ? (
+            <p className="text-sm text-amber-400 sm:col-span-3">
+              Add reference images on <Link href={`/characters/${character!.id}`} className="underline">the character page</Link> first, or pick no character.
+            </p>
+          ) : (
+            <p className="-mt-1 text-xs text-neutral-500 sm:col-span-3">{hint}</p>
           )}
-          <p className="text-xs text-neutral-500">
-            Sets the tone and how spicy the shots are: social-safe for Instagram and TikTok, bolder for X and Reddit, teasing subscriber shots for Fanvue and OnlyFans. Click a platform again to clear it.
-          </p>
-        </fieldset>
-      )}
+        </div>
 
-      <section className="flex flex-col gap-2">
-        <Label htmlFor="note">{mode === "carousel" ? "Theme" : "Creative direction"} <span className="text-xs font-normal text-neutral-500">optional</span></Label>
-        <Textarea
-          id="note"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          maxLength={1000}
-          placeholder={mode === "write" ? "e.g. same outfit, but now she's getting ready at a hotel vanity at night, flash photos, playful and moody" : undefined}
-          aria-describedby={mode === "write" ? "note-hint" : undefined}
-        />
-        {mode === "write" && (
-          <p id="note-hint" className="text-xs text-neutral-500">
-            The creative director builds every prompt around this: the place, poses, outfit, mood and story you describe win over its own ideas. Her face and body always stay hers.
-          </p>
+        {mode === "edits" ? (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1.5 text-sm font-medium">What may change</legend>
+            <div className="flex flex-wrap gap-2">
+              {VARIANT_DIMS.map((d) => (
+                <label key={d.id} className={chip(dims.has(d.id))}>
+                  <input type="checkbox" className="sr-only" checked={dims.has(d.id)} onChange={() => toggle(setDims, d.id)} />
+                  {d.label}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-neutral-500">Each edit changes one or two of these, and together the edits cover them. Everything else stays the same.</p>
+          </fieldset>
+        ) : mode === "write" ? (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1.5 text-sm font-medium">Kinds of variation</legend>
+            <div className="flex flex-wrap gap-2">
+              {CAROUSEL_TYPES.map((t) => (
+                <label key={t.id} className={chip(writeTypes.has(t.id))}>
+                  <input type="checkbox" className="sr-only" checked={writeTypes.has(t.id)} onChange={() => toggle(setWriteTypes, t.id)} />
+                  {t.label}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-neutral-500">
+              New shots from the same shoot: a new pose and camera angle, or her somewhere nearby, by default. Each prompt is complete (her look, the realism and the rules are written in), so it can be pasted into any generator.
+            </p>
+          </fieldset>
+        ) : (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1.5 text-sm font-medium">Slide types</legend>
+            <div className="flex flex-wrap gap-2">
+              {CAROUSEL_TYPES.map((t) => (
+                <label key={t.id} className={chip(types.has(t.id))}>
+                  <input type="checkbox" className="sr-only" checked={types.has(t.id)} onChange={() => toggle(setTypes, t.id)} />
+                  {t.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
         )}
+
+        {mode !== "edits" && (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 text-sm font-medium">Posting to <span className="text-xs font-normal text-neutral-500">optional</span></legend>
+            <div className="flex flex-wrap gap-2">
+              {PLATFORMS.map((x) => (
+                <label key={x.id} className={chip(platform === x.id)}>
+                  <input
+                    type="radio"
+                    name="platform"
+                    className="sr-only"
+                    checked={platform === x.id}
+                    onChange={() => setPlatform(x.id)}
+                    onClick={() => platform === x.id && setPlatform(null)}
+                  />
+                  {x.label}
+                </label>
+              ))}
+            </div>
+            {platform === "other" && (
+              <Input
+                value={platformOther}
+                onChange={(e) => setPlatformOther(e.target.value)}
+                maxLength={PLATFORM_OTHER_MAX}
+                placeholder="Where is it going? e.g. Threads, a Telegram channel, Patreon"
+                aria-label="Where it will be posted"
+              />
+            )}
+            <p className="text-xs text-neutral-500">
+              Sets the tone and how spicy the shots are: social-safe for Instagram and TikTok, bolder for X and Reddit, teasing subscriber shots for Fanvue and OnlyFans. Click a platform again to clear it.
+            </p>
+          </fieldset>
+        )}
+
+        <section className="flex flex-col gap-2">
+          <Label htmlFor="note">{mode === "carousel" ? "Theme" : "Creative direction"} <span className="text-xs font-normal text-neutral-500">optional</span></Label>
+          <Textarea
+            id="note"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={1000}
+            placeholder={mode === "write" ? "e.g. same outfit, but now she's getting ready at a hotel vanity at night, flash photos, playful and moody" : undefined}
+            aria-describedby={mode === "write" ? "note-hint" : undefined}
+            rows={2}
+          />
+          {mode === "write" && (
+            <p id="note-hint" className="text-xs text-neutral-500">
+              The creative director builds every prompt around this: the place, poses, outfit, mood and story you describe win over its own ideas. Her face and body always stay hers.
+            </p>
+          )}
+        </section>
       </section>
 
       <div className="flex flex-wrap items-center gap-3">

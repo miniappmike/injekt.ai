@@ -29,7 +29,7 @@ export function InjectTabs({
   const [tab, setTab] = useState<Tab>(isPro ? "write" : "direct_swap");
 
   return (
-    <div className="mt-6">
+    <div className="mt-5">
       <div className={segTrack} role="tablist">
         {TABS.map((t) => (
           <button

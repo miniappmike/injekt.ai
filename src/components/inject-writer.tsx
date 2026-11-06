@@ -293,70 +293,84 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
   }, [pendingKey, editTarget]);
 
   return (
-    <div className="mt-6 flex flex-col gap-6">
-      <section className="flex flex-col gap-2">
-        <Label htmlFor="character">Character</Label>
-        <select id="character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className={select}>
-          {characters.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}{c.ready ? "" : " (no images yet)"}</option>
-          ))}
-        </select>
-        {!character.ready ? (
-          <p className="text-sm text-amber-400">
-            Add a face sheet, body sheet or reference photo on <Link href={`/characters/${character.id}`} className="underline">the character page</Link> first.
-          </p>
-        ) : (
-          !character.hasProfile && (
+    <div className="mt-5 flex flex-col gap-4">
+      <div className="panel grid gap-4 p-4 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+        <section className="flex flex-col gap-2">
+          <Label htmlFor="character">Character</Label>
+          <select id="character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className={select}>
+            {characters.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}{c.ready ? "" : " (no images yet)"}</option>
+            ))}
+          </select>
+          {!character.ready ? (
             <p className="text-sm text-amber-400">
-              {character.name} has no profile yet, so the prompts can't describe her exactly. <Link href={`/characters/${character.id}`} className="underline">Build her profile</Link> first for the best results.
+              Add a face sheet, body sheet or reference photo on <Link href={`/characters/${character.id}`} className="underline">the character page</Link> first.
             </p>
-          )
-        )}
-      </section>
+          ) : (
+            !character.hasProfile && (
+              <p className="text-sm text-amber-400">
+                {character.name} has no profile yet, so the prompts can't describe her exactly. <Link href={`/characters/${character.id}`} className="underline">Build her profile</Link> first for the best results.
+              </p>
+            )
+          )}
+        </section>
 
-      <section
-        className="flex flex-col gap-3 dropzone p-5"
-        tabIndex={0}
-        aria-label="Target images"
-        onPaste={(e) => addFiles(e.clipboardData.files)}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          addFiles(e.dataTransfer.files);
-        }}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="font-semibold">1. Target images <span className="text-xs font-normal text-neutral-500">up to {MAX_TARGETS}</span></h2>
-          <Button type="button" size="sm" variant="secondary" disabled={running} onClick={() => input.current?.click()}>Add images</Button>
-        </div>
-        <p className="text-xs text-neutral-500">Click, drop, or paste with Ctrl+V. JPEG, PNG or WebP.</p>
-        <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
-        <div className="flex flex-wrap gap-3">
-          {targets.map((t) => (
-            <div key={t.id} className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={t.preview} alt="" className="thumb h-24 w-24 animate-pop-in object-cover ring-1 ring-white/10" />
-              {o.clean && t.clean && t.clean.removed.length > 0 && (
-                <span className="absolute bottom-1 left-1 rounded bg-emerald-950/90 px-1.5 py-0.5 text-[10px] text-emerald-300" title={`Removed: ${t.clean.removed.join(", ")}`}>
-                  Cleaned
-                </span>
-              )}
-              {!running && (
-                <button
-                  type="button"
-                  aria-label="Remove image"
-                  onClick={() => setTargets((x) => x.filter((y) => y.id !== t.id))}
-                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-xs text-neutral-900"
-                >×</button>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
+        <section
+          className="dropzone group flex cursor-pointer flex-col gap-2 p-4"
+          tabIndex={0}
+          aria-label="Target images"
+          // Clicking anywhere on the box adds photos (the thumbnails' own buttons excepted).
+          onClick={(e) => {
+            if (!running && !(e.target as HTMLElement).closest("button")) input.current?.click();
+          }}
+          onPaste={(e) => addFiles(e.clipboardData.files)}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            addFiles(e.dataTransfer.files);
+          }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold">1. Target images <span className="text-xs font-normal text-neutral-500">up to {MAX_TARGETS}</span></h2>
+            <Button type="button" size="sm" variant="secondary" disabled={running} onClick={() => input.current?.click()}>Add images</Button>
+          </div>
+          <p className="-mt-1 text-xs text-neutral-500">Click, drop, or paste with Ctrl+V. JPEG, PNG or WebP.</p>
+          <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onClick={(e) => e.stopPropagation()} onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+          <div className="flex flex-wrap gap-2.5">
+            {targets.map((t) => (
+              <div key={t.id} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={t.preview} alt="" className="thumb h-20 w-20 animate-pop-in object-cover ring-1 ring-white/10" />
+                {o.clean && t.clean && t.clean.removed.length > 0 && (
+                  <span className="absolute bottom-1 left-1 rounded bg-emerald-950/90 px-1.5 py-0.5 text-[10px] text-emerald-300" title={`Removed: ${t.clean.removed.join(", ")}`}>
+                    Cleaned
+                  </span>
+                )}
+                {!running && (
+                  <button
+                    type="button"
+                    aria-label="Remove image"
+                    onClick={() => setTargets((x) => x.filter((y) => y.id !== t.id))}
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-xs text-neutral-900"
+                  >×</button>
+                )}
+              </div>
+            ))}
+            {targets.length < MAX_TARGETS && (
+              <span
+                aria-hidden="true"
+                className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-neutral-700 text-2xl font-light text-neutral-500 transition-colors group-hover:border-brand-500/60 hover:border-brand-500/60 hover:text-brand-400"
+              >
+                +
+              </span>
+            )}
+          </div>
+        </section>
+      </div>
 
-      <section className="panel flex flex-col gap-4 p-5">
+      <section className="panel flex flex-col gap-4 p-4">
         <h2 className="font-semibold">2. Options</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="flex items-center gap-1.5">Prompt for <InfoTip label="About Prompt for">With character sheet: the prompt opens with your reference tag, for generators that get her sheet. Text only: her identity is written out in full.</InfoTip></span>
             <select className={select} value={o.mode} onChange={(e) => set("mode", e.target.value as Options["mode"])}>
@@ -451,17 +465,17 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
           </div>
         )}
 
-        <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-          <label className="flex items-center gap-2">
+        <div className="flex flex-wrap gap-2 text-sm">
+          <label className="flex cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15">
             <input type="checkbox" checked={o.newOutfit} onChange={(e) => set("newOutfit", e.target.checked)} /> Change outfit
           </label>
-          <label className={`flex items-center gap-2 ${o.newOutfit ? "opacity-50" : ""}`}>
+          <label className={`flex cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15 ${o.newOutfit ? "opacity-50" : ""}`}>
             <input type="checkbox" checked={o.recolor && !o.newOutfit} disabled={o.newOutfit} onChange={(e) => set("recolor", e.target.checked)} /> Recolour clothes
           </label>
-          <label className="flex items-center gap-2">
+          <label className="flex cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15">
             <input type="checkbox" checked={o.hair} onChange={(e) => set("hair", e.target.checked)} /> Hairstyle variant
           </label>
-          <label className="flex items-center gap-2">
+          <label className="flex cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15">
             <input type="checkbox" checked={o.clean} onChange={(e) => set("clean", e.target.checked)} /> Clean up overlays
             <InfoTip label="About cleaning up overlays">Removes app buttons, watermarks, usernames, stickers and captions laid on top of a screenshot before the prompt is written: cropped off when they sit clear of the person, painted over otherwise. Your original is kept.</InfoTip>
           </label>
@@ -487,46 +501,48 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
         </details>
       </section>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-sm font-medium">How you'll use the prompts</legend>
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <div role="radiogroup" aria-label="What to do with the prompts" className={segTrack}>
-            {([false, true] as const).map((w) => (
-              <button
-                key={String(w)}
-                type="button"
-                role="radio"
-                aria-checked={writeOnly === w}
-                onClick={() => {
-                  setWriteOnly(w);
-                  try {
-                    localStorage.setItem(WRITE_ONLY_KEY, w ? "1" : "0");
-                  } catch {
-                    // Not remembered in a private window.
-                  }
-                }}
-                className={segItem(writeOnly === w)}
-              >
-                {w ? "Write only" : "Generate here"}
-              </button>
-            ))}
+      <div className="panel flex flex-wrap items-end justify-between gap-4 p-4">
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1.5 text-sm font-medium">How you'll use the prompts</legend>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <div role="radiogroup" aria-label="What to do with the prompts" className={segTrack}>
+              {([false, true] as const).map((w) => (
+                <button
+                  key={String(w)}
+                  type="button"
+                  role="radio"
+                  aria-checked={writeOnly === w}
+                  onClick={() => {
+                    setWriteOnly(w);
+                    try {
+                      localStorage.setItem(WRITE_ONLY_KEY, w ? "1" : "0");
+                    } catch {
+                      // Not remembered in a private window.
+                    }
+                  }}
+                  className={segItem(writeOnly === w)}
+                >
+                  {w ? "Write only" : "Generate here"}
+                </button>
+              ))}
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={editTarget} onChange={(e) => { setEditTarget(e.target.checked); writeEditTarget(e.target.checked); }} />
+              Edit the target photo
+              <InfoTip label="About editing the target photo">Sends the target photo with her references so the model swaps her into the real photo, which holds her body much closer to the sheet. Off: the written prompt is generated from her references alone. In Write only it decides whether the prompt is an edit of the target photo (attached after her sheets) or a new photo from her sheets. You can change both after writing; the prompts update without writing again.</InfoTip>
+            </label>
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={editTarget} onChange={(e) => { setEditTarget(e.target.checked); writeEditTarget(e.target.checked); }} />
-            Edit the target photo
-            <InfoTip label="About editing the target photo">Sends the target photo with her references so the model swaps her into the real photo, which holds her body much closer to the sheet. Off: the written prompt is generated from her references alone. In Write only it decides whether the prompt is an edit of the target photo (attached after her sheets) or a new photo from her sheets. You can change both after writing; the prompts update without writing again.</InfoTip>
-          </label>
-        </div>
-      </fieldset>
+        </fieldset>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" onClick={() => void run()} disabled={running || !targets.length || !character.ready}>
-          {running ? "Writing..." : "Write prompts"}
-        </Button>
-        {running && (
-          <Button type="button" variant="secondary" onClick={() => { stop.current = true; rerunAfter.current = false; }}>Stop</Button>
-        )}
-        {summary && <p role="status" className={`text-sm ${summary.good ? "text-neutral-300" : "text-red-400"}`}>{summary.text}</p>}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="button" size="lg" onClick={() => void run()} disabled={running || !targets.length || !character.ready}>
+            {running ? "Writing..." : "Write prompts"}
+          </Button>
+          {running && (
+            <Button type="button" variant="secondary" onClick={() => { stop.current = true; rerunAfter.current = false; }}>Stop</Button>
+          )}
+          {summary && <p role="status" className={`text-sm ${summary.good ? "text-neutral-300" : "text-red-400"}`}>{summary.text}</p>}
+        </div>
       </div>
 
       {results.length > 0 && (

@@ -145,7 +145,7 @@ export function QuickGenerate({ mode, characters, freeImagesLeft }: { mode: "dir
   );
 
   return (
-    <div className="mt-6 flex flex-col gap-6">
+    <div className="mt-5 flex flex-col gap-4">
       {toast}
       {characterSelect}
 
@@ -201,7 +201,7 @@ export function QuickGenerate({ mode, characters, freeImagesLeft }: { mode: "dir
           )}
           <section className="flex flex-col gap-2" aria-label="Extra images">
             <h2 className="text-sm font-medium">More images <span className="text-xs font-normal text-neutral-500">optional, up to {MAX_EDIT_EXTRAS}, sent after her references</span></h2>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
               {extras.map((x, i) => (
                 <ImageDrop key={i} title={`Extra image ${i + 1}`} preview={x?.preview} disabled={x?.busy} onPick={(f) => upload(f, (p) => setExtras((l) => l.map((o, j) => (j === i ? p : o))))} />
               ))}

@@ -32,7 +32,7 @@ export default async function InjectPage() {
   return (
     <div className="max-w-3xl">
       <h1 className="page-title">Inject</h1>
-      <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-neutral-400">
+      <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
         Put your character into a photo. Write a prompt tailored to the photo, swap directly, or write your own prompt.
       </p>
       <InjectTabs characters={characters} outfits={outfits} isPro={isPro} freeImagesLeft={isPro ? null : remaining.free_images} />

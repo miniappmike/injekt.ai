@@ -58,7 +58,7 @@ export default async function LikenessPage({ searchParams }: { searchParams: Pro
   return (
     <div className="max-w-3xl">
       <h1 className="page-title">Likeness</h1>
-      <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-neutral-400">
+      <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
         Check a generated image against your character&apos;s references, trait by trait, and get fixes to paste into your next prompt.
       </p>
       {!isPro ? (

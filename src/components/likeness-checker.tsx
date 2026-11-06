@@ -116,58 +116,74 @@ export function LikenessChecker({
   const fixes = latest ? latest.report.traits.filter((t) => t.fix) : [];
 
   return (
-    <div className="mt-6 flex flex-col gap-6">
+    <div className="mt-5 flex flex-col gap-4">
       {toast}
-      <section className="flex flex-col gap-2">
-        <Label htmlFor="character">Character</Label>
-        <select id="character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
-          {characters.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}{c.ready ? "" : " (no images yet)"}</option>
-          ))}
-        </select>
-        {!character.ready && (
-          <p className="text-sm text-amber-400">
-            Add reference images on <Link href={`/characters/${character.id}`} className="underline">the character page</Link> first.
-          </p>
-        )}
-      </section>
+      <div className="panel grid gap-4 p-4 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+        <section
+          ref={top}
+          className="dropzone group flex cursor-pointer flex-col gap-2.5 p-3"
+          tabIndex={0}
+          aria-label="Generated image"
+          onClick={(e) => {
+            if (!busy && !(e.target as HTMLElement).closest("button")) input.current?.click();
+          }}
+          onPaste={(e) => pick(e.clipboardData.files)}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            pick(e.dataTransfer.files);
+          }}
+        >
+          <div className="aspect-[4/3] w-full">
+            {picked ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={picked.preview} alt="Image to check" className="h-full w-full animate-pop-in rounded-lg object-cover ring-1 ring-white/10" />
+            ) : (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-lg bg-neutral-950/50 text-neutral-500 transition-colors group-hover:text-brand-400">
+                <span className="text-3xl font-light leading-none">+</span>
+                <span className="text-xs">Drop the image to check</span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold">Generated image</h2>
+              <p className="text-xs text-neutral-500">Click, drop, or paste with Ctrl+V. After each check, drop your next attempt to see the score change.</p>
+            </div>
+            <Button type="button" size="sm" variant="secondary" disabled={busy} className="shrink-0" onClick={() => input.current?.click()}>
+              {picked ? "Replace" : "Add image"}
+            </Button>
+          </div>
+          <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onClick={(e) => e.stopPropagation()} onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
+        </section>
 
-      <section
-        ref={top}
-        className="flex flex-col gap-3 dropzone p-5"
-        tabIndex={0}
-        aria-label="Generated image"
-        onPaste={(e) => pick(e.clipboardData.files)}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          pick(e.dataTransfer.files);
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="font-medium">Generated image</h2>
-          <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => input.current?.click()}>
-            {picked ? "Replace" : "Add image"}
-          </Button>
+        <div className="flex flex-col gap-3">
+          <section className="flex flex-col gap-1.5">
+            <Label htmlFor="character">Character</Label>
+            <select id="character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
+              {characters.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}{c.ready ? "" : " (no images yet)"}</option>
+              ))}
+            </select>
+            {!character.ready && (
+              <p className="text-sm text-amber-400">
+                Add reference images on <Link href={`/characters/${character.id}`} className="underline">the character page</Link> first.
+              </p>
+            )}
+          </section>
+
+          <section className="flex flex-1 flex-col gap-1.5">
+            <Label htmlFor="prompt-used">Prompt you used <span className="text-xs font-normal text-neutral-500">optional, for a revised prompt</span></Label>
+            <Textarea id="prompt-used" value={promptUsed} onChange={(e) => setPromptUsed(e.target.value)} maxLength={6000} className="flex-1" />
+          </section>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" size="lg" onClick={run} disabled={busy || !picked || !character.ready}>
+              {busy ? "Comparing..." : "Check likeness"}
+            </Button>
+            {status && <p role="status" className={`text-sm ${status.good ? "text-neutral-300" : "text-red-400"}`}>{status.text}</p>}
+          </div>
         </div>
-        <p className="text-xs text-neutral-500">Click, drop, or paste with Ctrl+V. After each check, drop your next attempt to see the score change.</p>
-        <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
-        {picked && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={picked.preview} alt="Image to check" className="thumb h-40 w-40 animate-pop-in object-cover ring-1 ring-white/10" />
-        )}
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <Label htmlFor="prompt-used">Prompt you used <span className="text-xs font-normal text-neutral-500">optional, for a revised prompt</span></Label>
-        <Textarea id="prompt-used" value={promptUsed} onChange={(e) => setPromptUsed(e.target.value)} maxLength={6000} />
-      </section>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" onClick={run} disabled={busy || !picked || !character.ready}>
-          {busy ? "Comparing..." : "Check likeness"}
-        </Button>
-        {status && <p role="status" className={`text-sm ${status.good ? "text-neutral-300" : "text-red-400"}`}>{status.text}</p>}
       </div>
 
       {latest && (

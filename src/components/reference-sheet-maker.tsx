@@ -40,10 +40,10 @@ function usePhoto() {
   return [photo, pick] as const;
 }
 
-function PhotoDrop({ title, hint, photo, onPick }: { title: string; hint: string; photo: Photo | null; onPick: (f: File) => void }) {
+function PhotoDrop({ title, hint, photo, onPick, layout }: { title: string; hint: string; photo: Photo | null; onPick: (f: File) => void; layout?: "row" | "tile" }) {
   return (
     <div className="flex flex-col gap-1">
-      <ImageDrop title={title} hint={hint} preview={photo?.preview} disabled={photo?.busy} onPick={onPick} />
+      <ImageDrop title={title} hint={hint} preview={photo?.preview} disabled={photo?.busy} onPick={onPick} layout={layout} />
       {photo?.busy && <p className="text-xs text-neutral-500">Uploading...</p>}
       {photo?.error && <p role="alert" className="text-sm text-red-400">{photo.error}</p>}
     </div>
@@ -171,7 +171,7 @@ export function ReferenceSheetMaker({
   };
 
   return (
-    <div className="mt-6 flex flex-col gap-10">
+    <div className="mt-5 flex flex-col gap-5">
       <section className="flex flex-col gap-2">
         <Label htmlFor="rs-character">Character</Label>
         <select
@@ -185,7 +185,7 @@ export function ReferenceSheetMaker({
         <p className="text-xs text-neutral-500">Sheets you make are saved to this character.</p>
       </section>
 
-      <section className="panel flex flex-col gap-4 p-5" aria-labelledby="rs-step1">
+      <section className="panel flex flex-col gap-3 p-4" aria-labelledby="rs-step1">
         <div>
           <h2 id="rs-step1" className="border-l-[3px] border-brand-500 pl-3 text-xl font-bold">Step 1 · Face sheet <span className="text-sm font-normal text-neutral-500">(optional)</span></h2>
           <p className="text-sm text-neutral-400">One clear face photo becomes a 3×3 sheet of the same face from nine angles.</p>
@@ -211,32 +211,33 @@ export function ReferenceSheetMaker({
         />
       </section>
 
-      <section className="panel flex flex-col gap-4 p-5" aria-labelledby="rs-step2">
+      <section className="panel flex flex-col gap-3 p-4" aria-labelledby="rs-step2">
         <div>
           <h2 id="rs-step2" className="border-l-[3px] border-brand-500 pl-3 text-xl font-bold">Step 2 · Face and body sheet</h2>
           <p className="text-sm text-neutral-400">
             The face sheet plus one or two body photos (front, back or side) become one sheet with the face above the body from the front, side and back.
           </p>
         </div>
-        <PhotoDrop
-          title="Face sheet"
-          hint={
-            faceSheetUpload
-              ? "Using the sheet you added here."
-              : savedFace
-                ? `Using ${character.name}'s saved face sheet. Replace it to use a different one.`
-                : "Make one in step 1 and save it, or add one here."
-          }
-          photo={faceSheetUpload ?? (step1Sheet ? { preview: step1Sheet.url } : savedFace ? { preview: savedFace.url, path: savedFace.path } : null)}
-          onPick={pickFaceSheet}
-        />
-        {!faceSheetUpload && step1Sheet && <p className="-mt-2 text-xs text-neutral-500">Using the face sheet you just made in step 1.</p>}
-        {!faceSheetUpload && !step1Sheet && !savedFace && facePhoto?.path && <p className="-mt-2 text-xs text-neutral-500">Using your step 1 face photo.</p>}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <PhotoDrop title="Body photo 1" hint="Front, back or side." photo={body1} onPick={pickBody1} />
-          <PhotoDrop title="Body photo 2 (optional)" hint="A different angle, if you have one." photo={body2} onPick={pickBody2} />
+        <div className="grid gap-3 sm:grid-cols-3 [&>*]:min-w-0">
+          <PhotoDrop
+            layout="tile"
+            title="Face sheet"
+            hint={
+              faceSheetUpload
+                ? "Using the sheet you added here."
+                : savedFace
+                  ? `Using ${character.name}'s saved face sheet. Replace it to use a different one.`
+                  : "Make one in step 1 and save it, or add one here."
+            }
+            photo={faceSheetUpload ?? (step1Sheet ? { preview: step1Sheet.url } : savedFace ? { preview: savedFace.url, path: savedFace.path } : null)}
+            onPick={pickFaceSheet}
+          />
+          <PhotoDrop layout="tile" title="Body photo 1" hint="Front, back or side." photo={body1} onPick={pickBody1} />
+          <PhotoDrop layout="tile" title="Body photo 2 (optional)" hint="A different angle, if you have one." photo={body2} onPick={pickBody2} />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        {!faceSheetUpload && step1Sheet && <p className="-mt-1 text-xs text-neutral-500">Using the face sheet you just made in step 1.</p>}
+        {!faceSheetUpload && !step1Sheet && !savedFace && facePhoto?.path && <p className="-mt-1 text-xs text-neutral-500">Using your step 1 face photo.</p>}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="flex flex-col gap-1.5 text-sm">
             Outfit in the body views
             <select className={select} value={opts.outfit} onChange={(e) => setOpts((o) => ({ ...o, outfit: e.target.value as typeof o.outfit }))}>

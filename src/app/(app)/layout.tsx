@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen">
       <AppHeader email={user.email ?? "Account"} />
-      <main className="mx-auto max-w-6xl p-4 sm:p-6 sm:pt-8">{children}</main>
+      <main className="mx-auto max-w-6xl p-4 sm:p-6">{children}</main>
       <GenerationTray />
       <ImageViewer />
     </div>
