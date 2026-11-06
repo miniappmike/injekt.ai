@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { GenerateImage } from "@/components/generate-image";
+import { AttachStrip, TaggedPrompt, type AttachTile } from "@/components/attach-strip";
 import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
@@ -46,6 +47,7 @@ interface Item {
   historyId?: string | null;
   /** Write only: the images to attach in the other generator, in @image order. */
   attach?: string[];
+  attachItems?: AttachTile[];
 }
 interface Result {
   items: Item[];
@@ -56,6 +58,7 @@ interface Result {
   preview: string;
   /** Extra images (vibe, outfit) the prompts refer to after the main image. */
   extraPaths: string[];
+  extraPreviews: string[];
   characterId: string | null;
   mode: Mode;
 }
@@ -110,7 +113,8 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       setExtras(uploaded);
       const extraPaths = uploaded.filter((x): x is Picked & { path: string } => !!x?.path).map((x) => x.path);
       const common = { characterId: characterId || null, note, extraPaths };
-      const base = { path, preview: image.preview, extraPaths, characterId: characterId || null, mode };
+      const extraPreviews = uploaded.filter((x): x is Picked & { path: string } => !!x?.path).map((x) => x.preview);
+      const base = { path, preview: image.preview, extraPaths, extraPreviews, characterId: characterId || null, mode };
       const who = (p: SlidePerson, type: string) => (p === "none" ? " · no person" : p === "partial" ? " · partly her" : type === "pose" ? "" : " · with her");
       if (mode === "edits") {
         const res = await writeVariantEdits({ imagePath: path, dims: [...dims], count, ...common });
@@ -130,7 +134,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
           ...base,
           theme: res.theme,
           attach: [],
-          items: res.slides.map((s) => ({ title: s.label, hint: carouselTypeLabel(s.type) + who(s.person, s.type), copy: s.copy, attach: s.attach, historyId: s.historyId })),
+          items: res.slides.map((s) => ({ title: s.label, hint: carouselTypeLabel(s.type) + who(s.person, s.type), copy: s.copy, attach: s.attach, attachItems: s.attachItems, historyId: s.historyId })),
         });
         setStatus({ text: `${res.slides.length} prompt${res.slides.length > 1 ? "s" : ""} ready to paste into another generator. Attach the images listed on each one, in that order.`, good: true });
       } else {
@@ -306,7 +310,19 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
 
       <section className="flex flex-col gap-2">
         <Label htmlFor="note">{mode === "carousel" ? "Theme" : "Creative direction"} <span className="text-xs font-normal text-neutral-500">optional</span></Label>
-        <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
+        <Textarea
+          id="note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          maxLength={1000}
+          placeholder={mode === "write" ? "e.g. same outfit, but now she's getting ready at a hotel vanity at night, flash photos, playful and moody" : undefined}
+          aria-describedby={mode === "write" ? "note-hint" : undefined}
+        />
+        {mode === "write" && (
+          <p id="note-hint" className="text-xs text-neutral-500">
+            The creative director builds every prompt around this: the place, poses, outfit, mood and story you describe win over its own ideas. Her face and body always stay hers.
+          </p>
+        )}
       </section>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -367,8 +383,14 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                   </div>
                   <Button type="button" size="sm" variant="ghost" onClick={() => copy(item.copy)}>Copy</Button>
                 </div>
-                {item.attach && item.attach.length > 0 && <p className="text-xs text-neutral-400">Attach in this order: {item.attach.join(", ")}</p>}
-                <p className="whitespace-pre-wrap break-words">{item.copy}</p>
+                {result.mode === "write" && item.attachItems?.length ? (
+                  <>
+                    <AttachStrip items={item.attachItems} photo={result.preview} extras={result.extraPreviews} />
+                    <TaggedPrompt text={item.copy} />
+                  </>
+                ) : (
+                  <p className="whitespace-pre-wrap break-words">{item.copy}</p>
+                )}
                 {result.mode === "write" ? null : result.mode === "edits" ? (
                   <GenerateImage prompt={item.copy} characterId={result.characterId} extraPaths={[result.path, ...result.extraPaths]} kind="variant" runSignal={runAll} historyId={item.historyId} />
                 ) : (

@@ -125,7 +125,20 @@ export interface CarouselPromptInput {
   extra: string;
   /** Model Spawn addition: how many extra images the person attached after the cover. */
   extraCount: number;
+  /**
+   * Model Spawn addition (Write only): the person's creative direction leads the plan instead of being a side note.
+   * It overrides the default ideas and slide-type descriptions, never the identity, realism or text rules.
+   */
+  directionFirst?: boolean;
 }
+
+/** Write only: the creative direction as the brief every slide is built around. */
+export const directionBrief = (extra: string) => `
+THE USER'S CREATIVE DIRECTION COMES FIRST. This is the brief for the whole set: <<<${fence(extra)}>>>
+- Build every slide around it. Wherever it speaks to the setting, location, poses, outfit, styling, props, mood, light, time of day, colour story or story of the set, it decides, and it overrides the default ideas and the slide-type descriptions below (for example, if it asks for a new place, the slides move there instead of staying in the cover's place).
+- Each slide's prompt must visibly carry it out: name the specific details it asks for in the prompt itself, not just the general mood, and spread its ideas across the set so every slide shows a different part of it.
+- It never overrides who she is (her face, body, skin and marks from the reference), the realism rules, the text rules or the adult-only rule.
+`;
 
 /** Artifact writeCarousel prompt (the nudity sentence left out). Slides use {REF}, {PHOTO} and {EXTRA1}... placeholders. */
 export function carouselPrompt(o: CarouselPromptInput): string {
@@ -136,7 +149,7 @@ export function carouselPrompt(o: CarouselPromptInput): string {
   const herTypes = allowed.filter(([k]) => k === "pose" || k === "model_alt").map(([k]) => k);
   const extraNames = Array.from({ length: o.extraCount }, (_, i) => `{EXTRA${i + 1}}`);
   return `TASK: You are the creative director for an Instagram carousel post. The attached image is a finished photo of ${c ? "the character" : "the creator"}, and it is the COVER, slide 1, already done. Plan ${n} NEW slide${n > 1 ? "s" : ""} (slides 2 to ${n + 1}) that follow the cover and grow the post into a set people stop scrolling for. Every slide must feel shot the same day by the same person, in the same place and aesthetic: the same colour grade, light quality and time of day, camera look and mood. Study the image closely first: the setting, props and objects, outfit pieces and accessories, any food or drink, textures and the overall vibe.
-
+${o.directionFirst && extra ? directionBrief(extra) : ""}
 SLIDES
 - Never recreate the cover. No new slide may repeat the cover's pose, camera angle, distance and framing together; a slide with her must change at least the pose and the camera angle or distance clearly, or move her somewhere new.
 - Choose only from the types below.${herTypes.length ? ` At least one new slide shows her fully (type ${herTypes.join(" or ")}, person "full").` : ""}${n > 1 ? ` Do not repeat a type back to back, use ${Math.min(n, allowed.length, 3) > 1 ? `at least ${Math.min(n, allowed.length, 3)} different types` : "the type given"}, and make every slide clearly different from the cover and from each other in framing and subject. Order the slides for the best swipe flow after the cover.` : ""}
@@ -150,7 +163,7 @@ RULES
 - Name the camera and framing for each slide (phone main camera, 0.5x wide, close-up, top-down, mirror, flash at night) and the light with its source and direction. Real, unretouched social-media phone-photo quality, never glossy or CGI.
 - Real brands and logos seen in the image stay accurate and named (for example a black quilted Chanel flap bag with the gold CC turn-lock). Quote any readable text exactly; never invent gibberish lettering.
 - Poses are natural, confident or candid, and non-sexual. Always an adult woman.
-${extraNames.length ? `- The next attached image${extraNames.length > 1 ? "s are" : " is"} extra from the user, showing the vibe, an outfit or styling they want; the edit model receives ${extraNames.length > 1 ? "them" : "it"} as ${joinTags(extraNames)}. Use ${extraNames.length > 1 ? "them" : "it"} where it fits the creative direction, by placeholder.\n` : ""}${c ? `- Her recognisable traits, only where visible: ${fence(o.traits)}\n` : ""}${extra ? `- Creative direction from the user, only as it applies to the image: <<<${fence(extra)}>>>\n` : ""}
+${extraNames.length ? `- The next attached image${extraNames.length > 1 ? "s are" : " is"} extra from the user, showing the vibe, an outfit or styling they want; the edit model receives ${extraNames.length > 1 ? "them" : "it"} as ${joinTags(extraNames)}. Use ${extraNames.length > 1 ? "them" : "it"} where it fits the creative direction, by placeholder.\n` : ""}${c ? `- Her recognisable traits, only where visible: ${fence(o.traits)}\n` : ""}${extra && !o.directionFirst ? `- Creative direction from the user, only as it applies to the image: <<<${fence(extra)}>>>\n` : ""}${extra && o.directionFirst ? "- Before you reply, check every slide against the user's creative direction above and rewrite any slide that does not clearly carry it out.\n" : ""}
 Reply with only JSON: {"theme": "one short line naming the carousel's aesthetic", "slides": [{"type": "pose", "label": "2 to 4 word name", "person": "full", "prompt": "..."}]}`;
 }
 

@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { UserFacingError } from "@/lib/errors";
 import { isOwnPath } from "@/lib/uploads";
+import { MEDIA_BUCKET } from "@/lib/images";
 import { loadForVision, referencesFor } from "@/lib/character-images";
 import { ensureSheetPack, selectCharacter } from "@/lib/sheet-pack";
 import { saveHistory } from "@/lib/history";
@@ -128,7 +129,21 @@ export async function runVariants(
 export interface CarouselResult {
   theme: string;
   /** Each slide with its placeholders (for Generate) and as the person copies it. */
-  slides: (Slide & { copy: string; historyId?: string | null; attach?: string[] })[];
+  slides: (Slide & { copy: string; historyId?: string | null; attach?: string[]; attachItems?: AttachItem[] })[];
+}
+
+/**
+ * One image to attach in another generator (Write only), in @image order. Her references carry links so the page can
+ * show them and the person can save them; the photo and extras are the person's own, shown from the page.
+ */
+export interface AttachItem {
+  tag: string;
+  label: string;
+  source: "ref" | "photo" | "extra";
+  /** Extras: which one (0-based). */
+  index?: number;
+  url?: string;
+  downloadUrl?: string;
 }
 
 /** How each of her references is named in a standalone prompt, and in the list of what to attach. */
@@ -144,11 +159,21 @@ const standaloneRef = (c: Row, path: string, i: number) =>
  * wording, realism and rules written in, and her sheets (not the app's crops, which the person doesn't have) as the
  * references. Slides without her use the photo alone. `attach` lists the images in @image order.
  */
-export function standaloneSlide(slide: Pick<Slide, "person" | "prompt">, c: Row | null, anchors: Anchors | null, extraCount: number): { copy: string; attach: string[] } {
-  const refs = c && slide.person !== "none" ? referencesFor("carousel", c).map((r, i) => standaloneRef(c, r.path, i)) : [];
+export function standaloneSlide(
+  slide: Pick<Slide, "person" | "prompt">,
+  c: Row | null,
+  anchors: Anchors | null,
+  extraCount: number,
+): { copy: string; attach: string[]; attachItems: AttachItem[] } {
+  const refs = c && slide.person !== "none" ? referencesFor("carousel", c).map((r, i) => ({ ...standaloneRef(c, r.path, i), path: r.path })) : [];
   const copy = carouselSlidePrompt(slide, { roles: refs.map((r) => r.role), anchors: refs.length ? anchors : null }, extraCount);
-  const extras = Array.from({ length: extraCount }, (_, i) => `extra image ${i + 1}`);
-  return { copy, attach: [...refs.map((r) => r.attach), "your photo", ...extras].map((label, i) => `@image${i + 1}: ${label}`) };
+  const items: (Omit<AttachItem, "tag"> & { path?: string })[] = [
+    ...refs.map((r) => ({ label: r.attach, source: "ref" as const, path: r.path })),
+    { label: "your photo", source: "photo" as const },
+    ...Array.from({ length: extraCount }, (_, i) => ({ label: `extra image ${i + 1}`, source: "extra" as const, index: i })),
+  ];
+  const attachItems = items.map((x, i) => ({ ...x, tag: `@image${i + 1}` }));
+  return { copy, attach: attachItems.map((x) => `${x.tag}: ${x.label}`), attachItems };
 }
 
 /** The carousel creative director (artifact writeCarousel): new slides that follow the cover. */
@@ -166,7 +191,15 @@ export async function runCarousel(
   const c = await character(supabase, input.characterId);
 
   const { client, imageMaxEdge } = await getUserTextClient(supabase, userId, "vision", "carousel");
-  const prompt = carouselPrompt({ n, types, hasCharacter: !!c, traits: traitsOf(c), extra: String(input.note ?? "").trim().slice(0, 2000), extraCount: extraPaths.length });
+  const prompt = carouselPrompt({
+    n,
+    types,
+    hasCharacter: !!c,
+    traits: traitsOf(c),
+    extra: String(input.note ?? "").trim().slice(0, 2000),
+    extraCount: extraPaths.length,
+    directionFirst: !!input.writeOnly,
+  });
   const images = await loadForVision(
     supabase,
     [input.coverPath, ...extraPaths].map((path) => ({ label: "image", path })),
@@ -178,6 +211,7 @@ export async function runCarousel(
   const slides: CarouselResult["slides"] = plan.slides.map((s) =>
     input.writeOnly ? { ...s, ...standaloneSlide(s, c, anchors, extraPaths.length) } : { ...s, copy: slideCopyText(s, !!c) },
   );
+  if (input.writeOnly) await linkRefs(supabase, slides);
 
   const slideIds = await saveHistory(
     supabase,
@@ -195,4 +229,23 @@ export async function runCarousel(
   );
   slides.forEach((s, i) => (s.historyId = slideIds[i] ?? null));
   return { theme: plan.theme, slides };
+}
+
+/** Write only: view and save links for her references in each attach list (the path itself never goes to the page). */
+async function linkRefs(supabase: SupabaseClient, slides: CarouselResult["slides"]) {
+  const items = slides.flatMap((s) => (s.attachItems ?? []) as (AttachItem & { path?: string })[]);
+  const paths = [...new Set(items.map((x) => x.path).filter((p): p is string => !!p))];
+  const storage = supabase.storage.from(MEDIA_BUCKET);
+  const links = new Map<string, { url?: string; downloadUrl?: string }>();
+  await Promise.all(
+    paths.map(async (p) => {
+      const [view, save] = await Promise.all([storage.createSignedUrl(p, 3600), storage.createSignedUrl(p, 3600, { download: true })]);
+      links.set(p, { url: view.data?.signedUrl, downloadUrl: save.data?.signedUrl });
+    }),
+  );
+  for (const x of items) {
+    if (!x.path) continue;
+    Object.assign(x, links.get(x.path) ?? {});
+    delete x.path;
+  }
 }

@@ -190,6 +190,7 @@ const U = "u1";
 function db(row: Record<string, unknown> | null = { id: "c1", name: "Juno", profile: { distinctive_traits: "freckles" }, face_sheet_path: `${U}/face.jpg`, body_sheet_path: null, reference_paths: [] }) {
   const writes: Record<string, unknown>[] = [];
   const client = {
+    storage: { from: () => ({ createSignedUrl: async (p: string, _t: number, o?: { download?: boolean }) => ({ data: { signedUrl: `${o?.download ? "signed-dl" : "signed"}:${p}` } }) }) },
     from: (table: string) => ({
       select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: table === "characters" ? row : { prefs: { recentPoses: ["old pose"] } }, error: null }) }) }),
       update: (patch: Record<string, unknown>) => ({ eq: async () => (writes.push(patch), { error: null }) }),
@@ -265,6 +266,30 @@ describe("runCarousel", () => {
     expect(room.attach).toEqual(["@image1: your photo", "@image2: extra image 1"]);
     expect(room.copy.startsWith("@image1 is the source photo from the same shoot.")).toBe(true);
     expect(h.saveHistory.mock.calls[0][2][0]).toMatchObject({ kind: "carousel", label: "Write only · 1 · Low angle", prompt: her.copy });
+    // Each image to attach, with links to her sheets for the page (never the storage path).
+    expect(her.attachItems?.map((x) => [x.tag, x.source, x.label])).toEqual([
+      ["@image1", "ref", "Holly's face sheet"],
+      ["@image2", "ref", "Holly's body sheet"],
+      ["@image3", "photo", "your photo"],
+      ["@image4", "extra", "extra image 1"],
+    ]);
+    expect(her.attachItems?.[0]).toMatchObject({ url: `signed:${U}/face.jpg`, downloadUrl: `signed-dl:${U}/face.jpg` });
+    expect(JSON.stringify(her.attachItems)).not.toContain('"path"');
+  });
+
+  it("Write only puts the creative direction first, as the brief every slide is built around", async () => {
+    h.run.mockResolvedValue('{"theme":"Hotel night","slides":[{"type":"pose","label":"Vanity","person":"full","prompt":"Same woman as {REF} at a hotel vanity."}]}');
+    const { client } = db();
+    await runCarousel(client, U, { coverPath: `${U}/c.jpg`, characterId: "c1", types: ["pose"], count: 1, writeOnly: true, note: "hotel vanity at night, flash" });
+    const p = h.run.mock.calls[0][0].prompt as string;
+    expect(p).toContain("THE USER'S CREATIVE DIRECTION COMES FIRST. This is the brief for the whole set: <<<hotel vanity at night, flash>>>");
+    expect(p.indexOf("COMES FIRST")).toBeLessThan(p.indexOf("SLIDES\n"));
+    expect(p).toContain("rewrite any slide that does not clearly carry it out");
+    expect(p).not.toContain("Creative direction from the user, only as it applies");
+    // The Carousel tab keeps the artifact's wording.
+    await runCarousel(client, U, { coverPath: `${U}/c.jpg`, characterId: "c1", types: ["pose"], count: 1, note: "hotel vanity" });
+    expect(h.run.mock.calls[1][0].prompt).toContain("- Creative direction from the user, only as it applies to the image: <<<hotel vanity>>>");
+    expect(h.run.mock.calls[1][0].prompt).not.toContain("COMES FIRST");
   });
 
   it("needs at least one slide type", async () => {
