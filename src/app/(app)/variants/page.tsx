@@ -20,7 +20,7 @@ export default async function VariantsPage() {
     <div className="max-w-3xl">
       <h1 className="text-2xl font-semibold">Variants</h1>
       <p className="mt-1 text-sm text-neutral-400">
-        Turn one generated image into a set of edit prompts, or plan a whole carousel from a cover.
+        Turn one generated image into a set of edit prompts, plan a whole carousel from a cover, or write finished variation prompts to paste into another generator.
       </p>
       {isPro ? (
         <VariantsTool characters={characters} />

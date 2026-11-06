@@ -17,16 +17,21 @@ import {
   carouselTypeLabel,
   DEFAULT_NEW_SLIDES,
   DEFAULT_VARIANT_COUNT,
+  DEFAULT_WRITE_ONLY,
   MAX_EXTRA_IMAGES,
   MAX_NEW_SLIDES,
   MAX_VARIANT_COUNT,
+  MAX_WRITE_ONLY,
   VARIANT_DIMS,
+  WRITE_ONLY_TYPES,
   type CarouselTypeId,
   type SlidePerson,
   type VariantDimId,
 } from "@/lib/variants-meta";
 
-type Mode = "edits" | "carousel";
+/** Write only: the creative director writes variations as finished prompts for another generator, with no Generate. */
+type Mode = "edits" | "carousel" | "write";
+const MODE_LABEL: Record<Mode, string> = { edits: "Edits", carousel: "Carousel", write: "Write only" };
 type Picked = { file: File; preview: string; path?: string };
 interface Item {
   title: string;
@@ -39,6 +44,8 @@ interface Item {
   person?: SlidePerson;
   /** Its History entry, so History can open the image made from it. */
   historyId?: string | null;
+  /** Write only: the images to attach in the other generator, in @image order. */
+  attach?: string[];
 }
 interface Result {
   items: Item[];
@@ -65,6 +72,8 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   const [dims, setDims] = useState<Set<VariantDimId>>(new Set(["pose", "angle"]));
   const [types, setTypes] = useState<Set<CarouselTypeId>>(new Set(CAROUSEL_TYPES.map((t) => t.id)));
   const [slides, setSlides] = useState(DEFAULT_NEW_SLIDES);
+  const [writeTypes, setWriteTypes] = useState<Set<CarouselTypeId>>(new Set(WRITE_ONLY_TYPES));
+  const [writeCount, setWriteCount] = useState(DEFAULT_WRITE_ONLY);
   const [count, setCount] = useState<number>(DEFAULT_VARIANT_COUNT);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -92,7 +101,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   async function run() {
     if (!image) return;
     setBusy(true);
-    setStatus({ text: mode === "edits" ? "Reading the image and planning variants…" : "Reading the image and planning the carousel…", good: true });
+    setStatus({ text: mode === "edits" ? "Reading the image and planning variants…" : mode === "write" ? "Reading the image and writing variations…" : "Reading the image and planning the carousel…", good: true });
     try {
       const path = image.path ?? (await uploadImage(image.file, "target"));
       setImage({ ...image, path });
@@ -102,6 +111,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       const extraPaths = uploaded.filter((x): x is Picked & { path: string } => !!x?.path).map((x) => x.path);
       const common = { characterId: characterId || null, note, extraPaths };
       const base = { path, preview: image.preview, extraPaths, characterId: characterId || null, mode };
+      const who = (p: SlidePerson, type: string) => (p === "none" ? " · no person" : p === "partial" ? " · partly her" : type === "pose" ? "" : " · with her");
       if (mode === "edits") {
         const res = await writeVariantEdits({ imagePath: path, dims: [...dims], count, ...common });
         if (!res.ok) {
@@ -110,13 +120,25 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         }
         setResult({ ...base, theme: "", attach: res.attach, items: res.variants.map((v) => ({ title: v.label, hint: v.changes, copy: v.prompt, historyId: v.historyId })) });
         setStatus({ text: `${res.variants.length} edit prompts ready. Copy one and paste it into your generator's edit mode, or generate it here.`, good: true });
+      } else if (mode === "write") {
+        const res = await planCarousel({ coverPath: path, types: [...writeTypes], count: writeCount, writeOnly: true, ...common });
+        if (!res.ok) {
+          if (res.redirectTo) return router.push(res.redirectTo);
+          return setStatus({ text: res.error, good: false });
+        }
+        setResult({
+          ...base,
+          theme: res.theme,
+          attach: [],
+          items: res.slides.map((s) => ({ title: s.label, hint: carouselTypeLabel(s.type) + who(s.person, s.type), copy: s.copy, attach: s.attach, historyId: s.historyId })),
+        });
+        setStatus({ text: `${res.slides.length} prompt${res.slides.length > 1 ? "s" : ""} ready to paste into another generator. Attach the images listed on each one, in that order.`, good: true });
       } else {
         const res = await planCarousel({ coverPath: path, types: [...types], count: slides, ...common });
         if (!res.ok) {
           if (res.redirectTo) return router.push(res.redirectTo);
           return setStatus({ text: res.error, good: false });
         }
-        const who = (p: SlidePerson, type: string) => (p === "none" ? " · no person" : p === "partial" ? " · partly her" : type === "pose" ? "" : " · with her");
         setResult({
           ...base,
           theme: res.theme,
@@ -134,7 +156,9 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
 
   const hint = !character
     ? "Picking one restates the character's key traits in every edit, so the face doesn't drift."
-    : mode === "edits"
+    : mode === "write"
+      ? `Prompts with her name ${character.name}'s ${character.hasSheet ? "reference sheets" : "first reference photo"} as the first images to attach, and spell out her look, so another generator keeps her face and body.`
+      : mode === "edits"
       ? `Generate sends ${character.name}'s ${character.hasSheet ? "reference sheets" : "first reference photo"} first and your image after them, so the face stays locked to the ${character.hasSheet ? "sheet" : "reference"}.`
       : `Slides with her get ${character.name}'s face and body references; slides without her use only your cover.`;
 
@@ -142,7 +166,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
     <div className="mt-6 flex flex-col gap-6">
       {toast}
       <div className="flex gap-1" role="tablist">
-        {(["edits", "carousel"] as const).map((m) => (
+        {(["edits", "carousel", "write"] as const).map((m) => (
           <button
             key={m}
             role="tab"
@@ -154,13 +178,13 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
             }}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${mode === m ? "bg-neutral-800 text-neutral-100" : "text-neutral-400 hover:text-neutral-100"}`}
           >
-            {m === "edits" ? "Edits" : "Carousel"}
+            {MODE_LABEL[m]}
           </button>
         ))}
       </div>
 
       <ImageDrop
-        title={mode === "edits" ? "Generated image" : "Cover image"}
+        title={mode === "edits" ? "Generated image" : mode === "write" ? "Image to vary" : "Cover image"}
         preview={image?.preview}
         disabled={busy}
         onPick={(file) => {
@@ -173,7 +197,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         <div>
           <h2 id="extras-title" className="text-sm font-medium">More images <span className="text-xs font-normal text-neutral-500">optional, up to {MAX_EXTRA_IMAGES}</span></h2>
           <p className="text-xs text-neutral-500">
-            Show the AI the vibe, an outfit or anything else you want carried into the {mode === "edits" ? "variants" : "slides"}. Say how to use them in the {mode === "edits" ? "creative direction" : "theme"}.
+            Show the AI the vibe, an outfit or anything else you want carried into the {mode === "carousel" ? "slides" : "variants"}. Say how to use them in the {mode === "carousel" ? "theme" : "creative direction"}.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -243,6 +267,25 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
             {Array.from({ length: MAX_VARIANT_COUNT }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </fieldset>
+      ) : mode === "write" ? (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-sm font-medium">Kinds of variation</legend>
+          <div className="flex flex-wrap gap-2">
+            {CAROUSEL_TYPES.map((t) => (
+              <label key={t.id} className={chip(writeTypes.has(t.id))}>
+                <input type="checkbox" className="sr-only" checked={writeTypes.has(t.id)} onChange={() => toggle(setWriteTypes, t.id)} />
+                {t.label}
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-neutral-500">
+            The creative director plans new shots from the same shoot: a new pose and camera angle, or her somewhere nearby, by default. Each prompt is complete, with her look, the realism and the rules written in, so it can be pasted into any generator.
+          </p>
+          <Label htmlFor="write-count" className="mt-2">How many prompts</Label>
+          <select id="write-count" value={writeCount} onChange={(e) => setWriteCount(Number(e.target.value))} className="h-9 w-32 rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm">
+            {Array.from({ length: MAX_WRITE_ONLY }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </fieldset>
       ) : (
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-medium">Slide types</legend>
@@ -262,13 +305,13 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       )}
 
       <section className="flex flex-col gap-2">
-        <Label htmlFor="note">{mode === "edits" ? "Creative direction" : "Theme"} <span className="text-xs font-normal text-neutral-500">optional</span></Label>
+        <Label htmlFor="note">{mode === "carousel" ? "Theme" : "Creative direction"} <span className="text-xs font-normal text-neutral-500">optional</span></Label>
         <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
       </section>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" onClick={run} disabled={busy || !image || noRefs || (mode === "edits" ? dims.size === 0 : types.size === 0)}>
-          {busy ? "Writing..." : mode === "edits" ? "Write variant edits" : "Plan carousel"}
+        <Button type="button" onClick={run} disabled={busy || !image || noRefs || (mode === "edits" ? dims.size === 0 : mode === "write" ? writeTypes.size === 0 : types.size === 0)}>
+          {busy ? "Writing..." : mode === "edits" ? "Write variant edits" : mode === "write" ? "Write variations" : "Plan carousel"}
         </Button>
         {status && <p role="status" className={`text-sm ${status.good ? "text-neutral-300" : "text-red-400"}`}>{status.text}</p>}
       </div>
@@ -276,23 +319,25 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       {result && (
         <section className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-medium">{result.mode === "edits" ? "Variant edits" : "Carousel plan"}</h2>
+            <h2 className="font-medium">{result.mode === "edits" ? "Variant edits" : result.mode === "write" ? "Variation prompts" : "Carousel plan"}</h2>
             <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  const n = result.items.length;
-                  if (window.confirm(`Generate all ${n} ${result.mode === "edits" ? "variants" : "slides"}? This starts ${n} images on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
-                }}
-              >
-                Generate all
-              </Button>
+              {result.mode !== "write" && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    const n = result.items.length;
+                    if (window.confirm(`Generate all ${n} ${result.mode === "edits" ? "variants" : "slides"}? This starts ${n} images on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
+                  }}
+                >
+                  Generate all
+                </Button>
+              )}
               <Button
                 type="button"
                 size="sm"
                 variant="secondary"
-                onClick={() => copy(result.items.map((it, i) => `${result.mode === "edits" ? i + 1 : i + 2}. ${it.title}\n${it.copy}`).join("\n\n"))}
+                onClick={() => copy(result.items.map((it, i) => `${result.mode === "carousel" ? i + 2 : i + 1}. ${it.title}\n${it.attach?.length ? `Attach: ${it.attach.join(", ")}\n` : ""}${it.copy}`).join("\n\n"))}
               >
                 Copy all
               </Button>
@@ -317,13 +362,14 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
               <CardContent className="flex flex-col gap-2 pt-5 text-sm">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <span className="font-medium">{result.mode === "carousel" ? `${i + 2} · ` : ""}{item.title}</span>
+                    <span className="font-medium">{result.mode === "carousel" ? `${i + 2} · ` : result.mode === "write" ? `${i + 1} · ` : ""}{item.title}</span>
                     {item.hint && <p className="text-xs text-neutral-500">{item.hint}</p>}
                   </div>
                   <Button type="button" size="sm" variant="ghost" onClick={() => copy(item.copy)}>Copy</Button>
                 </div>
+                {item.attach && item.attach.length > 0 && <p className="text-xs text-neutral-400">Attach in this order: {item.attach.join(", ")}</p>}
                 <p className="whitespace-pre-wrap break-words">{item.copy}</p>
-                {result.mode === "edits" ? (
+                {result.mode === "write" ? null : result.mode === "edits" ? (
                   <GenerateImage prompt={item.copy} characterId={result.characterId} extraPaths={[result.path, ...result.extraPaths]} kind="variant" runSignal={runAll} historyId={item.historyId} />
                 ) : (
                   <GenerateImage

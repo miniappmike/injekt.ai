@@ -247,6 +247,26 @@ describe("runCarousel", () => {
     expect(h.saveHistory.mock.calls[0][2][1]).toMatchObject({ kind: "carousel", label: "Carousel · slide 3 · Latte", meta: { person: "none", slidePrompt: "No people in the frame. Latte from {PHOTO}.", type: "food" } });
   });
 
+  it("Write only: finished prompts with her sheets as the references and what to attach, up to 8", async () => {
+    h.ensureSheetPack.mockResolvedValue({ anchors: { hair: "jet black waves", mid: "wide hips", sheetOutfit: "white shorts" } });
+    h.run.mockResolvedValue('{"theme":"Lounge","slides":[{"type":"pose","label":"Low angle","person":"full","prompt":"Same woman as {REF}, low angle, outfit from {PHOTO} and {EXTRA1}."},{"type":"environment","label":"The room","person":"none","prompt":"No people in the frame. The room from {PHOTO}."}]}');
+    const { client } = db({ id: "c1", name: "Holly", profile: {}, face_sheet_path: `${U}/face.jpg`, body_sheet_path: `${U}/body.jpg`, reference_paths: [`${U}/r.jpg`] });
+    const r = await runCarousel(client, U, { coverPath: `${U}/c.jpg`, characterId: "c1", types: ["pose", "environment"], count: 20, writeOnly: true, extraPaths: [`${U}/x.jpg`] });
+    expect(h.run.mock.calls[0][0].prompt).toContain("Plan 8 NEW slides");
+    const [her, room] = r.slides;
+    expect(her.attach).toEqual(["@image1: Holly's face sheet", "@image2: Holly's body sheet", "@image3: your photo", "@image4: extra image 1"]);
+    expect(her.copy.startsWith("Use @image1 and @image2 as the strict identity reference for the woman: @image1 is her face reference sheet, @image2 is her body reference sheet.")).toBe(true);
+    expect(her.copy).toContain("Hair: jet black waves.");
+    expect(her.copy).toContain("Same woman as @image1 and @image2, low angle, outfit from @image3 and @image4.");
+    expect(her.copy).toContain("Never dress her in the reference outfit (white shorts).");
+    expect(her.copy).toContain("beauty filter");
+    expect(her.copy).not.toMatch(/\{(REF|PHOTO|EXTRA\d)\}/);
+    // A slide without her needs only the photo (and extras).
+    expect(room.attach).toEqual(["@image1: your photo", "@image2: extra image 1"]);
+    expect(room.copy.startsWith("@image1 is the source photo from the same shoot.")).toBe(true);
+    expect(h.saveHistory.mock.calls[0][2][0]).toMatchObject({ kind: "carousel", label: "Write only · 1 · Low angle", prompt: her.copy });
+  });
+
   it("needs at least one slide type", async () => {
     const { client } = db();
     await expect(runCarousel(client, U, { coverPath: `${U}/c.jpg`, types: [] })).rejects.toThrow(/slide type/);

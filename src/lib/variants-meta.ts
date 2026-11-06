@@ -32,6 +32,11 @@ export const DEFAULT_VARIANT_COUNT = 4;
 /** New slides after the cover. */
 export const MAX_NEW_SLIDES = 5;
 export const DEFAULT_NEW_SLIDES = 4;
+/** "Write only": variations the creative director writes as finished prompts for another generator. */
+export const MAX_WRITE_ONLY = 8;
+export const DEFAULT_WRITE_ONLY = 4;
+/** Write only starts on new shots of her; the other slide types can be turned on. */
+export const WRITE_ONLY_TYPES = ["pose", "model_alt"] as const;
 /** Extra images (vibe, outfit) a user can add after the main one. */
 export const MAX_EXTRA_IMAGES = 2;
 

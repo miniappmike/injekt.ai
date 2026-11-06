@@ -32,10 +32,12 @@ export async function planCarousel(input: {
   coverPath: string;
   characterId?: string | null;
   types: CarouselTypeId[];
-  /** New slides after the cover, 1 to 5. */
+  /** New slides after the cover, 1 to 5 (Write only: variations, 1 to 8). */
   count?: number;
   note?: string;
   extraPaths?: string[];
+  /** Write only: finished prompts to paste into another generator, each with what to attach. */
+  writeOnly?: boolean;
 }): Promise<Ok<CarouselResult>> {
   try {
     const { supabase, user } = await requireUser();

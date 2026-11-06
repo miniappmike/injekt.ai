@@ -9,9 +9,22 @@ import { recentPoses, rememberPoses, RECENT_SEND } from "@/lib/recent-poses";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { askJson } from "@/lib/ai/json";
 import { HAIRSTYLES, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
-import { carouselPrompt, dimText, finishVariant, parseCarousel, slideCopyText, variantPrompt, variantTags, type Slide } from "@/lib/ai/prompts/variants";
-import { CAROUSEL_TYPES, DEFAULT_NEW_SLIDES, DEFAULT_VARIANT_COUNT, MAX_EXTRA_IMAGES, MAX_NEW_SLIDES, MAX_VARIANT_COUNT, VARIANT_DIMS, type CarouselTypeId, type VariantDimId } from "@/lib/variants-meta";
+import { carouselPrompt, carouselSlidePrompt, dimText, finishVariant, parseCarousel, slideCopyText, variantPrompt, variantTags, type Slide } from "@/lib/ai/prompts/variants";
+import {
+  CAROUSEL_TYPES,
+  DEFAULT_NEW_SLIDES,
+  DEFAULT_VARIANT_COUNT,
+  DEFAULT_WRITE_ONLY,
+  MAX_EXTRA_IMAGES,
+  MAX_NEW_SLIDES,
+  MAX_VARIANT_COUNT,
+  MAX_WRITE_ONLY,
+  VARIANT_DIMS,
+  type CarouselTypeId,
+  type VariantDimId,
+} from "@/lib/variants-meta";
 import type { CharacterProfile } from "@/lib/characters";
+import type { Anchors } from "@/lib/ai/prompts/identity";
 
 /** The image is sent to the prompt writer at this size (artifact: 1024). */
 const EDGE = 1024;
@@ -115,21 +128,41 @@ export async function runVariants(
 export interface CarouselResult {
   theme: string;
   /** Each slide with its placeholders (for Generate) and as the person copies it. */
-  slides: (Slide & { copy: string; historyId?: string | null })[];
+  slides: (Slide & { copy: string; historyId?: string | null; attach?: string[] })[];
+}
+
+/** How each of her references is named in a standalone prompt, and in the list of what to attach. */
+const standaloneRef = (c: Row, path: string, i: number) =>
+  path === c.face_sheet_path
+    ? { role: "her face reference sheet", attach: `${c.name}'s face sheet` }
+    : path === c.body_sheet_path
+      ? { role: "her body reference sheet", attach: `${c.name}'s body sheet` }
+      : { role: "a reference photo of her", attach: `${c.name}'s reference photo ${i + 1}` };
+
+/**
+ * A slide as a finished prompt for any generator (Write only): framed the way Generate frames it, with the identity
+ * wording, realism and rules written in, and her sheets (not the app's crops, which the person doesn't have) as the
+ * references. Slides without her use the photo alone. `attach` lists the images in @image order.
+ */
+export function standaloneSlide(slide: Pick<Slide, "person" | "prompt">, c: Row | null, anchors: Anchors | null, extraCount: number): { copy: string; attach: string[] } {
+  const refs = c && slide.person !== "none" ? referencesFor("carousel", c).map((r, i) => standaloneRef(c, r.path, i)) : [];
+  const copy = carouselSlidePrompt(slide, { roles: refs.map((r) => r.role), anchors: refs.length ? anchors : null }, extraCount);
+  const extras = Array.from({ length: extraCount }, (_, i) => `extra image ${i + 1}`);
+  return { copy, attach: [...refs.map((r) => r.attach), "your photo", ...extras].map((label, i) => `@image${i + 1}: ${label}`) };
 }
 
 /** The carousel creative director (artifact writeCarousel): new slides that follow the cover. */
 export async function runCarousel(
   supabase: SupabaseClient,
   userId: string,
-  input: { coverPath: string; characterId?: string | null; types: CarouselTypeId[]; count?: number; note?: string; extraPaths?: string[] },
+  input: { coverPath: string; characterId?: string | null; types: CarouselTypeId[]; count?: number; note?: string; extraPaths?: string[]; writeOnly?: boolean },
 ): Promise<CarouselResult> {
   if (!isOwnPath(userId, input.coverPath)) throw new UserFacingError("Add the image to build the carousel around.");
   const valid = new Set<string>(CAROUSEL_TYPES.map((t) => t.id));
   const types = [...new Set(input.types)].filter((t) => valid.has(t));
   if (!types.length) throw new UserFacingError("Turn on at least one slide type.");
   const extraPaths = checkExtras(userId, input.extraPaths);
-  const n = clampCount(input.count, DEFAULT_NEW_SLIDES, MAX_NEW_SLIDES);
+  const n = input.writeOnly ? clampCount(input.count, DEFAULT_WRITE_ONLY, MAX_WRITE_ONLY) : clampCount(input.count, DEFAULT_NEW_SLIDES, MAX_NEW_SLIDES);
   const c = await character(supabase, input.characterId);
 
   const { client, imageMaxEdge } = await getUserTextClient(supabase, userId, "vision", "carousel");
@@ -140,7 +173,11 @@ export async function runCarousel(
     Math.min(EDGE, imageMaxEdge ?? EDGE),
   );
   const plan = parseCarousel(await askJson(client, { prompt, images: images.map((x) => x.dataUri) }), n);
-  const slides: CarouselResult["slides"] = plan.slides.map((s) => ({ ...s, copy: slideCopyText(s, !!c) }));
+  // Write only: her sheet's words (hair, body) go into each prompt, as Generate would add them.
+  const anchors = input.writeOnly && c && (c.face_sheet_path || c.body_sheet_path) ? ((await ensureSheetPack(supabase, userId, c))?.anchors ?? null) : null;
+  const slides: CarouselResult["slides"] = plan.slides.map((s) =>
+    input.writeOnly ? { ...s, ...standaloneSlide(s, c, anchors, extraPaths.length) } : { ...s, copy: slideCopyText(s, !!c) },
+  );
 
   const slideIds = await saveHistory(
     supabase,
@@ -148,7 +185,7 @@ export async function runCarousel(
     slides.map((s, i) => ({
       characterId: c?.id ?? null,
       kind: "carousel" as const,
-      label: `Carousel · slide ${i + 2} · ${s.label}`,
+      label: input.writeOnly ? `Write only · ${i + 1} · ${s.label}` : `Carousel · slide ${i + 2} · ${s.label}`,
       prompt: s.copy,
       imagePath: input.coverPath,
       extraPaths,
