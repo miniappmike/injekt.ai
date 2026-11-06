@@ -76,7 +76,7 @@ export function GenerationTray() {
       <div aria-hidden="true" className={collapsed ? "h-12" : "h-36"} />
       <section
         aria-label="Images generated on this page"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-800 bg-neutral-950/95 px-4 py-2 shadow-[0_-8px_24px_rgba(0,0,0,0.4)] backdrop-blur"
+        className="fixed inset-x-0 bottom-0 z-30 animate-fade-up border-t border-neutral-800/80 bg-neutral-950/85 px-4 py-2 shadow-[0_-12px_40px_-12px_rgb(0_0_0/0.8)] backdrop-blur-xl"
       >
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-medium">
@@ -98,18 +98,18 @@ export function GenerationTray() {
                   <button
                     type="button"
                     onClick={() => viewImage({ url: i.url as string, downloadUrl: i.downloadUrl, prompt: i.prompt, title: i.label })}
-                    className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+                    className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
                     aria-label={`View ${i.label} image`}
                     title={i.label}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={i.url} alt="" className="h-20 w-20 rounded-md object-cover" />
+                    <img src={i.url} alt="" className="thumb h-20 w-20 animate-pop-in object-cover ring-1 ring-white/10" />
                   </button>
                 ) : (
                   <div
                     title={i.state === "failed" ? i.error : i.label}
-                    className={`flex h-20 w-20 items-center justify-center rounded-md px-1 text-center text-xs ${
-                      i.state === "failed" ? "bg-red-950 text-red-300" : "animate-pulse bg-neutral-800 text-neutral-400"
+                    className={`flex h-20 w-20 items-center justify-center rounded-lg px-1 text-center text-xs ${
+                      i.state === "failed" ? "bg-red-950/70 text-red-300 ring-1 ring-red-500/30" : "skeleton text-neutral-300 ring-1 ring-brand-500/30"
                     }`}
                   >
                     {i.state === "failed" ? "Failed" : "Generating..."}

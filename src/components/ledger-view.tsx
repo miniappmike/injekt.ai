@@ -22,7 +22,7 @@ import {
 
 const POLL_MS = 5000;
 const PAGE = 50;
-const select = "h-9 rounded-md border border-neutral-700 bg-neutral-900 px-2 text-sm";
+const select = "h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-2 text-sm";
 const tz = () => new Date().getTimezoneOffset();
 const tokens = (n: number | null) => (n === null ? "" : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "medium" });
@@ -31,8 +31,8 @@ function Tile({ label, value, note }: { label: string; value: number; note?: str
   return (
     <Card>
       <CardContent className="pt-5">
-        <p className="text-xs text-neutral-500">{label}</p>
-        <p className="mt-1 text-2xl font-semibold">{formatUsd(value)}</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">{label}</p>
+        <p className="mt-1 font-display text-3xl font-extrabold tracking-tight text-neutral-50">{formatUsd(value)}</p>
         {note && <p className="mt-1 text-xs text-amber-400">{note}</p>}
       </CardContent>
     </Card>
@@ -138,7 +138,7 @@ export function LedgerView() {
           {LEDGER_RANGES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
         </select>
         <span className="ml-auto flex items-center gap-2 text-xs text-neutral-500" aria-live="polite">
-          <span className={`h-2 w-2 rounded-full ${status === "ready" ? "bg-emerald-500" : "bg-neutral-600"}`} aria-hidden="true" />
+          <span className={`h-2 w-2 rounded-full ${status === "ready" ? "animate-pulse bg-emerald-400 shadow-[0_0_8px_rgb(52_211_153)]" : "bg-neutral-600"}`} aria-hidden="true" />
           {status === "ready" && updated ? `Live · updated ${updated.toLocaleTimeString()}` : status === "loading" ? "Loading..." : "Offline"}
         </span>
         <Button type="button" size="sm" variant="secondary" disabled={!entries.length} onClick={exportCsv}>Export CSV</Button>
@@ -146,7 +146,7 @@ export function LedgerView() {
 
       {status === "error" && <p role="alert" className="text-sm text-red-400">Couldn&apos;t load your ledger. Reload the page to try again.</p>}
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="stagger grid gap-3 sm:grid-cols-3">
         <Tile label="Today" value={total((s) => s.today)} />
         <Tile label="This month" value={total((s) => s.month)} />
         <Tile label="All time" value={total((s) => s.all)} note={unpriced ? `${unpriced} call${unpriced === 1 ? "" : "s"} couldn't be priced, so this is a little low.` : undefined} />
@@ -160,7 +160,7 @@ export function LedgerView() {
             <Link href="/settings/api-keys" className="underline">API keys</Link> page if it isn&apos;t one we know.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-neutral-800">
+          <div className="overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-900/60">
             <table className="w-full text-left text-sm">
               <thead className="text-xs text-neutral-500">
                 <tr>
@@ -198,7 +198,7 @@ export function LedgerView() {
         {status === "ready" && entries.length === 0 ? (
           <p className="text-sm text-neutral-400">No calls in this view.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-neutral-800">
+          <div className="overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-900/60">
             <table className="w-full text-left text-sm">
               <thead className="text-xs text-neutral-500">
                 <tr>
@@ -212,7 +212,7 @@ export function LedgerView() {
               </thead>
               <tbody>
                 {entries.map((e) => (
-                  <tr key={e.id} className="border-t border-neutral-800 align-top">
+                  <tr key={e.id} className="border-t border-neutral-800 align-top transition-colors hover:bg-neutral-800/40">
                     <td className="whitespace-nowrap p-2 text-neutral-400">{when(e.createdAt)}</td>
                     <td className="p-2">{platformLabel(e.platform)}</td>
                     <td className="p-2">

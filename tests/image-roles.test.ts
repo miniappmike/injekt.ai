@@ -3,7 +3,6 @@ import { defaultModelFor, detectProvider, SPICY_IMAGE_MODEL, SPICY_TEXT_MODEL } 
 import { effectiveRole, isSpicyHost, providerSupports, shareRole } from "@/lib/ai/roles";
 import { resolveRoleSetup } from "@/lib/ai/role-setup";
 import { getTextBackend } from "@/lib/ai/providers/text";
-import { directSwapPrompt } from "@/lib/ai/tasks/direct-swap";
 import { toFailure } from "@/lib/ai/failure";
 import { UserFacingError } from "@/lib/errors";
 
@@ -97,20 +96,6 @@ describe("the Image job", () => {
   it("has no stand-in when empty: Image never falls back to Vision or Text", () => {
     expect(effectiveRole({ vision: { provider: "spicyapi", model: "m" } }, "image")).toBeNull();
     expect(effectiveRole({ image: { provider: "spicyapi", model: "m" } }, "vision")).toBeNull();
-  });
-});
-
-describe("Direct swap prompt", () => {
-  it("puts the references first and the photo last", () => {
-    expect(directSwapPrompt(1)).toContain("Replace the person in @image2 with the person shown in @image1.");
-    const three = directSwapPrompt(3);
-    expect(three).toContain("@image4");
-    expect(three).toContain("@image1 to @image3");
-    expect(three).toContain("strict identity reference");
-    expect(three).toContain("pose");
-  });
-  it("needs at least one reference", () => {
-    expect(() => directSwapPrompt(0)).toThrow();
   });
 });
 

@@ -66,6 +66,8 @@ beforeAll(async () => {
   );
   await db.exec(migration("0008_api_ledger.sql"));
   await db.exec(migration("0009_history_extra_images.sql"));
+  await db.exec(migration("0010_sheet_pack.sql"));
+  await db.exec(migration("0011_outfits.sql"));
   // Storage tables are only stand-ins here; turn on row-level security so the policies are actually tested.
   await db.exec(`alter table storage.objects enable row level security; grant usage on schema storage to authenticated; grant select on storage.objects to authenticated;`);
 });
@@ -204,6 +206,44 @@ describe("prompt history", () => {
     const u = await newUser("r@x.com");
     await asUser(u);
     await expect(entry(u, "x", "bogus")).rejects.toThrow();
+  });
+});
+
+describe("sheet pack and generation kinds (0010)", () => {
+  it("stores a sheet pack on a character the owner can update, and history meta defaults to {}", async () => {
+    const u = await newUser("pack@x.com");
+    await asUser(u);
+    await character(u, "packed");
+    await db.query(`update characters set sheet_pack = '{"v":3,"sig":"a|b"}' where name = 'packed'`);
+    const c = await db.query<{ sheet_pack: { v: number } }>("select sheet_pack from characters where name = 'packed'");
+    expect(c.rows[0].sheet_pack.v).toBe(3);
+    await db.query("insert into prompt_history (user_id, kind, label, prompt) values ($1, 'inject', 'm', 'p')", [u]);
+    const h = await db.query<{ meta: unknown }>("select meta from prompt_history where label = 'm'");
+    expect(h.rows[0].meta).toEqual({});
+  });
+
+  it("accepts likeness fixes and still refuses unknown kinds", async () => {
+    const u = await newUser("kinds@x.com");
+    await asUser(u);
+    const insert = (kind: string) => db.query("insert into generations (user_id, kind, status, provider) values ($1, $2, 'pending', 'p')", [u, kind]);
+    await expect(insert("likeness_fix")).resolves.toBeTruthy();
+    await expect(insert("reference_sheet")).resolves.toBeTruthy();
+    await expect(insert("bogus")).rejects.toThrow();
+  });
+});
+
+describe("saved outfits (0011)", () => {
+  it("are private to their owner and need a name and text", async () => {
+    const [a, b] = [await newUser("out-a@x.com"), await newUser("out-b@x.com")];
+    await asUser(a);
+    await db.query("insert into outfits (user_id, name, text) values ($1, 'Gym', 'black sports bra')", [a]);
+    await expect(db.query("insert into outfits (user_id, name, text) values ($1, '', 'x')", [a])).rejects.toThrow();
+    await expect(db.query("insert into outfits (user_id, name, text) values ($1, 'x', 'y')", [b])).rejects.toThrow(/row-level security/);
+    await asUser(b);
+    expect((await db.query("select * from outfits")).rows).toHaveLength(0);
+    await db.query("delete from outfits");
+    await asUser(a);
+    expect((await db.query("select name from outfits")).rows).toEqual([{ name: "Gym" }]);
   });
 });
 

@@ -21,15 +21,15 @@ export function referenceList(c: CharacterImagePaths): { label: string; path: st
 export const SHEETS_ONLY_JOBS = ["variant", "carousel"] as const;
 
 /**
- * The character images a job uses, in @image order. Variants and carousels use only the face and body sheets (falling
- * back to the reference photos when there are no sheets); everything else uses all of them. Prompt writing and image
- * generation both call this, so a prompt's @image numbers always match the images actually sent.
+ * The character images a job uses, in @image order. Variants and carousels use only the face and body sheets (or her
+ * first reference photo when there are no sheets, as the artifact does); everything else uses all of them. Prompt
+ * writing and image generation both call this, so a prompt's @image numbers always match the images actually sent.
  */
 export function referencesFor(job: string, c: CharacterImagePaths): { label: string; path: string }[] {
   const all = referenceList(c);
   if (!(SHEETS_ONLY_JOBS as readonly string[]).includes(job)) return all;
   const sheets = all.filter((r) => r.path === c.face_sheet_path || r.path === c.body_sheet_path);
-  return sheets.length ? sheets : all;
+  return sheets.length ? sheets : all.slice(0, 1);
 }
 
 export async function loadForVision(

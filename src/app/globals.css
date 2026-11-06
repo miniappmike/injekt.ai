@@ -1,1 +1,259 @@
 @import "tailwindcss";
+
+/*
+ * Model Spawn theme: cool charcoal surfaces, a crimson accent and an iris (blue-violet) second accent.
+ * The neutral scale is redefined here, so every neutral-* class in the app picks up the theme.
+ */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Exo 2", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-neutral-50: #fafafc;
+  --color-neutral-100: #f3f3f6;
+  --color-neutral-200: #dedee5;
+  --color-neutral-300: #c3c3cc;
+  --color-neutral-400: #9a9aa6;
+  --color-neutral-500: #71717d;
+  --color-neutral-600: #4b4b55;
+  --color-neutral-700: #34343c;
+  --color-neutral-800: #27272d;
+  --color-neutral-900: #1d1d22;
+  --color-neutral-950: #131316;
+
+  --color-brand-300: #ff7a9c;
+  --color-brand-400: #f7487a;
+  --color-brand-500: #e8265e;
+  --color-brand-600: #c81b4f;
+  --color-brand-700: #a21541;
+
+  --color-iris-400: #7b7bff;
+  --color-iris-500: #5b5bf6;
+  --color-iris-600: #4a46e0;
+
+  --animate-fade-up: fade-up 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-fade-in: fade-in 0.25s ease-out both;
+  --animate-pop-in: pop-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  --animate-slide-in-right: slide-in-right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(24px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    font-family: var(--font-sans);
+    background:
+      radial-gradient(1200px 500px at 85% -10%, rgb(232 38 94 / 0.08), transparent 60%),
+      radial-gradient(900px 500px at -10% 0%, rgb(91 91 246 / 0.07), transparent 60%),
+      var(--color-neutral-950);
+    background-attachment: fixed;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+  h1 {
+    font-weight: 700;
+  }
+  /* Checkboxes, radios and range sliders in the accent colour. */
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"] {
+    accent-color: var(--color-brand-500);
+  }
+  /* Our own chevron, drawn inside the box (the browser's sat on the edge and looked cut off). */
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 2.25rem !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%239a9aa6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 7.5 5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.7rem center;
+    background-size: 1rem;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  select:hover {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23f3f3f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 7.5 5 5 5-5'/%3E%3C/svg%3E");
+  }
+  select:disabled {
+    cursor: not-allowed;
+  }
+  select option {
+    background: var(--color-neutral-900);
+    color: var(--color-neutral-100);
+  }
+  select:hover {
+    border-color: var(--color-neutral-600);
+  }
+  select:focus-visible {
+    outline: none;
+    border-color: var(--color-brand-500);
+    box-shadow: 0 0 0 3px rgb(232 38 94 / 0.25);
+  }
+  ::selection {
+    background: rgb(232 38 94 / 0.35);
+  }
+  /* Slim scrollbars that fit the dark theme. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-neutral-700) transparent;
+  }
+  details > summary {
+    transition: color 0.15s;
+  }
+}
+
+@layer components {
+  /* Children appear one after another (lists of cards, results). */
+  .stagger > * {
+    animation: var(--animate-fade-up);
+  }
+  .stagger > *:nth-child(2) { animation-delay: 40ms; }
+  .stagger > *:nth-child(3) { animation-delay: 80ms; }
+  .stagger > *:nth-child(4) { animation-delay: 120ms; }
+  .stagger > *:nth-child(5) { animation-delay: 160ms; }
+  .stagger > *:nth-child(6) { animation-delay: 200ms; }
+  .stagger > *:nth-child(n + 7) { animation-delay: 240ms; }
+
+  /* Placeholder blocks while a page loads. */
+  .skeleton {
+    border-radius: 0.75rem;
+    background: linear-gradient(100deg, var(--color-neutral-900) 30%, var(--color-neutral-800) 50%, var(--color-neutral-900) 70%);
+    background-size: 300% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    from { background-position: 100% 0; }
+    to { background-position: 0 0; }
+  }
+
+  /* The crimson glow behind primary actions. */
+  .glow-brand {
+    box-shadow: 0 6px 24px -8px rgb(232 38 94 / 0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer components {
+  /* Page titles: big display type with a short crimson bar underneath. */
+  .page-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 1.2rem + 1.2vw, 2.05rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--color-neutral-50);
+  }
+  .page-title::after {
+    content: "";
+    display: block;
+    width: 3rem;
+    height: 3px;
+    margin-top: 0.45rem;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, var(--color-brand-500), var(--color-iris-500));
+    box-shadow: 0 0 14px rgb(232 38 94 / 0.6);
+  }
+}
+
+@layer components {
+  /* Places to click, drop or paste images: dashed, with a crimson glow on hover and focus. */
+  .dropzone {
+    border-radius: 1rem;
+    border: 1.5px dashed var(--color-neutral-700);
+    background:
+      radial-gradient(120% 120% at 0% 0%, rgb(232 38 94 / 0.05), transparent 55%),
+      rgb(29 29 34 / 0.55);
+    transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+  }
+  .dropzone:hover,
+  .dropzone:focus-visible,
+  .dropzone:focus-within {
+    outline: none;
+    border-color: rgb(232 38 94 / 0.55);
+    box-shadow: 0 0 0 4px rgb(232 38 94 / 0.08), 0 12px 40px -20px rgb(232 38 94 / 0.5);
+  }
+
+  /* A raised panel for a group of options. */
+  .panel {
+    border-radius: 1rem;
+    border: 1px solid var(--color-neutral-800);
+    background: rgb(29 29 34 / 0.6);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03), 0 10px 30px -20px rgb(0 0 0 / 0.8);
+  }
+
+  /* Image thumbnails in results and drop zones lift a little on hover. */
+  .thumb {
+    border-radius: 0.75rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .thumb:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px -12px rgb(0 0 0 / 0.9);
+  }
+}
+
+@keyframes ring-sweep {
+  from { stroke-dashoffset: var(--ring-from); }
+}
+@keyframes bar-grow {
+  from { transform: scaleX(0); }
+}
+
+@layer components {
+  /* A thin bar that sweeps while something is being made and there's no percentage to show. */
+  .progress-indeterminate {
+    position: relative;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: var(--color-neutral-800);
+  }
+  .progress-indeterminate::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, transparent, var(--color-brand-500), var(--color-iris-500), transparent);
+    animation: sweep 1.3s ease-in-out infinite;
+  }
+  @keyframes sweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(250%); }
+  }
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}

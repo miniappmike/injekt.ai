@@ -28,8 +28,8 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold">API keys</h1>
-      <p className="mt-1 text-sm text-neutral-400">
+      <h1 className="page-title">API keys</h1>
+      <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
         Bring your own keys. Paste one and we work out the provider. Keys are encrypted before storage and only the last 4 characters are shown back.
       </p>
       {wanted && <p className="mt-3 text-amber-400">Add a key below to continue.</p>}

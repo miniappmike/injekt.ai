@@ -2,29 +2,42 @@ import { InjectTabs } from "@/components/inject-tabs";
 import { requireUser } from "@/lib/auth";
 import { entitlements } from "@/lib/entitlements";
 import { referenceList } from "@/lib/character-images";
+import { currentPack } from "@/lib/sheet-pack";
+import { refOptions } from "@/lib/generation-job";
+import { listOutfits } from "@/lib/outfits";
+import { characterAvatars } from "@/lib/character-avatars";
 
-// The prompt writer calls a vision model, one call per target image.
-export const maxDuration = 60;
+// The prompt writer calls a vision model, one call per target image, with up to 4 versions in each.
+export const maxDuration = 300;
 
 export default async function InjectPage() {
   const { supabase, user } = await requireUser();
   const [isPro, remaining] = await Promise.all([entitlements.isUnlimited(user.id), entitlements.remaining(user.id)]);
   const { data } = await supabase
     .from("characters")
-    .select("id, name, face_sheet_path, body_sheet_path, reference_paths")
+    .select("id, name, profile, profile_photo_path, face_sheet_path, body_sheet_path, reference_paths")
     .order("name");
+  // Read on its own so the page still works before migration 0010 adds the column.
+  const { data: packs } = await supabase.from("characters").select("id, sheet_pack");
+  const packOf = new Map((packs ?? []).map((p) => [p.id as string, p.sheet_pack]));
+  const photos = await characterAvatars(supabase, data ?? []);
   const characters = (data ?? []).map((c) => {
     const refCount = referenceList(c).length;
-    return { id: c.id, name: c.name, refCount, ready: refCount > 0 };
+    const hasProfile = Object.values((c.profile ?? {}) as Record<string, unknown>).some((v) => typeof v === "string" && v.trim());
+    const pack = currentPack({ ...c, sheet_pack: packOf.get(c.id) });
+    const options = refOptions({ ...c, sheet_pack: packOf.get(c.id) }, pack).map(({ id, label, on }) => ({ id, label, on }));
+    return { id: c.id, name: c.name, refCount, ready: refCount > 0, hasProfile, refOptions: options, photo: photos.get(c.id) ?? null };
   });
+
+  const outfits = isPro ? await listOutfits(supabase) : [];
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-semibold">Inject</h1>
-      <p className="mt-1 text-sm text-neutral-400">
+      <h1 className="page-title">Inject</h1>
+      <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
         Put your character into a photo. Write a prompt tailored to the photo, swap directly, or write your own prompt.
       </p>
-      <InjectTabs characters={characters} isPro={isPro} freeImagesLeft={isPro ? null : remaining.free_images} />
+      <InjectTabs characters={characters} outfits={outfits} isPro={isPro} freeImagesLeft={isPro ? null : remaining.free_images} />
     </div>
   );
 }

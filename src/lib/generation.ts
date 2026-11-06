@@ -14,13 +14,13 @@ import { getUserImageConfig, resolveUserImageKey } from "@/lib/ai/image-setup";
 import { getImageProvider } from "@/lib/ai/providers/registry";
 import { SPICY_IMAGE_MODEL } from "@/lib/ai/providers/spicyapi";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageJobInput, type ImageResolution } from "@/lib/ai/providers/types";
-import { referencesFor } from "@/lib/character-images";
+import { buildJob, fitPrompt, GEN_PREFIX, SERVER_PROMPT_KINDS } from "@/lib/generation-job";
+import { injectMetaSchema } from "@/lib/inject-meta";
 import { MEDIA_BUCKET } from "@/lib/images";
-import { isOwnPath } from "@/lib/uploads";
 import { GENERATION_RETENTION_HOURS, generationExpiry } from "@/lib/retention";
 import { recordLedgerEntry } from "@/lib/ledger";
 
-export const GENERATION_KINDS = ["inject", "direct_swap", "edit", "variant", "carousel", "face_fix", "reference_sheet"] as const;
+export const GENERATION_KINDS = ["inject", "direct_swap", "edit", "variant", "carousel", "face_fix", "likeness_fix", "reference_sheet"] as const;
 export const GENERATIONS_BUCKET = "generations";
 /** How long the image provider has to fetch the pictures we hand it. */
 export const INPUT_URL_SECONDS = 1800;
@@ -36,11 +36,20 @@ const requestSchema = z.object({
   resolution: z.enum(IMAGE_RESOLUTIONS),
   aspectRatio: z.enum(IMAGE_ASPECT_RATIOS),
   outputFormat: z.enum(["jpeg", "png"]),
+  /** Inject only: what the server needs to frame the prompt for the image model (see generation-job). */
+  meta: injectMetaSchema.optional(),
+  /** The History prompt this image was made from, so History can show it again ("Preview generation"). */
+  historyId: z.string().uuid().nullish(),
 });
 
 export type GenerationRequest = z.infer<typeof requestSchema>;
 
 export function parseGenerationRequest(raw: unknown): GenerationRequest {
+  // The server writes the prompt for fixes; what the browser sends is only a label for it.
+  if (raw && typeof raw === "object" && (SERVER_PROMPT_KINDS as readonly string[]).includes((raw as { kind?: string }).kind ?? "") && (raw as { meta?: unknown }).meta) {
+    const r = raw as { prompt?: unknown };
+    if (typeof r.prompt !== "string" || !r.prompt.trim()) raw = { ...r, prompt: "Fix" };
+  }
   const parsed = requestSchema.safeParse(raw);
   if (!parsed.success) throw new UserFacingError(parsed.error.issues[0]?.message ?? "That request wasn't valid.");
   return parsed.data;
@@ -82,36 +91,35 @@ async function resolveAccess(supabase: SupabaseClient, user: Actor, { forQuote =
   return { source: "server", apiKey: env.SPICY_API_KEY, model: SPICY_IMAGE_MODEL, free: true, allowance };
 }
 
-// Signed links to the character's reference images and the extra pictures, in prompt order.
-async function inputImageUrls(supabase: SupabaseClient, userId: string, request: GenerationRequest): Promise<string[]> {
-  const paths: string[] = [];
-  if (request.characterId) {
-    const { data: c } = await supabase
-      .from("characters")
-      .select("face_sheet_path, body_sheet_path, reference_paths")
-      .eq("id", request.characterId)
-      .maybeSingle();
-    if (!c) throw new UserFacingError("Character not found.");
-    // A reference sheet is made only from the pictures you give it, not from the character's existing references.
-    if (request.kind !== "reference_sheet") paths.push(...referencesFor(request.kind, c).map((r) => r.path));
-  }
-  for (const p of request.extraPaths) {
-    if (!isOwnPath(userId, p)) throw new UserFacingError("One of the images couldn't be used. Upload it again.");
-    paths.push(p);
-  }
+// The prompt to send and signed links to its images, in prompt order.
+async function prepareInput(
+  supabase: SupabaseClient,
+  userId: string,
+  request: GenerationRequest,
+  model: string,
+  { forQuote = false } = {},
+): Promise<{ prompt: string; imageUrls: string[]; photoEdit: boolean }> {
+  const job = await buildJob(supabase, userId, request, { model, max: MAX_INPUT_IMAGES, forQuote });
+  const paths = job.paths;
   if (!paths.length) throw new UserFacingError("Add at least one image.");
   if (paths.length > MAX_INPUT_IMAGES) throw new UserFacingError(`That's too many images (${MAX_INPUT_IMAGES} at most).`);
 
-  const { data, error } = await supabase.storage.from(MEDIA_BUCKET).createSignedUrls(paths, INPUT_URL_SECONDS);
-  const byPath = new Map((data ?? []).map((d) => [d.path, d.signedUrl]));
+  // Character media and generated images (used as the image to fix) live in different buckets.
+  const media = paths.filter((p) => !p.startsWith(GEN_PREFIX));
+  const gens = paths.filter((p) => p.startsWith(GEN_PREFIX)).map((p) => p.slice(GEN_PREFIX.length));
+  const sign = async (bucket: string, list: string[]) =>
+    list.length ? supabase.storage.from(bucket).createSignedUrls(list, INPUT_URL_SECONDS) : { data: [] as { path: string | null; signedUrl: string }[], error: null };
+  const [m, g] = await Promise.all([sign(MEDIA_BUCKET, media), sign(GENERATIONS_BUCKET, gens)]);
+  const byPath = new Map([...(m.data ?? []).map((d) => [d.path, d.signedUrl] as const), ...(g.data ?? []).map((d) => [GEN_PREFIX + d.path, d.signedUrl] as const)]);
   const urls = paths.map((p) => byPath.get(p));
-  if (error || urls.some((u) => !u)) throw new UserFacingError("Couldn't load one of the images. Try again.");
-  return urls as string[];
+  if (m.error || g.error || urls.some((u) => !u)) throw new UserFacingError("Couldn't load one of the images. Try again.");
+  const prompt = await fitPrompt(supabase, userId, job.prompt, paths.length, { forQuote });
+  return { prompt, imageUrls: urls as string[], photoEdit: job.photoEdit };
 }
 
-const toInput = (request: GenerationRequest, imageUrls: string[], resolution: ImageResolution): ImageJobInput => ({
-  prompt: request.prompt,
-  imageUrls,
+const toInput = (request: GenerationRequest, prepared: { prompt: string; imageUrls: string[] }, resolution: ImageResolution): ImageJobInput => ({
+  prompt: prepared.prompt,
+  imageUrls: prepared.imageUrls,
   resolution,
   aspectRatio: request.aspectRatio,
   outputFormat: request.outputFormat,
@@ -130,7 +138,7 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
   const db = adminClient();
   try {
     const resolution = access.free ? FREE_IMAGE_RESOLUTION : request.resolution;
-    const imageUrls = await inputImageUrls(supabase, user.id, request);
+    const prepared = await prepareInput(supabase, user.id, request, access.model);
 
     // The row comes first: its id is the idempotency key, so a retry can never start (or charge) a second job.
     const { data: row, error } = await db
@@ -142,14 +150,16 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
         status: "pending",
         provider: "spicyapi",
         model: access.model,
-        prompt: request.prompt,
+        prompt: prepared.prompt,
         params: {
           resolution,
           aspect_ratio: request.aspectRatio,
           output_format: request.outputFormat,
           key_source: access.source,
           free: access.free,
-          image_count: imageUrls.length,
+          image_count: prepared.imageUrls.length,
+          ...(prepared.photoEdit ? { photo_edit: true } : {}),
+          ...(request.historyId ? { history_id: request.historyId } : {}),
         },
       })
       .select("id")
@@ -162,7 +172,7 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
       const job = await provider.submit({
         apiKey: access.apiKey,
         model: access.model,
-        input: toInput(request, imageUrls, resolution),
+        input: toInput(request, prepared, resolution),
         idempotencyKey: generationId,
         // The provider keeps the files no longer than we do.
         retentionSeconds: GENERATION_RETENTION_HOURS * 3600,
@@ -193,8 +203,8 @@ export async function quoteGeneration(supabase: SupabaseClient, user: Actor, raw
   await enforceRateLimit(user.id, "image-quote", 30, 60);
   const access = await resolveAccess(supabase, user, { forQuote: true });
   if (access.free) return null;
-  const imageUrls = await inputImageUrls(supabase, user.id, request);
-  return getImageProvider("spicyapi").quote({ apiKey: access.apiKey, model: access.model, input: toInput(request, imageUrls, request.resolution) });
+  const prepared = await prepareInput(supabase, user.id, request, access.model, { forQuote: true });
+  return getImageProvider("spicyapi").quote({ apiKey: access.apiKey, model: access.model, input: toInput(request, prepared, request.resolution) });
 }
 
 export type CollectResult =

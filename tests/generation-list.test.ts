@@ -8,7 +8,7 @@ vi.mock("@/lib/generation", () => ({
   collectPending: h.collectPending,
 }));
 
-import { generationState, listGenerations } from "@/lib/generation-list";
+import { generationState, latestForHistory, listGenerations } from "@/lib/generation-list";
 
 const NOW = new Date("2026-03-10T12:00:00Z");
 const hoursFromNow = (n: number) => new Date(NOW.getTime() + n * 3_600_000).toISOString();
@@ -166,5 +166,29 @@ describe("listGenerations", () => {
   it("returns an empty list when you have no images", async () => {
     const { supabase } = client([]);
     expect(await listGenerations(supabase, user)).toEqual([]);
+  });
+});
+
+describe("latestForHistory", () => {
+  beforeEach(() => vi.useFakeTimers({ now: NOW }));
+  afterEach(() => vi.useRealTimers());
+  const soon = hoursFromNow(1);
+  const past = hoursFromNow(-1);
+  const rows = [
+    { id: "g4", status: "running", output_path: null, expires_at: null, params: { history_id: "a" } },
+    { id: "g3", status: "complete", output_path: "u/3.png", expires_at: soon, params: { history_id: "a" } },
+    { id: "g2", status: "complete", output_path: "u/2.png", expires_at: soon, params: { history_id: "a" } },
+    { id: "g1", status: "complete", output_path: "u/1.png", expires_at: past, params: { history_id: "b" } },
+    { id: "g0", status: "failed", output_path: null, expires_at: null, params: { history_id: "c" } },
+  ];
+  const client = (data: unknown, error: unknown = null) =>
+    ({ from: () => ({ select: () => ({ in: (col: string) => (expect(col).toBe("params->>history_id"), { order: async () => ({ data, error }) }) }) }) }) as never;
+
+  it("gives each prompt its newest viewable image, and nothing for prompts whose images are generating, failed or expired", async () => {
+    expect([...(await latestForHistory(client(rows), ["a", "b", "c", "d"]))]).toEqual([["a", "g3"]]);
+  });
+  it("shows no preview when the lookup fails or there are no prompts", async () => {
+    expect((await latestForHistory(client(null, { message: "x" }), ["a"])).size).toBe(0);
+    expect((await latestForHistory(client(rows), [])).size).toBe(0);
   });
 });

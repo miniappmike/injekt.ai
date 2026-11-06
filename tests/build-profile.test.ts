@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("next/server", () => ({ after: vi.fn() }));
+vi.mock("@/lib/sheet-pack", async (orig) => ({ ...(await orig<typeof import("@/lib/sheet-pack")>()), ensureSheetPack: vi.fn(async () => null) }));
 vi.mock("@/lib/ratelimit", () => ({ enforceRateLimit: vi.fn(async () => {}) }));
 vi.mock("@/lib/entitlements", () => ({ entitlements: { useAllowance: vi.fn() } }));
 vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: vi.fn() }));
@@ -41,7 +43,7 @@ beforeEach(() => {
 
 describe("runProfileBuild", () => {
   it("saves the generated profile and keeps the free-plan attempt used", async () => {
-    modelReplies('{"identity_line":"Tall brunette","face":"oval"}');
+    modelReplies('{"identity":"Tall brunette","face":"oval"}');
     const { client, updates } = fakeSupabase();
     const r = await runProfileBuild(client, "u", "c");
     expect(r).toEqual({ ok: true, profile: { identity_line: "Tall brunette", face: "oval" } });

@@ -7,6 +7,7 @@ import type { GenerationItem } from "@/lib/history-types";
 
 type Row = {
   id: string;
+  character_id: string | null;
   kind: string;
   status: string;
   model: string | null;
@@ -26,7 +27,7 @@ export function generationState(row: Pick<Row, "status" | "output_path" | "expir
   return "generating";
 }
 
-const COLUMNS = "id, kind, status, model, prompt, error, output_path, created_at, expires_at, cost_usd, params";
+const COLUMNS = "id, character_id, kind, status, model, prompt, error, output_path, created_at, expires_at, cost_usd, params";
 
 // The person's newest images. First finishes any job that completed while they were away, so it shows up as ready.
 export async function listGenerations(supabase: SupabaseClient, user: Actor, limit = 50): Promise<GenerationItem[]> {
@@ -69,6 +70,41 @@ export async function listGenerations(supabase: SupabaseClient, user: Actor, lim
       free: r.params?.free === true,
       previewUrl: linked?.view ?? null,
       downloadUrl: linked?.save ?? null,
+      characterId: r.character_id ?? null,
     };
   });
+}
+
+/**
+ * For each History entry, the newest image made from it that is still viewable. Entries without one are left out, so
+ * "Preview generation" only shows when there is something to preview.
+ */
+export async function latestForHistory(supabase: SupabaseClient, historyIds: string[]): Promise<Map<string, string>> {
+  const found = new Map<string, string>();
+  if (!historyIds.length) return found;
+  const { data, error } = await supabase
+    .from("generations")
+    .select("id, status, output_path, expires_at, params, created_at")
+    .in("params->>history_id", historyIds)
+    .order("created_at", { ascending: false });
+  if (error) return found;
+  for (const r of (data ?? []) as (Pick<Row, "id" | "status" | "output_path" | "expires_at"> & { params: { history_id?: string } | null })[]) {
+    const h = r.params?.history_id;
+    if (h && !found.has(h) && generationState(r) === "ready") found.set(h, r.id);
+  }
+  return found;
+}
+
+/** Links to view and save one image, or null when it isn't there any more. */
+export async function generationPreview(supabase: SupabaseClient, id: string): Promise<{ url: string; downloadUrl: string; prompt: string | null; kindLabel: string } | null> {
+  const { data: r } = await supabase.from("generations").select("id, kind, status, prompt, output_path, expires_at").eq("id", id).maybeSingle();
+  if (!r || generationState(r as Row) !== "ready") return null;
+  const ttl = Math.max(60, Math.min(3600, Math.floor((new Date(r.expires_at as string).getTime() - Date.now()) / 1000)));
+  const storage = supabase.storage.from(GENERATIONS_BUCKET);
+  const [view, save] = await Promise.all([
+    storage.createSignedUrl(r.output_path as string, ttl),
+    storage.createSignedUrl(r.output_path as string, ttl, { download: true }),
+  ]);
+  if (!view.data || !save.data) return null;
+  return { url: view.data.signedUrl, downloadUrl: save.data.signedUrl, prompt: (r.prompt as string | null) ?? null, kindLabel: featureLabel(`image:${r.kind}`) };
 }

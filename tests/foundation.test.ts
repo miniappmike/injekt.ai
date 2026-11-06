@@ -3,7 +3,7 @@ import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { isPrivateIp } from "@/lib/ssrf";
 import { resolveApiKey } from "@/lib/keys";
 import { ApiKeyRequiredError } from "@/lib/errors";
-import { MASTER_PROMPT } from "@/lib/ai/master-prompt";
+import { SCOPE } from "@/lib/ai/prompts/rules";
 import { createGuardedClient } from "@/lib/ai/guarded-client";
 
 const KEY = Buffer.alloc(32, 7).toString("base64");
@@ -51,14 +51,15 @@ describe("resolveApiKey", () => {
   });
 });
 
-describe("master prompt guard", () => {
-  it("always prepends the master prompt", async () => {
-    const complete = vi.fn(async (_a: { system: string; text: string; images?: string[]; apiKey: string }) => ({ text: "ok" }));
+describe("SCOPE guard", () => {
+  it("always opens the user turn with SCOPE, then a blank line and the task, with no system prompt", async () => {
+    const complete = vi.fn(async (_a: { system?: string; text: string; images?: string[]; apiKey: string }) => ({ text: "ok" }));
     const client = createGuardedClient({ id: "x", complete }, "k");
-    await client.run({ instructions: "Write a prompt.", text: "hi", images: ["u"] });
+    await client.run({ prompt: "Write a prompt.", images: ["u"] });
     const call = complete.mock.calls[0]![0];
-    expect(call.system.startsWith(MASTER_PROMPT)).toBe(true);
-    expect(call.system).toContain("Write a prompt.");
+    expect(call.text).toBe(`${SCOPE}\n\nWrite a prompt.`);
+    expect(call.system).toBeUndefined();
+    expect(call.images).toEqual(["u"]);
     expect(call.apiKey).toBe("k");
   });
 
@@ -67,12 +68,12 @@ describe("master prompt guard", () => {
       throw new Error("ledger down");
     });
     const client = createGuardedClient({ id: "x", complete: async () => ({ text: "done", usage: { inputTokens: 10, outputTokens: 2 } }) }, "k", { onUsage });
-    expect(await client.run({ instructions: "i", text: "t" })).toBe("done");
+    expect(await client.run({ prompt: "t" })).toBe("done");
     expect(onUsage).toHaveBeenCalledWith({ inputTokens: 10, outputTokens: 2 });
 
     const seen = vi.fn();
     const quiet = createGuardedClient({ id: "x", complete: async () => ({ text: "ok" }) }, "k", { onUsage: seen });
-    await quiet.run({ instructions: "i", text: "t" });
+    await quiet.run({ prompt: "t" });
     expect(seen).toHaveBeenCalledWith(undefined); // still counted as a call
   });
 });

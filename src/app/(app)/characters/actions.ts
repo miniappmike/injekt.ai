@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { packFiles, selectCharacter } from "@/lib/sheet-pack";
 import { requireUser } from "@/lib/auth";
 import { limitMessage } from "@/lib/limits";
 import { runProfileBuild } from "@/lib/ai/build-profile";
@@ -72,16 +73,17 @@ export async function updateCharacter(id: string, _: CharacterFormState, formDat
 
 export async function deleteCharacter(id: string) {
   const { supabase, user } = await requireUser();
-  const { data: c } = await supabase
-    .from("characters")
-    .select("profile_photo_path, face_sheet_path, body_sheet_path, reference_paths")
-    .eq("id", id)
-    .maybeSingle();
+  const c = await selectCharacter<{ profile_photo_path: string | null; face_sheet_path: string | null; body_sheet_path: string | null; reference_paths: string[]; sheet_pack?: unknown }>(
+    supabase,
+    id,
+    "profile_photo_path, face_sheet_path, body_sheet_path, reference_paths, sheet_pack",
+  );
   await supabase.from("characters").delete().eq("id", id);
   // Remove the character's stored images too, so deleted characters do not keep using storage.
   const files = [c?.profile_photo_path, c?.face_sheet_path, c?.body_sheet_path, ...(c?.reference_paths ?? [])].filter(
     (p): p is string => !!p && isOwnPath(user.id, p),
   );
+  files.push(...packFiles(user.id, c?.sheet_pack));
   if (files.length) await supabase.storage.from(MEDIA_BUCKET).remove(files);
   revalidatePath("/characters");
   redirect("/characters");

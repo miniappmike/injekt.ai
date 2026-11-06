@@ -76,14 +76,14 @@ describe("Pro-only features", () => {
   it("keeps the free plan to 1 character and 3 profile generations", () => {
     expect(FREE_LIMITS.characters).toBe(1);
     expect(FREE_LIMITS.profile_builds).toBe(3);
-    expect(toFailure(new LimitReachedError("prompt_writer"))).toEqual({ ok: false, error: limitMessage("prompt_writer") });
+    expect(toFailure(new LimitReachedError("prompt_writer"))).toEqual({ ok: false, error: limitMessage("prompt_writer"), stop: "limit" });
     expect(limitMessage("profile_builds")).toContain("3 free profile generations");
   });
 });
 
 describe("limits copy and errors", () => {
   it("turns a limit error into a friendly, specific message", () => {
-    expect(toFailure(new LimitReachedError("profile_builds"))).toEqual({ ok: false, error: limitMessage("profile_builds") });
+    expect(toFailure(new LimitReachedError("profile_builds"))).toEqual({ ok: false, error: limitMessage("profile_builds"), stop: "limit" });
     expect(limitMessage("profile_builds")).toContain(String(FREE_LIMITS.profile_builds));
     expect(limitMessage("characters")).toContain("1 character");
   });

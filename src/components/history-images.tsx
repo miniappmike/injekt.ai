@@ -44,11 +44,11 @@ export function HistoryImages({
       {images && !images.length && (
         <p className="text-sm text-neutral-400">No images yet. Anything you generate will show up here.</p>
       )}
-      <ul className="flex flex-col gap-3">
+      <ul className="stagger flex flex-col gap-3">
         {images?.map((i) => {
           const cost = costLine(i);
           return (
-            <li key={i.id} className="flex gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+            <li key={i.id} className="flex gap-3 rounded-xl border border-neutral-800 bg-neutral-900/80 p-3 transition-colors duration-200 hover:border-neutral-700 hover:bg-neutral-900">
               {i.previewUrl ? (
                 <button
                   type="button"
@@ -57,7 +57,7 @@ export function HistoryImages({
                   className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={i.previewUrl} alt="" className="h-20 w-20 cursor-zoom-in rounded-md object-cover" />
+                  <img src={i.previewUrl} alt="" className="thumb h-20 w-20 cursor-zoom-in object-cover ring-1 ring-white/10" />
                 </button>
               ) : (
                 <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-md bg-neutral-800 px-1 text-center text-xs text-neutral-500">
@@ -87,6 +87,16 @@ export function HistoryImages({
                   )}
                   {i.prompt && (
                     <Button type="button" size="sm" variant="ghost" onClick={() => onCopy(i.prompt as string)}>Copy prompt</Button>
+                  )}
+                  {i.state === "ready" && (
+                    <Button asChild size="sm" variant="ghost">
+                      <Link
+                        href={`/likeness?${i.characterId ? `character=${encodeURIComponent(i.characterId)}&` : ""}generation=${encodeURIComponent(i.id)}`}
+                        onClick={onNavigate}
+                      >
+                        See likeness
+                      </Link>
+                    </Button>
                   )}
                 </div>
               </div>
