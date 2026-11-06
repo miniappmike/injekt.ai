@@ -1,13 +1,11 @@
 import { ReferenceSheetMaker } from "@/components/reference-sheet-maker";
 import { requireUser } from "@/lib/auth";
-import { entitlements } from "@/lib/entitlements";
 import { signedUrlMap } from "@/lib/media-urls";
 import { characterAvatars } from "@/lib/character-avatars";
 
 export default async function ReferenceSheetPage({ searchParams }: { searchParams: Promise<{ character?: string }> }) {
   const { character } = await searchParams;
-  const { supabase, user } = await requireUser();
-  const [isPro, remaining] = await Promise.all([entitlements.isUnlimited(user.id), entitlements.remaining(user.id)]);
+  const { supabase } = await requireUser();
   const { data } = await supabase.from("characters").select("id, name, profile_photo_path, reference_paths, face_sheet_path, body_sheet_path").order("name");
   const rows = data ?? [];
   const [urls, photos] = await Promise.all([signedUrlMap(supabase, rows.flatMap((c) => [c.face_sheet_path, c.body_sheet_path])), characterAvatars(supabase, rows)]);
@@ -21,7 +19,7 @@ export default async function ReferenceSheetPage({ searchParams }: { searchParam
         A reference sheet shows your character from many angles in one image. Image models use it as the strict identity reference, which keeps the
         face and body the same from one picture to the next.
       </p>
-      <ReferenceSheetMaker characters={characters} initialCharacterId={character} freeImagesLeft={isPro ? null : remaining.free_images} />
+      <ReferenceSheetMaker characters={characters} initialCharacterId={character} />
     </div>
   );
 }

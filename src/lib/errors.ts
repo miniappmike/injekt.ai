@@ -30,6 +30,20 @@ export class LimitReachedError extends Error {
   }
 }
 
+/** Today's allowance of a prompt tool is used up. */
+export class DailyLimitError extends Error {
+  constructor(
+    public readonly key: "runs" | "likeness",
+    public readonly plan: "free" | "pro",
+    public readonly limit: number,
+    /** Pro's limit for the same thing, to say what upgrading gives. */
+    public readonly proLimit: number,
+  ) {
+    super(`Daily limit reached: ${key}`);
+    this.name = "DailyLimitError";
+  }
+}
+
 /** A problem the user can fix, with a message that is safe to show as written. Not logged as a bug. */
 export class UserFacingError extends Error {
   constructor(message: string) {

@@ -1,7 +1,6 @@
 import { VariantsTool } from "@/components/variants-tool";
+import { CreateCharacterFirst } from "@/components/inject-tabs";
 import { requireUser } from "@/lib/auth";
-import { entitlements } from "@/lib/entitlements";
-import { limitMessage } from "@/lib/limits";
 import { referenceList } from "@/lib/character-images";
 import { characterAvatars } from "@/lib/character-avatars";
 
@@ -9,8 +8,7 @@ import { characterAvatars } from "@/lib/character-avatars";
 export const maxDuration = 60;
 
 export default async function VariantsPage() {
-  const { supabase, user } = await requireUser();
-  const isPro = await entitlements.isUnlimited(user.id);
+  const { supabase } = await requireUser();
   const { data } = await supabase
     .from("characters")
     .select("id, name, profile_photo_path, face_sheet_path, body_sheet_path, reference_paths")
@@ -28,13 +26,9 @@ export default async function VariantsPage() {
     <div className="max-w-3xl">
       <h1 className="page-title">Variants</h1>
       <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
-        Turn one generated image into a set of edit prompts, plan a whole carousel from a cover, or write finished variation prompts to paste into another generator.
+        Got an image you love? Get prompts for more like it: new poses, outfits and scenes of the same moment, or a whole carousel planned from one cover.
       </p>
-      {isPro ? (
-        <VariantsTool characters={characters} />
-      ) : (
-        <p className="mt-6 rounded-md border border-neutral-800 p-4 text-neutral-300">{limitMessage("variants")}</p>
-      )}
+      {characters.length ? <VariantsTool characters={characters} /> : <CreateCharacterFirst />}
     </div>
   );
 }

@@ -8,6 +8,17 @@ export const FREE_LIMITS = {
   free_images: 1,
 } as const;
 
+/**
+ * Daily allowances for the prompt tools on the platform's AI key, reset at midnight UTC. A "run" is one target photo
+ * written for in Inject, or one press of Write variant edits, Plan carousel or Write variations. Accounts that add
+ * their own AI key aren't counted.
+ */
+export const DAILY_LIMITS = {
+  free: { runs: 3, likeness: 1 },
+  pro: { runs: 100, likeness: 30 },
+} as const;
+export type DailyKey = keyof (typeof DAILY_LIMITS)["free"];
+
 export type AllowanceKey = Exclude<keyof typeof FREE_LIMITS, "characters">;
 
 export type ProFeature = "prompt_writer" | "likeness" | "variants";

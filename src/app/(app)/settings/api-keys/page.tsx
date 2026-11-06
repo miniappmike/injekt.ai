@@ -1,6 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RoleKeyForm, type SavedRole, type ShareSource } from "@/components/key-form";
 import { requireUser } from "@/lib/auth";
+import { GenerationToggle } from "@/components/generation-toggle";
+import { generationState } from "@/lib/generation-access";
 import { PROVIDER_LABELS } from "@/lib/ai/providers/detect";
 import { effectiveRole, isShared, providerSupports, readRoles, ROLES, type RoleId } from "@/lib/ai/roles";
 import { SPICY_IMAGE_MODEL } from "@/lib/ai/providers/detect";
@@ -28,12 +30,17 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="max-w-2xl">
-      <h1 className="page-title">API keys</h1>
-      <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
-        Bring your own keys. Paste one and we work out the provider. Keys are encrypted before storage and only the last 4 characters are shown back.
-      </p>
+      <h1 className="page-title">Settings</h1>
       {wanted && <p className="mt-3 text-amber-400">Add a key below to continue.</p>}
-      <div className="mt-6 flex flex-col gap-4">
+
+      <section className="mt-6 flex flex-col gap-1">
+        <h2 className="font-display text-lg font-bold text-neutral-50">Your own AI keys <span className="text-sm font-normal text-neutral-500">(optional)</span></h2>
+        <p className="max-w-2xl text-sm leading-relaxed text-neutral-400">
+          You don&apos;t need any keys: prompts are written for you on our AI, within your daily allowance. Add your own key and your prompts run on it instead,{" "}
+          <b className="text-neutral-200">with no daily limit</b>. Paste a key and we work out the provider. Keys are encrypted, and only the last 4 characters are ever shown.
+        </p>
+      </section>
+      <div className="mt-4 flex flex-col gap-4">
         {ROLES.map((r) => {
           const cfg = roles[r.id];
           const labelOf = (id: RoleId) => ROLES.find((x) => x.id === id)!.label;
@@ -76,6 +83,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         <p className="text-sm text-neutral-500">
           If you leave Vision or Text empty, it uses the other one. A SpicyAPI key can serve all three jobs: paste it once and reuse it on the others.
         </p>
+        <GenerationToggle {...generationState(settings?.prefs)} />
       </div>
     </div>
   );

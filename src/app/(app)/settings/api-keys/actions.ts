@@ -11,6 +11,7 @@ import { getUserTextClient } from "@/lib/ai/text-client";
 import { toFailure } from "@/lib/ai/failure";
 import { getUserImageConfig, resolveUserImageKey } from "@/lib/ai/image-setup";
 import { getImageProvider } from "@/lib/ai/providers/registry";
+import { generationState } from "@/lib/generation-access";
 
 export type KeyFormState = { error?: string; saved?: string; tested?: string; detail?: string };
 
@@ -65,7 +66,7 @@ export async function saveRoleKey(_: KeyFormState, formData: FormData): Promise<
   roles[role] = setup.config;
   await writeRoles(supabase, user.id, prefs, roles);
 
-  revalidatePath("/settings/api-keys");
+  revalidatePath("/", "layout");
   return { saved: role };
 }
 
@@ -88,7 +89,7 @@ export async function shareRoleKey(_: KeyFormState, formData: FormData): Promise
   if (previous && !isShared(previous)) await deleteStoredKey(supabase, previous.provider, role);
 
   await writeRoles(supabase, user.id, prefs, result.roles);
-  revalidatePath("/settings/api-keys");
+  revalidatePath("/", "layout");
   return { saved: role };
 }
 
@@ -107,7 +108,7 @@ export async function updateRoleModel(_: KeyFormState, formData: FormData): Prom
   const { price: _old, ...rest } = current;
   roles[role] = { ...rest, model };
   await writeRoles(supabase, user.id, prefs, roles);
-  revalidatePath("/settings/api-keys");
+  revalidatePath("/", "layout");
   return { saved: role };
 }
 
@@ -133,7 +134,7 @@ export async function updateRolePrice(_: KeyFormState, formData: FormData): Prom
     roles[role] = { ...rest, price };
   }
   await writeRoles(supabase, user.id, prefs, roles);
-  revalidatePath("/settings/api-keys");
+  revalidatePath("/", "layout");
   return { saved: role };
 }
 
@@ -146,7 +147,7 @@ export async function removeRoleKey(formData: FormData) {
   const current = roles[role];
   if (current && !isShared(current)) await deleteStoredKey(supabase, current.provider, role);
   await writeRoles(supabase, user.id, prefs, dropRole(roles, role));
-  revalidatePath("/settings/api-keys");
+  revalidatePath("/", "layout");
 }
 
 // One tiny real request, so a bad key, wrong model or spend cap shows up now instead of mid-task.
@@ -169,4 +170,21 @@ export async function testRoleKey(_: KeyFormState, formData: FormData): Promise<
   } catch (e) {
     return { error: toFailure(e).error };
   }
+}
+
+/**
+ * Turns image generation on or off. On needs an Image key of their own and the second confirmation's wording, so it is
+ * never switched on by a stray click; off always works.
+ */
+export async function setGeneration(input: { enabled: boolean; confirmed?: boolean }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { supabase, user } = await requireUser();
+  const prefs = await loadPrefs(supabase, user.id);
+  if (input.enabled) {
+    if (!input.confirmed) return { ok: false, error: "Tick the box to confirm first." };
+    if (!generationState(prefs).hasImageKey) return { ok: false, error: "Add your own Image key above first." };
+  }
+  const { error } = await supabase.from("user_settings").update({ prefs: { ...prefs, generation: { enabled: input.enabled } } }).eq("user_id", user.id);
+  if (error) return { ok: false, error: "Couldn't save that. Try again." };
+  revalidatePath("/", "layout");
+  return { ok: true };
 }

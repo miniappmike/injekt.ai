@@ -10,6 +10,8 @@ export const env = createEnv({
     // lets Vercel Cron call /api/cron/cleanup; without it that route refuses every request
     CRON_SECRET: z.string().min(16).optional(),
     SPICY_API_KEY: z.string().optional(),
+    // The model the platform's key uses for prompt writing, sheets and likeness checks (people without their own key).
+    SERVER_VISION_MODEL: z.string().min(1).default("anthropic/claude-sonnet-5.5/chat"),
     UPSTASH_REDIS_REST_URL: z.string().url().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   },
@@ -25,6 +27,7 @@ export const env = createEnv({
     WEBHOOK_SECRET: process.env.WEBHOOK_SECRET,
     CRON_SECRET: process.env.CRON_SECRET,
     SPICY_API_KEY: process.env.SPICY_API_KEY,
+    SERVER_VISION_MODEL: process.env.SERVER_VISION_MODEL,
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,

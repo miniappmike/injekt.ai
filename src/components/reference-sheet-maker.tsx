@@ -1,5 +1,9 @@
 "use client";
 
+import { useGeneration } from "@/components/app-context";
+import { CopyOpen } from "@/components/copy-open";
+import { AttachStrip, TaggedPrompt } from "@/components/attach-strip";
+import { sheetPrompts } from "@/lib/ai/prompts/sheets";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -115,15 +119,32 @@ const select = "h-10 w-full rounded-lg border border-neutral-700/80 bg-neutral-9
 
 // Step 1 turns one face photo into a 3x3 face sheet. Step 2 turns that face sheet and one or two body photos into a face
 // and body sheet. Each result can be saved onto a character, where it becomes the first image sent with every generation.
+/** Without image generation: the sheet prompt to paste into a generator, then upload the result on her page. */
+function SheetPrompt({ prompt, attach, characterId }: { prompt: string; attach: string[]; characterId: string }) {
+  const items = attach.map((label, i) => ({ tag: `@image${i + 1}`, label, source: "ref" as const }));
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-neutral-800 bg-neutral-950/40 p-4">
+      <AttachStrip items={items} photo="" />
+      <CopyOpen text={prompt} />
+      <details className="text-sm">
+        <summary className="cursor-pointer text-xs font-semibold text-neutral-400 hover:text-neutral-200">Show the prompt</summary>
+        <div className="mt-2 max-h-72 overflow-auto text-neutral-300"><TaggedPrompt text={prompt} /></div>
+      </details>
+      <p className="text-xs text-neutral-500">
+        When it&apos;s made, save the image and add it on <Link href={`/characters/${characterId}`} className="text-brand-400 underline hover:text-brand-300">her character page</Link>.
+      </p>
+    </div>
+  );
+}
+
 export function ReferenceSheetMaker({
   characters,
   initialCharacterId,
-  freeImagesLeft,
 }: {
   characters: SheetCharacter[];
   initialCharacterId?: string;
-  freeImagesLeft: number | null;
 }) {
+  const generation = useGeneration();
   const [characterId, setCharacterId] = useState(characters.find((c) => c.id === initialCharacterId)?.id ?? characters[0]?.id ?? "");
   // Sheets saved during this visit, so step 2 can use the face sheet you have just saved.
   const [saved, setSaved] = useState<Record<string, { face?: SheetImage; body?: SheetImage }>>({});
@@ -194,6 +215,7 @@ export function ReferenceSheetMaker({
           <p className="text-sm text-neutral-400">One clear face photo becomes a 3×3 sheet of the same face from nine angles.</p>
         </div>
         <PhotoDrop title="Face photo" hint="A clear, front-facing photo. Click, drop, or paste with Ctrl+V." photo={facePhoto} onPick={pickFacePhoto} />
+        {generation ? (
         <GenerateImage
           key={`face-${character.id}`}
           prompt="Face sheet"
@@ -201,7 +223,6 @@ export function ReferenceSheetMaker({
           extraPaths={facePhoto?.path ? [facePhoto.path] : []}
           kind="reference_sheet"
           meta={facePhoto?.path ? { sheet: { kind: "face" } } : undefined}
-          freeImagesLeft={freeImagesLeft}
           aspectRatio={SHEET_ASPECT_RATIO.face}
           defaultResolution="2k"
           actionLabel="Make face sheet"
@@ -212,6 +233,9 @@ export function ReferenceSheetMaker({
             </>
           )}
         />
+        ) : (
+          <SheetPrompt prompt={sheetPrompts(false, false).face} attach={["your face photo"]} characterId={character.id} />
+        )}
       </section>
 
       <section className="panel flex flex-col gap-3 p-4" aria-labelledby="rs-step2">
@@ -272,7 +296,8 @@ export function ReferenceSheetMaker({
             <Textarea value={opts.outfitText} maxLength={500} onChange={(e) => setOpts((o) => ({ ...o, outfitText: e.target.value }))} placeholder="e.g. a black ribbed tank top and grey biker shorts, white sneakers" />
           </label>
         )}
-        {!bodyReady && <p className="text-xs text-neutral-500">Add {missingForBody} to make the sheet.</p>}
+        {generation && !bodyReady && <p className="text-xs text-neutral-500">Add {missingForBody} to make the sheet.</p>}
+        {generation ? (
         <GenerateImage
           key={`body-${character.id}`}
           prompt="Face and body sheet"
@@ -280,7 +305,6 @@ export function ReferenceSheetMaker({
           extraPaths={bodyReady ? (face?.generation ? bodyPaths : [face?.path as string, ...bodyPaths]) : []}
           meta={bodyReady ? { sheet: { kind: "body", hasSheet: face?.isSheet, ...sheetOpts }, ...(face?.generation ? { sourceGeneration: face.generation } : {}) } : undefined}
           kind="reference_sheet"
-          freeImagesLeft={freeImagesLeft}
           aspectRatio={SHEET_ASPECT_RATIO.body}
           defaultResolution="2k"
           actionLabel="Make face and body sheet"
@@ -288,6 +312,9 @@ export function ReferenceSheetMaker({
             <SaveSheet character={character} slot="body_sheet" generationId={r.generationId} current={savedBody} onSaved={remember("body")} />
           )}
         />
+        ) : (
+          <SheetPrompt prompt={sheetPrompts(!!face?.isSheet, bodyPaths.length > 1, sheetOpts).body} attach={[face?.isSheet ? "her face sheet" : "your face photo", ...(bodyPaths.length > 1 ? ["body photo 1", "body photo 2"] : ["a full-body photo"])]} characterId={character.id} />
+        )}
       </section>
     </div>
   );

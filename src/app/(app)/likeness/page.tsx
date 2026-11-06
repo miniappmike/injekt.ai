@@ -1,8 +1,6 @@
-import Link from "next/link";
+import { CreateCharacterFirst } from "@/components/inject-tabs";
 import { LikenessChecker } from "@/components/likeness-checker";
 import { requireUser } from "@/lib/auth";
-import { entitlements } from "@/lib/entitlements";
-import { limitMessage } from "@/lib/limits";
 import { referenceList } from "@/lib/character-images";
 import { characterAvatars } from "@/lib/character-avatars";
 import { revisedRun, REFERENCES_RUN, type RevisedRun } from "@/lib/revised-run";
@@ -33,8 +31,7 @@ async function promptFor(
 }
 
 export default async function LikenessPage({ searchParams }: { searchParams: Promise<{ character?: string; generation?: string }> }) {
-  const { supabase, user } = await requireUser();
-  const isPro = await entitlements.isUnlimited(user.id);
+  const { supabase } = await requireUser();
   const params = await searchParams;
   const { data } = await supabase
     .from("characters")
@@ -61,14 +58,10 @@ export default async function LikenessPage({ searchParams }: { searchParams: Pro
     <div className="max-w-3xl">
       <h1 className="page-title">Likeness</h1>
       <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
-        Check a generated image against your character&apos;s references, trait by trait, and get fixes to paste into your next prompt.
+        Made an image? Upload it to see how much it looks like your character, trait by trait, and get a fixed prompt to try again.
       </p>
-      {!isPro ? (
-        <p className="mt-6 rounded-md border border-neutral-800 p-4 text-neutral-300">{limitMessage("likeness")}</p>
-      ) : characters.length === 0 ? (
-        <p className="mt-6 text-neutral-400">
-          You need a character first. <Link href="/characters/new" className="underline">Create one</Link>.
-        </p>
+      {characters.length === 0 ? (
+        <CreateCharacterFirst />
       ) : (
         <LikenessChecker characters={characters} initialCharacterId={initialCharacter} generated={generated} />
       )}

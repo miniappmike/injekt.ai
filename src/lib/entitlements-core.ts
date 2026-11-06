@@ -24,6 +24,12 @@ export function createEntitlements(deps: EntitlementDeps) {
   return {
     isUnlimited,
 
+    /** The plan for daily allowances: admins aren't counted. */
+    async planOf(userId: string): Promise<"free" | "pro" | "admin"> {
+      const p = await deps.getProfile(userId);
+      return p?.is_admin ? "admin" : p?.plan === "pro" ? "pro" : "free";
+    },
+
     /** Uses one unit of a lifetime allowance, or throws LimitReachedError on the free plan. */
     async useAllowance(userId: string, key: AllowanceKey): Promise<Allowance> {
       if (await isUnlimited(userId)) return { release: async () => {} };

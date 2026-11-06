@@ -2,10 +2,10 @@
 
 import { requireUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/ratelimit";
-import { entitlements } from "@/lib/entitlements";
+import { withDaily } from "@/lib/daily-limits";
 import { toFailure, type AiFailure } from "@/lib/ai/failure";
 import { runInject, type InjectRunResult } from "@/lib/inject-run";
-import { runInjectStandalone, type StandalonePrompt } from "@/lib/inject-standalone";
+import { runInjectStandalone, runSwapStandalone, type StandalonePrompt } from "@/lib/inject-standalone";
 import { currentPack, ensureSheetPack, selectCharacter, type PackCharacter } from "@/lib/sheet-pack";
 import { PROMPT_LIMIT, refOptions, type JobCharacter } from "@/lib/generation-job";
 import { swapPrompt } from "@/lib/ai/prompts/swap";
@@ -22,9 +22,9 @@ import { outfitPrompt } from "@/lib/ai/prompts/outfit";
 export async function writeInjectPrompts(input: { characterId: string; targetPath: string; options: InjectOptionsInput }): Promise<({ ok: true } & InjectRunResult) | AiFailure> {
   try {
     const { supabase, user } = await requireUser();
-    await entitlements.requirePro(user.id, "prompt_writer");
     await enforceRateLimit(user.id, "llm", 20, 60);
-    return { ok: true, ...(await runInject(supabase, user.id, input)) };
+    // One target photo is one run of today's allowance, given back if the writing fails.
+    return { ok: true, ...(await withDaily(supabase, user.id, "runs", () => runInject(supabase, user.id, input))) };
   } catch (e) {
     return toFailure(e);
   }
@@ -42,8 +42,17 @@ export async function writeInjectStandalone(input: {
 }): Promise<{ ok: true; prompts: StandalonePrompt[] } | AiFailure> {
   try {
     const { supabase, user } = await requireUser();
-    await entitlements.requirePro(user.id, "prompt_writer");
     return { ok: true, prompts: await runInjectStandalone(supabase, user.id, input) };
+  } catch (e) {
+    return toFailure(e);
+  }
+}
+
+/** Direct swap, Write only: the swap prompt to paste, with her sheets first and the target last. No AI writing, so free. */
+export async function writeSwapStandalone(input: { characterId: string; who?: string; extra?: string }): Promise<{ ok: true; prompt: StandalonePrompt } | AiFailure> {
+  try {
+    const { supabase, user } = await requireUser();
+    return { ok: true, prompt: await runSwapStandalone(supabase, user.id, input) };
   } catch (e) {
     return toFailure(e);
   }
@@ -53,7 +62,6 @@ export async function writeInjectStandalone(input: {
 export async function warmSheetPack(characterId: string): Promise<void> {
   try {
     const { supabase, user } = await requireUser();
-    if (!(await entitlements.isUnlimited(user.id))) return;
     const c = await selectCharacter<PackCharacter>(supabase, characterId, "id, face_sheet_path, body_sheet_path, sheet_pack");
     if (c) await ensureSheetPack(supabase, user.id, c);
   } catch {
@@ -65,7 +73,6 @@ export async function warmSheetPack(characterId: string): Promise<void> {
 export async function extractOutfit(input: { imagePath: string; who?: string }): Promise<{ ok: true; text: string } | AiFailure> {
   try {
     const { supabase, user } = await requireUser();
-    await entitlements.requirePro(user.id, "prompt_writer");
     await enforceRateLimit(user.id, "llm", 20, 60);
     if (!isOwnPath(user.id, input.imagePath)) return { ok: false, error: "That image couldn't be used. Upload it again." };
     const { client, imageMaxEdge } = await getUserTextClient(supabase, user.id, "vision", "outfit");
@@ -143,7 +150,6 @@ export async function deleteOutfit(id: string): Promise<void> {
 export async function cleanOverlays(path: string): Promise<({ ok: true } & CleanResult) | AiFailure> {
   try {
     const { supabase, user } = await requireUser();
-    await entitlements.requirePro(user.id, "prompt_writer");
     await enforceRateLimit(user.id, "llm", 20, 60);
     return { ok: true, ...(await cleanTarget(supabase, user.id, path)) };
   } catch (e) {

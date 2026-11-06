@@ -1,7 +1,6 @@
 "use server";
 
 import { requireUser } from "@/lib/auth";
-import { entitlements } from "@/lib/entitlements";
 import { HISTORY_LIMIT, historyRowImages, removeUnusedImages } from "@/lib/history";
 import type { GenerationItem, HistoryItem } from "@/lib/history-types";
 import { generationPreview, latestForHistory, listGenerations } from "@/lib/generation-list";
@@ -46,13 +45,6 @@ export async function getGenerationPreview(id: string) {
   const { supabase } = await requireUser();
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
   return generationPreview(supabase, id);
-}
-
-// Free images left for the Generate buttons in the panel, or null for Pro and admin accounts (who use their own key).
-export async function getFreeImagesLeft(): Promise<number | null> {
-  const { user } = await requireUser();
-  if (await entitlements.isUnlimited(user.id)) return null;
-  return (await entitlements.remaining(user.id)).free_images;
 }
 
 // The Images tab: the person's generated images, newest first. Also finishes anything that completed while they were away.

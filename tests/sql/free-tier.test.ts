@@ -68,6 +68,7 @@ beforeAll(async () => {
   await db.exec(migration("0009_history_extra_images.sql"));
   await db.exec(migration("0010_sheet_pack.sql"));
   await db.exec(migration("0011_outfits.sql"));
+  await db.exec(migration("0012_daily_usage.sql"));
   // Storage tables are only stand-ins here; turn on row-level security so the policies are actually tested.
   await db.exec(`alter table storage.objects enable row level security; grant usage on schema storage to authenticated; grant select on storage.objects to authenticated;`);
 });
@@ -404,5 +405,47 @@ describe("the api ledger", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].generation_id).toBeNull();
     expect(Number(rows[0].cost_usd)).toBeCloseTo(0.04);
+  });
+});
+
+describe("daily usage (0012)", () => {
+  const consume = async (u: string, key: string, limit: number) => {
+    await asUser(null, "service_role");
+    return (await db.query<{ ok: boolean }>("select public.consume_daily($1, $2, $3) as ok", [u, key, limit])).rows[0].ok;
+  };
+
+  it("allows up to the day's limit, then refuses; a release gives one back", async () => {
+    const u = await newUser("daily@x.com");
+    expect(await consume(u, "runs", 3)).toBe(true);
+    expect(await consume(u, "runs", 3)).toBe(true);
+    expect(await consume(u, "runs", 3)).toBe(true);
+    expect(await consume(u, "runs", 3)).toBe(false);
+    // Likeness checks are counted on their own.
+    expect(await consume(u, "likeness", 1)).toBe(true);
+    expect(await consume(u, "likeness", 1)).toBe(false);
+    await db.query("select public.release_daily($1, 'runs')", [u]);
+    expect(await consume(u, "runs", 3)).toBe(true);
+    expect(await consume(u, "runs", 0)).toBe(false);
+  });
+
+  it("starts fresh on a new day", async () => {
+    const u = await newUser("daily2@x.com");
+    await db.exec("reset role");
+    await db.query("insert into public.daily_usage (user_id, day, key, count) values ($1, (now() at time zone 'utc')::date - 1, 'runs', 3)", [u]);
+    expect(await consume(u, "runs", 3)).toBe(true);
+  });
+
+  it("people can read only their own counts, and can't change them or call the functions", async () => {
+    const a = await newUser("daily3@x.com");
+    const b = await newUser("daily4@x.com");
+    await consume(a, "runs", 3);
+    await asUser(b);
+    expect((await db.query("select * from public.daily_usage where user_id = $1", [a])).rows).toHaveLength(0);
+    await asUser(a);
+    expect((await db.query("select * from public.daily_usage where user_id = $1", [a])).rows).toHaveLength(1);
+    await expect(db.query("update public.daily_usage set count = 0 where user_id = $1", [a])).rejects.toThrow();
+    await expect(db.query("select public.consume_daily($1, 'runs', 99)", [a])).rejects.toThrow();
+    await expect(db.query("select public.release_daily($1, 'runs')", [a])).rejects.toThrow();
+    await db.exec("reset role");
   });
 });

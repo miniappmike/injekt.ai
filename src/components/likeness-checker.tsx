@@ -1,5 +1,6 @@
 "use client";
 
+import { usageChanged } from "@/lib/panel-events";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -11,6 +12,8 @@ import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { FixRun, type ImageRef } from "@/components/likeness-panel";
 import { GenerateImage } from "@/components/generate-image";
+import { useGeneration } from "@/components/app-context";
+import { CopyOpen } from "@/components/copy-open";
 import { ScoreBar, ScoreRing } from "@/components/score-ring";
 import { REFERENCES_RUN, type RevisedRun } from "@/lib/revised-run";
 import { checkLikeness } from "@/app/(app)/likeness/actions";
@@ -45,6 +48,7 @@ export function LikenessChecker({
   generated?: { id: string; url: string; prompt?: string; run?: RevisedRun } | null;
 }) {
   const router = useRouter();
+  const generation = useGeneration();
   const input = useRef<HTMLInputElement>(null);
   const [characterId, setCharacterId] = useState(initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id);
   const [picked, setPicked] = useState<Picked | null>(generated ? { preview: generated.url, image: { generationId: generated.id } } : null);
@@ -91,6 +95,7 @@ export function LikenessChecker({
       const image = picked.image ?? { path: await uploadImage(picked.file as File, "target") };
       setPicked({ ...picked, image });
       const res = await checkLikeness({ characterId, image, promptUsed });
+      usageChanged();
       if (!res.ok) {
         if (res.redirectTo) return router.push(res.redirectTo);
         return setStatus({ text: res.error, good: false });
@@ -230,7 +235,7 @@ export function LikenessChecker({
             </Card>
           ))}
 
-          <Card>
+          {generation && (<Card>
             <CardContent className="flex flex-col gap-3 pt-5 text-sm">
               <span className="font-medium">Fix this image</span>
               <p className="text-neutral-400">Repaint her from her references, or repaint only her face. The result is checked against this image.</p>
@@ -248,15 +253,21 @@ export function LikenessChecker({
                 />
               )}
             </CardContent>
-          </Card>
+          </Card>)}
 
           {latest.report.editPrompt && (
             <Card>
               <CardContent className="flex flex-col gap-2 pt-5 text-sm">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">Edit prompt</span>
-                  <Button type="button" size="sm" variant="secondary" onClick={() => copy(latest.report.editPrompt)}>Copy</Button>
+                  {generation && <Button type="button" size="sm" variant="secondary" onClick={() => copy(latest.report.editPrompt)}>Copy</Button>}
                 </div>
+                {!generation && (
+                  <>
+                    <p className="text-xs text-neutral-500">Paste with the image you checked attached, to fix it in place.</p>
+                    <CopyOpen text={latest.report.editPrompt} />
+                  </>
+                )}
                 <p className="whitespace-pre-wrap">{latest.report.editPrompt}</p>
               </CardContent>
             </Card>
@@ -268,21 +279,22 @@ export function LikenessChecker({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium">Revised prompt</span>
                   <div className="flex gap-2">
-                    <Button type="button" size="sm" variant="secondary" onClick={() => copy(latest.report.revisedPrompt)}>Copy</Button>
+                    {generation && <Button type="button" size="sm" variant="secondary" onClick={() => copy(latest.report.revisedPrompt)}>Copy</Button>}
                     <Button
                       type="button"
                       size="sm"
                       onClick={() => {
                         setPromptUsed(latest.report.revisedPrompt);
-                        show("Loaded. Generate with it, then check the new image.");
+                        show(generation ? "Loaded. Generate with it, then check the new image." : "Loaded. Make the new image with it, then check it here.");
                       }}
                     >
                       Use for next round
                     </Button>
                   </div>
                 </div>
+                {!generation && <CopyOpen text={latest.report.revisedPrompt} />}
                 <p className="whitespace-pre-wrap">{latest.report.revisedPrompt}</p>
-                <div className="border-t border-neutral-800 pt-3">
+                {generation && <div className="border-t border-neutral-800 pt-3">
                   <GenerateImage
                     key={`${latest.n}-${characterId}`}
                     prompt={latest.report.revisedPrompt}
@@ -311,7 +323,7 @@ export function LikenessChecker({
                     )}
                   />
                   <p className="mt-2 text-xs text-neutral-500">{revisedRunWith.note}</p>
-                </div>
+                </div>}
               </CardContent>
             </Card>
           )}
