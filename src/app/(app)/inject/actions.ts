@@ -5,6 +5,7 @@ import { enforceRateLimit } from "@/lib/ratelimit";
 import { entitlements } from "@/lib/entitlements";
 import { toFailure, type AiFailure } from "@/lib/ai/failure";
 import { runInject, type InjectRunResult } from "@/lib/inject-run";
+import { runInjectStandalone, type StandalonePrompt } from "@/lib/inject-standalone";
 import { currentPack, ensureSheetPack, selectCharacter, type PackCharacter } from "@/lib/sheet-pack";
 import { PROMPT_LIMIT, refOptions, type JobCharacter } from "@/lib/generation-job";
 import { swapPrompt } from "@/lib/ai/prompts/swap";
@@ -24,6 +25,25 @@ export async function writeInjectPrompts(input: { characterId: string; targetPat
     await entitlements.requirePro(user.id, "prompt_writer");
     await enforceRateLimit(user.id, "llm", 20, 60);
     return { ok: true, ...(await runInject(supabase, user.id, input)) };
+  } catch (e) {
+    return toFailure(e);
+  }
+}
+
+/**
+ * Write only: a target's versions as finished prompts for another generator, each with the images to attach. No AI
+ * call; her sheet's words come from the saved sheet pack.
+ */
+export async function writeInjectStandalone(input: {
+  characterId: string;
+  targetPath?: string | null;
+  cleaned?: boolean;
+  versions: { text: string; meta: unknown }[];
+}): Promise<{ ok: true; prompts: StandalonePrompt[] } | AiFailure> {
+  try {
+    const { supabase, user } = await requireUser();
+    await entitlements.requirePro(user.id, "prompt_writer");
+    return { ok: true, prompts: await runInjectStandalone(supabase, user.id, input) };
   } catch (e) {
     return toFailure(e);
   }

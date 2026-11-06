@@ -4,7 +4,7 @@
 export interface AttachTile {
   tag: string;
   label: string;
-  source: "ref" | "photo" | "extra";
+  source: "ref" | "photo" | "extra" | "target";
   index?: number;
   url?: string;
   downloadUrl?: string;
@@ -24,14 +24,15 @@ const tone = (tag: string) => TONES[(Math.max(1, Number(tag.replace(/\D/g, "")) 
  * The images to load into another generator, in order: a thumbnail of each with its @image badge, what it is, and a
  * Save link for her sheets (the photo and extras are already the person's own files).
  */
-export function AttachStrip({ items, photo, extras }: { items: AttachTile[]; photo: string; extras: string[] }) {
+export function AttachStrip({ items, photo, extras = [] }: { items: AttachTile[]; photo: string; extras?: string[] }) {
   return (
     <div className="rounded-lg border border-neutral-700 bg-neutral-950/60 p-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-neutral-300">Attach these in your generator, in this order</p>
       <ol className="mt-3 flex flex-wrap items-start gap-x-2 gap-y-3" aria-label="Images to attach, in order">
         {items.map((x, i) => {
           const t = tone(x.tag);
-          const src = x.source === "photo" ? photo : x.source === "extra" ? extras[x.index ?? 0] : x.url;
+          // The target comes from its link when it was cleaned (a copy only the app has), else from the page.
+          const src = x.source === "photo" ? photo : x.source === "extra" ? extras[x.index ?? 0] : x.source === "target" ? (x.url ?? photo) : x.url;
           return (
             <li key={x.tag} className="flex items-start gap-2">
               {i > 0 && <span aria-hidden className="mt-8 text-lg text-neutral-600">→</span>}

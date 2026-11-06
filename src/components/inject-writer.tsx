@@ -8,10 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { GenerateImage } from "@/components/generate-image";
+import { AttachStrip, TaggedPrompt } from "@/components/attach-strip";
 import { InfoTip } from "@/components/info-tip";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
-import { cleanOverlays, deleteOutfit, extractOutfit, saveOutfit, warmSheetPack, writeInjectPrompts } from "@/app/(app)/inject/actions";
+import { cleanOverlays, deleteOutfit, extractOutfit, saveOutfit, warmSheetPack, writeInjectPrompts, writeInjectStandalone } from "@/app/(app)/inject/actions";
+import type { StandalonePrompt } from "@/lib/inject-standalone";
 import type { SavedOutfit } from "@/lib/outfits";
 import { INJECT_DEFAULTS, MAX_VERSIONS, metaForRun, readEditTarget, writeEditTarget, type InjectMeta, type InjectOptionsInput } from "@/lib/inject-meta";
 import { closestAspectRatio } from "@/lib/aspect";
@@ -20,6 +22,8 @@ import type { ImageAspectRatio } from "@/lib/ai/providers/types";
 
 const MAX_TARGETS = 10;
 const OPTIONS_KEY = "ms.injectOptions";
+/** Write only: prompts to paste into another generator instead of Generate buttons. Remembered per browser. */
+const WRITE_ONLY_KEY = "ms.injectWriteOnly";
 const select = "h-9 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm";
 
 export interface InjectCharacter {
@@ -76,6 +80,9 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
   const [targets, setTargets] = useState<Target[]>([]);
   const [o, setO] = useState<Options>({ ...INJECT_DEFAULTS });
   const [editTarget, setEditTarget] = useState(true);
+  const [writeOnly, setWriteOnly] = useState(false);
+  // Write only: each target's finished prompts, for the versions and settings they were made from.
+  const [standalone, setStandalone] = useState<Record<string, { key: string; prompts?: StandalonePrompt[]; error?: string }>>({});
   const [running, setRunning] = useState(false);
   const [summary, setSummary] = useState<{ text: string; good: boolean }>();
   const [extracting, setExtracting] = useState(false);
@@ -93,6 +100,11 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
   useEffect(() => {
     setO(loadOptions());
     setEditTarget(readEditTarget());
+    try {
+      setWriteOnly(localStorage.getItem(WRITE_ONLY_KEY) === "1");
+    } catch {
+      // Starts on Generate here in a private window.
+    }
   }, []);
   useEffect(() => {
     try {
@@ -249,6 +261,35 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
   }
 
   const results = targets.filter((t) => t.state);
+
+  // Write only: what each target's finished prompts depend on. When any of it changes, they're made again.
+  const standaloneKey = (t: Target) =>
+    JSON.stringify([t.characterId ?? characterId, editTarget ? (t.writtenPath ?? t.path ?? null) : null, (t.versions ?? []).map((v) => v && [v.text, v.meta])]);
+  const pendingKey = writeOnly ? results.filter((t) => t.state === "done" && t.versions?.some(Boolean)).map((t) => t.id + standaloneKey(t)).join("|") : "";
+  useEffect(() => {
+    if (!writeOnly) return;
+    for (const t of targetsRef.current) {
+      if (t.state !== "done" || !t.versions?.some(Boolean)) continue;
+      const key = standaloneKey(t);
+      if (standalone[t.id]?.key === key) continue;
+      const written = t.versions.map((v, i) => (v ? i : -1)).filter((i) => i >= 0);
+      const target = editTarget ? (t.writtenPath ?? t.path ?? null) : null;
+      setStandalone((s) => ({ ...s, [t.id]: { key } }));
+      void writeInjectStandalone({
+        characterId: t.characterId ?? characterId,
+        targetPath: target,
+        cleaned: !!target && !!t.clean && target === t.clean.path,
+        versions: written.map((i) => ({ text: t.versions![i]!.text, meta: t.versions![i]!.meta })),
+      }).then((r) => {
+        // Prompts placed back at their version numbers; an unwritten version has none.
+        const prompts: StandalonePrompt[] = [];
+        if (r.ok) written.forEach((vi, j) => (prompts[vi] = r.prompts[j]));
+        setStandalone((s) => (s[t.id]?.key === key ? { ...s, [t.id]: r.ok ? { key, prompts } : { key, error: r.error } } : s));
+      });
+    }
+    // Runs when a target's versions or the settings they depend on change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingKey, editTarget]);
 
   return (
     <div className="mt-6 flex flex-col gap-6">
@@ -458,16 +499,68 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
       {results.length > 0 && (
         <section className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-medium">Prompts</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="font-medium">Prompts</h2>
+              <div role="radiogroup" aria-label="What to do with the prompts" className="flex rounded-md border border-neutral-700 p-0.5 text-sm">
+                {([false, true] as const).map((w) => (
+                  <button
+                    key={String(w)}
+                    type="button"
+                    role="radio"
+                    aria-checked={writeOnly === w}
+                    onClick={() => {
+                      setWriteOnly(w);
+                      try {
+                        localStorage.setItem(WRITE_ONLY_KEY, w ? "1" : "0");
+                      } catch {
+                        // Not remembered in a private window.
+                      }
+                    }}
+                    className={`rounded px-2.5 py-1 ${writeOnly === w ? "bg-neutral-800 font-medium text-neutral-100" : "text-neutral-400 hover:text-neutral-100"}`}
+                  >
+                    {w ? "Write only" : "Generate here"}
+                  </button>
+                ))}
+              </div>
+            </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={editTarget} onChange={(e) => { setEditTarget(e.target.checked); writeEditTarget(e.target.checked); }} />
               Edit the target photo
-              <InfoTip label="About editing the target photo">Sends the target photo with her references so the model swaps her into the real photo, which holds her body much closer to the sheet. Off: the written prompt is generated from her references alone.</InfoTip>
+              <InfoTip label="About editing the target photo">Sends the target photo with her references so the model swaps her into the real photo, which holds her body much closer to the sheet. Off: the written prompt is generated from her references alone. In Write only it decides whether the prompt is an edit of the target photo (attach it first) or a new photo from her sheets.</InfoTip>
             </label>
           </div>
+          {writeOnly && (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-neutral-500">
+                Finished prompts to paste into another generator: her look, the realism and the rules are written in. Attach the images shown on each one, in that order.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const all = results.flatMap((t, ti) =>
+                    (t.versions ?? []).flatMap((v, k) => {
+                      const p = standalone[t.id]?.key === standaloneKey(t) ? standalone[t.id]?.prompts?.[k] : undefined;
+                      if (!v || !p) return [];
+                      const name = `Target ${ti + 1}${(t.versions?.length ?? 0) > 1 ? ` · version ${k + 1}` : ""}`;
+                      return [`${name}\nAttach: ${p.attach.join(", ")}\n${p.copy}`];
+                    }),
+                  );
+                  if (!all.length) return show("Still finishing the prompts.");
+                  void navigator.clipboard.writeText(all.join("\n\n"));
+                  show("Copied.");
+                }}
+              >
+                Copy all
+              </Button>
+            </div>
+          )}
           {results.map((t, ti) =>
             (t.versions?.length ? t.versions : [null]).map((v, k) => {
               const label = (results.length > 1 ? `Target ${ti + 1} of ${results.length}` : "Target") + (o.count > 1 && t.versions ? ` · version ${k + 1}` : "");
+              const sa = writeOnly && v ? standalone[t.id] : undefined;
+              const ready = sa?.key === standaloneKey(t) ? sa.prompts?.[k] : undefined;
               return (
                 <article key={`${t.id}-${k}`} className="flex flex-col gap-3 rounded-lg border border-neutral-800 p-4">
                   <div className="flex items-start gap-3">
@@ -482,7 +575,18 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
                     </div>
                     {v && (
                       <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
-                        <Button type="button" size="sm" variant="secondary" onClick={() => { void navigator.clipboard.writeText(v.text); show("Copied."); }}>Copy</Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={writeOnly && !ready}
+                          onClick={() => {
+                            void navigator.clipboard.writeText(writeOnly && ready ? ready.copy : v.text);
+                            show("Copied.");
+                          }}
+                        >
+                          Copy
+                        </Button>
                         <Button
                           type="button"
                           size="sm"
@@ -501,7 +605,26 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
                       </div>
                     )}
                   </div>
-                  {v && (
+                  {v && writeOnly && (
+                    <>
+                      {ready ? (
+                        <>
+                          <AttachStrip items={ready.attachItems} photo={t.preview} />
+                          <div className="max-h-96 overflow-auto text-sm">
+                            <TaggedPrompt text={ready.copy} />
+                          </div>
+                        </>
+                      ) : sa?.error && sa.key === standaloneKey(t) ? (
+                        <p role="alert" className="text-sm text-red-400">{sa.error}</p>
+                      ) : (
+                        <p className="text-sm text-neutral-400">Finishing the prompt...</p>
+                      )}
+                      <div className="flex flex-wrap gap-1.5">
+                        {v.tags.map((x) => <span key={x} className="rounded-full bg-neutral-800 px-2 py-0.5 text-xs text-neutral-300">{x}</span>)}
+                      </div>
+                    </>
+                  )}
+                  {v && !writeOnly && (
                     <>
                       <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words text-sm">{v.text}</pre>
                       <div className="flex flex-wrap gap-1.5">
