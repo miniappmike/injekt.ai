@@ -238,14 +238,25 @@ export function parseCarousel(raw: unknown, n: number): { theme: string; slides:
   return { theme: typeof r.theme === "string" ? r.theme.slice(0, 140) : "", slides };
 }
 
-/** The slide as the person copies it: her sheet as @image1, then the photo, then any extras (artifact copyOf). */
-export function slideCopyText(s: Pick<Slide, "prompt" | "person">, hasCharacter: boolean): string {
-  const withRef = hasCharacter && s.person !== "none";
-  const photoN = withRef ? 2 : 1;
+/**
+ * The slide as the person copies it (artifact copyOf): her references first (face sheet @image1, body sheet @image2),
+ * then the photo, then any extras. Model Spawn change: the order is the same on every slide, including slides without
+ * her, so the images are attached in one fixed order; the artifact tagged a single reference and dropped it on those.
+ */
+export function slideCopyText(s: Pick<Slide, "prompt" | "person">, refCount: number): string {
+  const refs = Array.from({ length: refCount }, (_, i) => "@image" + (i + 1));
+  const photoN = refCount + 1;
   return s.prompt
-    .replace(/\{REF\}/g, "@image1")
+    .replace(/\{REF\}/g, refs.length ? joinTags(refs) : "@image" + photoN)
     .replace(/\{PHOTO\}/g, "@image" + photoN)
     .replace(/\{EXTRA(\d)\}/g, (_m, d) => "@image" + (photoN + Number(d)));
+}
+
+/** A slide without her, when her references still lead the image order: they are attached but not used. */
+export function unusedRefsNote(refCount: number): string {
+  if (!refCount) return "";
+  const refs = joinTags(Array.from({ length: refCount }, (_, i) => "@image" + (i + 1)));
+  return `${refs} ${refCount > 1 ? "are her reference sheets" : "is her reference"}, attached only to keep the image order; this shot has no people in it, so ignore ${refCount > 1 ? "them" : "it"}. `;
 }
 
 /** Artifact carJob: the head for who is in the slide, the slide, then quality and the rules. */

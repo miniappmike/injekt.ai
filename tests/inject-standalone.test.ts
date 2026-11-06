@@ -19,19 +19,22 @@ beforeEach(() => h.ensureSheetPack.mockResolvedValue({ anchors }));
 describe("Inject Write only", () => {
   const refs = standaloneRefs(holly);
 
-  it("with the target: the photo edit, target first then her sheets, changing only the EDIT line", () => {
+  it("with the target: the photo edit, her sheets first (face @image1, body @image2) then the target, changing only the EDIT line", () => {
     const p = injectStandalone(refs, anchors, "Photo of her on a red sofa.", meta, {});
-    expect(p.attach).toEqual(["@image1: your target photo", "@image2: Holly's face sheet", "@image3: Holly's body sheet"]);
-    expect(p.copy.startsWith("Replace the person in @image1 with the woman from @image2 and @image3. @image2 is her face reference sheet, @image3 is her body reference sheet;")).toBe(true);
-    expect(p.copy).toContain("Her body comes only from @image3");
+    expect(p.attach).toEqual(["@image1: Holly's face sheet", "@image2: Holly's body sheet", "@image3: your target photo"]);
+    expect(p.copy.startsWith("Replace the person in @image3 with the woman from @image1 and @image2. @image1 is her face reference sheet, @image2 is her body reference sheet;")).toBe(true);
+    expect(p.copy).toContain("Her body comes only from @image2");
+    expect(p.copy).toContain("exactly as in @image3:");
+    expect(p.copy).toContain("If @image3 is a drawing or render");
+    expect(p.copy).not.toMatch(/@image[4-9]/);
     expect(p.copy).toContain("(jet black waves)");
     expect(p.copy).toContain("Change: new pose: seated on the sofa arm.");
     expect(p.copy).toContain("Never dress her in the reference outfit (white shorts).");
-    expect(p.attachItems[0]).toMatchObject({ source: "target", tag: "@image1" });
+    expect(p.attachItems[2]).toMatchObject({ source: "target", tag: "@image3" });
   });
 
   it("a cleaned target gets a link to save it; without the target, the written prompt from her sheets alone", () => {
-    expect(injectStandalone(refs, anchors, "x", meta, { cleanedPath: `${U}/clean.jpg` }).attachItems[0]).toMatchObject({ label: "your target photo (cleaned copy)", path: `${U}/clean.jpg` });
+    expect(injectStandalone(refs, anchors, "x", meta, { cleanedPath: `${U}/clean.jpg` }).attachItems[2]).toMatchObject({ label: "your target photo (cleaned copy)", path: `${U}/clean.jpg` });
     const p = injectStandalone(refs, anchors, "Photo of her on a red sofa, black pinstripe shirt.", meta, null);
     expect(p.attach).toEqual(["@image1: Holly's face sheet", "@image2: Holly's body sheet"]);
     expect(p.copy.startsWith("Use @image1 and @image2 as the strict identity reference.")).toBe(true);
@@ -55,8 +58,8 @@ describe("Inject Write only", () => {
     } as never;
     const out = await runInjectStandalone(client, U, { characterId: holly.id, targetPath: `${U}/t.jpg`, versions: [{ text: "a", meta }, { text: "b", meta }] });
     expect(out).toHaveLength(2);
-    expect(out[0].attachItems[1]).toMatchObject({ url: `view:${U}/face.jpg`, downloadUrl: `dl:${U}/face.jpg` });
-    expect(out[0].attachItems[0].url).toBeUndefined();
+    expect(out[0].attachItems[0]).toMatchObject({ url: `view:${U}/face.jpg`, downloadUrl: `dl:${U}/face.jpg` });
+    expect(out[0].attachItems[2].url).toBeUndefined();
     expect(JSON.stringify(out)).not.toContain('"path"');
     await expect(runInjectStandalone(client, U, { characterId: holly.id, targetPath: "x/t.jpg", versions: [{ text: "a", meta }] })).rejects.toThrow(/couldn't be used/);
     await expect(runInjectStandalone(client, U, { characterId: holly.id, versions: [] })).rejects.toThrow(/couldn't be read/);

@@ -117,9 +117,13 @@ describe("carousel (A20, A20b)", () => {
     expect(() => parseCarousel({ slides: [] }, 3)).toThrow(/did not plan/);
   });
 
-  it("the copy uses her sheet as @image1 and the cover next; slides without her use the cover as @image1", () => {
-    expect(slideCopyText({ person: "full", prompt: "Same woman as {REF}, outfit from {PHOTO}, bag from {EXTRA1}." }, true)).toBe("Same woman as @image1, outfit from @image2, bag from @image3.");
-    expect(slideCopyText({ person: "none", prompt: "Place from {PHOTO}." }, true)).toBe("Place from @image1.");
+  it("the copy always puts her sheets first (face @image1, body @image2), then the cover, then extras, on every slide", () => {
+    expect(slideCopyText({ person: "full", prompt: "Same woman as {REF}, outfit from {PHOTO}, bag from {EXTRA1}." }, 2)).toBe("Same woman as @image1 and @image2, outfit from @image3, bag from @image4.");
+    expect(slideCopyText({ person: "full", prompt: "Same woman as {REF}, outfit from {PHOTO}." }, 1)).toBe("Same woman as @image1, outfit from @image2.");
+    // Slides without her keep the same order, so the images are attached the same way every time.
+    expect(slideCopyText({ person: "none", prompt: "Place from {PHOTO}." }, 2)).toBe("Place from @image3.");
+    // No character: the cover is @image1.
+    expect(slideCopyText({ person: "full", prompt: "Same woman as {REF}, cover {PHOTO}." }, 0)).toBe("Same woman as @image1, cover @image1.");
   });
 
   const refs = { roles: ["a close-up of her face", "her full body"], anchors: { hair: "jet black", mid: "wide hips", sheetOutfit: "white shorts" } };
@@ -244,7 +248,7 @@ describe("runCarousel", () => {
     expect(h.run.mock.calls[0][0].prompt).toContain("Plan 2 NEW slides");
     expect(r.theme).toBe("Café");
     expect(r.slides[0]).toMatchObject({ person: "full", copy: "Same woman as @image1, cover @image2." });
-    expect(r.slides[1].copy).toBe("No people in the frame. Latte from @image1.");
+    expect(r.slides[1].copy).toBe("No people in the frame. Latte from @image2.");
     expect(h.saveHistory.mock.calls[0][2][1]).toMatchObject({ kind: "carousel", label: "Carousel · slide 3 · Latte", meta: { person: "none", slidePrompt: "No people in the frame. Latte from {PHOTO}.", type: "food" } });
   });
 
@@ -263,8 +267,10 @@ describe("runCarousel", () => {
     expect(her.copy).toContain("beauty filter");
     expect(her.copy).not.toMatch(/\{(REF|PHOTO|EXTRA\d)\}/);
     // A slide without her needs only the photo (and extras).
-    expect(room.attach).toEqual(["@image1: your photo", "@image2: extra image 1"]);
-    expect(room.copy.startsWith("@image1 is the source photo from the same shoot.")).toBe(true);
+    // A shot without her keeps the same order: her sheets are attached but the prompt says to ignore them.
+    expect(room.attach).toEqual(["@image1: Holly's face sheet", "@image2: Holly's body sheet", "@image3: your photo", "@image4: extra image 1"]);
+    expect(room.copy.startsWith("@image1 and @image2 are her reference sheets, attached only to keep the image order; this shot has no people in it, so ignore them. @image3 is the source photo from the same shoot.")).toBe(true);
+    expect(room.copy).not.toMatch(/strict identity reference/);
     expect(h.saveHistory.mock.calls[0][2][0]).toMatchObject({ kind: "carousel", label: "Write only · 1 · Low angle", prompt: her.copy });
     // Each image to attach, with links to her sheets for the page (never the storage path).
     expect(her.attachItems?.map((x) => [x.tag, x.source, x.label])).toEqual([

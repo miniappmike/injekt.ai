@@ -41,6 +41,15 @@ export function standaloneRefs(c: CharacterImagePaths & { name: string }): Stand
   );
 }
 
+/**
+ * Moves @image tags: `from` lists the old numbers in their new order, so retag(t, [3, 1, 2]) makes old @image3 the new
+ * @image1. Used to put her sheets first in a prompt written with the target as @image1.
+ */
+export function retag(text: string, from: number[]): string {
+  const to = new Map(from.map((old, i) => [old, i + 1]));
+  return text.replace(/@image(\d+)\b/g, (m, d) => (to.has(Number(d)) ? "@image" + to.get(Number(d)) : m));
+}
+
 /** Numbers the images @image1, @image2... in the order given. */
 export const tagItems = (items: Omit<AttachItem, "tag">[]): AttachItem[] => items.map((x, i) => ({ ...x, tag: `@image${i + 1}` }));
 

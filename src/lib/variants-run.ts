@@ -10,7 +10,18 @@ import { recentPoses, rememberPoses, RECENT_SEND } from "@/lib/recent-poses";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { askJson } from "@/lib/ai/json";
 import { HAIRSTYLES, POSE_HINTS, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
-import { carouselPrompt, carouselSlidePrompt, dimText, finishVariant, parseCarousel, slideCopyText, variantPrompt, variantTags, type Slide } from "@/lib/ai/prompts/variants";
+import {
+  carouselPrompt,
+  carouselSlidePrompt,
+  dimText,
+  finishVariant,
+  parseCarousel,
+  slideCopyText,
+  unusedRefsNote,
+  variantPrompt,
+  variantTags,
+  type Slide,
+} from "@/lib/ai/prompts/variants";
 import {
   CAROUSEL_TYPES,
   DEFAULT_NEW_SLIDES,
@@ -146,8 +157,10 @@ export function standaloneSlide(
   anchors: Anchors | null,
   extraCount: number,
 ): { copy: string; attach: string[]; attachItems: AttachItem[] } {
-  const refs = c && slide.person !== "none" ? standaloneRefs(c) : [];
-  const copy = carouselSlidePrompt(slide, { roles: refs.map((r) => r.role), anchors: refs.length ? anchors : null }, extraCount);
+  // Her sheets always lead (face @image1, body @image2), even on shots without her, so the order never changes.
+  const refs = c ? standaloneRefs(c) : [];
+  const framed = carouselSlidePrompt(slide, { roles: refs.map((r) => r.role), anchors: refs.length ? anchors : null }, extraCount);
+  const copy = slide.person === "none" ? unusedRefsNote(refs.length) + framed : framed;
   const attachItems = tagItems([
     ...refs.map((r) => ({ label: r.label, source: "ref" as const, path: r.path })),
     { label: "your photo", source: "photo" as const },
@@ -207,7 +220,7 @@ export async function runCarousel(
   // Write only: her sheet's words (hair, body) go into each prompt, as Generate would add them.
   const anchors = input.writeOnly && c && (c.face_sheet_path || c.body_sheet_path) ? ((await ensureSheetPack(supabase, userId, c))?.anchors ?? null) : null;
   const slides: CarouselResult["slides"] = plan.slides.map((s) =>
-    input.writeOnly ? { ...s, ...standaloneSlide(s, c, anchors, extraPaths.length) } : { ...s, copy: slideCopyText(s, !!c) },
+    input.writeOnly ? { ...s, ...standaloneSlide(s, c, anchors, extraPaths.length) } : { ...s, copy: slideCopyText(s, c ? referencesFor("carousel", c).length : 0) },
   );
   if (input.writeOnly) await linkAttachItems(supabase, slides.flatMap((s) => s.attachItems ?? []));
   await rememberPoses(supabase, userId, slides.filter((s) => s.person !== "none").map((s) => s.pose || s.label));

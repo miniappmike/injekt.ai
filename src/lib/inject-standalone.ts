@@ -7,7 +7,7 @@ import { ensureSheetPack, selectCharacter } from "@/lib/sheet-pack";
 import { injectMetaSchema, type InjectMeta } from "@/lib/inject-meta";
 import { basePrompt, framePrompt, lockRefs, outfitLock, type Anchors } from "@/lib/ai/prompts/identity";
 import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
-import { attachText, linkAttachItems, standaloneRefs, tagItems, type AttachItem, type StandaloneRef } from "@/lib/standalone";
+import { attachText, linkAttachItems, retag, standaloneRefs, tagItems, type AttachItem, type StandaloneRef } from "@/lib/standalone";
 import { MAX_VERSIONS } from "@/lib/inject-meta";
 
 export interface StandalonePrompt {
@@ -18,8 +18,9 @@ export interface StandalonePrompt {
 
 /**
  * One Inject version as a finished prompt for another generator (Write only), framed the way Generate frames it but
- * with her sheets as the references. With the target: the photo edit (the target first, then her sheets, changing only
- * the version's EDIT line). Without: the written prompt from her sheets alone.
+ * with her sheets as the references, always first (face sheet @image1, body sheet @image2) so the person attaches the
+ * images in one fixed order. With the target: the photo edit (her sheets, then the target, changing only the version's
+ * EDIT line). Without: the written prompt from her sheets alone.
  */
 export function injectStandalone(
   refs: StandaloneRef[],
@@ -34,10 +35,15 @@ export function injectStandalone(
   let copy: string;
   let items: Omit<AttachItem, "tag">[];
   if (target) {
-    copy = basePrompt(R, meta.edit, meta.frame, { ...meta.chg, outfitText: meta.outfit || "", clean: !!meta.clean });
+    // The edit is written with the target as @image1 and her references after it; renumbered so her references lead.
+    const n = refs.length;
+    copy = retag(basePrompt(R, meta.edit, meta.frame, { ...meta.chg, outfitText: meta.outfit || "", clean: !!meta.clean }), [
+      ...Array.from({ length: n }, (_, i) => i + 2),
+      1,
+    ]);
     // A cleaned target is a copy only the app has, so it gets a link to save it.
     const t = target.cleanedPath ? { label: "your target photo (cleaned copy)", path: target.cleanedPath } : { label: "your target photo" };
-    items = [{ ...t, source: "target" }, ...refItems];
+    items = [...refItems, { ...t, source: "target" }];
   } else {
     const sheets = refs.some((r) => r.kind !== "photo");
     copy = sheets
