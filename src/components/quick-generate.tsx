@@ -13,6 +13,7 @@ import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { addToReferences, swapPromptFor } from "@/app/(app)/inject/actions";
 import { chipItem } from "@/components/ui/segmented";
+import { CharacterPicker } from "@/components/character-picker";
 
 export interface QuickCharacter {
   id: string;
@@ -21,6 +22,8 @@ export interface QuickCharacter {
   refCount: number;
   /** The references Edit can send after the target: her crops, sheets and photos, with the default picks. */
   refOptions?: { id: string; label: string; on: boolean }[];
+  /** Her picture in the character picker. */
+  photo?: string | null;
 }
 
 type Photo = { preview: string; path?: string; error?: string; busy?: boolean };
@@ -130,12 +133,13 @@ export function QuickGenerate({ mode, characters, freeImagesLeft }: { mode: "dir
   const characterSelect = (
     <section className="flex flex-col gap-2">
       <Label htmlFor="qg-character">Character{mode === "edit" ? <span className="text-xs font-normal text-neutral-500"> optional</span> : null}</Label>
-      <select id="qg-character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
-        {mode === "edit" && <option value="">No character</option>}
-        {characters.map((c) => (
-          <option key={c.id} value={c.id}>{c.name}{c.refCount ? "" : " (no images yet)"}</option>
-        ))}
-      </select>
+      <CharacterPicker
+        id="qg-character"
+        value={characterId}
+        onChange={setCharacterId}
+        none={mode === "edit" ? { label: "No character" } : undefined}
+        characters={characters.map((c) => ({ id: c.id, name: c.name, photo: c.photo, note: c.refCount ? undefined : "No images yet" }))}
+      />
       {refCount === 0 && character && (
         <p className="text-sm text-amber-400">
           Add a face sheet, body sheet or reference photo on <Link href={`/characters/${character.id}`} className="underline">the character page</Link> first.

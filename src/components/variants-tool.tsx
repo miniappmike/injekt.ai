@@ -35,6 +35,7 @@ import {
   type VariantDimId,
 } from "@/lib/variants-meta";
 import { chipItem, segItem, segTrack } from "@/components/ui/segmented";
+import { CharacterPicker } from "@/components/character-picker";
 
 /** Write only: the creative director writes variations as finished prompts for another generator, with no Generate. */
 type Mode = "edits" | "carousel" | "write";
@@ -71,7 +72,7 @@ interface Result {
 
 const chip = chipItem;
 
-export function VariantsTool({ characters }: { characters: { id: string; name: string; ready: boolean; hasSheet?: boolean }[] }) {
+export function VariantsTool({ characters }: { characters: { id: string; name: string; ready: boolean; hasSheet?: boolean; photo?: string | null }[] }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("edits");
   const [characterId, setCharacterId] = useState("");
@@ -252,12 +253,13 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label htmlFor="character">Character <span className="text-xs font-normal text-neutral-500">optional</span></Label>
-            <select id="character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
-              <option value="">No character, use the image only</option>
-              {characters.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}{c.ready ? "" : " (no images yet)"}</option>
-              ))}
-            </select>
+            <CharacterPicker
+              id="character"
+              value={characterId}
+              onChange={setCharacterId}
+              none={{ label: "No character", note: "Use the image only" }}
+              characters={characters.map((c) => ({ id: c.id, name: c.name, photo: c.photo, note: c.ready ? undefined : "No images yet" }))}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             {mode === "edits" ? (

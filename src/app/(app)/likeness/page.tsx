@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { entitlements } from "@/lib/entitlements";
 import { limitMessage } from "@/lib/limits";
 import { referenceList } from "@/lib/character-images";
+import { characterAvatars } from "@/lib/character-avatars";
 import { revisedRun, REFERENCES_RUN, type RevisedRun } from "@/lib/revised-run";
 
 // Calls a vision model with several images.
@@ -37,9 +38,10 @@ export default async function LikenessPage({ searchParams }: { searchParams: Pro
   const params = await searchParams;
   const { data } = await supabase
     .from("characters")
-    .select("id, name, face_sheet_path, body_sheet_path, reference_paths")
+    .select("id, name, profile_photo_path, face_sheet_path, body_sheet_path, reference_paths")
     .order("name");
-  const characters = (data ?? []).map((c) => ({ id: c.id, name: c.name, ready: referenceList(c).length > 0 }));
+  const photos = await characterAvatars(supabase, data ?? []);
+  const characters = (data ?? []).map((c) => ({ id: c.id, name: c.name, ready: referenceList(c).length > 0, photo: photos.get(c.id) ?? null }));
 
   // "See likeness" on a generated image opens it here, ready to check, with the prompt it was made from.
   let generated: { id: string; url: string; prompt: string; run: RevisedRun } | null = null;

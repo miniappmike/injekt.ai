@@ -16,6 +16,7 @@ import { REFERENCES_RUN, type RevisedRun } from "@/lib/revised-run";
 import { checkLikeness } from "@/app/(app)/likeness/actions";
 import type { LikenessReport } from "@/lib/ai/prompts/likeness";
 import { SEND_TO_LIKENESS_KEY } from "@/lib/likeness-link";
+import { CharacterPicker } from "@/components/character-picker";
 
 
 interface Round {
@@ -38,7 +39,7 @@ export function LikenessChecker({
   initialCharacterId,
   generated,
 }: {
-  characters: { id: string; name: string; ready: boolean }[];
+  characters: { id: string; name: string; ready: boolean; photo?: string | null }[];
   initialCharacterId?: string;
   /** A generated image opened from "See likeness". */
   generated?: { id: string; url: string; prompt?: string; run?: RevisedRun } | null;
@@ -160,11 +161,12 @@ export function LikenessChecker({
         <div className="flex flex-col gap-3">
           <section className="flex flex-col gap-1.5">
             <Label htmlFor="character">Character</Label>
-            <select id="character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
-              {characters.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}{c.ready ? "" : " (no images yet)"}</option>
-              ))}
-            </select>
+            <CharacterPicker
+              id="character"
+              value={characterId}
+              onChange={setCharacterId}
+              characters={characters.map((c) => ({ id: c.id, name: c.name, photo: c.photo, note: c.ready ? undefined : "No images yet" }))}
+            />
             {!character.ready && (
               <p className="text-sm text-amber-400">
                 Add reference images on <Link href={`/characters/${character.id}`} className="underline">the character page</Link> first.

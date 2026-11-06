@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { entitlements } from "@/lib/entitlements";
 import { limitMessage } from "@/lib/limits";
 import { referenceList } from "@/lib/character-images";
+import { characterAvatars } from "@/lib/character-avatars";
 
 // Calls a vision model with several images.
 export const maxDuration = 60;
@@ -12,9 +13,16 @@ export default async function VariantsPage() {
   const isPro = await entitlements.isUnlimited(user.id);
   const { data } = await supabase
     .from("characters")
-    .select("id, name, face_sheet_path, body_sheet_path, reference_paths")
+    .select("id, name, profile_photo_path, face_sheet_path, body_sheet_path, reference_paths")
     .order("name");
-  const characters = (data ?? []).map((c) => ({ id: c.id, name: c.name, ready: referenceList(c).length > 0, hasSheet: !!(c.face_sheet_path || c.body_sheet_path) }));
+  const photos = await characterAvatars(supabase, data ?? []);
+  const characters = (data ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    ready: referenceList(c).length > 0,
+    hasSheet: !!(c.face_sheet_path || c.body_sheet_path),
+    photo: photos.get(c.id) ?? null,
+  }));
 
   return (
     <div className="max-w-3xl">

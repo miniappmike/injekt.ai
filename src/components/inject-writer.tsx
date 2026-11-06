@@ -20,6 +20,7 @@ import { closestAspectRatio } from "@/lib/aspect";
 import { SEND_TO_LIKENESS_KEY } from "@/lib/likeness-link";
 import type { ImageAspectRatio } from "@/lib/ai/providers/types";
 import { segItem, segTrack } from "@/components/ui/segmented";
+import { CharacterPicker } from "@/components/character-picker";
 
 const MAX_TARGETS = 10;
 const OPTIONS_KEY = "ms.injectOptions";
@@ -33,6 +34,8 @@ export interface InjectCharacter {
   ready: boolean;
   /** A saved profile; without one the prompts can only describe her from the sheet's words. */
   hasProfile: boolean;
+  /** Her picture in the character picker. */
+  photo?: string | null;
 }
 
 interface Version {
@@ -297,11 +300,12 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
       <div className="panel grid gap-4 p-4 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
         <section className="flex flex-col gap-2">
           <Label htmlFor="character">Character</Label>
-          <select id="character" value={characterId} onChange={(e) => setCharacterId(e.target.value)} className={select}>
-            {characters.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}{c.ready ? "" : " (no images yet)"}</option>
-            ))}
-          </select>
+          <CharacterPicker
+            id="character"
+            value={characterId}
+            onChange={setCharacterId}
+            characters={characters.map((c) => ({ id: c.id, name: c.name, photo: c.photo, note: c.ready ? undefined : "No images yet" }))}
+          />
           {!character.ready ? (
             <p className="text-sm text-amber-400">
               Add a face sheet, body sheet or reference photo on <Link href={`/characters/${character.id}`} className="underline">the character page</Link> first.

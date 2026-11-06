@@ -11,6 +11,7 @@ import { saveReferenceSheet } from "@/app/(app)/reference-sheet/actions";
 import { CUPS, GLUTE_SHAPES, GLUTE_SIZES, SHEET_ASPECT_RATIO, SHEET_OUTFITS } from "@/lib/sheet-options";
 import { Textarea } from "@/components/ui/textarea";
 import type { SheetSlot } from "@/lib/reference-sheet";
+import { CharacterPicker } from "@/components/character-picker";
 
 export interface SheetImage {
   path: string;
@@ -21,6 +22,8 @@ export interface SheetCharacter {
   name: string;
   faceSheet: SheetImage | null;
   bodySheet: SheetImage | null;
+  /** Her picture in the character picker (her face sheet is used without one). */
+  photo?: string | null;
 }
 
 type Photo = { preview: string; path?: string; error?: string; busy?: boolean };
@@ -174,14 +177,14 @@ export function ReferenceSheetMaker({
     <div className="mt-5 flex flex-col gap-5">
       <section className="flex flex-col gap-2">
         <Label htmlFor="rs-character">Character</Label>
-        <select
-          id="rs-character"
-          value={character.id}
-          onChange={(e) => setCharacterId(e.target.value)}
-          className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm"
-        >
-          {characters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        <div className="sm:max-w-sm">
+          <CharacterPicker
+            id="rs-character"
+            value={character.id}
+            onChange={setCharacterId}
+            characters={characters.map((c) => ({ id: c.id, name: c.name, photo: c.photo ?? c.faceSheet?.url ?? null }))}
+          />
+        </div>
         <p className="text-xs text-neutral-500">Sheets you make are saved to this character.</p>
       </section>
 
