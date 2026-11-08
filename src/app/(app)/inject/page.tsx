@@ -32,7 +32,7 @@ export default async function InjectPage({ searchParams }: { searchParams: Promi
   const outfits = await listOutfits(supabase);
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <h1 className="page-title">Inject</h1>
       <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400 max-sm:hidden">
         Put your character into any photo. Add a photo you like, and get a prompt that swaps her in, ready to paste into your image generator.

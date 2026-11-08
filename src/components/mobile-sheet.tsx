@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 /**
@@ -8,6 +9,14 @@ import { cn } from "@/lib/utils";
  * breakpoint up they sit in the page as usual. One copy of the contents either way, so nothing typed is lost.
  */
 export function MobileSheet({ open, onClose, title, className, children }: { open: boolean; onClose: () => void; title: string; className?: string; children: React.ReactNode }) {
+  const [phone, setPhone] = useState(false);
+  useEffect(() => {
+    const mq = matchMedia("(max-width: 639px)");
+    const on = () => setPhone(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
   useEffect(() => {
     if (!open) return;
     const key = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -23,7 +32,7 @@ export function MobileSheet({ open, onClose, title, className, children }: { ope
       document.documentElement.classList.remove("sheet-open");
     };
   }, [open, onClose]);
-  return (
+  const sheet = (
     <div className={cn("max-sm:fixed max-sm:inset-0 max-sm:z-50 max-sm:flex max-sm:flex-col max-sm:justify-end", !open && "max-sm:hidden")}>
       <div aria-hidden="true" onClick={onClose} className="absolute inset-0 animate-fade-in bg-black/65 backdrop-blur-[2px] sm:hidden" />
       <section
@@ -45,4 +54,6 @@ export function MobileSheet({ open, onClose, title, className, children }: { ope
       </section>
     </div>
   );
+  // Open on a phone, it's drawn on the page body, so nothing on the page (a transform, a clip) can box it in.
+  return open && phone ? createPortal(sheet, document.body) : sheet;
 }

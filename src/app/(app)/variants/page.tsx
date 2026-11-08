@@ -23,7 +23,7 @@ export default async function VariantsPage() {
   }));
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <h1 className="page-title">Variants</h1>
       <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
         Got an image you love? Get prompts for more like it: new poses, outfits and scenes of the same moment, or a whole carousel planned from one cover.

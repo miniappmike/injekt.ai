@@ -127,7 +127,7 @@ export function LikenessChecker({
   return (
     <div className="mt-5 flex flex-col gap-4">
       {toast}
-      <div className="panel grid gap-4 p-4 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+      <div className="panel grid gap-4 p-4 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
         <section
           ref={top}
           className="dropzone group flex cursor-pointer flex-col gap-2.5 p-3"
@@ -238,6 +238,8 @@ export function LikenessChecker({
             </CardContent>
           </Card>
 
+          {/* Trait cards two or three across on wide screens. */}
+          <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
           {latest.report.traits.map((t) => (
             <Card key={t.name}>
               <CardContent className="flex flex-col gap-1 pt-5 text-sm">
@@ -257,6 +259,7 @@ export function LikenessChecker({
               </CardContent>
             </Card>
           ))}
+          </div>
 
           {generation && (<Card>
             <CardContent className="flex flex-col gap-3 pt-5 text-sm">

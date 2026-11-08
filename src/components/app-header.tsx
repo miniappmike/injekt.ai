@@ -10,7 +10,7 @@ import { MobileTitle } from "@/components/mobile-nav";
 export function AppHeader({ email, admin = false }: { email: string; admin?: boolean }) {
   return (
     <header className="sticky top-0 z-10 border-b border-neutral-800/80 bg-neutral-950/75 backdrop-blur-xl max-sm:border-transparent">
-      <div className="relative mx-auto flex max-w-6xl items-center gap-x-6 gap-y-1 px-4 py-2 max-sm:h-14 max-sm:gap-x-3 sm:flex-wrap sm:px-6">
+      <div className="relative mx-auto flex max-w-6xl 2xl:max-w-[88rem] items-center gap-x-6 gap-y-1 px-4 py-2 max-sm:h-14 max-sm:gap-x-3 sm:flex-wrap sm:px-6">
         {/* Phones: mark or back arrow, the page's name in the middle, and square buttons; the tools are in the dock. */}
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:hidden">
           <MobileTitle />

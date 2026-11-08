@@ -80,31 +80,36 @@ export default async function EditCharacterPage({
         </p>
       )}
 
-      <section className="mb-8 grid max-w-2xl gap-3">
-        <h2 className="text-lg font-semibold">Images</h2>
-        <p className="text-sm text-neutral-400">
-          Click to upload, drop a file, or paste with Ctrl+V while a box is focused. Photo metadata (location, device) is stripped on upload.
-          The profile photo is only for display and is never sent to an AI model.
-        </p>
-        <p className="text-sm text-neutral-400">
-          No sheets yet? <Link href={`/reference-sheet?character=${c.id}`} className="underline">Make them from photos</Link>: a face sheet from one face photo, then a face and body sheet.
-        </p>
-        <ImageSlot label="Profile photo" slot="profile_photo" characterId={c.id} images={imgs([c.profile_photo_path])} />
-        <ImageSlot label="Face sheet" slot="face_sheet" characterId={c.id} images={imgs([c.face_sheet_path])} hint="A sheet of the face from several angles, or one clear face photo." />
-        <ImageSlot label="Body sheet" slot="body_sheet" characterId={c.id} images={imgs([c.body_sheet_path])} hint="Front, back and side of the body." />
-        <ImageSlot label="Reference images (up to 3)" slot="reference" characterId={c.id} images={imgs(c.reference_paths)} max={3} />
-        <SheetPackStatus key={packState} characterId={c.id} state={packState} read={!!pack} />
-      </section>
+      {/* Wide screens: her images on the left, staying in view, and the details and profile on the right. */}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start xl:gap-10">
+        <section className="grid gap-3 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
+          <h2 className="text-lg font-semibold">Images</h2>
+          <p className="text-sm text-neutral-400 max-sm:hidden">
+            Click a picture to see it full size. To add one, press Upload, drop a file, or paste with Ctrl+V while a box is focused. Photo
+            metadata (location, device) is stripped on upload. The profile photo is only for display and is never sent to an AI model.
+          </p>
+          <p className="text-sm text-neutral-400">
+            No sheets yet? <Link href={`/reference-sheet?character=${c.id}`} className="underline">Make them from photos</Link>: a face sheet from one face photo, then a face and body sheet.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <ImageSlot label="Profile photo" slot="profile_photo" characterId={c.id} images={imgs([c.profile_photo_path])} hint="For display only." />
+            <ImageSlot label="Face sheet" slot="face_sheet" characterId={c.id} images={imgs([c.face_sheet_path])} hint="A sheet of the face from several angles, or one clear face photo." />
+            <ImageSlot label="Body sheet" slot="body_sheet" characterId={c.id} images={imgs([c.body_sheet_path])} hint="Front, back and side of the body." />
+            <ImageSlot label="Reference images (up to 3)" slot="reference" characterId={c.id} images={imgs(c.reference_paths)} max={3} />
+          </div>
+          <SheetPackStatus key={packState} characterId={c.id} state={packState} read={!!pack} />
+        </section>
 
-      <CharacterForm
-        action={updateCharacter.bind(null, c.id)}
-        initial={{ ...c, profile: c.profile as CharacterProfile }}
-        submitLabel="Save character"
-        characterId={c.id}
-        canBuildProfile={referenceList(c).length > 0}
-        buildsLeft={buildsLeft}
-        buildsTotal={FREE_LIMITS.profile_builds}
-      />
+        <CharacterForm
+          action={updateCharacter.bind(null, c.id)}
+          initial={{ ...c, profile: c.profile as CharacterProfile }}
+          submitLabel="Save character"
+          characterId={c.id}
+          canBuildProfile={referenceList(c).length > 0}
+          buildsLeft={buildsLeft}
+          buildsTotal={FREE_LIMITS.profile_builds}
+        />
+      </div>
     </div>
   );
 }

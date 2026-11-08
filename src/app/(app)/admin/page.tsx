@@ -14,7 +14,7 @@ export default async function AdminPage() {
   if ((await entitlements.planOf(user.id)) !== "admin") notFound();
   const [config, { stats, usageMissing }] = await Promise.all([getAppConfig(), loadAdminStats()]);
   return (
-    <div className="max-w-5xl">
+    <div>
       <h1 className="page-title">Admin</h1>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-400">
         What your AI key is costing, who is using it, and the limits. Only admins can see this page.

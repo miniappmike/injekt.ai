@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { requestUpload, removeCharacterImage, removePendingImage } from "@/app/(app)/characters/media-actions";
 import type { UploadSlot } from "@/lib/images";
+import { viewImage } from "@/lib/panel-events";
 
 const MAX_BYTES = 15 * 1024 * 1024;
 
@@ -101,7 +102,7 @@ export function ImageSlot({
   const full = max > 1 && current.length >= max;
   return (
     <div
-      className="flex flex-col gap-2 dropzone p-4"
+      className="flex min-w-0 flex-col gap-2 dropzone p-4 max-sm:p-3"
       onPaste={(e) => add(e.clipboardData.files)}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
@@ -110,10 +111,10 @@ export function ImageSlot({
       }}
       tabIndex={0}
     >
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold">{label}</span>
+      <div className="flex items-center justify-between max-sm:flex-col max-sm:items-start max-sm:gap-1.5">
+        <span className="text-sm font-semibold max-sm:text-[13px] max-sm:leading-tight">{label}</span>
         {!full && (
-          <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => input.current?.click()}>
+          <Button type="button" size="sm" variant="secondary" disabled={busy} className="max-sm:h-8 max-sm:w-full" onClick={() => input.current?.click()}>
             {busy ? "Uploading..." : current.length && max === 1 ? "Replace" : "Upload"}
           </Button>
         )}
@@ -126,13 +127,21 @@ export function ImageSlot({
         className="hidden"
         onChange={(e) => add(e.target.files)}
       />
-      {hint && <p className="text-xs text-neutral-500">{hint}</p>}
+      {hint && <p className="text-xs text-neutral-500 max-sm:hidden">{hint}</p>}
       {current.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {current.map((img) => (
             <div key={img.path} className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img.url} alt={label} className="thumb h-24 w-24 animate-pop-in object-cover ring-1 ring-white/10" />
+              {/* Opens full size in the viewer. */}
+              <button
+                type="button"
+                onClick={() => viewImage({ url: img.url, title: current.length > 1 ? `${label} · ${current.indexOf(img) + 1}` : label })}
+                aria-label={`View ${label.toLowerCase()} full size`}
+                className="block cursor-zoom-in rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={img.url} alt={label} className="thumb h-24 w-24 animate-pop-in object-cover object-top ring-1 ring-white/10 max-sm:h-[4.5rem] max-sm:w-[4.5rem] 2xl:h-28 2xl:w-28" />
+              </button>
               <button
                 type="button"
                 aria-label="Remove image"

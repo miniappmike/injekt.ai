@@ -55,7 +55,7 @@ export default async function LikenessPage({ searchParams }: { searchParams: Pro
   const initialCharacter = characters.some((c) => c.id === params.character) ? params.character : undefined;
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <h1 className="page-title">Likeness</h1>
       <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
         Made an image? Upload it to see how much it looks like your character, trait by trait, and get a fixed prompt to try again.

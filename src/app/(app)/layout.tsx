@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <AppProvider value={{ generation }}>
       <div className="min-h-screen">
         <AppHeader email={user.email ?? "Account"} admin={plan === "admin"} />
-        <main className="mx-auto max-w-6xl p-4 pb-28 max-sm:pt-1 sm:p-6">{children}</main>
+        <main className="mx-auto max-w-6xl 2xl:max-w-[88rem] p-4 pb-28 max-sm:pt-1 sm:p-6">{children}</main>
         <MobileDock />
         {generation && <GenerationTray />}
         <ImageViewer />
