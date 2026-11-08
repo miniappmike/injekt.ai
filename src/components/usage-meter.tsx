@@ -58,7 +58,7 @@ export function UsageMeter() {
         </span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-2 w-72 max-sm:fixed max-sm:inset-x-4 max-sm:top-16 max-sm:w-auto origin-top-right animate-pop-in rounded-xl border border-neutral-800 bg-neutral-900/95 p-4 text-sm shadow-[0_20px_50px_-15px_rgb(0_0_0/0.9)] backdrop-blur-xl">
+        <div className="absolute right-0 top-full z-30 mt-2 w-72 max-sm:fixed max-sm:inset-x-4 max-sm:top-16 max-sm:w-auto max-sm:bg-neutral-900 max-sm:backdrop-blur-none origin-top-right animate-pop-in rounded-xl border border-neutral-800 bg-neutral-900/95 p-4 text-sm shadow-[0_20px_50px_-15px_rgb(0_0_0/0.9)] backdrop-blur-xl">
           <p className="font-display text-base font-bold text-neutral-50">
             {s.ownKey ? "Your own AI key" : s.plan === "admin" ? "Admin" : s.plan === "pro" ? "Pro plan" : "Free plan"}
           </p>
