@@ -212,7 +212,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
 
       <section className="panel flex flex-col gap-3 p-4">
         <Step n={1} title="Add your images" hint="Your main image, plus up to 2 extras for the vibe or an outfit." />
-        <div className="grid gap-3 sm:grid-cols-3 [&>*]:min-w-0">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 [&>*]:min-w-0">
           <ImageDrop
             layout="tile"
             title={mode === "edits" ? "Generated image" : mode === "write" ? "Image to vary" : "Cover image"}
@@ -401,7 +401,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       </section>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" onClick={run} disabled={busy || !image || noRefs || (mode === "edits" ? dims.size === 0 : mode === "write" ? writeTypes.size === 0 : types.size === 0)}>
+        <Button type="button" onClick={run} className="max-sm:h-12 max-sm:w-full max-sm:rounded-2xl" disabled={busy || !image || noRefs || (mode === "edits" ? dims.size === 0 : mode === "write" ? writeTypes.size === 0 : types.size === 0)}>
           {busy ? "Writing..." : mode === "edits" ? "Write variant edits" : mode === "write" ? "Write variations" : "Plan carousel"}
         </Button>
         {status && <p role="status" className={`text-sm ${status.good ? "text-neutral-300" : "text-red-400"}`}>{status.text}</p>}

@@ -14,6 +14,8 @@ import { FixRun, type ImageRef } from "@/components/likeness-panel";
 import { GenerateImage } from "@/components/generate-image";
 import { useGeneration } from "@/components/app-context";
 import { CopyOpen } from "@/components/copy-open";
+import { PasteIcon } from "@/components/icons";
+import { readClipboardImages } from "@/lib/clipboard";
 import { ScoreBar, ScoreRing } from "@/components/score-ring";
 import { REFERENCES_RUN, type RevisedRun } from "@/lib/revised-run";
 import { checkLikeness } from "@/app/(app)/likeness/actions";
@@ -49,6 +51,7 @@ export function LikenessChecker({
 }) {
   const router = useRouter();
   const generation = useGeneration();
+  const [pasteError, setPasteError] = useState<string>();
   const input = useRef<HTMLInputElement>(null);
   const [characterId, setCharacterId] = useState(initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id);
   const [picked, setPicked] = useState<Picked | null>(generated ? { preview: generated.url, image: { generationId: generated.id } } : null);
@@ -140,7 +143,7 @@ export function LikenessChecker({
             pick(e.dataTransfer.files);
           }}
         >
-          <div className="aspect-[4/3] w-full">
+          <div className={`w-full ${picked ? "aspect-[4/3] max-sm:aspect-[4/5] max-sm:max-h-[55dvh]" : "aspect-[4/3] max-sm:aspect-[2/1]"}`}>
             {picked ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={picked.preview} alt="Image to check" className="h-full w-full animate-pop-in rounded-lg object-cover ring-1 ring-white/10" />
@@ -154,11 +157,31 @@ export function LikenessChecker({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <h2 className="text-sm font-semibold">Generated image</h2>
-              <p className="text-xs text-neutral-500">Click, drop, or paste with Ctrl+V. After each check, drop your next attempt to see the score change.</p>
+              <p className="text-xs text-neutral-500"><span className="max-sm:hidden">Click, drop, or paste with Ctrl+V. </span>After each check, add your next attempt to see the score change.</p>
+              {pasteError && <p role="alert" className="mt-1 text-xs text-amber-300">{pasteError}</p>}
             </div>
-            <Button type="button" size="sm" variant="secondary" disabled={busy} className="shrink-0" onClick={() => input.current?.click()}>
-              {picked ? "Replace" : "Add image"}
-            </Button>
+            <div className="flex shrink-0 gap-1.5">
+              <button
+                type="button"
+                aria-label="Paste the image from the clipboard"
+                title="Paste from the clipboard"
+                disabled={busy}
+                onClick={async () => {
+                  try {
+                    pick(await readClipboardImages());
+                    setPasteError(undefined);
+                  } catch (err) {
+                    setPasteError(err instanceof Error ? err.message : "Couldn't paste.");
+                  }
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-white transition-transform active:scale-95 disabled:opacity-50 sm:h-8 sm:w-8 sm:border sm:border-neutral-700 sm:bg-neutral-800/70 sm:text-neutral-200"
+              >
+                <PasteIcon className="h-[18px] w-[18px]" />
+              </button>
+              <Button type="button" size="sm" variant="secondary" disabled={busy} className="max-sm:h-9" onClick={() => input.current?.click()}>
+                {picked ? "Replace" : <><span className="sm:hidden">Upload</span><span className="max-sm:hidden">Add image</span></>}
+              </Button>
+            </div>
           </div>
           <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onClick={(e) => e.stopPropagation()} onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
         </section>

@@ -245,7 +245,7 @@ export function ReferenceSheetMaker({
             The face sheet plus one or two body photos (front, back or side) become one sheet with the face above the body from the front, side and back.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3 [&>*]:min-w-0">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 [&>*]:min-w-0">
           <PhotoDrop
             layout="tile"
             title="Face sheet"
@@ -264,7 +264,7 @@ export function ReferenceSheetMaker({
         </div>
         {!faceSheetUpload && step1Sheet && <p className="-mt-1 text-xs text-neutral-500">Using the face sheet you just made in step 1.</p>}
         {!faceSheetUpload && !step1Sheet && !savedFace && facePhoto?.path && <p className="-mt-1 text-xs text-neutral-500">Using your step 1 face photo.</p>}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 [&>*]:min-w-0">
           <label className="flex flex-col gap-1.5 text-sm">
             Outfit in the body views
             <select className={select} value={opts.outfit} onChange={(e) => setOpts((o) => ({ ...o, outfit: e.target.value as typeof o.outfit }))}>

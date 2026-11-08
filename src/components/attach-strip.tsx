@@ -26,27 +26,27 @@ const tone = (tag: string) => TONES[(Math.max(1, Number(tag.replace(/\D/g, "")) 
  */
 export function AttachStrip({ items, photo, extras = [] }: { items: AttachTile[]; photo: string; extras?: string[] }) {
   return (
-    <div className="rounded-lg border border-neutral-700 bg-neutral-950/60 p-3">
+    <div className="rounded-lg border border-neutral-700 bg-neutral-950/60 p-3 max-sm:rounded-2xl">
       <p className="text-xs font-semibold uppercase tracking-wide text-neutral-300">Attach these in your generator, in this order</p>
-      <ol className="mt-3 flex flex-wrap items-start gap-x-2 gap-y-3" aria-label="Images to attach, in order">
+      <ol className="mt-3 flex flex-wrap items-start gap-x-2 gap-y-3 max-sm:-mx-3 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:px-3 max-sm:pb-1 max-sm:pt-2 max-sm:[contain:inline-size] max-sm:[scrollbar-width:none]" aria-label="Images to attach, in order">
         {items.map((x, i) => {
           const t = tone(x.tag);
           // The target comes from its link when it was cleaned (a copy only the app has), else from the page.
           const src = x.source === "photo" ? photo : x.source === "extra" ? extras[x.index ?? 0] : x.source === "target" ? (x.url ?? photo) : x.url;
           return (
-            <li key={x.tag} className="flex items-start gap-2">
-              {i > 0 && <span aria-hidden className="mt-8 text-lg text-neutral-600">→</span>}
-              <figure className="flex w-24 flex-col items-center gap-1.5 text-center">
+            <li key={x.tag} className="flex shrink-0 items-start gap-2 max-sm:gap-1">
+              {i > 0 && <span aria-hidden className="mt-8 text-lg text-neutral-600 max-sm:mt-6 max-sm:text-base">→</span>}
+              <figure className="flex w-24 flex-col items-center gap-1.5 text-center max-sm:w-[4.75rem]">
                 <div className="relative">
                   {src ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={src} alt={x.label} className={`h-20 w-20 rounded-lg object-cover ring-2 ${t.ring}`} />
+                    <img src={src} alt={x.label} className={`h-20 w-20 rounded-lg object-cover ring-2 max-sm:h-16 max-sm:w-16 ${t.ring}`} />
                   ) : (
-                    <div className={`flex h-20 w-20 items-center justify-center rounded-lg bg-neutral-800 px-1 text-[11px] text-neutral-400 ring-2 ${t.ring}`}>{x.label}</div>
+                    <div className={`flex h-20 w-20 items-center justify-center rounded-lg bg-neutral-800 px-1 text-[11px] text-neutral-400 ring-2 max-sm:h-16 max-sm:w-16 max-sm:text-[10px] ${t.ring}`}>{x.label}</div>
                   )}
                   <span className={`absolute -left-2 -top-2 rounded-full px-2 py-0.5 text-xs font-bold shadow ${t.badge}`}>{x.tag}</span>
                 </div>
-                <figcaption className="text-xs leading-tight text-neutral-300">{x.label}</figcaption>
+                <figcaption className="text-xs leading-tight text-neutral-300 max-sm:text-[11px]">{x.label}</figcaption>
                 {x.downloadUrl && (
                   <a href={x.downloadUrl} className="text-[11px] text-neutral-400 underline hover:text-neutral-200">Save image</a>
                 )}

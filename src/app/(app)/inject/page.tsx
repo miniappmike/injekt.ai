@@ -10,7 +10,8 @@ import { characterAvatars } from "@/lib/character-avatars";
 // The prompt writer calls a vision model, one call per target image, with up to 4 versions in each.
 export const maxDuration = 300;
 
-export default async function InjectPage() {
+export default async function InjectPage({ searchParams }: { searchParams: Promise<{ character?: string }> }) {
+  const { character } = await searchParams;
   const { supabase } = await requireUser();
   const { data } = await supabase
     .from("characters")
@@ -33,11 +34,11 @@ export default async function InjectPage() {
   return (
     <div className="max-w-3xl">
       <h1 className="page-title">Inject</h1>
-      <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
+      <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400 max-sm:hidden">
         Put your character into any photo. Add a photo you like, and get a prompt that swaps her in, ready to paste into your image generator.
       </p>
       <HowItWorks />
-      <InjectTabs characters={characters} outfits={outfits} />
+      <InjectTabs characters={characters} outfits={outfits} initialCharacterId={characters.some((c) => c.id === character) ? character : undefined} />
     </div>
   );
 }

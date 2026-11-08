@@ -34,6 +34,7 @@
   --animate-fade-in: fade-in 0.25s ease-out both;
   --animate-pop-in: pop-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
   --animate-slide-in-right: slide-in-right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-sheet-up: sheet-up 0.32s cubic-bezier(0.2, 0.9, 0.25, 1) both;
 
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(10px); }
@@ -46,6 +47,10 @@
   @keyframes pop-in {
     from { opacity: 0; transform: scale(0.96); }
     to { opacity: 1; transform: none; }
+  }
+  @keyframes sheet-up {
+    from { transform: translateY(100%); }
+    to { transform: none; }
   }
   @keyframes slide-in-right {
     from { opacity: 0; transform: translateX(24px); }
@@ -256,4 +261,28 @@
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(10px) scale(0.96); }
   to { opacity: 1; transform: none; }
+}
+
+/*
+ * Phones: the top bar names the page, so the big title steps aside and its description shrinks to a short line.
+ * Taps don't flash grey, and nothing scrolls sideways.
+ */
+@layer components {
+@media (max-width: 639px) {
+  .page-title {
+    display: none;
+  }
+  .page-title + p {
+    margin-top: 0;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
 }

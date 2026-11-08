@@ -34,9 +34,12 @@ export function CreateCharacterFirst() {
 export function InjectTabs({
   characters,
   outfits = [],
+  initialCharacterId,
 }: {
   characters: (QuickCharacter & { ready: boolean; hasProfile: boolean })[];
   outfits?: SavedOutfit[];
+  /** Opened from a character's card. */
+  initialCharacterId?: string;
 }) {
   const generation = useGeneration();
   const [tab, setTab] = useState<Tab>("write");
@@ -54,7 +57,7 @@ export function InjectTabs({
         ))}
       </div>
 
-      {tab === "write" && (characters.length ? <InjectWriter characters={characters} outfits={outfits} /> : <QuickGenerate mode="edit" characters={[]} />)}
+      {tab === "write" && (characters.length ? <InjectWriter characters={characters} outfits={outfits} initialCharacterId={initialCharacterId} /> : <QuickGenerate mode="edit" characters={[]} />)}
       {tab === "direct_swap" && <QuickGenerate mode="direct_swap" characters={characters} />}
       {tab === "edit" && generation && <QuickGenerate mode="edit" characters={characters} />}
     </div>

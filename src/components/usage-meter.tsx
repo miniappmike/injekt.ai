@@ -49,7 +49,7 @@ export function UsageMeter() {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label={unlimited ? "Prompts today: unlimited" : `${runsLeft} of ${s.runs.limit} prompts left today`}
-        className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm text-neutral-300 transition-colors hover:bg-neutral-800 hover:text-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
+        className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm text-neutral-300 max-sm:h-10 max-sm:rounded-xl max-sm:border max-sm:border-neutral-800 max-sm:bg-neutral-900 max-sm:px-3 transition-colors hover:bg-neutral-800 hover:text-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
       >
         <span className="font-semibold tabular-nums text-neutral-100">{unlimited ? "∞" : `${runsLeft}/${s.runs.limit}`}</span>
         <span className="hidden sm:inline">{unlimited ? "Unlimited" : "prompts today"}</span>
@@ -58,7 +58,7 @@ export function UsageMeter() {
         </span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-2 w-72 origin-top-right animate-pop-in rounded-xl border border-neutral-800 bg-neutral-900/95 p-4 text-sm shadow-[0_20px_50px_-15px_rgb(0_0_0/0.9)] backdrop-blur-xl">
+        <div className="absolute right-0 top-full z-30 mt-2 w-72 max-sm:fixed max-sm:inset-x-4 max-sm:top-16 max-sm:w-auto origin-top-right animate-pop-in rounded-xl border border-neutral-800 bg-neutral-900/95 p-4 text-sm shadow-[0_20px_50px_-15px_rgb(0_0_0/0.9)] backdrop-blur-xl">
           <p className="font-display text-base font-bold text-neutral-50">
             {s.ownKey ? "Your own AI key" : s.plan === "admin" ? "Admin" : s.plan === "pro" ? "Pro plan" : "Free plan"}
           </p>

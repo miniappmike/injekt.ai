@@ -223,13 +223,14 @@ export function HistoryPanel() {
           setOpen(true);
         }}
         aria-haspopup="dialog"
-        className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-neutral-300 transition-colors hover:bg-neutral-800 hover:text-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
+        aria-label="History"
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-neutral-300 transition-colors hover:bg-neutral-800 hover:text-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 max-sm:h-10 max-sm:w-10 max-sm:justify-center max-sm:rounded-xl max-sm:border max-sm:border-neutral-800 max-sm:bg-neutral-900 max-sm:px-0 max-sm:active:scale-95"
       >
-        <svg viewBox="0 0 20 20" aria-hidden="true" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8" strokeLinecap="round">
+        <svg viewBox="0 0 20 20" aria-hidden="true" className="h-4 w-4 fill-none stroke-current max-sm:h-5 max-sm:w-5" strokeWidth="1.8" strokeLinecap="round">
           <circle cx="10" cy="10" r="7.2" />
           <path d="M10 6v4l2.6 1.8" />
         </svg>
-        History
+        <span className="max-sm:hidden">History</span>
       </button>
 
       {/* Drawn on the page body, not inside the header: the header's blur makes it the anchor for anything fixed within it,

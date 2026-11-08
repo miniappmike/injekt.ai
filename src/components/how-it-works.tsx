@@ -21,13 +21,13 @@ export function HowItWorks() {
 
   const steps = [
     { title: "Pick your character", body: "Who goes in the photo. New here? Create one first from Characters." },
-    { title: "Add a photo you like", body: "Any photo with the pose, outfit and scene you want her in." },
+    { title: "Add a photo", body: "Any photo with the pose, outfit and scene you want her in." },
     generation
       ? { title: "Write, then generate", body: "Press Write prompts, then Generate, or copy the prompt to use anywhere." }
-      : { title: `Paste it into ${GENERATOR.name}`, body: "Press Write prompts, then Copy & open. Attach the images shown, in order, and paste." },
+      : { title: `Copy it to ${GENERATOR.name}`, body: "Press Write prompts, then Copy & open. Attach the images shown, in order, and paste." },
   ];
   return (
-    <section aria-label="How it works" className="panel relative mt-5 animate-fade-up p-4">
+    <section aria-label="How it works" className="panel relative mt-5 animate-fade-up p-4 max-sm:mt-3 max-sm:rounded-2xl max-sm:p-3">
       <button
         type="button"
         aria-label="Hide how it works"
@@ -44,13 +44,13 @@ export function HowItWorks() {
         ✕
       </button>
       <p className="text-xs font-semibold uppercase tracking-wide text-brand-400">How it works</p>
-      <ol className="mt-2 grid gap-3 sm:grid-cols-3">
+      <ol className="mt-2 grid grid-cols-3 gap-2 sm:gap-3">
         {steps.map((s, i) => (
-          <li key={s.title} className="flex gap-3">
+          <li key={s.title} className="flex gap-3 max-sm:flex-col max-sm:gap-1.5">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-500/15 text-sm font-bold text-brand-300 ring-1 ring-brand-500/40">{i + 1}</span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-neutral-100">{s.title}</p>
-              <p className="text-xs leading-relaxed text-neutral-400">{s.body}</p>
+              <p className="text-sm font-semibold text-neutral-100 max-sm:text-xs max-sm:leading-tight">{s.title}</p>
+              <p className="text-xs leading-relaxed text-neutral-400 max-sm:hidden">{s.body}</p>
             </div>
           </li>
         ))}

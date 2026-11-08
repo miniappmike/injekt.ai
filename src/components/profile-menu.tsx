@@ -69,13 +69,13 @@ export function ProfileMenu({ email, admin = false }: { email: string; admin?: b
         aria-label="Your profile"
         // A mouse click keeps it open (hover already opened it); a tap or the keyboard toggles it.
         onClick={(e) => setOpen((was) => ((e.nativeEvent as PointerEvent).pointerType === "mouse" ? true : !was))}
-        className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-neutral-300 transition-colors hover:bg-neutral-800 hover:text-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
+        className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-neutral-300 max-sm:h-10 max-sm:w-10 max-sm:justify-center max-sm:rounded-xl max-sm:border max-sm:border-neutral-800 max-sm:bg-neutral-900 max-sm:px-0 transition-colors hover:bg-neutral-800 hover:text-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
       >
         <span aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-iris-500 text-xs font-bold uppercase text-white ring-2 ring-neutral-950 shadow-[0_0_0_3px_rgb(232_38_94/0.35)]">
           {email.charAt(0) || "?"}
         </span>
         <span className="hidden max-w-[12rem] truncate sm:inline">{email}</span>
-        <span aria-hidden="true" className="text-xs text-neutral-500">▾</span>
+        <span aria-hidden="true" className="text-xs text-neutral-500 max-sm:hidden">▾</span>
       </button>
 
       {/* The wrapper reaches up to the button with no gap, so moving the mouse down onto the menu doesn't close it. */}

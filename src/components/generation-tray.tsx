@@ -76,7 +76,7 @@ export function GenerationTray() {
       <div aria-hidden="true" className={collapsed ? "h-12" : "h-36"} />
       <section
         aria-label="Images generated on this page"
-        className="fixed inset-x-0 bottom-0 z-30 animate-fade-up border-t border-neutral-800/80 bg-neutral-950/85 px-4 py-2 shadow-[0_-12px_40px_-12px_rgb(0_0_0/0.8)] backdrop-blur-xl"
+        className="fixed inset-x-0 bottom-0 z-30 animate-fade-up max-sm:inset-x-3 max-sm:bottom-[5.25rem] max-sm:rounded-2xl max-sm:border border-t border-neutral-800/80 bg-neutral-950/85 px-4 py-2 shadow-[0_-12px_40px_-12px_rgb(0_0_0/0.8)] backdrop-blur-xl"
       >
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-medium">

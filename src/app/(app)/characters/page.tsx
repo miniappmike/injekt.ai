@@ -22,12 +22,12 @@ export default async function CharactersPage() {
 
   return (
     <div>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4 max-sm:mb-4">
         <h1 className="page-title">Characters</h1>
         {atLimit ? (
           <Button disabled>New character</Button>
         ) : (
-          <Button asChild><Link href="/characters/new">New character</Link></Button>
+          <Button asChild className="max-sm:w-full"><Link href="/characters/new">New character</Link></Button>
         )}
       </div>
       {atLimit && <p className="mb-4 text-sm text-neutral-400">{limitMessage("characters")}</p>}
@@ -36,7 +36,7 @@ export default async function CharactersPage() {
           <p className="text-neutral-400">No characters yet. Create your first one.</p>
         </div>
       ) : (
-        <div className="stagger grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="stagger grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
           {characters.map((c) => (
             <CharacterCard
               key={c.id}
