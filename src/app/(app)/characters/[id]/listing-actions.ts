@@ -2,10 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireUser } from "@/lib/auth";
-import { entitlements } from "@/lib/entitlements";
 import { adminClient } from "@/lib/supabase/admin";
 import { MEDIA_BUCKET } from "@/lib/images";
 import { makePreview } from "@/lib/marketplace/watermark";
@@ -15,8 +12,9 @@ import {
   MAX_PREVIEW_UPLOAD_BYTES,
   PREVIEW_SOURCES,
   detailsSchema,
-  priceCentsSchema,
 } from "@/lib/marketplace/listing-input";
+import { ActionError, firstIssue, friendly, parseId, run, type Result } from "@/lib/marketplace/admin-guard";
+import { holdIsLive, loadListing, mustNotBeSold, revalidateListing as revalidate, savePrice, type ListingRow } from "@/lib/marketplace/listing-core";
 
 /**
  * The admin "List on marketplace" actions. Listing columns like profile_snapshot and full_assets are hidden from every
@@ -26,74 +24,6 @@ import {
 
 const PREVIEW_BUCKET = "marketplace-previews";
 const ASSET_BUCKET = "marketplace-assets";
-
-type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
-
-// A message that is safe and useful to show the admin. Anything else becomes a generic message.
-class ActionError extends Error {}
-
-async function requireAdmin() {
-  const { user } = await requireUser();
-  if ((await entitlements.planOf(user.id)) !== "admin") throw new ActionError("Admins only.");
-  return user;
-}
-
-async function run<T extends object>(fn: (adminId: string) => Promise<T>): Promise<Result<T>> {
-  try {
-    const user = await requireAdmin();
-    return { ok: true, ...(await fn(user.id)) };
-  } catch (e) {
-    // requireUser() redirects by throwing; let that through.
-    if (e instanceof Error && "digest" in e && String((e as { digest: unknown }).digest).startsWith("NEXT_REDIRECT")) throw e;
-    if (e instanceof ActionError) return { ok: false, error: e.message };
-    console.error("[listing-actions]", e instanceof Error ? e.message : e);
-    return { ok: false, error: "Something went wrong. Try again." };
-  }
-}
-
-const idSchema = z.string().uuid();
-const parseId = (v: unknown) => {
-  const r = idSchema.safeParse(v);
-  if (!r.success) throw new ActionError("That item couldn't be found.");
-  return r.data;
-};
-const firstIssue = (e: z.ZodError) => e.issues[0]?.message ?? "Check the details and try again.";
-
-/** The database's own rule messages, in plain English. */
-function friendly(message: string | undefined): string {
-  const m = message ?? "";
-  if (/listing_sold/.test(m)) return "This persona is sold, so it can't be changed.";
-  if (/listing_reserved/.test(m)) return "Someone is checking out with this persona right now. Try again in a few minutes.";
-  if (/price/.test(m)) return "That price isn't allowed. Use $0.50 to $100,000.";
-  return "Couldn't save that. Try again.";
-}
-
-interface ListingRow {
-  id: string;
-  name: string;
-  price_cents: number;
-  status: string;
-  reserved_until: string | null;
-  source_character_id: string;
-  public_profile: { age?: number } | null;
-}
-const LISTING_COLUMNS = "id, name, price_cents, status, reserved_until, source_character_id, public_profile";
-
-async function loadListing(listingId: string): Promise<ListingRow> {
-  const { data } = await adminClient().from("marketplace_listings").select(LISTING_COLUMNS).eq("id", listingId).maybeSingle();
-  if (!data) throw new ActionError("That listing couldn't be found.");
-  return data as ListingRow;
-}
-
-/** A sold persona belongs to its buyer: nothing about it changes. */
-function mustNotBeSold(l: ListingRow) {
-  if (l.status === "sold") throw new ActionError("This persona is sold, so it can't be changed.");
-}
-
-function revalidate(characterId: string) {
-  revalidatePath(`/characters/${characterId}`);
-  revalidatePath("/characters");
-}
 
 interface SourceCharacter {
   id: string;
@@ -147,7 +77,7 @@ export async function getOrCreateDraft(characterId: string): Promise<Result<{ li
 /** Saves the name, price and the public profile together. */
 export async function updateListingDetails(
   listingId: string,
-  details: { name: string; priceCents: number; publicProfile: { tagline: string; bio: string; tags: string[]; age: number } },
+  details: { name: string; priceCents: number; publicProfile: { tagline: string; bio: string; tags: string[] } },
 ): Promise<Result> {
   return run(async () => {
     const id = parseId(listingId);
@@ -168,14 +98,7 @@ export async function updateListingDetails(
 /** Saves just the price. Someone mid-checkout keeps the price they saw (the database holds it for them). */
 export async function updateListingPrice(listingId: string, priceCents: number): Promise<Result> {
   return run(async () => {
-    const id = parseId(listingId);
-    const price = priceCentsSchema.safeParse(priceCents);
-    if (!price.success) throw new ActionError(firstIssue(price.error));
-    const l = await loadListing(id);
-    mustNotBeSold(l);
-    const { error } = await adminClient().from("marketplace_listings").update({ price_cents: price.data }).eq("id", id);
-    if (error) throw new ActionError(friendly(error.message));
-    revalidate(l.source_character_id);
+    await savePrice(listingId, priceCents);
     return {};
   });
 }
@@ -292,14 +215,12 @@ export async function publishListing(listingId: string): Promise<Result> {
     const id = parseId(listingId);
     const l = await loadListing(id);
     mustNotBeSold(l);
-    if (l.status === "reserved" && l.reserved_until && new Date(l.reserved_until).getTime() > Date.now()) {
+    if (holdIsLive(l)) {
       throw new ActionError("Someone is checking out with this persona right now. Try again in a few minutes.");
     }
     const c = await loadOwnCharacter(l.source_character_id, adminId);
-    const age = l.public_profile?.age;
     if (!l.name.trim()) throw new ActionError("Give her a name first.");
     if (!(l.price_cents >= 50)) throw new ActionError("Set a price first.");
-    if (!age || age < 18) throw new ActionError("Add her age (18 or older) and save first.");
     const refs = (c.reference_paths ?? []).filter(Boolean);
     if (!c.face_sheet_path && !c.body_sheet_path && !refs.length) {
       throw new ActionError("Add a face sheet, body sheet or reference photo to this character before listing her.");

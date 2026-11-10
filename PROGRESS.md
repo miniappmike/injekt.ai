@@ -11,7 +11,7 @@ Work happens one phase at a time, with a commit after each phase. Phase 9 (crypt
 | 1 | Schema and RLS | **Done** |
 | 2 | Atomic purchase function (security-critical) | **Done** |
 | 3 | Admin "List" flow | **Done** |
-| 4 | Admin controls in the marketplace | Next |
+| 4 | Admin controls in the marketplace | **Done** |
 | 5 | Marketplace UI | **Waiting for the UI target screenshot** |
 | 6 | Stripe (security-critical) | Not started |
 | 7 | Compliance basics | Not started |
@@ -177,10 +177,11 @@ checked on the server) lets them price a persona, write the public profile, pick
   character whose listing sold is never listed again.
 - **Sold is read-only.** Every action refuses a sold listing (the database refuses too).
 - **Price.** Stored in cents, $0.50 to $100,000. Edits apply at once; a reserved listing keeps its reserved price (database).
-- **Age is required**, 18 to 99. Tagline up to 120, bio up to 1,200, up to 8 tags of up to 24 characters.
+- **No age field.** The owner decided the marketplace profile neither shows nor asks for an age ("all personas are clearly
+  over 18"), so `public_profile` is just tagline, bio and tags (any age already stored is ignored). Tagline up to 120, bio up to 1,200, up to 8 tags of up to 24 characters.
 - **Previews.** Up to 10 per listing, all watermarked and shrunk, stored at `marketplace-previews/<listing>/<uuid>.jpg`.
   Reordering needs exactly the listing's own picture ids.
-- **Publish needs** a name, price, age, one preview, and a character with a face sheet, body sheet or reference photo.
+- **Publish needs** a name, price, one preview, and a character with a face sheet, body sheet or reference photo.
   It refuses sold listings and live reservations (an expired hold is fine). It copies each file to
   `marketplace-assets/<listing>/<kind>.<ext>` (removing any older copy first), then writes `full_assets`,
   `profile_snapshot` and `status = available` in one update. Publishing again re-snapshots.
@@ -190,7 +191,42 @@ checked on the server) lets them price a persona, write the public profile, pick
 - Phase 4 (delist): clear the hidden-from-grid rule by setting the listing to `delisted`; the `/characters` filter only
   hides available, reserved and sold listings. The editor already shows the Delisted status and lets the admin publish again.
 - Re-publishing doesn't delete asset files from a reference that was since removed; they're unreferenced and harmless.
-- The editor shows reserved and delisted states but has no delist button yet.
+
+## Phase 4: admin controls in the marketplace (done)
+
+No new migration. Tests: `tests/marketplace-admin-actions.test.ts` (Phase 3 tests updated for the age removal).
+
+### What it does
+
+Admins can delist a live persona, relist a delisted one and change a price inline. The controls are one reusable
+component; Phase 5 puts it on each marketplace card. The server actions are the real protection.
+
+### Files
+
+- `src/lib/marketplace/admin-guard.ts` (server-only): `requireAdmin`, `run()`, `ActionError`, `parseId`, `friendly`, `Result`.
+  Moved out of `listing-actions.ts` because "use server" files may only export async functions.
+- `src/lib/marketplace/listing-core.ts` (server-only): `loadListing`, `mustNotBeSold`, `holdIsLive`, `savePrice`,
+  `revalidateListing` (revalidates `/marketplace`, `/characters` and the character page). Shared by both action files.
+- `src/app/(app)/marketplace/admin-actions.ts`: `delistListing`, `relistListing`, `setListingPrice`.
+- `src/components/admin-listing-controls.tsx`: `<AdminListingControls listingId status priceCents holdActive name? compact? showPrice? />`.
+- `src/components/listing-editor.tsx`: Delist / Relist next to the status pill (the full price field stays, so `showPrice={false}`).
+- `src/app/(app)/characters/[id]/listing-actions.ts`: now uses the shared helpers; no age.
+
+### Rules
+
+- **Delist** sets `status = delisted`. Refused for sold ("belong to their buyer"), a live reservation (an expired hold is
+  fine; the database clears it), and drafts. Delisting an already-delisted persona is a harmless success.
+- **Relist** works only from `delisted` and needs a taken snapshot (`full_assets` with at least one path) and at least one
+  preview; otherwise it tells the admin to open the character and press Publish. It does not re-snapshot.
+- **Price** uses the same rules as Phase 3 (unsold only, $0.50 to $100,000, reserved keeps its reserved price).
+- A delisted persona reappears on the admin's `/characters` grid, because that filter hides only available, reserved and
+  sold listings. (No page test: it is a server component; the rule is the one `.in("status", [...])` list.)
+
+### Notes for Phase 5
+
+- Render `<AdminListingControls compact ... />` on each card only when the viewer is an admin (pass `name`).
+- The public grid query should show only `available` and `sold`; delisted listings vanish automatically through RLS.
+- `compact` shows a price pill (pencil) that turns into an input (Enter saves, Esc cancels) plus small Delist / Relist pills.
 
 ## Manual setup so far
 

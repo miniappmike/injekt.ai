@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { AdminListingControls } from "@/components/admin-listing-controls";
 import { UploadIcon } from "@/components/icons";
 import { useToast } from "@/components/toast";
 import {
@@ -146,7 +147,6 @@ function EditorBody({
   const pp = listing.publicProfile;
   const [name, setName] = useState(listing.name);
   const [price, setPrice] = useState(centsToDollars(listing.priceCents));
-  const [age, setAge] = useState(pp.age ? String(pp.age) : "");
   const [tagline, setTagline] = useState(pp.tagline ?? "");
   const [bio, setBio] = useState(pp.bio ?? "");
   const [tags, setTags] = useState<string[]>(pp.tags ?? []);
@@ -156,20 +156,18 @@ function EditorBody({
   const live = listing.status === "available";
   const locked = busy || sold;
   const priceCents = dollarsToCents(price);
-  const ageNum = /^\d+$/.test(age) ? Number(age) : null;
 
   const savedTags = pp.tags ?? [];
   const dirty =
     name !== listing.name ||
     (priceCents ?? -1) !== listing.priceCents ||
-    ageNum !== (pp.age ?? null) ||
     tagline !== (pp.tagline ?? "") ||
     bio !== (pp.bio ?? "") ||
     tags.length !== savedTags.length ||
     tags.some((t, i) => t !== savedTags[i]);
 
   // Publishing uses what is SAVED, so the button asks for a save first when there are unsaved edits.
-  const blockers = publishBlockers({ hasAssets, name: listing.name, priceCents: listing.priceCents, age: pp.age, previewCount: listing.previews.length });
+  const blockers = publishBlockers({ hasAssets, name: listing.name, priceCents: listing.priceCents, previewCount: listing.previews.length });
   if (dirty && !blockers.length) blockers.push("Save your changes first.");
   const canPublish = !sold && !listing.holdActive && !blockers.length && !busy;
 
@@ -187,8 +185,7 @@ function EditorBody({
 
   function saveDetails() {
     if (priceCents === null) return setError("Enter the price in dollars, like 29.00.");
-    if (ageNum === null) return setError("Add her age (a whole number, 18 or older).");
-    act(() => updateListingDetails(listing.id, { name, priceCents, publicProfile: { tagline, bio, tags, age: ageNum } }), "Saved");
+    act(() => updateListingDetails(listing.id, { name, priceCents, publicProfile: { tagline, bio, tags } }), "Saved");
   }
 
   function fillFromProfile() {
@@ -203,7 +200,21 @@ function EditorBody({
     <>
       <div className="flex flex-wrap items-center gap-2">
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${STATUS[listing.status].tone}`}>{STATUS[listing.status].label}</span>
+        {/* Delist / Relist right by the status. The price already has its own field below, so the inline editor is off here. */}
+        {(live || listing.status === "reserved" || listing.status === "delisted") && (
+          <AdminListingControls
+            listingId={listing.id}
+            status={listing.status}
+            priceCents={listing.priceCents}
+            holdActive={listing.holdActive}
+            name={listing.name}
+            showPrice={false}
+          />
+        )}
       </div>
+      {listing.status === "delisted" && (
+        <p className="text-xs text-neutral-400">She's off the marketplace and back on your Characters page. Press Relist to put her back, or Update listing below to refresh her copy first.</p>
+      )}
 
       {sold && (
         <p className="rounded-md border border-neutral-700 p-3 text-sm text-neutral-300">
@@ -241,15 +252,9 @@ function EditorBody({
           <h3 className="text-sm font-semibold">What shoppers see</h3>
           <Button type="button" size="sm" variant="outline" onClick={fillFromProfile}>Fill from her profile</Button>
         </div>
-        <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
-          <div className="grid gap-1.5">
-            <Label htmlFor="listing-name">Name</Label>
-            <Input id="listing-name" className="h-11" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="listing-age">Age (18+)</Label>
-            <Input id="listing-age" className="h-11" inputMode="numeric" value={age} placeholder="e.g. 24" onChange={(e) => setAge(e.target.value.replace(/\D/g, "").slice(0, 2))} />
-          </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="listing-name">Name</Label>
+          <Input id="listing-name" className="h-11" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="listing-tagline">Tagline</Label>

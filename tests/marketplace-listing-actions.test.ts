@@ -87,7 +87,7 @@ import {
 } from "@/app/(app)/characters/[id]/listing-actions";
 import { centsToDollars, dollarsToCents, suggestFromProfile } from "@/lib/marketplace/listing-input";
 
-const profile = { tagline: "Hi", bio: "Bio", tags: ["a"], age: 24 };
+const profile = { tagline: "Hi", bio: "Bio", tags: ["a"] };
 const details = { name: "Mia", priceCents: 2900, publicProfile: profile };
 
 function seed(over: Row = {}) {
@@ -145,12 +145,11 @@ describe("price and details", () => {
     expect(h.tables.marketplace_listings[0].price_cents).toBe(10_000_000);
   });
 
-  it("requires an adult age", async () => {
-    for (const age of [17, 0, 100, 18.5]) {
-      expect((await updateListingDetails(LISTING, { ...details, publicProfile: { ...profile, age } })).ok).toBe(false);
-    }
-    expect((await updateListingDetails(LISTING, { ...details, priceCents: 3500, publicProfile: { ...profile, age: 18 } })).ok).toBe(true);
-    expect(h.tables.marketplace_listings[0]).toMatchObject({ price_cents: 3500, public_profile: { age: 18 } });
+  it("ignores any age sent or stored: the profile is tagline, bio and tags only", async () => {
+    const r = await updateListingDetails(LISTING, { ...details, priceCents: 3500, publicProfile: { ...profile, age: 17 } as any });
+    expect(r.ok).toBe(true);
+    expect(h.tables.marketplace_listings[0]).toMatchObject({ price_cents: 3500, public_profile: { tagline: "Hi", bio: "Bio", tags: ["a"] } });
+    expect(h.tables.marketplace_listings[0].public_profile).not.toHaveProperty("age");
   });
 
   it("limits tagline, bio and tags", async () => {
@@ -260,13 +259,16 @@ describe("publishing", () => {
     expect(l.profile_snapshot).toEqual({ lore: "L", always_keep: "K", height: "5'6", weight: "120", profile: { identity_line: "x" } });
   });
 
-  it("needs a preview and an age", async () => {
+  it("needs a preview", async () => {
     h.tables.listing_images = [];
-    expect((await publishListing(LISTING)).ok).toBe(false);
-    seed({ public_profile: { ...profile, age: undefined } });
     expect((await publishListing(LISTING)).ok).toBe(false);
     expect(h.copies).toHaveLength(0);
     expect(h.tables.marketplace_listings[0].status).toBe("draft");
+  });
+
+  it("publishes a listing that has no age stored", async () => {
+    seed({ public_profile: { tagline: "Hi", bio: "Bio", tags: [] } });
+    expect((await publishListing(LISTING)).ok).toBe(true);
   });
 
   it("needs a face sheet, body sheet or reference", async () => {

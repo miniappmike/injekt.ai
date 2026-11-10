@@ -10,7 +10,7 @@ export interface EditorListing {
   status: ListingStatus;
   /** True while someone's checkout hold is still running. */
   holdActive: boolean;
-  publicProfile: { tagline?: string; bio?: string; tags?: string[]; age?: number };
+  publicProfile: { tagline?: string; bio?: string; tags?: string[] };
   previews: { id: string; url: string }[];
 }
 

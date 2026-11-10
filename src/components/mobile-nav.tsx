@@ -16,6 +16,7 @@ const DOCK = [
 ];
 
 const TITLES: [RegExp, string][] = [
+  [/^\/marketplace/, "Marketplace"],
   [/^\/characters\/new/, "New character"],
   [/^\/characters\/./, "Character"],
   [/^\/characters/, "Characters"],

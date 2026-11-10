@@ -30,8 +30,7 @@ export const publicProfileSchema = z.object({
   tagline: z.string().trim().max(120, "The tagline can be up to 120 characters."),
   bio: z.string().trim().max(1200, "The bio can be up to 1,200 characters."),
   tags: z.array(z.string().trim().min(1).max(24, "Each tag can be up to 24 characters.")).max(8, "Use up to 8 tags."),
-  // Personas are adults. The age is required and has to be 18 or more.
-  age: z.number().int("Enter a whole-number age.").min(18, "Personas must be 18 or older.").max(99, "Enter an age from 18 to 99."),
+  // No age: the marketplace doesn't show or ask for one. Zod drops unknown keys, so an old stored age is ignored.
 });
 export type PublicProfile = z.infer<typeof publicProfileSchema>;
 
@@ -62,14 +61,12 @@ export function publishBlockers(x: {
   hasAssets: boolean;
   name: string;
   priceCents: number;
-  age: number | null | undefined;
   previewCount: number;
 }): string[] {
   const out: string[] = [];
   if (!x.hasAssets) out.push("Add a face sheet, body sheet or reference photo to this character first.");
   if (!x.name.trim()) out.push("Give her a name.");
   if (!(x.priceCents >= MIN_PRICE_CENTS)) out.push("Set a price of at least $0.50.");
-  if (!x.age || x.age < 18) out.push("Add her age (18 or older) and save.");
   if (x.previewCount < 1) out.push("Add at least one preview picture.");
   return out;
 }
