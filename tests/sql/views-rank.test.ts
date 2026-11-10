@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { bootDb } from "./boot";
 
-// Views (once per person per day) and the Virality Rank (views + likes, unsold only), against the real migrations.
+// Views (every visit to her page counts) and the Virality Rank (views + likes, unsold only), against the real migrations.
 let t: Awaited<ReturnType<typeof bootDb>>;
 const q = <T = Record<string, unknown>>(sql: string, params: unknown[] = []) => t.db.query<T>(sql, params);
 const who = (n: number) => `v:${String(n).padStart(8, "0")}-0000-4000-8000-000000000000`;
@@ -41,13 +41,11 @@ beforeEach(async () => {
 });
 
 describe("views", () => {
-  it("count once per person per day; drafts aren't counted", async () => {
+  it("count every visit, including repeat visits by the same person; drafts aren't counted", async () => {
     const a = await listing("A");
     await view(a, who(1));
-    await view(a, who(1)); // same person, same day
+    await view(a, who(1)); // the same person again: still a view
     await view(a, who(2));
-    await t.db.exec("reset role");
-    await q("insert into public.listing_views (listing_id, viewer, day) values ($1, $2, current_date - 1)", [a, who(1)]); // yesterday
     const draft = await listing("D", "draft");
     await view(draft, who(1));
     expect((await stats([a]))[a].views).toBe(3);

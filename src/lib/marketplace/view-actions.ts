@@ -6,8 +6,9 @@ import { enforceRateLimit } from "@/lib/ratelimit";
 import { currentLiker } from "@/lib/marketplace/likes";
 
 /**
- * Counts one view of a persona's page: once per person per day (the database ignores repeats), signed in or not.
- * Called by the persona page after it opens. Quietly does nothing on any problem: a view is never worth an error.
+ * Counts one view of a persona's page: every visit counts, signed in or not. Rate limited per person (60 a minute) so a
+ * script can't inflate her Virality Rank. Called by the persona page after it opens. Quietly does nothing on any
+ * problem: a view is never worth an error.
  */
 export async function recordView(listingId: string): Promise<void> {
   const id = z.string().uuid().safeParse(listingId);
