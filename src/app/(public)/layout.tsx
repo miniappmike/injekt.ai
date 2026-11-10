@@ -43,9 +43,9 @@ export default async function PublicLayout({ children }: { children: React.React
     );
   }
 
-  const [{ enabled: generation }, plan] = await Promise.all([loadGenerationState(supabase, user.id), entitlements.planOf(user.id)]);
+  const [{ enabled: generation, hasImageKey, confirmed }, plan] = await Promise.all([loadGenerationState(supabase, user.id), entitlements.planOf(user.id)]);
   return (
-    <AppProvider value={{ generation }}>
+    <AppProvider value={{ generation, imageKey: hasImageKey, generationConfirmed: confirmed }}>
       <div className="min-h-screen">
         <AppHeader email={user.email ?? "Account"} admin={plan === "admin"} />
         <main className="mx-auto max-w-6xl 2xl:max-w-[88rem] p-4 pb-44 max-sm:pt-1 sm:p-6 sm:pb-28">{children}</main>

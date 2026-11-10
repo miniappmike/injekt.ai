@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
+import { useApp } from "@/components/app-context";
+import { toggleGeneration } from "@/app/(app)/settings/api-keys/actions";
+import { cn } from "@/lib/utils";
 
 const item =
   "block w-full rounded-md px-3 py-2 text-left text-sm text-neutral-200 hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none";
@@ -12,6 +16,40 @@ export function ProfileMenu({ email, admin = false }: { email: string; admin?: b
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const menuId = useId();
+  const router = useRouter();
+  const { generation, imageKey } = useApp();
+  // The switch shows the new state at once and goes back if the server says no.
+  const [genOn, setGenOn] = useState(generation);
+  const [genNote, setGenNote] = useState<string>();
+  const [, startToggle] = useTransition();
+  useEffect(() => setGenOn(generation), [generation]);
+
+  // One click flips image generation. With no Image key yet (or the confirmation in Settings never done) it opens
+  // Settings instead, where the key and the two confirmations live.
+  function flipGeneration() {
+    if (!imageKey) {
+      setOpen(false);
+      router.push("/settings/api-keys");
+      return;
+    }
+    const before = genOn;
+    setGenOn(!before);
+    setGenNote(undefined);
+    startToggle(async () => {
+      const r = await toggleGeneration();
+      if (r.ok) {
+        setGenOn(r.enabled);
+        router.refresh();
+      } else if (r.settings) {
+        setGenOn(before);
+        setOpen(false);
+        router.push("/settings/api-keys");
+      } else {
+        setGenOn(before);
+        setGenNote(r.error);
+      }
+    });
+  }
 
   // Tapping or clicking anywhere else closes it.
   useEffect(() => {
@@ -37,7 +75,7 @@ export function ProfileMenu({ email, admin = false }: { email: string; admin?: b
     setOpen(true);
     // The menu may have only just opened, so look for its items once it is drawn.
     requestAnimationFrame(() => {
-      const items = [...(root.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+      const items = [...(root.current?.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemcheckbox"]') ?? [])];
       if (!items.length) return;
       const at = wasOpen ? items.indexOf(document.activeElement as HTMLElement) : -1;
       const next =
@@ -80,11 +118,34 @@ export function ProfileMenu({ email, admin = false }: { email: string; admin?: b
 
       {/* The wrapper reaches up to the button with no gap, so moving the mouse down onto the menu doesn't close it. */}
       {open && (
-        <div id={menuId} className="absolute right-0 top-full z-30 pt-1">
+        <div id={menuId} className="absolute right-0 top-full z-30 pt-1 sm:left-1/2 sm:right-auto sm:-translate-x-1/2">
           {/* Focusable so that clicking its non-link parts keeps focus inside, which would otherwise close the menu. */}
-          <div tabIndex={-1} className="min-w-56 origin-top-right animate-pop-in rounded-xl border border-neutral-800 bg-neutral-900/95 p-1.5 shadow-[0_20px_50px_-15px_rgb(0_0_0/0.9)] backdrop-blur-xl focus:outline-none">
+          <div tabIndex={-1} className="min-w-60 origin-top animate-pop-in max-sm:origin-top-right rounded-xl border border-neutral-800 bg-neutral-900/95 p-1.5 shadow-[0_20px_50px_-15px_rgb(0_0_0/0.9)] backdrop-blur-xl focus:outline-none">
             <p className="truncate px-3 py-2 text-xs text-neutral-500" title={email}>Signed in as {email}</p>
+            {genNote && <p role="alert" className="px-3 pb-1 text-xs text-red-400">{genNote}</p>}
             <div role="menu" aria-label="Profile">
+              {/* Image generation: shows whether it's on and flips it in one click. */}
+              <button
+                type="button"
+                role="menuitemcheckbox"
+                aria-checked={genOn}
+                onClick={flipGeneration}
+                className={cn(item, "flex items-center justify-between gap-3")}
+              >
+                <span className="min-w-0">
+                  <span className="block">Image generation</span>
+                  <span className={cn("block text-xs", genOn ? "text-emerald-300" : "text-neutral-500")}>
+                    {genOn ? "On" : imageKey ? "Off" : "Off · add a key in Settings"}
+                  </span>
+                </span>
+                <span
+                  aria-hidden="true"
+                  className={cn("relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors duration-200", genOn ? "border-emerald-400/60 bg-emerald-500/30" : "border-neutral-700 bg-neutral-800")}
+                >
+                  <span className={cn("absolute h-[18px] w-[18px] rounded-full shadow transition-all duration-200", genOn ? "left-[22px] bg-emerald-300" : "left-[3px] bg-neutral-400")} />
+                </span>
+              </button>
+              <div role="separator" className="my-1 border-t border-neutral-800" />
               <Link href="/ledger" role="menuitem" onClick={close} className={item}>Ledger</Link>
               <Link href="/settings/api-keys" role="menuitem" onClick={close} className={item}>Settings</Link>
               {admin && <Link href="/admin" role="menuitem" onClick={close} className={item}>Admin</Link>}

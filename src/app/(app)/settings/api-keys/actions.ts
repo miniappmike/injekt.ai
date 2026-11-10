@@ -174,17 +174,42 @@ export async function testRoleKey(_: KeyFormState, formData: FormData): Promise<
 
 /**
  * Turns image generation on or off. On needs an Image key of their own and the second confirmation's wording, so it is
- * never switched on by a stray click; off always works.
+ * never switched on by a stray click; off always works. Switching on records that the confirmation was done, so the
+ * profile menu's one-click toggle (toggleGeneration) can turn it on again later.
  */
 export async function setGeneration(input: { enabled: boolean; confirmed?: boolean }): Promise<{ ok: true } | { ok: false; error: string }> {
   const { supabase, user } = await requireUser();
   const prefs = await loadPrefs(supabase, user.id);
+  const before = generationState(prefs);
   if (input.enabled) {
     if (!input.confirmed) return { ok: false, error: "Tick the box to confirm first." };
-    if (!generationState(prefs).hasImageKey) return { ok: false, error: "Add your own Image key above first." };
+    if (!before.hasImageKey) return { ok: false, error: "Add your own Image key above first." };
   }
-  const { error } = await supabase.from("user_settings").update({ prefs: { ...prefs, generation: { enabled: input.enabled } } }).eq("user_id", user.id);
+  const { error } = await supabase
+    .from("user_settings")
+    .update({ prefs: { ...prefs, generation: { enabled: input.enabled, confirmed: input.enabled ? true : before.confirmed } } })
+    .eq("user_id", user.id);
   if (error) return { ok: false, error: "Couldn't save that. Try again." };
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+/**
+ * The profile menu's switch: flips image generation in one click. It only does so when it safely can; otherwise it says
+ * where to go. No Image key yet, or the confirmation in Settings never done, sends them to Settings (`settings`).
+ */
+export async function toggleGeneration(): Promise<{ ok: true; enabled: boolean } | { ok: false; settings: true } | { ok: false; settings?: false; error: string }> {
+  const { supabase, user } = await requireUser();
+  const prefs = await loadPrefs(supabase, user.id);
+  const before = generationState(prefs);
+  if (!before.hasImageKey) return { ok: false, settings: true };
+  const next = !before.enabled;
+  if (next && !before.confirmed) return { ok: false, settings: true };
+  const { error } = await supabase
+    .from("user_settings")
+    .update({ prefs: { ...prefs, generation: { enabled: next, confirmed: before.confirmed || next } } })
+    .eq("user_id", user.id);
+  if (error) return { ok: false, error: "Couldn't save that. Try again." };
+  revalidatePath("/", "layout");
+  return { ok: true, enabled: next };
 }
