@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { MainNav } from "@/components/main-nav";
-import { HistoryPanel } from "@/components/history-panel";
 import { ProfileMenu } from "@/components/profile-menu";
 import { Logo } from "@/components/logo";
 import { UsageMeter } from "@/components/usage-meter";
@@ -24,7 +23,6 @@ export function AppHeader({ email, admin = false }: { email: string; admin?: boo
         </div>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <UsageMeter />
-          <HistoryPanel />
           <ProfileMenu email={email} admin={admin} />
         </div>
       </div>

@@ -8,6 +8,7 @@ import { useToast } from "@/components/toast";
 import { HistoryImages } from "@/components/history-images";
 import { GenerateImage } from "@/components/generate-image";
 import { useGeneration } from "@/components/app-context";
+import { ScrollQuillIcon } from "@/components/icons";
 import { GENERATOR } from "@/lib/links";
 import { checkImageGeneration } from "@/app/(app)/generate/actions";
 import { deleteAllHistory, deleteHistoryEntry, getGenerationPreview, getGenerations, getHistory } from "@/app/(app)/history/actions";
@@ -51,6 +52,8 @@ export function HistoryPanel() {
   const [busy, setBusy] = useState(false);
   // Entries with their Generate controls open (only with image generation on).
   const generation = useGeneration();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const tabs = generation ? TABS : TABS.filter((t) => t.id === "prompts");
   const [generating, setGenerating] = useState<Set<string>>(new Set());
   const { toast, show } = useToast(2500);
@@ -215,7 +218,12 @@ export function HistoryPanel() {
 
   return (
     <>
-      <button
+      {/* A round button floating in the bottom-right corner on every screen: above the phone dock, and above the
+          image tray while it shows (the tray sets --tray-h). Steps aside while a bottom sheet is open. */}
+      {/* Drawn on the page body so no transformed parent can move it off the screen. */}
+      {mounted &&
+        createPortal(
+<button
         ref={trigger}
         type="button"
         onClick={() => {
@@ -224,14 +232,13 @@ export function HistoryPanel() {
         }}
         aria-haspopup="dialog"
         aria-label="History"
-        className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-neutral-300 transition-colors hover:bg-neutral-800 hover:text-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 max-sm:h-10 max-sm:w-10 max-sm:justify-center max-sm:rounded-xl max-sm:border max-sm:border-neutral-800 max-sm:bg-neutral-900 max-sm:px-0 max-sm:active:scale-95"
+        title="History"
+        className="group fixed bottom-[calc(var(--tray-h,0px)+1.5rem)] right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-600 text-white shadow-[0_12px_32px_-10px_rgb(232_38_94/0.85),0_4px_12px_-4px_rgb(0_0_0/0.7)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_16px_40px_-10px_rgb(232_38_94/0.95),0_4px_12px_-4px_rgb(0_0_0/0.7)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/40 active:scale-95 max-sm:bottom-[calc(var(--tray-h,0px)+max(5.5rem,calc(env(safe-area-inset-bottom)+4.75rem)))] max-sm:right-4 max-sm:h-[3.25rem] max-sm:w-[3.25rem] [.sheet-open_&]:pointer-events-none [.sheet-open_&]:scale-75 [.sheet-open_&]:opacity-0"
       >
-        <svg viewBox="0 0 20 20" aria-hidden="true" className="h-4 w-4 fill-none stroke-current max-sm:h-5 max-sm:w-5" strokeWidth="1.8" strokeLinecap="round">
-          <circle cx="10" cy="10" r="7.2" />
-          <path d="M10 6v4l2.6 1.8" />
-        </svg>
-        <span className="max-sm:hidden">History</span>
-      </button>
+        <ScrollQuillIcon className="h-7 w-7 transition-transform duration-200 group-hover:-rotate-6 max-sm:h-6 max-sm:w-6" />
+      </button>,
+          document.body,
+        )}
 
       {/* Drawn on the page body, not inside the header: the header's blur makes it the anchor for anything fixed within it,
           which squashed the panel into the header strip and let the page show through. */}

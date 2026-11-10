@@ -5,6 +5,7 @@ import { GenerationTray } from "@/components/generation-tray";
 import { ImageViewer } from "@/components/image-viewer";
 import { Logo } from "@/components/logo";
 import { MobileDock } from "@/components/mobile-nav";
+import { HistoryPanel } from "@/components/history-panel";
 import { entitlements } from "@/lib/entitlements";
 import { loadGenerationState } from "@/lib/generation-access";
 import { createUserClient } from "@/lib/supabase/server";
@@ -37,7 +38,7 @@ export default async function PublicLayout({ children }: { children: React.React
             </nav>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl 2xl:max-w-[88rem] p-4 pb-12 sm:p-6">{children}</main>
+        <main className="mx-auto max-w-6xl 2xl:max-w-[88rem] p-4 pb-28 sm:p-6">{children}</main>
       </div>
     );
   }
@@ -47,8 +48,9 @@ export default async function PublicLayout({ children }: { children: React.React
     <AppProvider value={{ generation }}>
       <div className="min-h-screen">
         <AppHeader email={user.email ?? "Account"} admin={plan === "admin"} />
-        <main className="mx-auto max-w-6xl 2xl:max-w-[88rem] p-4 pb-28 max-sm:pt-1 sm:p-6">{children}</main>
+        <main className="mx-auto max-w-6xl 2xl:max-w-[88rem] p-4 pb-44 max-sm:pt-1 sm:p-6 sm:pb-28">{children}</main>
         <MobileDock />
+        <HistoryPanel />
         {generation && <GenerationTray />}
         <ImageViewer />
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { checkImageGeneration } from "@/app/(app)/generate/actions";
 
@@ -67,6 +67,22 @@ export function GenerationTray() {
     };
   }, [watchKey]);
 
+  // Tells the floating History button how tall the tray is, so it floats just above it.
+  const tray = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = tray.current;
+    const root = document.documentElement;
+    if (!el) return;
+    const set = () => root.style.setProperty("--tray-h", `${el.offsetHeight + 12}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      root.style.removeProperty("--tray-h");
+    };
+  }, [items.length > 0]);
+
   if (!items.length) return null;
   const running = items.filter((i) => i.state === "generating").length;
 
@@ -75,6 +91,7 @@ export function GenerationTray() {
       {/* Keeps the end of the page from hiding behind the tray. */}
       <div aria-hidden="true" className={collapsed ? "h-12" : "h-36"} />
       <section
+        ref={tray}
         aria-label="Images generated on this page"
         className="fixed inset-x-0 bottom-0 z-30 animate-fade-up max-sm:inset-x-3 max-sm:bottom-[5.25rem] max-sm:rounded-2xl max-sm:border border-t border-neutral-800/80 bg-neutral-950/85 px-4 py-2 shadow-[0_-12px_40px_-12px_rgb(0_0_0/0.8)] backdrop-blur-xl"
       >

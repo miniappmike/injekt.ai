@@ -62,3 +62,15 @@ export const GridIcon = ({ className }: P) => (
 export const CardsIcon = ({ className }: P) => (
   <svg {...base(className)}><rect x="8" y="4" width="8" height="16" rx="2" /><path d="M5 7v10M19 7v10" /></svg>
 );
+/** A rolled scroll with a quill: the History button. */
+export const ScrollQuillIcon = ({ className }: P) => (
+  <svg {...base(className)}>
+    <path d="M6 4.5h8.5a1.5 1.5 0 0 1 1.5 1.5v4" />
+    <path d="M6 4.5a1.75 1.75 0 0 0-1.75 1.75c0 .97.78 1.75 1.75 1.75" />
+    <path d="M6 4.5v13.25a2 2 0 0 0 2 2h9" />
+    <path d="M14.5 19.75h3.25a1.5 1.5 0 0 0 0-3H11" />
+    <path d="M8.75 8.5h4.25M8.75 11h4.25M8.75 13.5h2.75" />
+    <path d="M20.5 7.5c-3 .2-5.4 2.3-6.4 5.6l-.6 2.4 2-1.3c2.7-1.2 4.4-3.6 5-6.7Z" />
+    <path d="M13.5 15.5 17 11" />
+  </svg>
+);
