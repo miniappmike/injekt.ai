@@ -241,7 +241,7 @@ export async function buildJob(
     const bodies = request.meta.sourceGeneration ? request.extraPaths : request.extraPaths.slice(1);
     if (!bodies.length) throw new UserFacingError("Step 2 needs at least one body photo.");
     if (bodies.length > MAX_BODY_PHOTOS) throw new UserFacingError(`Use at most ${MAX_BODY_PHOTOS} body photos.`);
-    return { prompt: sheetPrompts(!!sh.hasSheet, bodies.length > 1, sh).body, paths: [face, ...bodies], photoEdit: false };
+    return { prompt: sheetPrompts(!!sh.hasSheet, bodies.length, sh).body, paths: [face, ...bodies], photoEdit: false };
   }
 
   if (request.kind === "direct_swap" && request.meta?.target) {

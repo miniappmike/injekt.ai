@@ -32,6 +32,13 @@ describe("reference sheet prompts (A13b)", () => {
     const two = sheetPrompts(false, true).body;
     expect(two).toContain("of the woman in @image1 (face reference), with her body taken from @image2 and @image3 (body references");
     expect(two).toContain("from both body references");
+    // Up to three body photos: front, back and side.
+    const three = sheetPrompts(true, 3).body;
+    expect(three).toContain("with her body taken from @image2, @image3 and @image4 (body references showing her from different angles, such as front, back and side)");
+    expect(three).toContain("from all three body references");
+    expect(sheetPrompts(true, 2).body).toBe(sheetPrompts(true, true).body);
+    expect(sheetPrompts(true, 1).body).toBe(sheetPrompts(true, false).body);
+    expect(sheetPrompts(true, 9).body).toBe(three);
   });
 
   it("outfit choices and body tuning", () => {

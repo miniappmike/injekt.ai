@@ -2,7 +2,7 @@
 
 export const SHEET_ASPECT_RATIO = { face: "4:5", body: "16:9" } as const;
 /** Body photos that can go into the face and body sheet. */
-export const MAX_BODY_PHOTOS = 2;
+export const MAX_BODY_PHOTOS = 3;
 
 export const SHEET_OUTFITS = [
   { id: "default", label: "Plain white athletic set" },

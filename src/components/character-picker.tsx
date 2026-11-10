@@ -39,7 +39,7 @@ export function CharacterPicker({
   value: string;
   onChange: (id: string) => void;
   characters: PickerCharacter[];
-  none?: { label: string; note?: string };
+  none?: { label: string; note?: string; /** What the "none" circle shows (default ∅). */ symbol?: string };
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -98,13 +98,13 @@ export function CharacterPicker({
               )}
             >
               {o.none ? (
-                <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-full border border-dashed border-neutral-600 text-lg text-neutral-500">∅</span>
+                <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-full border border-dashed border-neutral-600 text-lg text-neutral-500">{none?.symbol ?? "∅"}</span>
               ) : (
                 <Avatar c={o} size="h-14 w-14 text-xl" />
               )}
               {o.note && !o.none && <span aria-hidden="true" className="absolute right-0.5 top-0.5 h-3 w-3 rounded-full bg-amber-400 ring-2 ring-neutral-950" />}
             </span>
-            <span className={cn("w-full truncate text-center text-xs", selected ? "font-semibold text-neutral-50" : "text-neutral-400")}>{o.name}</span>
+            <span className={cn("w-full break-words text-center text-xs leading-tight [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden", selected ? "font-semibold text-neutral-50" : "text-neutral-400")}>{o.name}</span>
           </button>
         );
       })}
@@ -148,7 +148,7 @@ export function CharacterPicker({
         )}
       >
         {chosen?.none ? (
-          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-dashed border-neutral-600 text-neutral-500">∅</span>
+          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-dashed border-neutral-600 text-neutral-500">{none?.symbol ?? "∅"}</span>
         ) : (
           chosen && <Avatar c={chosen} />
         )}
@@ -187,7 +187,7 @@ export function CharacterPicker({
                 )}
               >
                 {o.none ? (
-                  <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-dashed border-neutral-600 text-neutral-500">∅</span>
+                  <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-dashed border-neutral-600 text-neutral-500">{none?.symbol ?? "∅"}</span>
                 ) : (
                   <Avatar c={o} size="h-11 w-11" />
                 )}

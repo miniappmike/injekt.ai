@@ -123,9 +123,9 @@ describe("reference sheet jobs", () => {
     expect(job.paths).toEqual([`gen:${U}/g.png`, `${U}/b1.jpg`]);
   });
 
-  it("needs a body photo, and no more than two", async () => {
+  it("needs a body photo, and no more than three", async () => {
     await expect(buildJob(client(), U, req({ sheet: { kind: "body" } }, [`${U}/f.jpg`]), { model: "x", max: 10 })).rejects.toThrow(/at least one body photo/);
-    await expect(buildJob(client(), U, req({ sheet: { kind: "body" } }, [`${U}/f.jpg`, "a", "b", "c"].map((x) => (x.startsWith(U) ? x : `${U}/${x}`))), { model: "x", max: 10 })).rejects.toThrow(/at most 2/);
+    await expect(buildJob(client(), U, req({ sheet: { kind: "body" } }, [`${U}/f.jpg`, "a", "b", "c", "d"].map((x) => (x.startsWith(U) ? x : `${U}/${x}`))), { model: "x", max: 10 })).rejects.toThrow(/at most 3/);
     await expect(buildJob(client(), U, req({ sheet: { kind: "face" } }, []), { model: "x", max: 10 })).rejects.toThrow(/face photo/);
   });
 });
