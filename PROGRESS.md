@@ -299,6 +299,11 @@ Migrations: `0018_listing_views_rank.sql` (views table, `record_listing_view`, `
   (extra pictures only load on first hover).
 - **Persona stat cards**: Rank (`#1`, or "Sold"), Views ("times her page was opened"), Likes (same count as the heart), Listed.
   The persona page calls `recordView` once per page open (on mount).
+- **Browse top redesign** (`market-browser.tsx`, `market-controls.tsx`, `market-progress.tsx`): a centred hero (social-proof pill with
+  up to four overlapping covers, live "N available · M sold" and a slim sold-share track, then the poster-font title (hidden on phones),
+  then a one-line subtitle) and ONE toolbar row on the content edges: Available/Sold pills (white when active, count badges) left,
+  a custom accessible Sort dropdown (listbox: arrows, Enter/Space, Esc, outside click) and a Cards/Grid icon toggle right. Phones
+  stack it: tabs 50/50, then sort + toggle. Story bubbles (52px) only in Cards view. The live-count logic (Realtime, 30s poll, refresh) is unchanged.
 - **Virality Rank** = views + likes among personas still for sale, #1 highest; sold personas have no rank.
 
 ## Manual setup so far

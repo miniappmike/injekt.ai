@@ -2,12 +2,11 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { segItem, segTrack } from "@/components/ui/segmented";
 import { LockIcon, SparkIcon } from "@/components/icons";
 import { Coverflow, type CoverflowApi } from "@/components/marketplace/coverflow";
 import { MarketCard } from "@/components/marketplace/market-card";
 import { MarketGrid } from "@/components/marketplace/market-grid";
-import { SortControl, ViewToggle } from "@/components/marketplace/market-controls";
+import { SortControl, TabPills, ViewToggle } from "@/components/marketplace/market-controls";
 import { MarketProgress } from "@/components/marketplace/market-progress";
 import { marketQuery, sortListings, type ListingStat, type MarketCounts, type PublicListing, type SortKey, type ViewMode } from "@/lib/marketplace/view";
 
@@ -77,29 +76,27 @@ export function MarketBrowser({
 
   return (
     <div>
-      <div className="sm:flex sm:items-end sm:justify-between sm:gap-8">
-        <div>
-          <h1 className="page-title">Marketplace</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-400">
-            One-of-a-kind fictional personas, each sold to one owner. You get her sheets and profile.
-          </p>
-        </div>
-        <MarketProgress initial={counts} />
-      </div>
+      <header className="mx-auto flex max-w-2xl lg:max-w-3xl flex-col items-center text-center max-sm:w-full">
+        <MarketProgress initial={counts} avatars={listings.filter((l) => l.state === "available" && l.images[0]).slice(0, 4).map((l) => l.images[0].url)} />
+        <h1 className="mt-4 hidden font-poster text-[clamp(2.5rem,5vw,4rem)] leading-none tracking-wide text-neutral-50 uppercase sm:block">Marketplace</h1>
+        <p className="mt-3 text-sm leading-relaxed text-neutral-400 [text-wrap:balance] sm:mt-2.5 sm:text-[15px]">
+          One-of-a-kind fictional personas, each sold to exactly one owner.
+        </p>
+      </header>
 
-      <div className="mt-5 sm:mt-4 sm:flex sm:justify-center">
-        <div role="tablist" aria-label="Marketplace" className={cn(segTrack, "max-sm:w-full sm:min-w-72")}>
-          {(["available", "sold"] as const).map((t) => (
-            <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => pick(t)} className={cn(segItem(tab === t), "sm:flex-1")}>
-              {t === "available" ? `Available (${nAvailable})` : `Sold (${nSold})`}
-            </button>
-          ))}
+      <div className="mt-5 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:items-center sm:justify-between">
+        <TabPills
+          tabs={[
+            { key: "available", label: "Available", count: nAvailable },
+            { key: "sold", label: "Sold", count: nSold },
+          ]}
+          value={tab}
+          onChange={pick}
+        />
+        <div className="flex items-center gap-3">
+          <SortControl value={sort} onChange={pickSort} />
+          <ViewToggle value={view} onChange={pickView} />
         </div>
-      </div>
-
-      <div className="mt-4 flex items-center gap-3 sm:justify-between">
-        <SortControl value={sort} onChange={pickSort} />
-        <ViewToggle value={view} onChange={pickView} />
       </div>
 
       {shown.length === 0 ? (
@@ -111,7 +108,7 @@ export function MarketBrowser({
         </div>
       ) : (
         view === "grid" ? (
-          <div className="mt-5">
+          <div className="mt-6">
             <p className="mb-3 font-mono text-xs tracking-[0.18em] text-neutral-400 uppercase">
               {tab === "available" ? `${shown.length} ${shown.length === 1 ? "persona" : "personas"} available` : `${shown.length} sold`}
             </p>
@@ -123,7 +120,7 @@ export function MarketBrowser({
           <ul
             key={`stories-${tab}`}
             aria-label="Jump to a persona"
-            className="no-scrollbar -mx-4 mt-5 flex gap-4 overflow-x-auto px-4 py-1 sm:mt-3 sm:-mx-6 sm:px-6 [&>:first-child]:ml-auto [&>:last-child]:mr-auto"
+            className="no-scrollbar -mx-4 mt-5 flex gap-3 overflow-x-auto px-4 py-1 sm:mt-5 sm:-mx-6 sm:gap-4 sm:px-6 [&>:first-child]:ml-auto [&>:last-child]:mr-auto"
           >
             {shown.map((l, i) => (
               <li key={l.id} className="shrink-0">
@@ -132,17 +129,17 @@ export function MarketBrowser({
                   onClick={() => api.current?.scrollToIndex(i)}
                   aria-label={`Show ${l.name}`}
                   aria-current={i === active ? "true" : undefined}
-                  className="group flex w-[4.4rem] flex-col items-center gap-1.5 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
+                  className="group flex w-[4rem] flex-col items-center gap-1.5 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
                 >
                   <span className={cn("relative rounded-full p-[3px] transition-all duration-300", i === active ? "bg-gradient-to-tr from-brand-500 via-brand-300 to-iris-400 scale-105" : "bg-neutral-700 group-hover:bg-neutral-500")}>
-                    <span className="block h-[3.7rem] w-[3.7rem] overflow-hidden rounded-full border-2 border-neutral-950 bg-neutral-800">
+                    <span className="block h-[3.25rem] w-[3.25rem] overflow-hidden rounded-full border-2 border-neutral-950 bg-neutral-800">
                       {l.images[0] && (
                         // eslint-disable-next-line @next/next/no-img-element -- signed storage link
                         <img src={l.images[0].url} alt="" loading="lazy" draggable={false} className={cn("h-full w-full object-cover", l.state === "sold" && "saturate-50")} />
                       )}
                     </span>
-                    <span className="absolute -right-0.5 -bottom-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-neutral-950 bg-neutral-100 text-neutral-900">
-                      {l.state === "sold" ? <LockIcon className="h-3 w-3" /> : <SparkIcon className="h-3 w-3" />}
+                    <span className="absolute -right-0.5 -bottom-0.5 flex h-[1.15rem] w-[1.15rem] items-center justify-center rounded-full border-2 border-neutral-950 bg-neutral-100 text-neutral-900">
+                      {l.state === "sold" ? <LockIcon className="h-2.5 w-2.5" /> : <SparkIcon className="h-2.5 w-2.5" />}
                     </span>
                   </span>
                   <span className={cn("w-full truncate text-center text-[11px] font-medium", i === active ? "text-neutral-50" : "text-neutral-400")}>{l.name}</span>
