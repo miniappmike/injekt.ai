@@ -10,8 +10,8 @@ Work happens one phase at a time, with a commit after each phase. Phase 9 (crypt
 |---|---|---|
 | 1 | Schema and RLS | **Done** |
 | 2 | Atomic purchase function (security-critical) | **Done** |
-| 3 | Admin "List" flow | Next |
-| 4 | Admin controls in the marketplace | Not started |
+| 3 | Admin "List" flow | **Done** |
+| 4 | Admin controls in the marketplace | Next |
 | 5 | Marketplace UI | **Waiting for the UI target screenshot** |
 | 6 | Stripe (security-critical) | Not started |
 | 7 | Compliance basics | Not started |
@@ -142,6 +142,55 @@ Files live in object storage and can't be copied inside a database transaction, 
   `purchase_persona` does.
 - **Concurrency test:** a real two-buyers-at-once test is in phase 8. PGlite runs one connection, so it can't race. The
   container has Postgres 16, so phase 8 can run the race for real.
+
+## Phase 3: admin "List" flow (done)
+
+No new migration. Tests: `tests/marketplace-watermark.test.ts`, `tests/marketplace-listing-actions.test.ts`.
+
+### What it does
+
+On an admin's `/characters/[id]` page, a full-width **Marketplace** panel (above the two-column layout, itself split into details on the left and previews on the right on wide screens; admins only,
+checked on the server) lets them price a persona, write the public profile, pick preview pictures and publish.
+
+### Files
+
+- `src/app/(app)/characters/[id]/listing-actions.ts`: server actions. Each starts with `requireAdmin()` (plan must be
+  `admin`), validates with zod, then uses `adminClient()` because the hidden listing columns can't be read by anyone
+  through the API. Actions: `getOrCreateDraft`, `updateListingDetails`, `updateListingPrice`, `addPreviewFromCharacter`,
+  `addPreviewUpload`, `removePreview`, `reorderPreviews`, `publishListing`. They return `{ ok: true }` or
+  `{ ok: false, error }` with plain-English errors.
+- `src/lib/marketplace/watermark.ts`: `makePreview(buffer)`. Applies rotation, strips metadata, fits inside 768px (never
+  enlarges), tiles a diagonal "MODEL SPAWN · PREVIEW" watermark over the whole picture plus a "PREVIEW ONLY" corner badge,
+  JPEG quality 72.
+- `src/lib/marketplace/listing-input.ts`: shared rules (price limits, dollars to cents, public profile schema, "fill from
+  her profile", publish blockers). No server code, so the editor uses it too.
+- `src/lib/marketplace/admin-data.ts`: `loadEditorListing()` reads the listing, its previews and 1-hour signed preview URLs.
+- `src/components/listing-editor.tsx`: the panel (status pill, price, profile builder with tag chips, preview grid with
+  cover label, remove and earlier/later buttons, "add from her images", upload/drop/paste, publish).
+- `src/app/(app)/characters/page.tsx`: for admins, characters whose listing is available, reserved or sold are hidden from
+  the grid. The free-plan limit still counts every character.
+- `next.config.ts`: server action body limit raised from 2 MB to 16 MB so a 15 MB preview upload fits.
+
+### Rules
+
+- **One listing per character.** `getOrCreateDraft` reuses the latest draft, live, reserved or delisted listing. A
+  character whose listing sold is never listed again.
+- **Sold is read-only.** Every action refuses a sold listing (the database refuses too).
+- **Price.** Stored in cents, $0.50 to $100,000. Edits apply at once; a reserved listing keeps its reserved price (database).
+- **Age is required**, 18 to 99. Tagline up to 120, bio up to 1,200, up to 8 tags of up to 24 characters.
+- **Previews.** Up to 10 per listing, all watermarked and shrunk, stored at `marketplace-previews/<listing>/<uuid>.jpg`.
+  Reordering needs exactly the listing's own picture ids.
+- **Publish needs** a name, price, age, one preview, and a character with a face sheet, body sheet or reference photo.
+  It refuses sold listings and live reservations (an expired hold is fine). It copies each file to
+  `marketplace-assets/<listing>/<kind>.<ext>` (removing any older copy first), then writes `full_assets`,
+  `profile_snapshot` and `status = available` in one update. Publishing again re-snapshots.
+
+### Notes for later phases
+
+- Phase 4 (delist): clear the hidden-from-grid rule by setting the listing to `delisted`; the `/characters` filter only
+  hides available, reserved and sold listings. The editor already shows the Delisted status and lets the admin publish again.
+- Re-publishing doesn't delete asset files from a reference that was since removed; they're unreferenced and harmless.
+- The editor shows reserved and delisted states but has no delist button yet.
 
 ## Manual setup so far
 

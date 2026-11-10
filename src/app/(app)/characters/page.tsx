@@ -5,16 +5,29 @@ import { requireUser } from "@/lib/auth";
 import { signedUrlMap } from "@/lib/media-urls";
 import { entitlements } from "@/lib/entitlements";
 import { FREE_LIMITS, limitMessage } from "@/lib/limits";
+import { adminClient } from "@/lib/supabase/admin";
 import type { CharacterProfile } from "@/lib/characters";
 
 export default async function CharactersPage() {
   const { supabase, user } = await requireUser();
-  const { data: characters } = await supabase
+  const { data: allCharacters } = await supabase
     .from("characters")
     .select("id, name, profile, profile_photo_path, face_sheet_path, body_sheet_path, reference_paths")
     .order("created_at", { ascending: false });
 
-  const atLimit = !(await entitlements.isUnlimited(user.id)) && (characters?.length ?? 0) >= FREE_LIMITS.characters;
+  // The free-plan limit counts every character she has, listed or not.
+  const atLimit = !(await entitlements.isUnlimited(user.id)) && (allCharacters?.length ?? 0) >= FREE_LIMITS.characters;
+  // An admin's characters that are on the marketplace (live, mid-checkout or sold) live there, not in this grid.
+  let characters = allCharacters;
+  if (allCharacters?.length && (await entitlements.planOf(user.id)) === "admin") {
+    const { data: listed } = await adminClient()
+      .from("marketplace_listings")
+      .select("source_character_id")
+      .in("source_character_id", allCharacters.map((c) => c.id))
+      .in("status", ["available", "reserved", "sold"]);
+    const hidden = new Set((listed ?? []).map((l) => l.source_character_id));
+    characters = allCharacters.filter((c) => !hidden.has(c.id));
+  }
   // Up to three thumbnails per card: the reference photos first, then the sheets.
   const thumbs = (c: { reference_paths: string[]; face_sheet_path: string | null; body_sheet_path: string | null }) =>
     [...c.reference_paths, c.face_sheet_path, c.body_sheet_path].filter((p): p is string => !!p).slice(0, 3);

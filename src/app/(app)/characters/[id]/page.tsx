@@ -12,6 +12,8 @@ import { SheetPackStatus } from "@/components/sheet-pack-status";
 import { currentPack, selectCharacter } from "@/lib/sheet-pack";
 import { packStateText } from "@/lib/ai/prompts/identity";
 import type { CharacterProfile } from "@/lib/characters";
+import { ListingEditor, type OwnImage } from "@/components/listing-editor";
+import { loadEditorListing } from "@/lib/marketplace/admin-data";
 import { deleteCharacter, updateCharacter } from "../actions";
 
 // The profile builder calls a vision model from this page.
@@ -65,6 +67,16 @@ export default async function EditCharacterPage({
   const packState = packStateText({ hasBody: !!c.body_sheet_path, hasFace: !!c.face_sheet_path, pack });
   const imgs = (paths: (string | null)[]) => paths.filter((p): p is string => !!p && !!urls[p]).map((p) => ({ path: p, url: urls[p] }));
 
+  // The marketplace panel is for admins only. The listing data is read with the service role, after this admin check.
+  const isAdmin = (await entitlements.planOf(user.id)) === "admin";
+  const listing = isAdmin ? await loadEditorListing(c.id) : null;
+  const ownImages: OwnImage[] = [
+    { which: "profile_photo", label: "Profile photo", path: c.profile_photo_path },
+    { which: "face_sheet", label: "Face sheet", path: c.face_sheet_path },
+    { which: "body_sheet", label: "Body sheet", path: c.body_sheet_path },
+    ...c.reference_paths.slice(0, 3).map((path, i) => ({ which: `reference:${i}`, label: `Reference ${i + 1}`, path })),
+  ].flatMap((x) => (x.path && urls[x.path] ? [{ which: x.which, label: x.label, url: urls[x.path] }] : []));
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -78,6 +90,19 @@ export default async function EditCharacterPage({
         <p role="status" className={`mb-6 max-w-2xl rounded-md border p-3 text-sm ${banner.good ? "border-emerald-800 text-emerald-300" : "border-amber-700 text-amber-300"}`}>
           {banner.text}
         </p>
+      )}
+
+      {isAdmin && (
+        <div className="mb-8">
+          <ListingEditor
+            characterId={c.id}
+            characterName={c.name}
+            listing={listing}
+            hasAssets={!!c.face_sheet_path || !!c.body_sheet_path || c.reference_paths.length > 0}
+            ownImages={ownImages}
+            profile={(c.profile ?? {}) as CharacterProfile}
+          />
+        </div>
       )}
 
       {/* Wide screens: her images on the left, staying in view, and the details and profile on the right. */}
