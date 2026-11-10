@@ -19,7 +19,7 @@ export default async function ReferenceSheetPage({ searchParams }: { searchParam
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="page-title">Reference Sheet</h1>
+      <h1 className="page-title">Create Model</h1>
       <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400 max-sm:hidden">
         Create a persona step by step: her face, then her body, then the reference sheet that keeps both the same from one picture to the next.
       </p>

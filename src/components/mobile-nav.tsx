@@ -24,7 +24,7 @@ const TITLES: [RegExp, string][] = [
   [/^\/inject/, "Inject"],
   [/^\/variants/, "Variants"],
   [/^\/likeness/, "Likeness"],
-  [/^\/reference-sheet/, "Reference Sheet"],
+  [/^\/reference-sheet/, "Create Model"],
   [/^\/settings/, "Settings"],
   [/^\/ledger/, "Ledger"],
   [/^\/admin/, "Admin"],
