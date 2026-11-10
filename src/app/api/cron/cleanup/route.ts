@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { env } from "@/env";
 import { adminClient } from "@/lib/supabase/admin";
 import { cleanupExpiredGenerations, isAuthorizedCron } from "@/lib/cleanup";
+import { repairUncopiedPurchases } from "@/lib/marketplace/purchase";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -13,7 +14,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    return NextResponse.json({ ok: true, ...(await cleanupExpiredGenerations(adminClient())) });
+    const generations = await cleanupExpiredGenerations(adminClient());
+    // Purchases whose files didn't all reach the buyer's folder get another try. Never fails the cleanup.
+    const purchases = await repairUncopiedPurchases().catch(() => ({ repaired: 0, failed: 0 }));
+    return NextResponse.json({ ok: true, ...generations, purchases });
   } catch (e) {
     console.error("cleanup failed", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "cleanup failed" }, { status: 500 });
