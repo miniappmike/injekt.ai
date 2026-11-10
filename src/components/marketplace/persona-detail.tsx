@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ViewTransition } from "react";
+import { ViewTransition, useEffect } from "react";
 import { BackIcon } from "@/components/icons";
 import { AdminListingControls } from "@/components/admin-listing-controls";
 import { Bio } from "@/components/marketplace/bio";
 import { ListingSlideshow } from "@/components/marketplace/listing-slideshow";
 import { PersonaActions } from "@/components/marketplace/persona-actions";
 import { StatCards, type Stat } from "@/components/marketplace/stat-cards";
-import { daysSince, formatPrice, type PublicListing } from "@/lib/marketplace/view";
+import { recordView } from "@/lib/marketplace/view-actions";
+import { daysSince, type ListingStat, type PublicListing } from "@/lib/marketplace/view";
 
 const YOU_GET = [
   "Full-size face and body sheets",
@@ -21,29 +22,40 @@ const YOU_GET = [
 export function PersonaDetail({
   listing,
   likes,
+  stat,
   isAdmin,
   signedIn,
-  tab = "available",
+  backHref = "/marketplace",
 }: {
   listing: PublicListing;
   likes: { likes: number; liked: boolean };
   isAdmin: boolean;
   signedIn: boolean;
-  tab?: "available" | "sold";
+  /** Views, likes and Virality Rank for the stat cards. */
+  stat: ListingStat;
+  /** The browse page the back arrow returns to (with its tab, sort and view). */
+  backHref?: string;
 }) {
+  // Count this visit once the page is open (every visit counts; errors are ignored).
+  useEffect(() => {
+    void recordView(listing.id).catch(() => {});
+  }, [listing.id]);
+
   const sold = listing.state === "sold";
   const age = daysSince(listing.publishedAt);
   const stats: Stat[] = [
-    { label: "Price", value: listing.priceCents % 100 === 0 ? listing.priceCents / 100 : formatPrice(listing.priceCents).slice(1), prefix: "$", unit: "once" },
-    { label: "Preview photos", value: listing.images.length, unit: listing.images.length === 1 ? "photo" : "photos" },
-    { label: "Owners", value: 1, unit: "exclusive" },
-    sold ? { label: "Status", value: "Sold" } : age === null ? { label: "Listed", value: "New" } : age === 0 ? { label: "Listed", value: "Today" } : { label: "Listed", value: age, unit: age === 1 ? "day ago" : "days ago" },
+    // Virality Rank: 1 = the most viewed and liked persona still for sale. Sold personas have no rank.
+    sold ? { label: "Rank", value: "Sold" } : stat.rank === null ? { label: "Rank", value: "-", caption: "by views + likes" } : { label: "Rank", value: stat.rank, prefix: "#", caption: "by views + likes" },
+    { label: "Views", value: stat.views, unit: stat.views === 1 ? "view" : "views", caption: "times her page was opened" },
+    // Same number as the heart beside the Buy button.
+    { label: "Likes", value: likes.likes, unit: likes.likes === 1 ? "like" : "likes" },
+    age === null ? { label: "Listed", value: "New" } : age === 0 ? { label: "Listed", value: "Today" } : { label: "Listed", value: age, unit: age === 1 ? "day ago" : "days ago" },
   ];
 
   return (
     <div className="animate-fade-in">
       <Link
-        href={`/marketplace?tab=${tab}`}
+        href={backHref}
         aria-label="Back to the marketplace"
         className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-neutral-700 bg-neutral-900/90 text-neutral-100 shadow-lg transition-all hover:border-neutral-500 hover:bg-neutral-800 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 max-sm:hidden"
       >
@@ -52,9 +64,9 @@ export function PersonaDetail({
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14">
         {/* Hero pictures floating over a faint orbit ring. */}
-        <div className="relative overflow-x-clip lg:sticky lg:top-24 lg:self-start">
+        <div className="relative overflow-x-clip lg:sticky lg:top-28 lg:self-start">
           <Link
-            href={`/marketplace?tab=${tab}`}
+            href={backHref}
             aria-label="Back to the marketplace"
             className="absolute top-2 left-0 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-neutral-700 bg-neutral-900/90 text-neutral-100 shadow-lg backdrop-blur transition-all active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 sm:hidden"
           >

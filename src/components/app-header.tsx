@@ -10,18 +10,19 @@ import { MobileTitle } from "@/components/mobile-nav";
 export function AppHeader({ email, admin = false }: { email: string; admin?: boolean }) {
   return (
     <header className="sticky top-0 z-10 border-b border-neutral-800/80 bg-neutral-950/75 backdrop-blur-xl max-sm:border-transparent">
-      <div className="relative mx-auto flex max-w-6xl 2xl:max-w-[88rem] items-center gap-x-6 gap-y-1 px-4 py-2 max-sm:h-14 max-sm:gap-x-3 sm:flex-wrap sm:px-6">
+      {/* Phones: one row (title left, tools right). Tablet and up: two centred rows, the mark and tabs over the tools bar. */}
+      <div className="relative mx-auto flex max-w-6xl 2xl:max-w-[88rem] items-center gap-x-3 gap-y-0.5 px-4 py-2 max-sm:h-14 sm:flex-col sm:gap-x-6 sm:px-6 sm:pt-2.5 sm:pb-1.5">
         {/* Phones: mark or back arrow, the page's name in the middle, and square buttons; the tools are in the dock. */}
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:hidden">
           <MobileTitle />
         </div>
-        <Link href="/characters" aria-label="Model Spawn home" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 max-sm:hidden">
-          <Logo />
-        </Link>
-        <div className="max-sm:hidden">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center justify-center gap-x-6 max-sm:hidden">
+          <Link href="/characters" aria-label="Model Spawn home" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60">
+            <Logo />
+          </Link>
           <MainNav />
         </div>
-        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <UsageMeter />
           <HistoryPanel />
           <ProfileMenu email={email} admin={admin} />

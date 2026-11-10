@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { segItem, segTrack } from "@/components/ui/segmented";
 import { LockIcon, SparkIcon } from "@/components/icons";
 import { Coverflow, type CoverflowApi } from "@/components/marketplace/coverflow";
 import { MarketCard } from "@/components/marketplace/market-card";
+import { MarketGrid } from "@/components/marketplace/market-grid";
+import { SortControl, ViewToggle } from "@/components/marketplace/market-controls";
 import { MarketProgress } from "@/components/marketplace/market-progress";
-import type { MarketCounts, PublicListing } from "@/lib/marketplace/view";
+import { marketQuery, sortListings, type ListingStat, type MarketCounts, type PublicListing, type SortKey, type ViewMode } from "@/lib/marketplace/view";
 
 type Tab = "available" | "sold";
 
@@ -19,35 +21,59 @@ export function MarketBrowser({
   listings,
   counts,
   likes,
+  stats = {},
   isAdmin,
   initialTab = "available",
+  initialSort = "trending",
+  initialView = "cards",
 }: {
   listings: PublicListing[];
   counts: MarketCounts;
   likes: Record<string, { likes: number; liked: boolean }>;
+  /** Views, likes and Virality Rank per persona (used for sorting and the grid badges). */
+  stats?: Record<string, ListingStat>;
   isAdmin: boolean;
   initialTab?: Tab;
+  initialSort?: SortKey;
+  initialView?: ViewMode;
 }) {
   const [tab, setTab] = useState<Tab>(initialTab);
+  const [sort, setSort] = useState<SortKey>(initialSort);
+  const [view, setView] = useState<ViewMode>(initialView);
   const [active, setActive] = useState(0);
   const api = useRef<CoverflowApi>(null);
-  const shown = listings.filter((l) => l.state === tab);
+  // Sorting only changes the order; every persona on the tab is still shown.
+  const shown = useMemo(() => sortListings(listings.filter((l) => l.state === tab), stats, sort), [listings, stats, tab, sort]);
   const nAvailable = listings.filter((l) => l.state === "available").length;
   const nSold = listings.length - nAvailable;
 
-  function pick(next: Tab) {
-    setTab(next);
-    setActive(0);
-    // Remember the tab in the address, so Back from a persona page returns here. No navigation needed.
+  // Remember the tab, sort and view in the address, so a refresh or Back from a persona page returns here. No navigation needed.
+  function remember(next: { tab: Tab; sort: SortKey; view: ViewMode }) {
     try {
-      history.replaceState(null, "", next === "available" ? "/marketplace" : `/marketplace?tab=${next}`);
+      history.replaceState(null, "", `/marketplace${marketQuery(next)}`);
     } catch {
       // not important
     }
   }
+  function pick(next: Tab) {
+    setTab(next);
+    setActive(0);
+    remember({ tab: next, sort, view });
+  }
+  function pickSort(next: SortKey) {
+    setSort(next);
+    setActive(0);
+    remember({ tab, sort: next, view });
+  }
+  function pickView(next: ViewMode) {
+    setView(next);
+    remember({ tab, sort, view: next });
+  }
 
   const onActive = useCallback((i: number) => setActive(i), []);
   const edge = (i: number) => (dir: -1 | 1) => api.current?.scrollToIndex(i + dir);
+  // Persona links remember where you came from, so the back arrow returns to the same tab, sort and view.
+  const hrefFor = (l: PublicListing) => `/marketplace/${l.id}${marketQuery({ tab, sort, view }) || ""}`;
 
   return (
     <div>
@@ -71,6 +97,11 @@ export function MarketBrowser({
         </div>
       </div>
 
+      <div className="mt-4 flex items-center gap-3 sm:justify-between">
+        <SortControl value={sort} onChange={pickSort} />
+        <ViewToggle value={view} onChange={pickView} />
+      </div>
+
       {shown.length === 0 ? (
         <div className="panel animate-fade-up mx-auto mt-8 max-w-md p-8 text-center">
           <p className="font-display text-lg font-semibold text-neutral-100">{tab === "available" ? "The shelf is empty right now" : "Nothing sold yet"}</p>
@@ -79,6 +110,14 @@ export function MarketBrowser({
           </p>
         </div>
       ) : (
+        view === "grid" ? (
+          <div className="mt-5">
+            <p className="mb-3 font-mono text-xs tracking-[0.18em] text-neutral-400 uppercase">
+              {tab === "available" ? `${shown.length} ${shown.length === 1 ? "persona" : "personas"} available` : `${shown.length} sold`}
+            </p>
+            <MarketGrid key={`${tab}-${sort}`} listings={shown} likes={likes} stats={stats} isAdmin={isAdmin} hrefFor={hrefFor} />
+          </div>
+        ) : (
         <>
           {/* Story bubbles: one round photo per persona. Tap to jump to her card. */}
           <ul
@@ -112,12 +151,18 @@ export function MarketBrowser({
             ))}
           </ul>
 
-          <Coverflow key={tab} api={api} onActive={onActive} label={tab === "available" ? "Available personas" : "Sold personas"}>
-            {shown.map((l, i) => (
-              <MarketCard key={l.id} listing={l} likes={likes[l.id] ?? { likes: 0, liked: false }} tab={tab} isAdmin={isAdmin} onEdge={edge(i)} index={i} />
-            ))}
-          </Coverflow>
+          <Coverflow
+            key={`${tab}-${sort}`}
+            api={api}
+            onActive={onActive}
+            label={tab === "available" ? "Available personas" : "Sold personas"}
+            count={shown.length}
+            render={(i, primary) => (
+              <MarketCard listing={shown[i]} likes={likes[shown[i].id] ?? { likes: 0, liked: false }} isAdmin={isAdmin} onEdge={edge(i)} index={i} href={hrefFor(shown[i])} primary={primary} />
+            )}
+          />
         </>
+        )
       )}
     </div>
   );

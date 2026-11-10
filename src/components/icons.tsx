@@ -53,3 +53,12 @@ export const SearchIcon = ({ className }: P) => (
 export const LockIcon = ({ className }: P) => (
   <svg {...base(className)}><rect x="5" y="10.5" width="14" height="9.5" rx="2.5" /><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" /></svg>
 );
+export const FlameIcon = ({ className }: P) => (
+  <svg {...base(className)}><path d="M12 3c.5 3.2 4.5 5.2 4.5 9.7A4.5 4.5 0 0 1 12 17.2a4.5 4.5 0 0 1-4.5-4.5c0-1.8.8-3 1.8-4 .2 1.2.8 1.9 1.5 2.3C11 8.4 11.4 5.4 12 3Z" /><path d="M10.2 20.5h3.6" /></svg>
+);
+export const GridIcon = ({ className }: P) => (
+  <svg {...base(className)}><rect x="4" y="4" width="6.5" height="6.5" rx="1.3" /><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.3" /><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.3" /><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.3" /></svg>
+);
+export const CardsIcon = ({ className }: P) => (
+  <svg {...base(className)}><rect x="8" y="4" width="8" height="16" rx="2" /><path d="M5 7v10M19 7v10" /></svg>
+);

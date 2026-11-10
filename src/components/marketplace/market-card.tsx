@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ViewTransition } from "react";
+import { Fragment, ViewTransition } from "react";
 import { cn } from "@/lib/utils";
 import { AdminListingControls } from "@/components/admin-listing-controls";
 import { HeartButton } from "@/components/marketplace/heart-button";
@@ -22,21 +22,27 @@ export const CARD_VARS = "[--card-w:min(72vw,320px)] sm:[--card-w:clamp(340px,ca
 export function MarketCard({
   listing,
   likes,
-  tab,
   isAdmin,
   onEdge,
   index,
+  href,
+  primary = true,
 }: {
   listing: PublicListing;
   likes: { likes: number; liked: boolean };
-  tab: "available" | "sold";
   isAdmin: boolean;
   /** A swipe past the first or last picture: move the carousel to the next card. */
   onEdge: (dir: -1 | 1) => void;
   index: number;
+  /** Where the card opens (the persona page, remembering the tab, sort and view). */
+  href: string;
+  /** False for the repeated copies the looping carousel draws: only one copy may own the page-transition names. */
+  primary?: boolean;
 }) {
   const router = useRouter();
-  const href = `/marketplace/${listing.id}?tab=${tab}`;
+  // The page-transition names must be unique on the page, so the repeated copies go without them.
+  const Vt = primary ? ViewTransition : Fragment;
+  const vt = (name: string) => (primary ? { name, share: "persona-morph", default: "none" as const } : {});
   const sold = listing.state === "sold";
   const cover = listing.images[0]?.url;
   return (
@@ -45,11 +51,11 @@ export function MarketCard({
         className={cn("group relative aspect-[3/4.4] overflow-hidden rounded-[2rem] bg-neutral-900 shadow-[0_30px_60px_-30px_rgb(0_0_0/0.95)] ring-1 ring-white/10", CARD_WIDTH)}
         aria-label={listing.name}
       >
-        <ViewTransition name={`persona-img-${listing.id}`} share="persona-morph" default="none">
+        <Vt {...vt(`persona-img-${listing.id}`)}>
           <div className={cn("absolute inset-0", sold && "saturate-[0.55]")}>
-            <ListingSlideshow images={listing.images} name={listing.name} onEdge={onEdge} onTap={() => router.push(href)} eager={index < 3} />
+            <ListingSlideshow images={listing.images} name={listing.name} onEdge={onEdge} onTap={() => router.push(href)} eager={primary && index < 3} />
           </div>
-        </ViewTransition>
+        </Vt>
 
         {/* Dark fades so the white text reads on any picture. They let taps through to the slideshow. */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/60 to-transparent" />
@@ -81,13 +87,13 @@ export function MarketCard({
 
         {/* Bottom-left: the poster name, her one-line tagline and up to three tags. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 p-5 pb-6">
-          <ViewTransition name={`persona-name-${listing.id}`} share="persona-morph" default="none">
+          <Vt {...vt(`persona-name-${listing.id}`)}>
             <h2 className="font-poster text-[3.4rem] leading-[0.88] tracking-wide text-white uppercase [text-wrap:balance] sm:text-[4.2rem]">
               <Link href={href} className="pointer-events-auto break-words rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80">
                 {listing.name}
               </Link>
             </h2>
-          </ViewTransition>
+          </Vt>
           {listing.tagline && <p className="mt-2 line-clamp-2 text-sm leading-snug text-white/80">{listing.tagline}</p>}
           {listing.tags.length > 0 && (
             <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Tags">

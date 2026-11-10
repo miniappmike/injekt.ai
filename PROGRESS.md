@@ -277,6 +277,30 @@ a two-line bio with an inline "View more" and staggered stat cards whose numbers
 - Admins see compact controls under each card and full controls on the persona page. Delisted listings are not shown on the browse page
   (relist from the character page).
 
+### Phase 5 refinements (header, looping carousel, sort, grid, stats)
+
+Migrations: `0018_listing_views_rank.sql` (views table, `record_listing_view`, `listing_stats`) and `0019_views_every_click.sql`
+(every visit counts as a view; the 60-per-minute-per-person limit stays). Tests: sort, grid badge, address and loop maths in `tests/marketplace-view.test.ts`.
+
+- **Header** (`app-header.tsx`, signed-out header in `(public)/layout.tsx`): from 640px up it is two centred rows, the mark and
+  tabs on top and the account bar (prompts meter, History, profile) under it. Phones keep the one-row bar. The meter's card
+  now opens from its left edge so it stays on screen. The sticky offsets on the persona hero and the character page were raised to clear the taller bar.
+- **Looping carousel** (`coverflow.tsx`): with three or more personas the list is drawn three times (five when there are
+  fewer than six), starts in the middle copy and, when a scroll settles (and no finger is down), silently jumps whole copies back to
+  the middle, so there is never an edge. Left and right arrows, arrow keys, Home/End, story bubbles (jump to the nearest copy)
+  and the slideshow swipe-handoff all work. One or two personas just sit centred. Only the middle copy owns the page-transition
+  names (`MarketCard primary`); copies are lazy-loaded. Phones loop too. Maths is in `view.ts` (`loopCopies`, `nearestSlot`, `loopShift`).
+- **Sort** (`market-controls.tsx`): Trending (Virality Rank, sold ones by views + likes), Newest, Most liked, Price low/high.
+  Pills on a computer, a dropdown on a phone. Only reorders. Kept in the address as `?sort=` (and `?view=`, `?tab=`); persona links
+  carry them so the back arrow returns to the same place. `getListingStats()` is loaded in the browse route.
+- **Grid view**: `?view=grid` (default Cards). `market-grid.tsx`: 2 columns on phones, 3 on tablets, 4 from 1024px, 5 from 1440px; tall
+  portrait cards, badge top-left (top-ten rank, NEW in the last 3 days, SOLD), heart top-right, name and price pill at the bottom.
+  The whole card is one link; the heart and admin controls are not inside it. Hovering with a mouse flips through her pictures
+  (extra pictures only load on first hover).
+- **Persona stat cards**: Rank (`#1`, or "Sold"), Views ("times her page was opened"), Likes (same count as the heart), Listed.
+  The persona page calls `recordView` once per page open (on mount).
+- **Virality Rank** = views + likes among personas still for sale, #1 highest; sold personas have no rank.
+
 ## Manual setup so far
 
 Run these in the Supabase SQL editor, in order. Skip any you've already run: each one fails with "already exists" if
@@ -288,3 +312,5 @@ run twice.
 4. `supabase/migrations/0015_purchase_persona.sql`: the purchase function.
 5. `supabase/migrations/0016_marketplace_realtime.sql`: live marketplace counts (the public pulse row and its Realtime feed).
 6. `supabase/migrations/0017_listing_likes.sql`: public hearts on personas.
+7. `supabase/migrations/0018_listing_views_rank.sql`: persona page views and the Virality Rank.
+8. `supabase/migrations/0019_views_every_click.sql`: every page visit counts as a view.

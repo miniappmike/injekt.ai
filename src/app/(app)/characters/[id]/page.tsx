@@ -107,7 +107,7 @@ export default async function EditCharacterPage({
 
       {/* Wide screens: her images on the left, staying in view, and the details and profile on the right. */}
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start xl:gap-10">
-        <section className="grid gap-3 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
+        <section className="grid gap-3 lg:sticky lg:top-28 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-1">
           <h2 className="text-lg font-semibold">Images</h2>
           <p className="text-sm text-neutral-400 max-sm:hidden">
             Click a picture to see it full size. To add one, press Upload, drop a file, or paste with Ctrl+V while a box is focused. Photo
