@@ -216,3 +216,39 @@ describe("purchases", () => {
     await q("update public.characters set name = 'Renamed' where id = $1", [c]);
   });
 });
+
+describe("marketplace_counts()", () => {
+  it("counts available (plus lapsed holds) and sold for anyone, and nothing else", async () => {
+    await listing();
+    await listing();
+    const sold = await listing();
+    await sell(sold, alice);
+    await listing("draft");
+    const delisted = await listing();
+    await q("update public.marketplace_listings set status = 'delisted' where id = $1", [delisted]);
+    const held = await listing();
+    await reserve(held, bob, 10);
+    const lapsed = await listing();
+    await reserve(lapsed, bob, -1);
+
+    for (const who of [null, alice] as const) {
+      await as(who, who ? "authenticated" : "anon");
+      const r = await q<{ available: number; sold: number }>("select * from public.marketplace_counts()");
+      // Two available, plus one lapsed hold; one sold. Drafts, delisted and live holds are not counted.
+      expect(r.rows).toEqual([{ available: 3, sold: 1 }]);
+      expect(Object.keys(r.rows[0]).sort()).toEqual(["available", "sold"]);
+    }
+  });
+
+  it("is zero when the shelf is empty", async () => {
+    await as(null, "anon");
+    expect((await q("select * from public.marketplace_counts()")).rows).toEqual([{ available: 0, sold: 0 }]);
+  });
+
+  it("is a definer function with a fixed search path, closed to the public role", async () => {
+    await t.db.exec("reset role");
+    const r = await q<{ secdef: boolean; cfg: string[] }>("select prosecdef as secdef, proconfig as cfg from pg_proc where proname = 'marketplace_counts'");
+    expect(r.rows[0].secdef).toBe(true);
+    expect(r.rows[0].cfg.join(",")).toMatch(/search_path/);
+  });
+});

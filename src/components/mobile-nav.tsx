@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
-import { BackIcon, CharactersIcon, InjectIcon, LikenessIcon, SheetIcon, VariantsIcon } from "@/components/icons";
+import { BackIcon, CharactersIcon, InjectIcon, LikenessIcon, SheetIcon, StoreIcon, VariantsIcon } from "@/components/icons";
 
 const DOCK = [
   { href: "/inject", label: "Inject", Icon: InjectIcon },
@@ -13,6 +13,7 @@ const DOCK = [
   { href: "/likeness", label: "Likeness", Icon: LikenessIcon },
   { href: "/reference-sheet", label: "Sheets", Icon: SheetIcon },
   { href: "/characters", label: "Characters", Icon: CharactersIcon },
+  { href: "/marketplace", label: "Marketplace", Icon: StoreIcon },
 ];
 
 const TITLES: [RegExp, string][] = [
@@ -85,7 +86,7 @@ export function MobileDock() {
         typing && "pointer-events-none translate-y-24 opacity-0",
       )}
     >
-      <div className="flex items-center gap-1 rounded-full border border-neutral-800 bg-neutral-900/90 p-1.5 shadow-[0_18px_40px_-12px_rgb(0_0_0/0.9)] backdrop-blur-xl">
+      <div className="flex items-center gap-0.5 rounded-full border border-neutral-800 bg-neutral-900/90 p-1.5 shadow-[0_18px_40px_-12px_rgb(0_0_0/0.9)] backdrop-blur-xl">
         {DOCK.map(({ href, label, Icon }) => {
           const on = path.startsWith(href);
           return (
@@ -95,8 +96,8 @@ export function MobileDock() {
               aria-label={label}
               aria-current={on ? "page" : undefined}
               className={cn(
-                "flex h-11 items-center justify-center gap-1.5 rounded-full text-neutral-400 transition-all duration-300 active:scale-95",
-                on ? "glow-brand bg-brand-500 px-4 text-white" : "w-11 hover:bg-neutral-800 hover:text-neutral-100",
+                "flex h-10 items-center justify-center gap-1.5 rounded-full text-neutral-400 transition-all duration-300 active:scale-95",
+                on ? "glow-brand bg-brand-500 px-3.5 text-white" : "w-10 hover:bg-neutral-800 hover:text-neutral-100",
               )}
             >
               <Icon className="h-[22px] w-[22px] shrink-0" />

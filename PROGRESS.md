@@ -12,8 +12,8 @@ Work happens one phase at a time, with a commit after each phase. Phase 9 (crypt
 | 2 | Atomic purchase function (security-critical) | **Done** |
 | 3 | Admin "List" flow | **Done** |
 | 4 | Admin controls in the marketplace | **Done** |
-| 5 | Marketplace UI | **Waiting for the UI target screenshot** |
-| 6 | Stripe (security-critical) | Not started |
+| 5 | Marketplace UI | **Done** |
+| 6 | Stripe (security-critical) | **Next** |
 | 7 | Compliance basics | Not started |
 | 8 | Tests (security-critical) | Not started |
 | 9 | Crypto payments | Design only, do not build |
@@ -84,8 +84,8 @@ Every path starts with the listing id: `<listing_id>/<file>`.
 
 - **Free-plan limit:** the free plan allows one character (trigger `characters_free_limit`). `purchase_persona` (phase 2)
   must let a bought persona through even if the buyer already has a character.
-- **Realtime:** the phase 5 progress bar needs `marketplace_listings` added to the `supabase_realtime` publication.
-  Because some columns are hidden from the public, check that Realtime delivers changes to anonymous visitors. If it
+- **Realtime (resolved in phase 5):** the listings table is *not* broadcast; a public `marketplace_pulse` row with just
+  the two counts is (see phase 5). Original note: because some columns are hidden from the public, check that Realtime delivers changes to anonymous visitors. If it
   doesn't, a small public counts view with polling is the fallback.
 
 ## Phase 2: atomic purchase (done)
@@ -228,6 +228,55 @@ component; Phase 5 puts it on each marketplace card. The server actions are the 
 - The public grid query should show only `available` and `sold`; delisted listings vanish automatically through RLS.
 - `compact` shows a price pill (pencil) that turns into an input (Enter saves, Esc cancels) plus small Delist / Relist pills.
 
+## Phase 5: marketplace UI (done)
+
+Migration: `supabase/migrations/0016_marketplace_realtime.sql` (hearts use the separate `0017_listing_likes.sql`).
+Tests: the `marketplace_counts()` block in `tests/sql/marketplace.test.ts`, and `tests/marketplace-view.test.ts` (price text,
+listing age, sold share, the coverflow size/fade maths, nearest card, slideshow steps, odometer digits).
+
+### What it does
+
+`/marketplace` (browse) and `/marketplace/[id]` (a persona) are public: signed-out visitors can look around. Buying
+needs an account (signed-out visitors are sent to log in and brought back). Phone look follows the owner's reference
+screenshots: round "story" bubbles, a coverflow of tall cards with the text on the picture, a floating dock; the persona
+page has a hero carousel over a faint orbit ring, a poster-style name, pill chips, a white Buy pill with round buttons,
+a two-line bio with an inline "View more" and staggered stat cards whose numbers roll in like an odometer.
+
+### Files
+
+- `src/app/(public)/layout.tsx`: signed in = the normal `AppHeader` + phone dock (+ `AppProvider`, tray, viewer); signed out =
+  small header with Log in / Sign up. Never redirects. `/marketplace` is in `PUBLIC_PREFIXES` in `src/proxy.ts`.
+- `src/app/(public)/marketplace/page.tsx` and `[id]/page.tsx`: load data, then render plain-prop components.
+- `src/lib/marketplace/public-data.ts` (server-only): `listPublicListings()` (public columns only; available first, then sold;
+  images in order with 1-hour signed URLs), `getPublicListing(id)` (`notFound()` when not visible), `marketplaceCounts()`.
+- `src/lib/marketplace/view.ts`: types and pure helpers (price text, listing age, coverflow look, slideshow step).
+- `src/components/marketplace/`: `market-browser` (title, tabs, stories, coverflow), `market-progress` (live bar),
+  `coverflow`, `market-card`, `listing-slideshow`, `persona-detail`, `persona-actions` (Buy, heart, share, save),
+  `buy-button`, `bio`, `stat-cards`, `odometer`, plus the existing `heart-button`.
+- Marketplace added to `MainNav` and the phone `MobileDock` (items made a little narrower so six fit on 360px), a
+  storefront icon and a few others in `icons.tsx`. Bebas Neue added to the Google Fonts link; `--font-poster` token in `globals.css`.
+- `0016`: creates `marketplace_pulse` (one public row: available and sold counts, kept current by a statement trigger on
+  listing inserts, deletes and status changes) and adds only that table to the `supabase_realtime` publication. The
+  listings table stays out of the live feed on purpose, so the buyer, snapshot and file paths can never travel on it.
+  It also adds `marketplace_counts()` (security definer, fixed search path, returns two numbers only, executable by anon and authenticated).
+
+### Behaviour notes
+
+- **Live progress.** Subscribes to Realtime updates of `marketplace_pulse` and also polls `marketplace_counts()` every 30 seconds (and when the tab
+  becomes visible again); when the numbers change it refreshes the lists so a sold persona moves tabs.
+- **Coverflow.** CSS scroll-snap; every scroll frame sets each card's scale, fade and a dark veil from its distance to the centre
+  (`requestAnimationFrame`, transform and opacity only). Arrow buttons and the arrow keys on desktop.
+- **Slideshow.** Only the current, previous and next pictures exist in the page; swipes use pointer events with `touch-action: pan-y`;
+  swiping past either end moves the carousel one card. A listing with one picture lets the page scroll normally.
+- **Hearts.** A heart with the count sits in each card's top row and in the persona page's action row.
+- **Save** is stored in `localStorage` under `ms.savedPersonas` (this browser only).
+- **Buy** is a placeholder (toast "Checkout is being set up."). Phase 6 connects checkout in `buy-button.tsx` / `persona-actions.tsx`.
+- **Transitions.** `<ViewTransition>` wraps the card picture and name and the persona page's hero and name (shared names per
+  listing id). This Next version has no `experimental.viewTransition` setting, so the morph only runs where React starts the
+  navigation inside a transition; the page also fades in with a CSS animation as the fallback. Reduced-motion is respected.
+- Admins see compact controls under each card and full controls on the persona page. Delisted listings are not shown on the browse page
+  (relist from the character page).
+
 ## Manual setup so far
 
 Run these in the Supabase SQL editor, in order. Skip any you've already run: each one fails with "already exists" if
@@ -237,3 +286,5 @@ run twice.
 2. `supabase/migrations/0013_app_settings.sql`: admin settings for caps and the server model (from the pivot).
 3. `supabase/migrations/0014_marketplace.sql`: marketplace tables, RLS, and the two storage buckets.
 4. `supabase/migrations/0015_purchase_persona.sql`: the purchase function.
+5. `supabase/migrations/0016_marketplace_realtime.sql`: live marketplace counts (the public pulse row and its Realtime feed).
+6. `supabase/migrations/0017_listing_likes.sql`: public hearts on personas.

@@ -35,3 +35,21 @@ export const HistoryIcon = ({ className }: P) => (
 export const SparkIcon = ({ className }: P) => (
   <svg {...base(className)}><path d="M12 3.5c.6 3.9 2.1 5.4 6 6-3.9.6-5.4 2.1-6 6-.6-3.9-2.1-5.4-6-6 3.9-.6 5.4-2.1 6-6Z" /><path d="M18.5 15.5c.3 1.6.9 2.2 2.5 2.5-1.6.3-2.2.9-2.5 2.5-.3-1.6-.9-2.2-2.5-2.5 1.6-.3 2.2-.9 2.5-2.5Z" /></svg>
 );
+export const StoreIcon = ({ className }: P) => (
+  <svg {...base(className)}><path d="M5 8.5h14l-1 11.2a1.5 1.5 0 0 1-1.5 1.3h-9A1.5 1.5 0 0 1 6 19.7Z" /><path d="M9 11V7.5a3 3 0 0 1 6 0V11" /></svg>
+);
+export const ChevronIcon = ({ className }: P) => (
+  <svg {...base(className)}><path d="m9 5 7 7-7 7" /></svg>
+);
+export const ShareIcon = ({ className }: P) => (
+  <svg {...base(className)}><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5" /><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></svg>
+);
+export const BookmarkIcon = ({ className, filled = false }: P & { filled?: boolean }) => (
+  <svg {...base(className)} className={`${className ?? "h-5 w-5"} stroke-current ${filled ? "fill-current" : "fill-none"}`}><path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1Z" /></svg>
+);
+export const SearchIcon = ({ className }: P) => (
+  <svg {...base(className)}><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+);
+export const LockIcon = ({ className }: P) => (
+  <svg {...base(className)}><rect x="5" y="10.5" width="14" height="9.5" rx="2.5" /><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" /></svg>
+);

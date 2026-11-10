@@ -11,6 +11,7 @@ const TABS = [
   { href: "/likeness", label: "Likeness" },
   { href: "/reference-sheet", label: "Reference Sheet" },
   { href: "/characters", label: "Characters" },
+  { href: "/marketplace", label: "Marketplace" },
 ];
 
 export function MainNav() {

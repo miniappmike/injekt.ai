@@ -6,6 +6,7 @@
  */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-poster: "Bebas Neue", "Oswald", "Arial Narrow", Impact, sans-serif;
   --font-display: "Exo 2", "Inter", ui-sans-serif, system-ui, sans-serif;
 
   --color-neutral-50: #fafafc;
@@ -285,4 +286,57 @@
     -webkit-tap-highlight-color: transparent;
   }
 }
+}
+
+/* The heart's little bounce when someone hearts a persona. */
+@keyframes heart-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.45); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*="heart-pop"] { animation: none !important; }
+}
+
+/* Marketplace */
+@layer components {
+  /* Hides the scrollbar on rows that scroll sideways by touch or wheel (story bubbles, stat cards, the coverflow). */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Cards and the persona page share a picture and a name (React <ViewTransition>); this sets how they glide. */
+::view-transition-group(.persona-morph) {
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+::view-transition-old(.persona-morph),
+::view-transition-new(.persona-morph) {
+  height: 100%;
+  object-fit: cover;
+}
+::view-transition-old(.page-soft) {
+  animation: 180ms ease-in both fade-out-soft;
+}
+::view-transition-new(.page-soft) {
+  animation: 320ms ease-out 80ms both fade-in-soft;
+}
+@keyframes fade-out-soft {
+  to { opacity: 0; }
+}
+@keyframes fade-in-soft {
+  from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+  }
 }
