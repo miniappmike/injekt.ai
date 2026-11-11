@@ -39,7 +39,7 @@ export const injectMetaSchema = z.object({
     .object({
       kind: z.enum(["face", "body"]),
       hasSheet: z.boolean().optional(),
-      outfit: z.enum(["default", "photo", "custom"]).optional(),
+      outfit: z.enum(["covered", "bikini", "default", "photo", "custom"]).optional(),
       outfitText: z.string().max(500).optional(),
       gluteSize: z.string().max(20).optional(),
       gluteShape: z.string().max(20).optional(),

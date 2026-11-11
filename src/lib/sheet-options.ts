@@ -4,8 +4,14 @@ export const SHEET_ASPECT_RATIO = { face: "3:2", body: "1:1" } as const;
 /** Body photos that can go into the face and body sheet. */
 export const MAX_BODY_PHOTOS = 3;
 
+/** The two standard looks, chosen with a toggle before the body sheet is made. */
+export const SHEET_LOOKS = [
+  { id: "covered", label: "Covered", hint: "White crop tube top and very short shorts, fitted tight" },
+  { id: "bikini", label: "Bikini", hint: "Black bikini" },
+] as const;
+/** Other outfits, in the fine-tune options: instead of the toggle above. */
 export const SHEET_OUTFITS = [
-  { id: "default", label: "Plain white athletic set" },
+  { id: "toggle", label: "Use the choice above" },
   { id: "photo", label: "The outfit from body photo 1" },
   { id: "custom", label: "Describe an outfit" },
 ] as const;

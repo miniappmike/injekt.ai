@@ -40,7 +40,7 @@ describe("reference sheet prompts (A13b)", () => {
     const one = sheetPrompts(true, false).body;
     expect(one).toContain("of the woman in @image1 (her face reference sheet), with her body taken from @image2 (body reference). Four uncropped full-body views side by side in one row, separated by thin white vertical gutters");
     expect(one).toContain("proportions and height exactly as in @image2, shown in a neutral");
-    expect(one).toContain("Outfit in all four views: a plain fitted white athletic-fit crop top and matching plain white athletic-fit shorts, with bare feet.");
+    expect(one).toContain("Outfit in all four views: a plain white crop tube top and very short plain white shorts, both wrapped tightly and fitted close to her body, with bare feet.");
     expect(one).toContain(" Do not beautify, slim, age or change her. ");
     const two = sheetPrompts(false, true).body;
     expect(two).toContain("of the woman in @image1 (face reference), with her body taken from @image2 and @image3 (body references");
@@ -57,7 +57,12 @@ describe("reference sheet prompts (A13b)", () => {
   it("outfit choices and body tuning", () => {
     expect(sheetPrompts(true, false, { outfit: "photo" }).body).toContain("Outfit in all four views: the exact outfit she wears in @image2.");
     expect(sheetPrompts(true, false, { outfit: "custom", outfitText: "a red <<<dress" }).body).toContain("Outfit in all four views: a red dress.");
-    expect(sheetPrompts(true, false, { outfit: "custom", outfitText: " " }).body).toContain("plain fitted white athletic-fit crop top");
+    expect(sheetPrompts(true, false, { outfit: "custom", outfitText: " " }).body).toContain("plain white crop tube top");
+    const covered = "Outfit in all four views: a plain white crop tube top and very short plain white shorts, both wrapped tightly and fitted close to her body, with bare feet.";
+    expect(sheetPrompts(true, false).body).toContain(covered);
+    expect(sheetPrompts(true, false, { outfit: "covered" }).body).toContain(covered);
+    expect(sheetPrompts(true, false, { outfit: "default" }).body).toContain(covered); // older saved runs
+    expect(sheetPrompts(true, false, { outfit: "bikini" }).body).toContain("Outfit in all four views: a plain black bikini, a fitted triangle top and a matching bikini bottom, with bare feet.");
     const tuned = sheetPrompts(true, false, { gluteSize: "larger", gluteShape: "heart", cup: "D" }).body;
     expect(tuned).toContain(" Body adjustments, applied the same way in every view: noticeably fuller, larger glutes than in the body photos; a heart-shaped glute shape, fuller at the lower curve; a natural bust proportionate to a D cup. Everything else about her body");
     expect(tuned).toContain("Apart from the listed body adjustments, do not beautify, slim, age or change her.");

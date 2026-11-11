@@ -12,11 +12,12 @@ import { uploadImage } from "@/components/image-slot";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { segItem, segTrack } from "@/components/ui/segmented";
 import { Textarea } from "@/components/ui/textarea";
 import { createPersona, saveReferenceSheet } from "@/app/(app)/reference-sheet/actions";
 import { sheetPrompts } from "@/lib/ai/prompts/sheets";
 import type { SheetSlot } from "@/lib/reference-sheet";
-import { CUPS, GLUTE_SHAPES, GLUTE_SIZES, MAX_BODY_PHOTOS, SHEET_ASPECT_RATIO, SHEET_OUTFITS } from "@/lib/sheet-options";
+import { CUPS, GLUTE_SHAPES, GLUTE_SIZES, MAX_BODY_PHOTOS, SHEET_ASPECT_RATIO, SHEET_LOOKS, SHEET_OUTFITS } from "@/lib/sheet-options";
 import type { UploadSlot } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
@@ -240,7 +241,7 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
   // Sheets saved or made during this visit.
   const [saved, setSaved] = useState<Record<string, { face?: SheetImage; body?: SheetImage }>>({});
   const [madeFace, setMadeFace] = useState<{ id: string; url: string } | null>(null);
-  const [opts, setOpts] = useState({ outfit: "default" as "default" | "photo" | "custom", outfitText: "", gluteSize: "match", gluteShape: "match", cup: "match" });
+  const [opts, setOpts] = useState({ outfit: "covered" as "covered" | "bikini", other: "toggle" as "toggle" | "photo" | "custom", outfitText: "", gluteSize: "match", gluteShape: "match", cup: "match" });
 
   const character = list.find((c) => c.id === characterId) ?? null;
   const isNew = !character;
@@ -267,8 +268,8 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
   const bodyPaths = bodies.map((b) => b.path);
 
   const sheetOpts = {
-    outfit: opts.outfit,
-    ...(opts.outfit === "custom" ? { outfitText: opts.outfitText.trim() } : {}),
+    outfit: opts.other === "toggle" ? opts.outfit : opts.other,
+    ...(opts.other === "custom" ? { outfitText: opts.outfitText.trim() } : {}),
     ...(opts.gluteSize !== "match" ? { gluteSize: opts.gluteSize } : {}),
     ...(opts.gluteShape !== "match" ? { gluteShape: opts.gluteShape } : {}),
     ...(opts.cup !== "match" ? { cup: opts.cup } : {}),
@@ -418,8 +419,8 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
             <summary className="cursor-pointer select-none text-sm font-semibold text-neutral-200">Fine-tune the sheet <span className="font-normal text-neutral-500">(outfit and body, optional)</span></summary>
             <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4 [&>*]:min-w-0">
               <label className="flex flex-col gap-1.5 text-sm">
-                Outfit in the body views
-                <select className={select} value={opts.outfit} onChange={(e) => setOpts((o) => ({ ...o, outfit: e.target.value as typeof o.outfit }))}>
+                Or a different outfit
+                <select className={select} value={opts.other} onChange={(e) => setOpts((o) => ({ ...o, other: e.target.value as typeof o.other }))}>
                   {SHEET_OUTFITS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                 </select>
               </label>
@@ -442,7 +443,7 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
                 </select>
               </label>
             </div>
-            {opts.outfit === "custom" && (
+            {opts.other === "custom" && (
               <label className="mt-3 flex flex-col gap-1.5 text-sm">
                 The outfit
                 <Textarea value={opts.outfitText} maxLength={500} onChange={(e) => setOpts((o) => ({ ...o, outfitText: e.target.value }))} placeholder="e.g. a black ribbed tank top and grey biker shorts, white sneakers" />
@@ -466,6 +467,25 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
           title={generation ? "Make the reference sheet" : "Your reference sheet prompt"}
           intro={`${character.name}'s face from ${face?.isSheet ? "her face sheet" : "her photo"} goes onto the body in your photos, shown in four views: front, three-quarter, side and back.`}
         >
+          <div className="flex flex-col gap-2" role="group" aria-label="Outfit for the sheet">
+            <span className="text-sm text-neutral-300">Outfit in the sheet</span>
+            <div className={segTrack}>
+              {SHEET_LOOKS.map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  aria-pressed={opts.other === "toggle" && opts.outfit === l.id}
+                  onClick={() => setOpts((o) => ({ ...o, outfit: l.id, other: "toggle" }))}
+                  className={segItem(opts.other === "toggle" && opts.outfit === l.id)}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-neutral-500">
+              {opts.other === "toggle" ? SHEET_LOOKS.find((l) => l.id === opts.outfit)?.hint : opts.other === "photo" ? "The outfit from body photo 1 (set in step 3's fine-tune options)." : "Your own outfit text (set in step 3's fine-tune options)."}
+            </p>
+          </div>
           {generation ? (
             face && bodies.length ? (
               <GenerateImage

@@ -6,7 +6,8 @@ const SH_GLUTE_SHAPE: Record<string, string> = {round:'a round, full glute shape
 const CUPS = ["A", "B", "C", "D", "DD", "E", "F"];
 
 export interface SheetOptions {
-  outfit?: "default" | "photo" | "custom";
+  /** "covered" (also the old "default") and "bikini" are the two standard looks; "photo" and "custom" are the extras. */
+  outfit?: "covered" | "bikini" | "default" | "photo" | "custom";
   outfitText?: string;
   gluteSize?: string;
   gluteShape?: string;
@@ -29,7 +30,9 @@ export function tuneLine(o: SheetOptions): string {
 export function sheetPrompts(hasSheet: boolean, bodies: boolean | number, o: SheetOptions = {}): { face: string; body: string } {
   const n = typeof bodies === 'number' ? Math.max(1, Math.min(3, Math.floor(bodies))) : bodies ? 2 : 1;
   const two = n > 1;
-  const outfit = o.outfit === 'photo' ? 'the exact outfit she wears in @image2' : o.outfit === 'custom' && o.outfitText?.trim() ? fence(o.outfitText.trim()) : 'a plain fitted white athletic-fit crop top and matching plain white athletic-fit shorts, with bare feet';
+  const COVERED = 'a plain white crop tube top and very short plain white shorts, both wrapped tightly and fitted close to her body, with bare feet';
+  const BIKINI = 'a plain black bikini, a fitted triangle top and a matching bikini bottom, with bare feet';
+  const outfit = o.outfit === 'photo' ? 'the exact outfit she wears in @image2' : o.outfit === 'custom' && o.outfitText?.trim() ? fence(o.outfitText.trim()) : o.outfit === 'bikini' ? BIKINI : COVERED;
   const tune = tuneLine(o);
   const ident = (ref: string) => `Identity must be identical in every panel: the same face shape, eyes and eye colour, brows, nose, lips, jaw, skin tone, freckles, moles and marks as ${ref}, and the exact same hairstyle, hair colour, parting and length. She is an adult woman.`;
   const keep = tune ? 'Apart from the listed body adjustments, do not beautify, slim, age or change her.' : 'Do not beautify, slim, age or change her.';
