@@ -29,6 +29,10 @@ describe("reference sheet prompts (A13b)", () => {
       for (const p of [face, body]) {
         expect(p).toContain("JEWELLERY, always: no earrings, necklaces");
         expect(p).toContain("remove them completely and show bare ears and a bare neck");
+        // Face piercings are identity, not jewellery: kept, and never invented.
+        expect(p).toContain("FACE PIERCINGS are the exception");
+        expect(p).toContain("never add one she does not have");
+        expect(p).toContain("face piercings (nose, septum, lip, eyebrow)");
       }
     }
   });
