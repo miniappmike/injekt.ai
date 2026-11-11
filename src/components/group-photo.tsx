@@ -111,7 +111,7 @@ export function CharactersBoard({ characters, canList, atLimit, limitText }: { c
             const full = !on && picked.length >= MAX_GROUP;
             return (
               <div key={c.id} className="relative">
-                <div className={cn("transition-all duration-300", picking && !on && "opacity-70", picking && (full || !ok) && "opacity-40 saturate-50", on && "scale-[0.97]")}>
+                <div className={cn("transition-all duration-300", picking && !on && "opacity-70", picking && (full || !ok) && "opacity-40 saturate-50")}>
                   <CharacterCard c={c} canList={canList} />
                 </div>
                 {picking && (
@@ -128,11 +128,12 @@ export function CharactersBoard({ characters, canList, atLimit, limitText }: { c
                   >
                     <span
                       className={cn(
-                        "absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold backdrop-blur transition-all duration-200",
-                        on ? "animate-pop-in bg-gradient-to-br from-iris-400 to-iris-600 text-white shadow-lg" : "bg-neutral-950/60 text-transparent ring-2 ring-white/60",
+                        // Sits exactly over the card's magnifier button (same place and size), so it covers it fully.
+                        "absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold transition-all duration-200 max-sm:left-2 max-sm:top-2",
+                        on ? "animate-pop-in bg-gradient-to-br from-iris-400 to-iris-600 text-white shadow-lg ring-1 ring-white/30" : "bg-neutral-950 ring-1 ring-white/20",
                       )}
                     >
-                      {on ? at + 1 : ""}
+                      {on ? at + 1 : <span aria-hidden="true" className="h-4 w-4 rounded-full ring-2 ring-white/70" />}
                     </span>
                     {!ok && <span className="absolute inset-x-3 bottom-3 rounded-full bg-neutral-950/80 px-2 py-1 text-center text-[11px] font-semibold text-neutral-300">Needs reference images</span>}
                   </button>
