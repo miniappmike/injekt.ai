@@ -235,7 +235,7 @@ function GenerateImageInner({
           {busy && <Spinner className="h-3.5 w-3.5" />}
           {phase === "starting" ? "Starting..." : phase === "running" ? "Generating..." : label}
         </Button>
-        {phase === "running" && <p className="text-xs text-neutral-500">This usually takes under a minute. Once started, it can't be cancelled.</p>}
+        {phase === "running" && <p className="text-xs text-neutral-500">This typically takes ~120 seconds. Once started, it can't be cancelled.</p>}
         {message && <p role="alert" className="text-sm text-red-400">{message}</p>}
         {busy && <div className="progress-indeterminate w-full basis-full" aria-hidden="true" />}
       </div>
@@ -260,7 +260,7 @@ function GenerateImageInner({
             </span>
           </div>
           {renderActions?.(result)}
-          {/* Every generated image of a character gets a quick likeness check. Pro and admin only: it spends their key. */}
+          {/* A "Check likeness" button under every generated image of a character; it runs only when pressed (it spends their key). */}
           {!free && checkLikeness && characterId && kind !== "reference_sheet" && (
             <LikenessPanel characterId={characterId} image={{ generationId: result.generationId }} original={compareTo} frame={meta?.frame} />
           )}

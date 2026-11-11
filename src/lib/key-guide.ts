@@ -142,7 +142,7 @@ export const GUIDE_PHASES: GuidePhase[] = [
 export const GUIDE_MODELS = {
   vision: [
     { name: "Claude Sonnet 5.5", id: "anthropic/claude-sonnet-5.5/chat", note: "Recommended" },
-    { name: "Kimi K3.1 Pro", id: "moonshot/kimi-k3.1-pro/chat", note: "Cheaper than Sonnet" },
+    { name: "Kimi K3.1 Pro", id: "moonshot/kimi-k3.1-pro/chat", note: "Cheaper but slower than Sonnet" },
   ],
   image: [
     { name: "Seedream 5 Pro", id: "bytedance/seedream-5.0-pro/edit", note: "Recommended" },
