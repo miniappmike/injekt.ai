@@ -7,7 +7,7 @@ import { GENERATION_EVENT, USAGE_EVENT } from "@/lib/panel-events";
 import type { DailyStatus } from "@/lib/daily-limits";
 import { cn } from "@/lib/utils";
 import { IMAGE_CREDITS, PROFILE_BUILD_CREDITS, PROMPT_CREDITS, PRO } from "@/lib/plans";
-import { ProBadge, ProGem } from "@/components/pro-badge";
+import { ProGem } from "@/components/pro-badge";
 import { TokenIcon } from "@/components/token-icon";
 
 const left = (x: { used: number; limit: number | null }) => (x.limit == null ? null : Math.max(0, x.limit - x.used));
@@ -78,7 +78,6 @@ export function UsageMeterView({ s, startOpen = false }: { s: DailyStatus; start
         >
           <TokenIcon className="h-[18px] w-[18px]" />
           <span className={cn("font-semibold tabular-nums", low ? "text-amber-200" : "text-white")}>{credits.toLocaleString()}</span>
-          {pro && <ProBadge className="max-sm:hidden" />}
         </Link>
         <button
           type="button"
