@@ -42,7 +42,7 @@ export function PageModelBox() {
   const path = usePathname();
   if (!generation || !GENERATION_PAGES.some((re) => re.test(path))) return null;
   return (
-    <section className="mx-auto mb-10 max-w-6xl px-4 sm:px-6 2xl:max-w-[88rem]">
+    <section className="mx-auto mb-8 max-w-6xl px-4 sm:px-6 2xl:max-w-[88rem]">
       <ModelBox />
     </section>
   );
