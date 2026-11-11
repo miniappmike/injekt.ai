@@ -1,8 +1,11 @@
 /**
- * Where "Copy & open" sends people to paste a prompt. Set NEXT_PUBLIC_WAVESPEED_URL to your referral link to earn from
- * sign-ups (or straight to the Seedream 5 page).
+ * The referral link to SpicyAPI. Every link that sends people to SpicyAPI goes through it, so sign-ups are credited
+ * (5% of what they spend, up to $50 a person). NEXT_PUBLIC_SPICYAPI_REFERRAL_URL overrides it.
  */
+export const SPICYAPI_REFERRAL_URL = process.env.NEXT_PUBLIC_SPICYAPI_REFERRAL_URL || "https://spicyapi.ai/?ref=yjqgtzd1";
+
+/** Where "Copy & open" sends people to paste a prompt: SpicyAPI, through the referral link. */
 export const GENERATOR = {
-  name: "Wavespeed",
-  url: process.env.NEXT_PUBLIC_WAVESPEED_URL || "https://wavespeed.ai",
+  name: "SpicyAPI",
+  url: SPICYAPI_REFERRAL_URL,
 };
