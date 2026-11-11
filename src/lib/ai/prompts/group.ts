@@ -3,7 +3,7 @@
  * a block of @image tags; the person's own creative direction sets the scene and is followed closely. Pure, so the
  * server and the tests share it.
  */
-import { fence, joinTags, MODS_RULE, REALISM_FIX, TEXT_SHORT } from "./rules";
+import { fence, joinTags, MODS_RULE, PROPORTIONS_RULE, REALISM_FIX, TEXT_SHORT } from "./rules";
 import { pickAnchors, type Anchors } from "./identity";
 
 export const MIN_GROUP = 2;
@@ -47,7 +47,7 @@ export function groupPhotoPrompt(members: GroupMember[], direction: string): str
   const head = `A single new photograph of exactly ${n} women together in one scene: ${joinTags(members.map((m, i) => fence(m.name).trim().slice(0, 40) || `Person ${i + 1}`))}. Each woman's reference images show only her, so build each person only from her own references and never mix features between them. Every person is clearly visible with her face shown, and no extra people appear.`;
 
   const rules = [
-    "IDENTITY LOCK (strict): each woman is the exact same person as in her own references, with an identical face, features, skin, hair, body shape and proportions. Do not average, blend or swap faces, hair or bodies between them, and do not make them look alike. Do not slim, enlarge, lengthen, tone or idealise any figure.",
+    "IDENTITY LOCK (strict): each woman is the exact same person as in her own references, with an identical face, features, skin, hair, body shape and proportions. Do not average, blend or swap faces, hair or bodies between them, and do not make them look alike. Do not slim, enlarge, lengthen, tone or idealise any figure. " + PROPORTIONS_RULE.replace("her figure", "a woman's figure"),
     "OUTFITS: use the references for face, hair and body shape only and ignore the clothing shown there; each woman wears only what the creative direction describes, or, where it says nothing, an outfit that suits the scene.",
     "Take only the people from the references, never their grid layout, panels, plain backgrounds, studio light or plain outfits. Lighting, colour and perspective are consistent across everyone, so they look photographed together in the same moment, at true relative scale.",
     REALISM_FIX.quality,

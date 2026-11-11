@@ -41,7 +41,7 @@ describe("reference sheet prompts (A13b)", () => {
     expect(one).toContain("of the woman in @image1 (her face reference sheet), with her body taken from @image2 (body reference). Four uncropped full-body views side by side in one row, separated by thin white vertical gutters");
     expect(one).toContain("proportions and height exactly as in @image2, shown in a neutral");
     expect(one).toContain("Outfit in all four views: a plain white crop tube top and very short plain white shorts, both wrapped tightly and fitted close to her body, with bare feet.");
-    expect(one).toContain(" Do not beautify, slim, age or change her. ");
+    expect(one).toContain(" Do not beautify, slim, shrink, age or change her. ");
     const two = sheetPrompts(false, true).body;
     expect(two).toContain("of the woman in @image1 (face reference), with her body taken from @image2 and @image3 (body references");
     expect(two).toContain("from both body references");
@@ -65,7 +65,7 @@ describe("reference sheet prompts (A13b)", () => {
     expect(sheetPrompts(true, false, { outfit: "bikini" }).body).toContain("Outfit in all four views: a plain black bikini, a fitted triangle top and a matching bikini bottom, with bare feet.");
     const tuned = sheetPrompts(true, false, { gluteSize: "larger", gluteShape: "heart", cup: "D" }).body;
     expect(tuned).toContain(" Body adjustments, applied the same way in every view: noticeably fuller, larger glutes than in the body photos; a heart-shaped glute shape, fuller at the lower curve; a natural bust proportionate to a D cup. Everything else about her body");
-    expect(tuned).toContain("Apart from the listed body adjustments, do not beautify, slim, age or change her.");
+    expect(tuned).toContain("Apart from the listed body adjustments, do not beautify, slim, shrink, age or change her.");
     expect(tuneLine({ gluteSize: "match", cup: "Z" })).toBe("");
   });
 
@@ -214,5 +214,16 @@ describe("attachGeneratedSheet", () => {
     const [up] = log.uploads;
     // Only the file that was just stored is removed; the character's current sheet is still in place.
     expect(log.removed).toEqual([{ bucket: "character-media", paths: [up.path] }]);
+  });
+});
+
+describe("exaggerated proportions", () => {
+  it("the body sheet keeps an extreme figure at full scale; neutral means pose and framing only", async () => {
+    const { sheetPrompts } = await import("@/lib/ai/prompts/sheets");
+    const { PROPORTIONS_RULE, BODY_LOCK } = await import("@/lib/ai/prompts/rules");
+    const body = sheetPrompts(true, 2).body;
+    expect(body).toContain(PROPORTIONS_RULE);
+    expect(body).toContain("never smaller or more modest proportions");
+    expect(BODY_LOCK).toContain(PROPORTIONS_RULE);
   });
 });

@@ -40,8 +40,19 @@ export const REALISM_FIX = {
 export const OVERLAY_RULE =
   "Leave out anything that was overlaid on the original photo: no app interface elements, floating buttons, icons, watermarks, stickers or caption overlays.";
 
+/**
+ * Some characters have deliberately exaggerated figures. Image models drift toward an average body, so every body
+ * instruction says to keep extreme proportions at full scale.
+ */
+export const PROPORTIONS_RULE =
+  "EXAGGERATED PROPORTIONS STAY: if her figure in the references is extreme or exaggerated (for example a very large bust, a very small waist, very wide hips, very large glutes or very thick thighs), reproduce it at the same scale and ratios. Never shrink, tone down, average or normalise it toward a typical body, and never make it more modest than in the references.";
+/** For the text models that write prompts and profiles: name extreme proportions plainly, at full strength. */
+export const PROPORTIONS_WORDS =
+  "If her proportions are extreme or exaggerated, say so plainly and at full strength (for example extremely large bust, very small waist, very wide hips, very large round glutes); never soften, downplay or scale them toward an average figure.";
+
 export const BODY_LOCK =
-  "BODY LOCK (strict): her body must match the reference exactly: the same height impression, frame, shoulder width, bust, waist, hips, glutes, thighs, leg length, arm thickness and muscle tone, and the same overall proportions. Do not slim, enlarge, lengthen, tone or idealise her figure, and do not adapt it to the pose, outfit or the original person's body.";
+  "BODY LOCK (strict): her body must match the reference exactly: the same height impression, frame, shoulder width, bust, waist, hips, glutes, thighs, leg length, arm thickness and muscle tone, and the same overall proportions. Do not slim, enlarge, lengthen, tone or idealise her figure, and do not adapt it to the pose, outfit or the original person's body. " +
+  PROPORTIONS_RULE;
 
 /** "a", "a and b", "a, b and c" */
 export const joinTags = (a: string[]) => (a.length < 2 ? a[0] || "" : a.slice(0, -1).join(", ") + " and " + a[a.length - 1]);

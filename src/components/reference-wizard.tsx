@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useGeneration } from "@/components/app-context";
 import { AttachStrip, TaggedPrompt, type AttachTile } from "@/components/attach-strip";
@@ -13,11 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { segItem, segTrack } from "@/components/ui/segmented";
-import { Textarea } from "@/components/ui/textarea";
 import { createPersona, saveReferenceSheet } from "@/app/(app)/reference-sheet/actions";
 import { sheetPrompts } from "@/lib/ai/prompts/sheets";
 import type { SheetSlot } from "@/lib/reference-sheet";
-import { CUPS, GLUTE_SHAPES, GLUTE_SIZES, MAX_BODY_PHOTOS, SHEET_ASPECT_RATIO, SHEET_LOOKS, SHEET_OUTFITS } from "@/lib/sheet-options";
+import { CUPS, GLUTE_SHAPES, GLUTE_SIZES, MAX_BODY_PHOTOS, SHEET_ASPECT_RATIO, SHEET_LOOKS } from "@/lib/sheet-options";
 import type { UploadSlot } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
@@ -197,7 +195,7 @@ function StepCard({ n, title, intro, children }: { n: number; title: string; int
   );
 }
 
-function Nav({ onBack, next, nextLabel, nextDisabled, note }: { onBack?: () => void; next: () => void; nextLabel: string; nextDisabled?: boolean; note?: string }) {
+function Nav({ onBack, next, nextLabel, nextDisabled, note }: { onBack?: () => void; next?: () => void; nextLabel: string; nextDisabled?: boolean; note?: string }) {
   return (
     <div className="flex flex-col gap-2 border-t border-neutral-800 pt-4">
       {note && <p className="text-xs text-neutral-500">{note}</p>}
@@ -207,7 +205,9 @@ function Nav({ onBack, next, nextLabel, nextDisabled, note }: { onBack?: () => v
         ) : (
           <span />
         )}
-        <Button type="button" size="lg" onClick={next} disabled={nextDisabled} className="max-sm:flex-1 sm:min-w-44">{nextLabel}</Button>
+        {next && (
+          <Button type="button" size="lg" onClick={next} disabled={nextDisabled} className="animate-pop-in max-sm:flex-1 sm:min-w-44">{nextLabel}</Button>
+        )}
       </div>
     </div>
   );
@@ -241,7 +241,7 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
   // Sheets saved or made during this visit.
   const [saved, setSaved] = useState<Record<string, { face?: SheetImage; body?: SheetImage }>>({});
   const [madeFace, setMadeFace] = useState<{ id: string; url: string } | null>(null);
-  const [opts, setOpts] = useState({ outfit: "covered" as "covered" | "bikini", other: "toggle" as "toggle" | "photo" | "custom", outfitText: "", gluteSize: "match", gluteShape: "match", cup: "match" });
+  const [opts, setOpts] = useState({ outfit: "covered" as "covered" | "bikini", gluteSize: "match", gluteShape: "match", cup: "match" });
 
   const character = list.find((c) => c.id === characterId) ?? null;
   const isNew = !character;
@@ -268,8 +268,7 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
   const bodyPaths = bodies.map((b) => b.path);
 
   const sheetOpts = {
-    outfit: opts.other === "toggle" ? opts.outfit : opts.other,
-    ...(opts.other === "custom" ? { outfitText: opts.outfitText.trim() } : {}),
+    outfit: opts.outfit,
     ...(opts.gluteSize !== "match" ? { gluteSize: opts.gluteSize } : {}),
     ...(opts.gluteShape !== "match" ? { gluteShape: opts.gluteShape } : {}),
     ...(opts.cup !== "match" ? { cup: opts.cup } : {}),
@@ -416,14 +415,8 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
           <p className="-mt-1 text-xs text-neutral-500">Up to {MAX_BODY_PHOTOS} photos. Her face comes from {face?.isSheet ? "her face sheet" : "her face photo"}.</p>
 
           <details className="group rounded-2xl border border-neutral-800 bg-neutral-950/40 p-3">
-            <summary className="cursor-pointer select-none text-sm font-semibold text-neutral-200">Fine-tune the sheet <span className="font-normal text-neutral-500">(outfit and body, optional)</span></summary>
-            <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4 [&>*]:min-w-0">
-              <label className="flex flex-col gap-1.5 text-sm">
-                Or a different outfit
-                <select className={select} value={opts.other} onChange={(e) => setOpts((o) => ({ ...o, other: e.target.value as typeof o.other }))}>
-                  {SHEET_OUTFITS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                </select>
-              </label>
+            <summary className="cursor-pointer select-none text-sm font-semibold text-neutral-200">Fine-tune the sheet <span className="font-normal text-neutral-500">(body, optional)</span></summary>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3 [&>*]:min-w-0">
               <label className="flex flex-col gap-1.5 text-sm">
                 Bust
                 <select className={select} value={opts.cup} onChange={(e) => setOpts((o) => ({ ...o, cup: e.target.value }))}>
@@ -443,12 +436,6 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
                 </select>
               </label>
             </div>
-            {opts.other === "custom" && (
-              <label className="mt-3 flex flex-col gap-1.5 text-sm">
-                The outfit
-                <Textarea value={opts.outfitText} maxLength={500} onChange={(e) => setOpts((o) => ({ ...o, outfitText: e.target.value }))} placeholder="e.g. a black ribbed tank top and grey biker shorts, white sneakers" />
-              </label>
-            )}
           </details>
 
           <Nav
@@ -474,16 +461,16 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
                 <button
                   key={l.id}
                   type="button"
-                  aria-pressed={opts.other === "toggle" && opts.outfit === l.id}
-                  onClick={() => setOpts((o) => ({ ...o, outfit: l.id, other: "toggle" }))}
-                  className={segItem(opts.other === "toggle" && opts.outfit === l.id)}
+                  aria-pressed={opts.outfit === l.id}
+                  onClick={() => setOpts((o) => ({ ...o, outfit: l.id }))}
+                  className={segItem(opts.outfit === l.id)}
                 >
                   {l.label}
                 </button>
               ))}
             </div>
             <p className="text-xs text-neutral-500">
-              {opts.other === "toggle" ? SHEET_LOOKS.find((l) => l.id === opts.outfit)?.hint : opts.other === "photo" ? "The outfit from body photo 1 (set in step 3's fine-tune options)." : "Your own outfit text (set in step 3's fine-tune options)."}
+              {SHEET_LOOKS.find((l) => l.id === opts.outfit)?.hint}
             </p>
           </div>
           {generation ? (
@@ -521,20 +508,17 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
 
           {doneSheet && (
             <div role="status" className="animate-pop-in rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
-              <p className="font-display text-lg font-bold text-emerald-200">{character.name} is ready</p>
-              <p className="mt-1 text-sm text-neutral-300">Her face and body sheets are saved. They go first with every prompt you write for her.</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link href={`/inject?character=${character.id}`} className="glow-brand inline-flex h-10 items-center rounded-lg bg-brand-500 px-4 text-sm font-semibold text-white transition-all hover:bg-brand-400 active:scale-95">
-                  Put her in a photo
-                </Link>
-                <Link href={`/characters/${character.id}`} className="inline-flex h-10 items-center rounded-lg border border-neutral-700 px-4 text-sm font-semibold text-neutral-100 transition-colors hover:border-neutral-500">
-                  Open her profile
-                </Link>
-              </div>
+              <p className="font-display text-lg font-bold text-emerald-200">{character.name}&apos;s sheets are saved</p>
+              <p className="mt-1 text-sm text-neutral-300">One last step: build her profile, so every prompt locks in her identity.</p>
             </div>
           )}
 
-          <Nav onBack={() => go(3)} next={() => (window.location.href = "/reference-sheet")} nextLabel="Make another persona" />
+          {/* The way out of the wizard appears once her body sheet is saved: straight to her page to build the profile. */}
+          <Nav
+            onBack={() => go(3)}
+            next={doneSheet ? () => (window.location.href = `/characters/${character.id}?from=wizard`) : undefined}
+            nextLabel="Build Profile"
+          />
         </StepCard>
       )}
     </div>

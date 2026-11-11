@@ -9,12 +9,6 @@ export const SHEET_LOOKS = [
   { id: "covered", label: "Covered", hint: "White crop tube top and very short shorts, fitted tight" },
   { id: "bikini", label: "Bikini", hint: "Black bikini" },
 ] as const;
-/** Other outfits, in the fine-tune options: instead of the toggle above. */
-export const SHEET_OUTFITS = [
-  { id: "toggle", label: "Use the choice above" },
-  { id: "photo", label: "The outfit from body photo 1" },
-  { id: "custom", label: "Describe an outfit" },
-] as const;
 export const GLUTE_SIZES = [
   { id: "match", label: "As in the photos" },
   { id: "smaller", label: "Smaller" },

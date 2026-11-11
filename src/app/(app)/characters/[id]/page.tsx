@@ -48,10 +48,10 @@ export default async function EditCharacterPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ notice?: string }>;
+  searchParams: Promise<{ notice?: string; from?: string }>;
 }) {
   const { id } = await params;
-  const { notice } = await searchParams;
+  const { notice, from } = await searchParams;
   const banner = notice ? NOTICES[notice] : undefined;
   const { supabase, user } = await requireUser();
   const c = await selectCharacter<CharacterRow>(
@@ -133,6 +133,7 @@ export default async function EditCharacterPage({
           canBuildProfile={referenceList(c).length > 0}
           buildsLeft={buildsLeft}
           buildsTotal={FREE_LIMITS.profile_builds}
+          fromWizard={from === "wizard"}
         />
       </div>
     </div>
