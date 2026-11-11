@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { tokenCost, type PriceSource, type TokenPrice, type TokenUsage } from "@/lib/pricing";
+import { settleSoon } from "@/lib/ledger-settle";
 import {
   platformOf,
   type CostSource,
@@ -47,12 +48,16 @@ export interface NewLedgerEntry {
   costUsd: number | null;
   costSource?: CostSource | null;
   generationId?: string | null;
+  /** SpicyAPI tasks the call was charged under, so its real cost can be looked up (see ledger-settle). */
+  providerTaskIds?: string[] | null;
+  /** The cost is the provider's final charge. */
+  costSettled?: boolean;
 }
 
-/** Writes one row on the ledger. The server is the only thing that can; people can only read their own rows. */
-export async function recordLedgerEntry(db: SupabaseClient, e: NewLedgerEntry) {
+/** Writes one row on the ledger and returns its id. The server is the only thing that can; people can only read their own rows. */
+export async function recordLedgerEntry(db: SupabaseClient, e: NewLedgerEntry): Promise<number | null> {
   const known = e.costUsd !== null;
-  const { error } = await db.from("api_ledger").insert({
+  const base = {
     user_id: e.userId,
     platform: e.platform,
     job: e.job,
@@ -66,8 +71,13 @@ export async function recordLedgerEntry(db: SupabaseClient, e: NewLedgerEntry) {
     cost_known: known,
     cost_source: known ? (e.costSource ?? null) : null,
     generation_id: e.generationId ?? null,
-  });
+  };
+  const settlement = { provider_task_ids: e.providerTaskIds?.length ? e.providerTaskIds : null, cost_settled: !!e.costSettled };
+  let { data, error } = await db.from("api_ledger").insert({ ...base, ...settlement }).select("id").single();
+  // Before migration 0021 the settlement columns don't exist: still record the call.
+  if (error && /provider_task_ids|cost_settled/.test(error.message)) ({ data, error } = await db.from("api_ledger").insert(base).select("id").single());
   if (error) console.error("ledger write failed", error.message);
+  return (data?.id as number | undefined) ?? null;
 }
 
 // A text or vision call: its cost is tokens x a price per million tokens (the list price, or the person's own).
@@ -82,12 +92,17 @@ export async function recordTextCall(
     keySource: "byok" | "server";
     usage?: TokenUsage;
     price: { price: TokenPrice | null; source: PriceSource | null };
+    /** SpicyAPI: the tasks it was charged under, and the key that made them, to look up its real cost. */
+    taskIds?: string[];
+    apiKey?: string;
   },
 ) {
   const priced = e.usage && e.price.price && e.price.source;
-  await recordLedgerEntry(db, {
+  const platform = platformOf(e.setup);
+  const taskIds = platform === "spicyapi" ? e.taskIds : undefined;
+  const id = await recordLedgerEntry(db, {
     userId: e.userId,
-    platform: platformOf(e.setup),
+    platform,
     job: e.job,
     feature: e.feature,
     model: e.setup.model,
@@ -96,7 +111,10 @@ export async function recordTextCall(
     outputTokens: e.usage?.outputTokens,
     costUsd: priced ? tokenCost(e.price.price!, e.usage!) : null,
     costSource: priced ? COST_SOURCE[e.price.source!] : null,
+    providerTaskIds: taskIds,
   });
+  // The tokens x list price above is a stand-in until the provider's real charge is looked up.
+  if (id !== null && taskIds?.length && e.apiKey) settleSoon(db, id, e.apiKey, taskIds);
 }
 
 const num = (v: unknown) => {
@@ -104,7 +122,11 @@ const num = (v: unknown) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-type SummaryRow = Record<"platform" | "day_cost" | "month_cost" | "all_cost" | "calls" | "month_calls" | "input_tokens" | "output_tokens" | "unpriced_calls", string>;
+type SummaryRow = Record<"platform" | "day_cost" | "month_cost" | "all_cost" | "calls" | "month_calls" | "input_tokens" | "output_tokens" | "unpriced_calls", string> & {
+  // Before migration 0021 these aren't returned.
+  images?: string;
+  month_images?: string;
+};
 
 /** What the person spent with their own keys, per platform. */
 export async function getLedgerSummary(
@@ -128,6 +150,8 @@ export async function getLedgerSummary(
     inputTokens: num(r.input_tokens),
     outputTokens: num(r.output_tokens),
     unpricedCalls: num(r.unpriced_calls),
+    images: num(r.images),
+    monthImages: num(r.month_images),
   }));
 }
 

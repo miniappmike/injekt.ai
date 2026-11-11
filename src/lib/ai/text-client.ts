@@ -38,10 +38,10 @@ export async function getUserTextClient(supabase: SupabaseClient, userId: string
   // Every call is written to the ledger as it finishes.
   const started = Date.now();
   const client = createGuardedClient(backend, key, {
-    onUsage: (usage) => {
+    onUsage: (usage, taskIds) => {
       // How long each call took, in the server logs (Vercel → Logs), so slow models are easy to spot.
       console.info(`[ai] ${feature} · ${cfg.model} · ${((Date.now() - started) / 1000).toFixed(1)}s · ${usage ? `${usage.inputTokens} in / ${usage.outputTokens} out` : "no usage"}`);
-      return recordTextCall(adminClient(), { userId, job: role, feature, setup: cfg, keySource: source, usage, price });
+      return recordTextCall(adminClient(), { userId, job: role, feature, setup: cfg, keySource: source, usage, price, taskIds, apiKey: key });
     },
   });
   return { client, imageMaxEdge: backend.imageMaxEdge, ownKey: !!chosen };

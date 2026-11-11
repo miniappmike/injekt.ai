@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InfoTip } from "@/components/info-tip";
 import { saveSettings, setUserPlan } from "@/app/(app)/admin/actions";
-import type { AdminStats, UserStats } from "@/lib/admin-stats";
+import type { AdminStats, FinanceStats, UserStats } from "@/lib/admin-stats";
+import { featureLabel } from "@/lib/ledger-types";
 import { cn } from "@/lib/utils";
 
 type Config = {
@@ -91,7 +92,6 @@ function CapsForm({ config }: { config: Config }) {
       className="w-24 tabular-nums"
     />
   );
-  const price = c.serverPrice ?? { input: 0, output: 0 };
   return (
     <section className="panel flex flex-col gap-5 p-5" aria-labelledby="caps-title">
       <div>
@@ -125,21 +125,13 @@ function CapsForm({ config }: { config: Config }) {
         </table>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto] [&>*]:min-w-0">
+      <div className="grid gap-4 [&>*]:min-w-0">
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="flex items-center gap-1.5 text-neutral-200">Model on your key <InfoTip label="About the model">The SpicyAPI model your key uses for everyone without their own key: prompt writing, sheet reading and likeness checks.</InfoTip></span>
           <Input value={c.serverModel} onChange={(e) => setC((x) => ({ ...x, serverModel: e.target.value }))} />
         </label>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-neutral-200">$ per 1M input</span>
-          <Input type="number" min={0} step="0.01" value={price.input} onChange={(e) => setC((x) => ({ ...x, serverPrice: { ...price, input: Number(e.target.value) } }))} className="w-28 tabular-nums" />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-neutral-200">$ per 1M output</span>
-          <Input type="number" min={0} step="0.01" value={price.output} onChange={(e) => setC((x) => ({ ...x, serverPrice: { ...price, output: Number(e.target.value) } }))} className="w-28 tabular-nums" />
-        </label>
       </div>
-      <p className="-mt-3 text-xs text-neutral-500">The price is only used to work out costs on this page. Leave both at 0 to use the provider&apos;s reported cost where it gives one.</p>
+      <p className="-mt-3 text-xs text-neutral-500">No prices to enter: every call on SpicyAPI is costed at what SpicyAPI actually charged (see Real costs above).</p>
 
       <div className="flex flex-wrap items-center gap-3">
         <Button
@@ -147,8 +139,8 @@ function CapsForm({ config }: { config: Config }) {
           disabled={pending}
           onClick={() =>
             start(async () => {
-              const p = c.serverPrice && (c.serverPrice.input > 0 || c.serverPrice.output > 0) ? c.serverPrice : null;
-              const r = await saveSettings({ caps: c.caps, serverModel: c.serverModel, serverPrice: p });
+              // Costs come from SpicyAPI's real charges now, so no typed-in price is kept.
+              const r = await saveSettings({ caps: c.caps, serverModel: c.serverModel, serverPrice: null });
               setMsg(r.ok ? { text: "Saved.", ok: true } : { text: r.error, ok: false });
               if (r.ok) router.refresh();
             })
@@ -268,7 +260,128 @@ function UsersTable({ users, caps }: { users: UserStats[]; caps: Config["caps"] 
   );
 }
 
-export function AdminConsole({ config, stats, usageMissing }: { config: Config; stats: AdminStats; usageMissing: boolean }) {
+const tok = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(Math.round(n)));
+const money = (n: number) => (n === 0 ? "$0" : n < 1 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`);
+const th = "py-2 pr-3 font-medium";
+const td = "py-2 pr-3 tabular-nums";
+
+/** Real costs from everyone's ledger, whoever's key paid: what images and text calls actually cost, for pricing. */
+function RealCosts({ f }: { f: FinanceStats }) {
+  return (
+    <section className="panel flex flex-col gap-5 p-5" aria-labelledby="real-title">
+      <div>
+        <h2 id="real-title" className="flex items-center gap-1.5 font-display text-lg font-bold text-neutral-50">
+          Real costs, everyone, last 30 days
+          <InfoTip label="Where these numbers come from">
+            Every AI call anyone makes goes on their ledger. On SpicyAPI the server looks up what each call was actually charged a few seconds after it
+            finishes (and again in the daily cleanup), so these are real charges, not estimates. Until a charge settles, an image shows the amount held for it
+            (the most it can cost) and a text call shows tokens times the list price.
+          </InfoTip>
+        </h2>
+        <p className="text-sm text-neutral-400">
+          All {f.people30} active {f.people30 === 1 ? "person" : "people"}, own keys and yours. {Math.round(f.realShare * 100)}% of calls show SpicyAPI&apos;s final charge.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Tile label="AI spend, everyone" value={money(f.total30)} note={`own keys ${money(f.byok30)} · your key ${money(f.server30)}`} />
+        <Tile label="Images generated" value={String(f.images30)} note={`${money(f.imageCost30)} total${f.failedImages30 ? ` · ${f.failedImages30} failed` : ""}`} />
+        <Tile label="Average per image" value={f.images30 ? money(f.avgImage) : "-"} note="all sizes and models" />
+        <Tile label="Tokens in / out" value={`${tok(f.tokensIn30)} / ${tok(f.tokensOut30)}`} note={`${f.textCalls30} text calls · ${money(f.textCost30)}`} />
+      </div>
+
+      {f.measured.length > 0 && (
+        <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm">
+          <p className="font-semibold text-emerald-200">Measured text prices</p>
+          <ul className="mt-1 flex flex-col gap-0.5 text-neutral-300">
+            {f.measured.map((m) => (
+              <li key={m.model} className="tabular-nums">
+                <span className="text-neutral-400">{m.model}:</span> ${m.input.toFixed(2)} per 1M in · ${m.output.toFixed(2)} per 1M out
+                <span className="text-xs text-neutral-500"> (fitted from {m.calls} settled calls)</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold text-neutral-100">Cost per image</h3>
+        {f.images.length ? (
+          <div className="-mx-5 overflow-x-auto px-5">
+            <table className="w-full min-w-[620px] text-sm">
+              <thead>
+                <tr className="border-b border-neutral-800 text-left text-xs text-neutral-400">
+                  <th className={th}>Model</th>
+                  <th className={th}>Size</th>
+                  <th className={`${th} text-right`}>Images</th>
+                  <th className={`${th} text-right`}>Average</th>
+                  <th className={`${th} text-right`}>Lowest</th>
+                  <th className={`${th} text-right`}>Highest</th>
+                  <th className="py-2 text-right font-medium">Final charge</th>
+                </tr>
+              </thead>
+              <tbody>
+                {f.images.map((g) => (
+                  <tr key={`${g.model}|${g.size}`} className="border-b border-neutral-800/60">
+                    <td className="max-w-[260px] truncate py-2 pr-3 text-neutral-200" title={g.model}>{g.model}</td>
+                    <td className={`${td} text-neutral-200`}>{g.size}</td>
+                    <td className={`${td} text-right text-neutral-200`}>{g.count}</td>
+                    <td className={`${td} text-right font-semibold text-neutral-50`}>{money(g.avg)}</td>
+                    <td className={`${td} text-right text-neutral-400`}>{money(g.min)}</td>
+                    <td className={`${td} text-right text-neutral-400`}>{money(g.max)}</td>
+                    <td className="py-2 text-right text-xs tabular-nums text-neutral-400">{g.settled}/{g.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-neutral-500">No images in the last 30 days.</p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold text-neutral-100">Cost per text job</h3>
+        {f.text.length ? (
+          <div className="-mx-5 overflow-x-auto px-5">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead>
+                <tr className="border-b border-neutral-800 text-left text-xs text-neutral-400">
+                  <th className={th}>Job</th>
+                  <th className={th}>Model</th>
+                  <th className={`${th} text-right`}>Calls</th>
+                  <th className={`${th} text-right`}>Avg tokens in</th>
+                  <th className={`${th} text-right`}>Avg tokens out</th>
+                  <th className={`${th} text-right`}>Avg cost</th>
+                  <th className={`${th} text-right`}>Total</th>
+                  <th className="py-2 text-right font-medium">Real charge</th>
+                </tr>
+              </thead>
+              <tbody>
+                {f.text.map((g) => (
+                  <tr key={`${g.feature}|${g.model}`} className="border-b border-neutral-800/60">
+                    <td className="py-2 pr-3 text-neutral-200">{featureLabel(g.feature)}</td>
+                    <td className="max-w-[220px] truncate py-2 pr-3 text-xs text-neutral-400" title={g.model}>{g.model}</td>
+                    <td className={`${td} text-right text-neutral-200`}>{g.calls}</td>
+                    <td className={`${td} text-right text-neutral-200`}>{tok(g.avgIn)}</td>
+                    <td className={`${td} text-right text-neutral-200`}>{tok(g.avgOut)}</td>
+                    <td className={`${td} text-right font-semibold text-neutral-50`}>{money(g.avgCost)}</td>
+                    <td className={`${td} text-right text-neutral-200`}>{money(g.total)}</td>
+                    <td className="py-2 text-right text-xs tabular-nums text-neutral-400">{g.real}/{g.calls}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-neutral-500">No text calls in the last 30 days.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+export function AdminConsole({ config, stats, finance, usageMissing }: { config: Config; stats: AdminStats; finance: FinanceStats; usageMissing: boolean }) {
   const payingUsers = stats.users.filter((u) => u.server30 > 0).length;
   return (
     <div className="mt-6 flex flex-col gap-5">
@@ -284,10 +397,11 @@ export function AdminConsole({ config, stats, usageMissing }: { config: Config; 
         <Tile
           label="Month at this pace"
           value={usd(stats.projectedMonth)}
-          note={stats.unpricedCalls30 ? `${stats.unpricedCalls30} calls had no price: set one below` : "based on the last 7 days"}
+          note={stats.unpricedCalls30 ? `${stats.unpricedCalls30} calls had no price yet` : "based on the last 7 days"}
           tone={stats.unpricedCalls30 ? "warn" : undefined}
         />
       </div>
+      <RealCosts f={finance} />
       <SpendChart daily={stats.daily} />
       <CapsForm config={config} />
       <UsersTable users={stats.users} caps={config.caps} />

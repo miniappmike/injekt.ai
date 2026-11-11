@@ -7,6 +7,8 @@ export interface TextResult {
   usage?: TokenUsage;
   /** The reply hit the output limit and stops mid-way. */
   truncated?: boolean;
+  /** SpicyAPI: the task each request was charged under (X-Spicy-Task-Id), to look up its real cost. */
+  taskIds?: string[];
 }
 
 // Raw text/vision backend. The guard is already in the text; `system` is only for callers that need one.

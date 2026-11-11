@@ -134,3 +134,167 @@ export function summarize(ledger: LedgerRow[], usage: UsageRow[], users: UserRow
     users: list,
   };
 }
+
+/** One ledger row as the finance view reads it: every call by everyone, whoever's key paid. */
+export interface FinanceRow {
+  user_id: string;
+  created_at: string;
+  key_source: "byok" | "server";
+  platform?: string;
+  job?: string;
+  feature?: string;
+  model?: string | null;
+  status?: "succeeded" | "failed";
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  cost_usd: number | string;
+  cost_known?: boolean;
+  cost_source?: string | null;
+  cost_settled?: boolean;
+  generation_id?: string | null;
+}
+
+export interface ImageCostRow {
+  model: string;
+  size: string;
+  count: number;
+  avg: number;
+  min: number;
+  max: number;
+  /** How many of them have SpicyAPI's final charge (the rest are the amount held, the most it can charge). */
+  settled: number;
+}
+export interface TextCostRow {
+  feature: string;
+  model: string;
+  calls: number;
+  avgIn: number;
+  avgOut: number;
+  avgCost: number;
+  total: number;
+  /** How many have the provider's real charge (the rest are tokens x list price). */
+  real: number;
+}
+export interface FinanceStats {
+  total30: number;
+  byok30: number;
+  server30: number;
+  people30: number;
+  textCalls30: number;
+  tokensIn30: number;
+  tokensOut30: number;
+  textCost30: number;
+  images30: number;
+  failedImages30: number;
+  imageCost30: number;
+  avgImage: number;
+  /** Share of all calls whose cost is the provider's final charge. */
+  realShare: number;
+  images: ImageCostRow[];
+  text: TextCostRow[];
+  /** What a model's text calls really cost per million tokens, fitted from the settled charges. */
+  measured: { model: string; input: number; output: number; calls: number }[];
+}
+
+/**
+ * Real costs across everyone's ledger over the last 30 days, for pricing: every call counts, whoever's key paid.
+ * `sizes` maps a generation id to its image size (1k, 1.5k, 2k).
+ */
+export function finances(rows: FinanceRow[], sizes: Map<string, string>, now = Date.now()): FinanceStats {
+  const since = now - 30 * DAY;
+  let total30 = 0, byok30 = 0, server30 = 0, textCalls30 = 0, tokensIn30 = 0, tokensOut30 = 0, textCost30 = 0;
+  let images30 = 0, failedImages30 = 0, imageCost30 = 0, pricedImages = 0, real = 0, n = 0;
+  const people = new Set<string>();
+  const img = new Map<string, ImageCostRow>();
+  const txt = new Map<string, TextCostRow & { inSum: number; outSum: number }>();
+  const fit = new Map<string, { sxx: number; sxy: number; syy: number; sxc: number; syc: number; n: number }>();
+
+  for (const r of rows) {
+    const t = Date.parse(r.created_at);
+    if (!Number.isFinite(t) || t < since) continue;
+    const cost = num(r.cost_usd);
+    const isReal = r.cost_source === "provider" && (r.job !== "image" || r.cost_settled !== false);
+    n++;
+    if (isReal) real++;
+    people.add(r.user_id);
+    total30 += cost;
+    if (r.key_source === "server") server30 += cost;
+    else byok30 += cost;
+    const model = r.model ?? "unknown";
+
+    if (r.job === "image") {
+      if (r.status === "failed") {
+        failedImages30++;
+        imageCost30 += cost;
+        continue;
+      }
+      images30++;
+      imageCost30 += cost;
+      if (r.cost_known === false) continue;
+      pricedImages++;
+      const size = (r.generation_id && sizes.get(r.generation_id)) || "?";
+      const k = `${model}|${size}`;
+      const g = img.get(k) ?? { model, size, count: 0, avg: 0, min: Infinity, max: 0, settled: 0 };
+      g.count++;
+      g.avg += cost; // a sum until the end
+      g.min = Math.min(g.min, cost);
+      g.max = Math.max(g.max, cost);
+      if (r.cost_settled) g.settled++;
+      img.set(k, g);
+      continue;
+    }
+
+    textCalls30++;
+    const tin = r.input_tokens ?? 0;
+    const tout = r.output_tokens ?? 0;
+    tokensIn30 += tin;
+    tokensOut30 += tout;
+    textCost30 += cost;
+    const feature = r.feature ?? "other";
+    const k = `${feature}|${model}`;
+    const g = txt.get(k) ?? { feature, model, calls: 0, avgIn: 0, avgOut: 0, avgCost: 0, total: 0, real: 0, inSum: 0, outSum: 0 };
+    g.calls++;
+    g.inSum += tin;
+    g.outSum += tout;
+    g.total += cost;
+    if (isReal) g.real++;
+    txt.set(k, g);
+    // Settled charges with token counts are what the per-million price is fitted from.
+    if (isReal && (tin || tout)) {
+      const f = fit.get(model) ?? { sxx: 0, sxy: 0, syy: 0, sxc: 0, syc: 0, n: 0 };
+      const x = tin / 1e6, y = tout / 1e6;
+      f.sxx += x * x; f.sxy += x * y; f.syy += y * y; f.sxc += x * cost; f.syc += y * cost; f.n++;
+      fit.set(model, f);
+    }
+  }
+
+  const measured: FinanceStats["measured"] = [];
+  for (const [model, f] of fit) {
+    const det = f.sxx * f.syy - f.sxy * f.sxy;
+    if (f.n < 5 || det <= 0) continue;
+    const input = (f.sxc * f.syy - f.syc * f.sxy) / det;
+    const output = (f.syc * f.sxx - f.sxc * f.sxy) / det;
+    if (input >= 0 && output >= 0) measured.push({ model, input, output, calls: f.n });
+  }
+
+  return {
+    total30,
+    byok30,
+    server30,
+    people30: people.size,
+    textCalls30,
+    tokensIn30,
+    tokensOut30,
+    textCost30,
+    images30,
+    failedImages30,
+    imageCost30,
+    avgImage: pricedImages ? [...img.values()].reduce((s, g) => s + g.avg, 0) / pricedImages : 0,
+    realShare: n ? real / n : 0,
+    images: [...img.values()].map((g) => ({ ...g, avg: g.avg / g.count })).sort((a, b) => b.count - a.count),
+    text: [...txt.values()]
+      .map(({ inSum, outSum, ...g }) => ({ ...g, avgIn: inSum / g.calls, avgOut: outSum / g.calls, avgCost: g.total / g.calls }))
+      .sort((a, b) => b.total - a.total),
+    measured: measured.sort((a, b) => b.calls - a.calls),
+  };
+}

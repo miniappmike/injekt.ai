@@ -43,6 +43,8 @@ async function post(
   headers: Record<string, string>,
   body: { model: string } & Record<string, unknown>,
   apiKey: string,
+  /** Collects the SpicyAPI task id each request was charged under. */
+  taskIds?: string[],
 ) {
   let res: Response;
   try {
@@ -56,6 +58,8 @@ async function post(
   } catch {
     throw new ProviderError(provider, 0, `${provider} did not respond in time. Try again.`);
   }
+  const taskId = res.headers.get("x-spicy-task-id");
+  if (taskIds && taskId) taskIds.push(taskId);
   const json = await res.json().catch(() => null);
   if (!res.ok) {
     const detail = String(json?.error?.message ?? json?.message ?? res.statusText ?? "");
@@ -170,6 +174,7 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
     imageMaxEdge: 768,
     async complete({ system, text, images = [], apiKey }) {
       await assertPublicHttpsUrl(baseUrl);
+      const taskIds: string[] = [];
       const ask = (effort: SpicyEffort) =>
         post(
           "spicyapi",
@@ -188,6 +193,7 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
             ],
           },
           apiKey,
+          taskIds,
         );
       let json = await ask(effort);
       let r = readChoice("spicyapi", json);
@@ -200,7 +206,7 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
         usage = usage && again ? { inputTokens: usage.inputTokens + again.inputTokens, outputTokens: usage.outputTokens + again.outputTokens } : (again ?? usage);
       }
       if ("empty" in r) throw emptyReplyError("spicyapi", model, r);
-      return { text: r.text, usage, truncated: r.truncated };
+      return { text: r.text, usage, truncated: r.truncated, taskIds };
     },
   };
 }

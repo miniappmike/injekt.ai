@@ -3,6 +3,7 @@ import { env } from "@/env";
 import { adminClient } from "@/lib/supabase/admin";
 import { cleanupExpiredGenerations, isAuthorizedCron } from "@/lib/cleanup";
 import { repairUncopiedPurchases } from "@/lib/marketplace/purchase";
+import { settlePendingLedger } from "@/lib/ledger-sweep";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -17,7 +18,9 @@ export async function GET(req: Request) {
     const generations = await cleanupExpiredGenerations(adminClient());
     // Purchases whose files didn't all reach the buyer's folder get another try. Never fails the cleanup.
     const purchases = await repairUncopiedPurchases().catch(() => ({ repaired: 0, failed: 0 }));
-    return NextResponse.json({ ok: true, ...generations, purchases });
+    // Ledger rows still showing an estimate get SpicyAPI's final charge. Never fails the cleanup.
+    const ledger = await settlePendingLedger(adminClient()).catch(() => ({ settled: 0, pending: 0 }));
+    return NextResponse.json({ ok: true, ...generations, purchases, ledger });
   } catch (e) {
     console.error("cleanup failed", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "cleanup failed" }, { status: 500 });

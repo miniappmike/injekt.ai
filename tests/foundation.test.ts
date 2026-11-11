@@ -69,11 +69,11 @@ describe("SCOPE guard", () => {
     });
     const client = createGuardedClient({ id: "x", complete: async () => ({ text: "done", usage: { inputTokens: 10, outputTokens: 2 } }) }, "k", { onUsage });
     expect(await client.run({ prompt: "t" })).toBe("done");
-    expect(onUsage).toHaveBeenCalledWith({ inputTokens: 10, outputTokens: 2 });
+    expect(onUsage).toHaveBeenCalledWith({ inputTokens: 10, outputTokens: 2 }, undefined);
 
     const seen = vi.fn();
     const quiet = createGuardedClient({ id: "x", complete: async () => ({ text: "ok" }) }, "k", { onUsage: seen });
     await quiet.run({ prompt: "t" });
-    expect(seen).toHaveBeenCalledWith(undefined); // still counted as a call
+    expect(seen).toHaveBeenCalledWith(undefined, undefined); // still counted as a call
   });
 });
