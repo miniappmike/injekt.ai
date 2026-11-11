@@ -17,7 +17,7 @@ describe("reference sheet prompts (A13b)", () => {
   it("the face sheet is a short, plain prompt: two rows of three, no text, no accessories", () => {
     const p = sheetPrompts(false, false).face;
     expect(p).toBe(
-      "Give me a no text face reference sheet of the woman in @image1. One row she makes a straight, neutral face looking forward, then at 45 degrees, then in side profile. Next row she is smiling with realistic, non-perfect human teeth, forward, then at 45 degrees, then in side profile. She is bare shoulders and up, with no accessories and no earrings.",
+      "Give me a no text, borderless face reference sheet of the woman in @image1, with no boxes, frames or borders around the portraits. One row she makes a straight, neutral face looking forward, then at 45 degrees, then in side profile. Next row she is smiling with realistic, non-perfect human teeth, forward, then at 45 degrees, then in side profile. She is bare shoulders and up, with no accessories and no earrings.",
     );
     expect(sheetPrompts(true, 3).face).toBe(p);
   });
@@ -26,6 +26,9 @@ describe("reference sheet prompts (A13b)", () => {
     for (const hasSheet of [false, true]) {
       const { face, body } = sheetPrompts(hasSheet, 3, { outfit: "custom", outfitText: "a red dress" });
       expect(body).toContain("No earrings or necklaces.");
+      // Borderless: the views are never put in boxes.
+      expect(body).toContain("borderless: no boxes, frames, borders or panel outlines around any view");
+      expect(body).not.toContain("gutters");
       expect(face).toContain("no accessories and no earrings");
       for (const p of [face, body]) expect(p.toLowerCase()).not.toContain("piercing");
     }
