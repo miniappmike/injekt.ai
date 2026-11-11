@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useApp } from "@/components/app-context";
 import { toggleGeneration } from "@/app/(app)/settings/api-keys/actions";
 import { cn } from "@/lib/utils";
+import { GET_KEY_PATH } from "@/lib/links";
 
 const item =
   "block w-full rounded-md px-3 py-2 text-left text-sm text-neutral-200 hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none";
@@ -148,6 +149,7 @@ export function ProfileMenu({ email, admin = false }: { email: string; admin?: b
               <div role="separator" className="my-1 border-t border-neutral-800" />
               <Link href="/ledger" role="menuitem" onClick={close} className={item}>Ledger</Link>
               <Link href="/settings/api-keys" role="menuitem" onClick={close} className={item}>Settings</Link>
+              <Link href={GET_KEY_PATH} role="menuitem" onClick={close} className={item}>Get an API key</Link>
               {admin && <Link href="/admin" role="menuitem" onClick={close} className={item}>Admin</Link>}
               <form action="/auth/signout" method="post" className="mt-1 border-t border-neutral-800 pt-1">
                 <button type="submit" role="menuitem" className={item}>Log out</button>

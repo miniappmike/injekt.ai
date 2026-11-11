@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RoleKeyForm, type SavedRole, type ShareSource } from "@/components/key-form";
 import { requireUser } from "@/lib/auth";
 import { GenerationToggle } from "@/components/generation-toggle";
+import { GetKeyCard } from "@/components/get-key-card";
 import { generationState } from "@/lib/generation-access";
 import { PROVIDER_LABELS } from "@/lib/ai/providers/detect";
 import { effectiveRole, isShared, providerSupports, readRoles, ROLES, type RoleId } from "@/lib/ai/roles";
@@ -40,6 +41,8 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           <b className="text-neutral-200">with no daily limit</b>. Paste a key and we work out the provider. Keys are encrypted, and only the last 4 characters are ever shown.
         </p>
       </section>
+      {/* Until they have a key that can make images: where to get one. */}
+      {!generationState(settings?.prefs).hasImageKey && <GetKeyCard className="mt-4" />}
       <div className="mt-4 flex flex-col gap-4">
         {ROLES.map((r) => {
           const cfg = roles[r.id];

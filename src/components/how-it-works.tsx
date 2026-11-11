@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useGeneration } from "@/components/app-context";
-import { GENERATOR } from "@/lib/links";
 
 const KEY = "ms.howItWorksHidden";
 
@@ -24,7 +23,7 @@ export function HowItWorks() {
     { title: "Add a photo", body: "Any photo with the pose, outfit and scene you want her in." },
     generation
       ? { title: "Write, then generate", body: "Press Write prompts, then Generate, or copy the prompt to use anywhere." }
-      : { title: `Copy it to ${GENERATOR.name}`, body: "Press Write prompts, then Copy & open. Attach the images shown, in order, and paste." },
+      : { title: "Copy the prompt", body: "Press Write prompts, then Copy prompt, and paste it into your image generator with the images shown, in order." },
   ];
   return (
     <section aria-label="How it works" className="panel relative mt-5 animate-fade-up p-4 max-sm:mt-3 max-sm:rounded-2xl max-sm:p-3">

@@ -4,8 +4,10 @@
  */
 export const SPICYAPI_REFERRAL_URL = process.env.NEXT_PUBLIC_SPICYAPI_REFERRAL_URL || "https://spicyapi.ai/?ref=yjqgtzd1";
 
-/** Where "Copy & open" sends people to paste a prompt: SpicyAPI, through the referral link. */
-export const GENERATOR = {
-  name: "SpicyAPI",
-  url: SPICYAPI_REFERRAL_URL,
-};
+/** The guide to getting your own SpicyAPI key (the page every "Get an API key" link opens). */
+export const GET_KEY_PATH = "/get-a-key";
+/** The Image generation switch in Settings. */
+export const GENERATION_SETTINGS_PATH = "/settings/api-keys#image-generation";
+
+/** Said wherever the referral link is offered. */
+export const REFERRAL_DISCLOSURE = "Model Spawn earns a small referral commission if you sign up to SpicyAPI through our link. It costs you nothing extra.";

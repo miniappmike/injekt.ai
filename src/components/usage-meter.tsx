@@ -6,6 +6,7 @@ import { getDailyUsage } from "@/app/(app)/usage/actions";
 import { USAGE_EVENT } from "@/lib/panel-events";
 import type { DailyStatus } from "@/lib/daily-limits";
 import { cn } from "@/lib/utils";
+import { GET_KEY_PATH } from "@/lib/links";
 
 const left = (x: { used: number; limit: number | null }) => (x.limit == null ? null : Math.max(0, x.limit - x.used));
 
@@ -77,8 +78,8 @@ export function UsageMeter() {
             </ul>
           )}
           {!s.ownKey && (
-            <Link href="/settings/api-keys" onClick={() => setOpen(false)} className="mt-3 inline-block text-xs font-semibold text-brand-400 hover:text-brand-300">
-              Use your own AI key for unlimited prompts →
+            <Link href={GET_KEY_PATH} onClick={() => setOpen(false)} className="mt-3 inline-block text-xs font-semibold text-brand-400 hover:text-brand-300">
+              Get your own API key for unlimited prompts →
             </Link>
           )}
         </div>
