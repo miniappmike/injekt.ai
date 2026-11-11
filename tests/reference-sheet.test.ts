@@ -23,6 +23,16 @@ describe("reference sheet prompts (A13b)", () => {
     expect(p.endsWith("No text, labels, numbers, arrows, logos or watermarks anywhere.")).toBe(true);
   });
 
+  it("both sheets always remove earrings and necklaces", () => {
+    for (const hasSheet of [false, true]) {
+      const { face, body } = sheetPrompts(hasSheet, 3, { outfit: "custom", outfitText: "a gold necklace and hoop earrings" });
+      for (const p of [face, body]) {
+        expect(p).toContain("JEWELLERY, always: no earrings, necklaces");
+        expect(p).toContain("remove them completely and show bare ears and a bare neck");
+      }
+    }
+  });
+
   it("the turnaround takes her face from @image1 and her body from one or two body photos", () => {
     const one = sheetPrompts(true, false).body;
     expect(one).toContain("of the woman in @image1 (her face reference sheet), with her body taken from @image2 (body reference). Wide 16:9 layout");
