@@ -27,19 +27,18 @@ describe("reference sheet prompts (A13b)", () => {
       const { face, body } = sheetPrompts(hasSheet, 3, { outfit: "custom", outfitText: "a red dress" });
       expect(body).toContain("No earrings or necklaces.");
       // Borderless: the views are never put in boxes.
-      expect(body).toContain("borderless: no boxes, frames, borders or panel outlines around any view");
-      // The four close-up portraits keep their thin white gutters; everything is uncropped.
-      expect(body).toContain("separated by thin white gutters");
-      expect(body).toContain("four uncropped full-body views");
-      expect(body).toContain("uncropped, with nothing cut off at the edges");
-      expect(face).toContain("no accessories and no earrings");
-      for (const p of [face, body]) expect(p.toLowerCase()).not.toContain("piercing");
+      expect(body).toContain("borderless with no boxes, frames or outlines");
+      // Four full-length panels in one row with thin white gutters, uncropped, and no separate portrait grid.
+      expect(body).toContain("Four uncropped full-body views side by side in one row, separated by thin white vertical gutters");
+      expect(body).toContain("nothing cut off at the edges");
+      expect(body).not.toContain("2 by 2");
+      expect(body).not.toContain("Right third");
     }
   });
 
   it("the turnaround takes her face from @image1 and her body from one or two body photos", () => {
     const one = sheetPrompts(true, false).body;
-    expect(one).toContain("of the woman in @image1 (her face reference sheet), with her body taken from @image2 (body reference). Wide 16:9 layout");
+    expect(one).toContain("of the woman in @image1 (her face reference sheet), with her body taken from @image2 (body reference). Four uncropped full-body views side by side in one row, separated by thin white vertical gutters");
     expect(one).toContain("proportions and height exactly as in @image2, shown in a neutral");
     expect(one).toContain("Outfit in all four views: a plain fitted white athletic-fit crop top and matching plain white athletic-fit shorts, with bare feet.");
     expect(one).toContain(" Do not beautify, slim, age or change her. ");
@@ -66,7 +65,7 @@ describe("reference sheet prompts (A13b)", () => {
   });
 
   it("makes each sheet in a shape the image model accepts", () => {
-    expect(SHEET_ASPECT_RATIO).toEqual({ face: "3:2", body: "16:9" });
+    expect(SHEET_ASPECT_RATIO).toEqual({ face: "3:2", body: "1:1" });
     for (const shape of Object.values(SHEET_ASPECT_RATIO)) expect(IMAGE_ASPECT_RATIOS).toContain(shape);
   });
 });

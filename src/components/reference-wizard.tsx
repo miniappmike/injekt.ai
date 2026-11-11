@@ -464,7 +464,7 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
         <StepCard
           n={4}
           title={generation ? "Make the reference sheet" : "Your reference sheet prompt"}
-          intro={`${character.name}'s face from ${face?.isSheet ? "her face sheet" : "her photo"} goes onto the body in your photos, turned around front, side and back, with four close-up portraits.`}
+          intro={`${character.name}'s face from ${face?.isSheet ? "her face sheet" : "her photo"} goes onto the body in your photos, shown in four views: front, three-quarter, side and back.`}
         >
           {generation ? (
             face && bodies.length ? (
