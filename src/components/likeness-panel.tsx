@@ -57,13 +57,17 @@ export function FixRun({
  * scores, what was hidden, and buttons to fix it. With `original`, this image is a fix and gets a verdict.
  */
 export function LikenessPanel({ characterId, image, original, frame }: { characterId: string; image: ImageRef; original?: ImageRef; frame?: string }) {
+  // Nothing runs until they ask: a check costs a vision call.
+  const [started, setStarted] = useState(false);
   const [state, setState] = useState<{ busy: boolean; result?: QuickLikeness; error?: string }>({ busy: true });
   const [fix, setFix] = useState<null | "likeness_fix" | "face_fix">(null);
   const [faceOpts, setFaceOpts] = useState<{ open: boolean; hair: boolean; note: string }>({ open: false, hair: false, note: "" });
   const [faceRun, setFaceRun] = useState<{ hair: boolean; note: string } | null>(null);
 
   useEffect(() => {
+    if (!started) return;
     let alive = true;
+    setState({ busy: true });
     void quickLikeness({ characterId, image, original }).then((r) => {
       usageChanged();
       if (!alive) return;
@@ -74,8 +78,16 @@ export function LikenessPanel({ characterId, image, original, frame }: { charact
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [characterId, image.generationId, image.path]);
+  }, [started, characterId, image.generationId, image.path]);
 
+  if (!started)
+    return (
+      <div>
+        <Button type="button" size="sm" variant="secondary" onClick={() => setStarted(true)}>
+          {original ? "Check if it got closer to her" : "Check likeness"}
+        </Button>
+      </div>
+    );
   if (state.busy) return <p className="text-xs text-neutral-500" role="status">Checking the likeness…</p>;
   if (state.error) {
     return (
