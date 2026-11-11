@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { checkImageGeneration } from "@/app/(app)/generate/actions";
 
 const POLL_MS = 4000;
@@ -125,11 +126,11 @@ export function GenerationTray() {
                 ) : (
                   <div
                     title={i.state === "failed" ? i.error : i.label}
-                    className={`flex h-20 w-20 items-center justify-center rounded-lg px-1 text-center text-xs ${
+                    className={`flex h-20 w-20 flex-col items-center justify-center gap-1.5 rounded-lg px-1 text-center text-[11px] leading-tight ${
                       i.state === "failed" ? "bg-red-950/70 text-red-300 ring-1 ring-red-500/30" : "skeleton text-neutral-300 ring-1 ring-brand-500/30"
                     }`}
                   >
-                    {i.state === "failed" ? "Failed" : "Generating..."}
+                    {i.state === "failed" ? "Failed" : (<><Spinner className="h-5 w-5 text-brand-400" />Generating</>)}
                   </div>
                 )}
               </li>
