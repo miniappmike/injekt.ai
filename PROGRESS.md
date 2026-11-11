@@ -319,3 +319,7 @@ run twice.
 6. `supabase/migrations/0017_listing_likes.sql`: public hearts on personas.
 7. `supabase/migrations/0018_listing_views_rank.sql`: persona page views and the Virality Rank.
 8. `supabase/migrations/0019_views_every_click.sql`: every page visit counts as a view.
+9. `supabase/migrations/0020_group_photo.sql`: allows the `group_photo` generation kind.
+
+## Group photo
+On the Characters page, shown only when image generation is on (and disabled until there are 2 characters with references). It turns the cards into a picker for 2 to 4 characters. A dock shows who is picked, and Continue opens a composer for creative direction and Generate. The server (`group_photo` kind, `groupJob` in generation-job, prompt in `src/lib/ai/prompts/group.ts`) sends each character's references in turn, an even share of the 10-image limit with at most 3 each (face close-up and full body from her pack, else her sheet, else photos). Each character gets a named identity block, and the person's direction goes in as the scene to follow closely. The characters are saved in `generations.params.group_ids`.
