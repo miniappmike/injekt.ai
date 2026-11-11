@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { useGeneration } from "@/components/app-context";
 import { InfoTip } from "@/components/info-tip";
 import { Spinner } from "@/components/ui/spinner";
-import { checkImageGeneration, quoteImageGeneration, startImageGeneration } from "@/app/(app)/generate/actions";
+import { checkImageGeneration, findGenerationByRef, quoteImageGeneration, startImageGeneration } from "@/app/(app)/generate/actions";
+import { awaitOrRecover } from "@/lib/recoverable";
+import type { AiFailure } from "@/lib/ai/failure";
 import { openHistory, reportGeneration, viewImage } from "@/lib/panel-events";
 import { featureLabel } from "@/lib/ledger-types";
 import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
@@ -144,7 +146,12 @@ function GenerateImageInner({
     // Every press shows up in the tray at the bottom of the page.
     const tray = { key: crypto.randomUUID(), label: featureLabel(`image:${kind}`), prompt };
     reportGeneration({ ...tray, state: "generating" });
-    const started = await startImageGeneration(request);
+    // If the answer is lost (Safari in the background), find the job by this press's id instead of hanging.
+    const clientRef = crypto.randomUUID();
+    const started = await awaitOrRecover(startImageGeneration({ ...request, clientRef }), async () => {
+      const r = await findGenerationByRef(clientRef);
+      return r.generationId ? { ok: true as const, generationId: r.generationId, free: false } : null;
+    }, { firstCheckMs: 20_000, timeoutMs: 2 * 60_000 }).catch((e: unknown): AiFailure => ({ ok: false, error: e instanceof Error ? e.message : "Couldn't start the image. Try again." }));
     if (!started.ok) {
       reportGeneration({ ...tray, state: "failed", error: started.error });
       if (started.reason) reportModelRefused({ reason: started.reason, model: pageModel ?? null });
