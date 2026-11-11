@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ProGem } from "@/components/pro-badge";
+import { ProBadge } from "@/components/pro-badge";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useApp } from "@/components/app-context";
@@ -116,8 +116,26 @@ export function ProfileMenu({ email, admin = false }: { email: string; admin?: b
       {open && (
         <div id={menuId} className="absolute right-0 top-full z-30 pt-1 sm:left-1/2 sm:right-auto sm:-translate-x-1/2">
           {/* Focusable so that clicking its non-link parts keeps focus inside, which would otherwise close the menu. */}
-          <div tabIndex={-1} className="min-w-60 origin-top animate-pop-in max-sm:origin-top-right rounded-xl border border-neutral-800 bg-neutral-900/95 p-1.5 shadow-[0_20px_50px_-15px_rgb(0_0_0/0.9)] backdrop-blur-xl focus:outline-none">
-            <p className="truncate px-3 py-2 text-xs text-neutral-500" title={email}>Signed in as {email}</p>
+          <div tabIndex={-1} className="w-72 max-w-[calc(100vw-2rem)] origin-top animate-pop-in max-sm:origin-top-right rounded-xl border border-neutral-800 bg-neutral-900/95 p-1.5 shadow-[0_20px_50px_-15px_rgb(0_0_0/0.9)] backdrop-blur-xl focus:outline-none">
+            <div className="flex items-center justify-between gap-3 px-3 py-2">
+              <p className="min-w-0 truncate text-xs text-neutral-500" title={email}>Signed in as {email}</p>
+              {/* Free accounts: the way to the Pro page. Pro accounts just see their badge. */}
+              {pro ? (
+                <ProBadge className="shrink-0" />
+              ) : (
+                <Link
+                  href="/upgrade"
+                  onClick={close}
+                  className="flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-[#ff5fa2] to-[#f92776] py-1 pl-1.5 pr-2.5 text-xs font-bold text-white shadow-[0_6px_16px_-6px_rgb(249_39_118/0.8)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
+                >
+                  {/* On the pink badge the sparkle is drawn in the page's background colour. */}
+                  <svg viewBox="0 0 16 16" aria-hidden="true" className="h-3.5 w-3.5 fill-neutral-950">
+                    <path d="M8 1c.5 3.3 2.2 5 5.5 5.5C10.2 7 8.5 8.7 8 12c-.5-3.3-2.2-5-5.5-5.5C5.8 6 7.5 4.3 8 1Z" />
+                  </svg>
+                  Upgrade
+                </Link>
+              )}
+            </div>
             {genNote && <p role="alert" className="px-3 pb-1 text-xs text-red-400">{genNote}</p>}
             <div role="menu" aria-label="Profile">
               {/* Image generation: shows whether it's on and flips it in one click. */}
@@ -143,11 +161,6 @@ export function ProfileMenu({ email, admin = false }: { email: string; admin?: b
               </button>
               <div role="separator" className="my-1 border-t border-neutral-800" />
               <Link href="/tokens" role="menuitem" onClick={close} className={item}>Tokens</Link>
-              {!pro && (
-                <Link href="/upgrade" role="menuitem" onClick={close} className={cn(item, "flex items-center gap-2 font-semibold text-[#ff8fc0]")}>
-                  <ProGem className="h-5 w-5" glow={false} /> Upgrade to Pro
-                </Link>
-              )}
               <Link href="/ledger" role="menuitem" onClick={close} className={item}>Ledger</Link>
               <Link href="/settings/api-keys" role="menuitem" onClick={close} className={item}>Settings</Link>
               {/* Only until they have a key; after that the guide stays in the footer. */}
