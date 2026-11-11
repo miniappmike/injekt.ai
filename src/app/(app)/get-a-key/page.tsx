@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GENERATION_SETTINGS_PATH, REFERRAL_DISCLOSURE, SPICYAPI_REFERRAL_URL } from "@/lib/links";
+import { GuideChapters, GuideStepper, GuideTimeline } from "@/components/key-guide/variants";
 
 export const metadata = { title: "Get an API key" };
 
@@ -7,7 +8,12 @@ export const metadata = { title: "Get an API key" };
  * The guide to getting your own SpicyAPI key. Every "Get an API key" link on the site opens it. The step-by-step guide
  * with screenshots goes here; until then it offers the referral link and the way back to Settings.
  */
-export default function GetAKeyPage() {
+export default async function GetAKeyPage({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
+  // Temporary: ?v=a, b or c shows one of the three guide layouts to choose from.
+  const { v } = await searchParams;
+  if (v === "a") return <GuideTimeline />;
+  if (v === "b") return <GuideChapters />;
+  if (v === "c") return <GuideStepper />;
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="page-title">Get your own API key</h1>
