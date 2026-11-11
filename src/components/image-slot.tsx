@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { clipboardImages, usePasteTarget } from "@/components/paste-router";
 import { Button } from "@/components/ui/button";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { requestUpload, removeCharacterImage, removePendingImage } from "@/app/(app)/characters/media-actions";
@@ -100,10 +101,13 @@ export function ImageSlot({
   }
 
   const full = max > 1 && current.length >= max;
+  const box = useRef<HTMLDivElement>(null);
+  usePasteTarget(box, (f) => void add(f), full || busy);
   return (
     <div
+      ref={box}
       className="flex min-w-0 flex-col gap-2 dropzone p-4 max-sm:p-3"
-      onPaste={(e) => add(e.clipboardData.files)}
+      onPaste={(e) => add(clipboardImages(e.clipboardData))}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();

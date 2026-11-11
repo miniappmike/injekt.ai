@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { clipboardImages, usePasteTarget } from "@/components/paste-router";
 import { readClipboardImages } from "@/lib/clipboard";
 import { PasteIcon, UploadIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,8 @@ export function ImageDrop({
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [pasteError, setPasteError] = useState<string>();
+  const box = useRef<HTMLElement>(null);
+  usePasteTarget(box, (f) => take(f), disabled);
   const take = (files: FileList | File[] | null) => {
     const f = files && Array.from(files).find((x) => x.type.startsWith("image/"));
     if (f) onPick(f);
@@ -52,6 +55,7 @@ export function ImageDrop({
   );
   return (
     <section
+      ref={box}
       className={`dropzone group min-w-0 cursor-pointer ${tile ? "flex flex-col gap-2.5 p-3 max-sm:gap-1.5 max-sm:rounded-2xl max-sm:p-1.5" : "flex items-center gap-4 p-3 max-sm:gap-3 max-sm:p-2.5"} ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
       tabIndex={0}
       onClick={open}
@@ -61,7 +65,7 @@ export function ImageDrop({
           open();
         }
       }}
-      onPaste={(e) => take(e.clipboardData.files)}
+      onPaste={(e) => take(clipboardImages(e.clipboardData))}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();

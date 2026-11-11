@@ -15,6 +15,7 @@ import { useGeneration } from "@/components/app-context";
 import { InfoTip } from "@/components/info-tip";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
+import { clipboardImages, usePasteTarget } from "@/components/paste-router";
 import { cleanOverlays, deleteOutfit, extractOutfit, saveOutfit, warmSheetPack, writeInjectPrompts, writeInjectStandalone } from "@/app/(app)/inject/actions";
 import type { StandalonePrompt } from "@/lib/inject-standalone";
 import type { SavedOutfit } from "@/lib/outfits";
@@ -172,19 +173,9 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
     }
   }
 
-  // Ctrl+V anywhere on the page adds the copied photo as a target (not while typing in a box).
-  useEffect(() => {
-    const onPaste = (e: ClipboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (running || t?.closest("input, textarea, [contenteditable=true], [aria-label='Target images']")) return;
-      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
-      if (!files.length) return;
-      e.preventDefault();
-      addFiles(files);
-    };
-    document.addEventListener("paste", onPaste);
-    return () => document.removeEventListener("paste", onPaste);
-  });
+  // Ctrl+V anywhere on the page (not while typing) adds the copied photo as a target: the box is the page's paste target.
+  const targetBox = useRef<HTMLElement>(null);
+  usePasteTarget(targetBox, (f) => addFiles(f), running);
 
   async function ensureUploaded(t: Target): Promise<string | null> {
     if (t.path) return t.path;
@@ -425,6 +416,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
         </section>
 
         <section
+          ref={targetBox}
           className="dropzone group flex cursor-pointer flex-col gap-2 p-4 max-sm:order-first max-sm:rounded-3xl max-sm:border-solid max-sm:border-neutral-800 max-sm:bg-[radial-gradient(120%_140%_at_100%_0%,rgb(232_38_94/0.28),transparent_55%),radial-gradient(90%_120%_at_0%_100%,rgb(91_91_246/0.18),transparent_60%),var(--color-neutral-900)]"
           tabIndex={0}
           aria-label="Target images"
@@ -432,7 +424,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
           onClick={(e) => {
             if (!running && !(e.target as HTMLElement).closest("button")) input.current?.click();
           }}
-          onPaste={(e) => addFiles(e.clipboardData.files)}
+          onPaste={(e) => addFiles(clipboardImages(e.clipboardData))}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();

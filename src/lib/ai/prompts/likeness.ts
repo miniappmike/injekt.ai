@@ -46,7 +46,7 @@ ${
 Write "revised_prompt": the same prompt with everything else kept, but with the identity strengthened. Put the corrected traits as clear anchors near the start, repeat the three most drifted traits briefly near the end, and remove any wording that may have caused the drift. Keep its style and length.`
     : 'Set "revised_prompt" to an empty string.'
 }
-Use mild, neutral wording for body shape and always describe the character as an adult. ${PROPORTIONS_WORDS} A figure that came out smaller or more average than the reference is a difference to list.
+Use neutral, non-explicit wording for body shape, at the true scale of her figure, and always describe the character as an adult. ${PROPORTIONS_WORDS} A figure that came out smaller or more average than the reference is a difference to list.
 
 Reply with only a JSON object:
 {"overall": number, "verdict": "one sentence", "traits": [{"trait": "Eyes", "score": number, "reference": "short description", "generated": "short description", "fix": "phrase or empty"}], "edit_prompt": "...", "revised_prompt": "..."}`;

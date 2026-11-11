@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AdminListingControls } from "@/components/admin-listing-controls";
 import { UploadIcon } from "@/components/icons";
 import { useToast } from "@/components/toast";
+import { clipboardImages, usePasteTarget } from "@/components/paste-router";
 import {
   addPreviewFromCharacter,
   addPreviewUpload,
@@ -344,6 +345,8 @@ function PreviewPicker({
   const full = previews.length >= MAX_PREVIEWS;
   const ids = useMemo(() => previews.map((p) => p.id), [previews]);
 
+  const box = useRef<HTMLDivElement>(null);
+  usePasteTarget(box, (f) => upload(f), busy);
   function upload(files: FileList | File[] | null) {
     const file = files?.[0];
     if (!file) return;
@@ -417,9 +420,10 @@ function PreviewPicker({
             </div>
           )}
           <div
+            ref={box}
             className="dropzone flex flex-col items-center gap-2 p-4 text-center"
             tabIndex={0}
-            onPaste={(e) => upload(e.clipboardData.files)}
+            onPaste={(e) => upload(clipboardImages(e.clipboardData))}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();
