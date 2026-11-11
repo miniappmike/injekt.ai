@@ -12,6 +12,8 @@ export interface CharacterCardData {
   thumbs: string[];
   /** All of her reference images and sheets, labelled, for the magnifier. */
   images: CardImage[];
+  /** She has a face or body reference sheet (group photos use only sheets). */
+  hasSheet?: boolean;
 }
 
 /**

@@ -306,6 +306,17 @@ Migrations: `0018_listing_views_rank.sql` (views table, `record_listing_view`, `
   stack it: tabs 50/50, then sort + toggle. Story bubbles (52px) only in Cards view. The live-count logic (Realtime, 30s poll, refresh) is unchanged.
 - **Virality Rank** = views + likes among personas still for sale, #1 highest; sold personas have no rank.
 
+## Also shipped on this branch (not marketplace phases)
+
+- **Create Model wizard** (was Reference Sheet): details in `docs/HANDOFF.md`. Face photo, face sheet, up to 3 body photos, then
+  the body sheet with a Covered / Bikini toggle. Prompts live in `src/lib/ai/prompts/sheets.ts` and are covered by
+  `tests/reference-sheet.test.ts`.
+- **Characters page**: magnifier gallery, Delete for everyone, **List** for admins only (it opens the character page's
+  Marketplace panel, where the price, public profile and previews are set).
+- **Look and feel**: new logo and favicon, floating History button, profile menu with the Image generation switch, generation
+  tray tile fix.
+- **Still on hold**: Phase 6 (Stripe), 7 (compliance), 8 (tests), 9 (crypto, design only).
+
 ## Manual setup so far
 
 Run these in the Supabase SQL editor, in order. Skip any you've already run: each one fails with "already exists" if
@@ -319,3 +330,13 @@ run twice.
 6. `supabase/migrations/0017_listing_likes.sql`: public hearts on personas.
 7. `supabase/migrations/0018_listing_views_rank.sql`: persona page views and the Virality Rank.
 8. `supabase/migrations/0019_views_every_click.sql`: every page visit counts as a view.
+9. `supabase/migrations/0020_group_photo.sql`: allows the `group_photo` generation kind.
+
+## Group photo
+On the Characters page, shown only when image generation is on (and disabled until there are 2 characters with a reference sheet). It turns the cards into a picker for 2 to 4 characters. A dock shows who is picked, and Continue opens a composer for creative direction and Generate. The server (`group_photo` kind, `groupJob` in generation-job, prompt in `src/lib/ai/prompts/group.ts`) sends only each character's reference sheets, in turn: her face sheet then her body sheet, never her reference photos or pack crops, so at most 8 images for 4 characters. Only characters with a sheet can be picked. Her read sheet pack still supplies her look in words. Each character gets a named identity block, and the person's direction goes in as the scene to follow closely. The characters are saved in `generations.params.group_ids`.
+
+## Create Model finish and exaggerated proportions
+- Step 3's fine-tune keeps only bust and glute options; the outfit is picked once, with the Covered / Bikini toggle on step 4.
+- "Make another persona" is gone. Once her body sheet is saved, a **Build Profile** button appears and opens her edit page with `?from=wizard`. That page shows a toast ("Last step: tap Build profile to lock in her identity.") and a glowing Build profile button, then drops the query so a refresh doesn't repeat it.
+- `PROPORTIONS_RULE` (image prompts) and `PROPORTIONS_WORDS` (text writers) in `src/lib/ai/prompts/rules.ts` keep extreme or exaggerated figures at full scale. `BODY_LOCK` includes the rule, so every prompt built on it does (frame, photo edit, no-pack lock, likeness fix, variants). The body sheet, direct swap and group photo prompts add it directly, and the sheet reader, Inject prompt writer, likeness check and profile builder are told to name extreme proportions plainly. The sheet reader's waist-to-hip and hip-to-shoulder ranges are wider so extreme ratios are kept.
+- The "Sheet read" panel under her images on the edit page is gone (and `SheetPackStatus`, `readSheet` and `packStateText` with it). **Build profile from images** now also reads her sheets into the sheet pack, at the same time as the profile build. A failed read never fails the build, and Generate still reads the pack on first use if it's missing.

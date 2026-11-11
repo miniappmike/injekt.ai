@@ -3,7 +3,7 @@
  * nudity screening, so the NUDITY FILTER, strict safe mode, [[SAFE-SWAP]] and the NUDITY output line are left out; the
  * "revealing clothing is fine" rule, the adult-only wording and the mild body wording stay.
  */
-import { fence } from "./rules";
+import { fence, PROPORTIONS_WORDS } from "./rules";
 import { profileBlock } from "../tasks/profile-builder";
 import type { CharacterProfile } from "@/lib/characters";
 import type { POSE_MODES, PROMPT_STYLES, WARDROBES } from "@/lib/inject-meta";
@@ -115,7 +115,7 @@ ${keepLine}
 - The character's reference images show her in a plain placeholder outfit. Never describe or reuse it; she wears only the wardrobe above.
 - Begin by saying who is there and what they are doing, as a plain "photo of ..." or scene description. Never use "photorealistic", "photorealism", "8k", "hyper-detailed", "ultra HD" or similar filler; say what is physically visible instead.
 - Always describe the character as an adult (young woman, woman, young man, man), never as a girl, boy, teen or child, and never state an age under 21.
-- Body shape: describe the build exactly as the reference sheet lines state (or the profile when there are none), in neutral, fashion-catalogue wording such as curvy hourglass figure, wide hips, full rounded glutes, fuller bust, narrow waist, slim build or petite frame. Never soften a curvy build into slim or athletic, and never make a slim build curvy. Replace any explicit or sexual detail with one of these mild terms. Never use explicit or anatomical sexual language, never call clothing see-through or underwear-like, and leave out remarks about attractiveness.
+- Body shape: describe the build exactly as the reference sheet lines state (or the profile when there are none), in neutral, fashion-catalogue wording such as curvy hourglass figure, wide hips, full rounded glutes, fuller bust, narrow waist, slim build or petite frame. Never soften a curvy build into slim or athletic, and never make a slim build curvy. ${PROPORTIONS_WORDS} Replace any explicit or sexual detail with one of these mild terms. Never use explicit or anatomical sexual language, never call clothing see-through or underwear-like, and leave out remarks about attractiveness.
 - If the profile gives a height or weight, turn them into visual build terms (for example tall and long-limbed, petite, slender). Mention the height once in plain terms such as about 5'6", only when most of the body is in frame. Never write the weight as a number.
 - Light: name the source and direction (for example key light from top right, bounce fill from low left, hard midday sun overhead, daylight through blinds off camera). Never write just "natural lighting". Let the setting inform the light.
 - If the target looks candid or phone-shot, say so. Add film stock, lens or grade details only if the image clearly shows them. If you name a camera body, put it near the end.

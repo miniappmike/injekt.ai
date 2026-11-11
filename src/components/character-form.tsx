@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +30,7 @@ export function CharacterForm({
   canBuildProfile = false,
   buildsLeft = null,
   buildsTotal,
+  fromWizard = false,
 }: {
   action: (state: CharacterFormState, formData: FormData) => Promise<CharacterFormState>;
   initial?: Initial;
@@ -40,6 +41,8 @@ export function CharacterForm({
   /** Free plan: profile builds left. `null` means unlimited. */
   buildsLeft?: number | null;
   buildsTotal?: number;
+  /** Arrived straight from the Create Model wizard: point at Build profile, the last step. */
+  fromWizard?: boolean;
 }) {
   const router = useRouter();
   const [state, formAction, pendingAction] = useActionState(action, {});
@@ -57,9 +60,23 @@ export function CharacterForm({
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string>();
   const { toast, show } = useToast();
+  // From the wizard: a toast and a glowing Build profile button (until it's pressed), scrolled into view.
+  const wizardToast = useToast(8000);
+  const [nudge, setNudge] = useState(false);
+  const buildRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!fromWizard || !characterId) return;
+    wizardToast.show("Last step: tap Build profile to lock in her identity.");
+    setNudge(true);
+    buildRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // A refresh shouldn't show it again.
+    window.history.replaceState(null, "", window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromWizard, characterId]);
 
   async function build() {
     if (!characterId || buildsLeft === 0) return;
+    setNudge(false);
     const hasText = Object.values(profile).some((v) => v?.trim());
     if (hasText && !window.confirm("Replace the current profile text with a new one built from the images? It is saved right away.")) return;
     setBuilding(true);
@@ -90,6 +107,7 @@ export function CharacterForm({
       className="flex max-w-2xl flex-col gap-5 lg:max-w-none"
     >
       {toast}
+      {wizardToast.toast}
       <div className="grid gap-5 sm:grid-cols-2 sm:gap-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="name">Name</Label>
@@ -143,7 +161,14 @@ export function CharacterForm({
         </p>
         {characterId && (
           <div className="flex flex-col gap-2">
-            <Button type="button" variant="secondary" onClick={build} disabled={building || !canBuildProfile || buildsLeft === 0} className="self-start">
+            <Button
+              ref={buildRef}
+              type="button"
+              variant={nudge ? "default" : "secondary"}
+              onClick={build}
+              disabled={building || !canBuildProfile || buildsLeft === 0}
+              className={`self-start ${nudge ? "animate-pulse ring-2 ring-brand-400/70 ring-offset-2 ring-offset-neutral-950" : ""}`}
+            >
               {building ? "Building..." : "Build profile from images"}
             </Button>
             {!canBuildProfile && <p className="text-xs text-neutral-500">Upload a face sheet, body sheet or reference photo to enable this.</p>}

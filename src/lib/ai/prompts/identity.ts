@@ -71,7 +71,7 @@ export const ANALYZE_SHEET_PROMPT = `The attached image is a character reference
 - "body": one box around all the full-body views together, head to feet, or null if there are none.
 - "side": one box around the single full-body side-profile view (head to feet), or null if there is none.
 - "faces": the grid of face or head-and-shoulders portraits: "box" around the whole grid, its "rows" and "cols", and "front" as [row, col] counted from 0 for the panel that shows her face most directly from the front with a neutral or soft expression. null if there are no face portraits.
-2. HER LOOK IN WORDS, from what the sheet shows. One definitive value per attribute, no ranges, no hedging, neutral fashion-catalogue wording for the body, always an adult woman, never explicit:
+2. HER LOOK IN WORDS, from what the sheet shows. One definitive value per attribute, no ranges, no hedging, neutral fashion-catalogue wording for the body, always an adult woman, never explicit. If her figure is extreme or exaggerated, say so plainly at full strength ("extremely large bust", "very wide hips", "tiny waist", "very large round glutes"); never soften it toward an average body:
 - "hair": one named shade plus length, cut, texture and parting
 - "face": face shape, eye shape and one named eye colour, brows, nose, lips, any distinctive feature
 - "skin": tone with undertone, freckles, moles and marks with where they are
@@ -128,8 +128,8 @@ export function parseSheetAnalysis(raw: unknown, W: number, H: number): SheetAna
   const wh = Number(r.waist_to_hip);
   const hs = Number(r.hip_to_shoulder);
   const pr: string[] = [];
-  if (Number.isFinite(wh) && wh >= 0.4 && wh <= 1.1) pr.push(`waist about ${Math.round(wh * 100)}% of her hip width`);
-  if (Number.isFinite(hs) && hs >= 0.7 && hs <= 2.2)
+  if (Number.isFinite(wh) && wh >= 0.3 && wh <= 1.1) pr.push(`waist about ${Math.round(wh * 100)}% of her hip width`);
+  if (Number.isFinite(hs) && hs >= 0.7 && hs <= 2.6)
     pr.push(
       hs >= 1.05
         ? `hips about ${Math.round(hs * 100) / 100}× her shoulder width, clearly wider than her shoulders`
@@ -233,20 +233,6 @@ export function fitCrops<T extends { kind: CropKind }>(crops: T[], max: number):
     .slice(0, max);
 }
 
-/** What the character page says about her sheet pack. */
-export function packStateText(c: { hasBody: boolean; hasFace: boolean; pack: SheetPack | null }): string {
-  if (!c.hasBody && !c.hasFace) return "";
-  const p = c.pack;
-  if (p && p.v === PACK_V) {
-    const a = p.anchors || {};
-    const parts = [p.faces && "face close-up", p.faces && p.faces.rows * p.faces.cols > 1 && "face angles", p.body && "full body", p.side && "side profile"].filter(Boolean);
-    return `${c.hasBody && c.hasFace ? "Face and body sheets read" : "Sheet read"}: Generate sends ${parts.join(", ") || "one image"}${a.hair ? `, with her look written out (hair: ${a.hair})` : ""}.`;
-  }
-  return c.hasBody && c.hasFace
-    ? "Generate reads both sheets once: face references from the face sheet, body references and proportions from the body sheet."
-    : "Generate reads this sheet once, splits it into face and body references and writes out her look.";
-}
-
 const bodyRefTags = (kinds: string[], tags: string[]) => joinTags(kinds.map((k, i) => (k === "body" || k === "side" ? tags[i] : null)).filter((x): x is string => !!x));
 
 /** The sheet's words, given to the prompt writer as the source of truth. */
@@ -263,7 +249,7 @@ export function sheetLines(pack: Pick<SheetPack, "v" | "anchors"> | null | undef
 /** Removes body words in a scene prompt that contradict a curvy sheet (or a slim one). */
 export function bodyScrub(t: string, a: Anchors | null | undefined): string {
   const m = String((a && [a.mid, a.legs].join(" ")) || "").toLowerCase();
-  if (/curv|hourglass|wide|full|round|prominent/.test(m) && !/(?:slim|slender|narrow|lean)[- ](?:hips|hipped|figure|build|frame|glutes)/.test(m))
+  if (/curv|hourglass|wide|full|round|prominent|large|big|huge|extreme|exaggerat|voluptuous|thick/.test(m) && !/(?:slim|slender|narrow|lean)[- ](?:hips|hipped|figure|build|frame|glutes)/.test(m))
     return t
       .replace(/\b(?:slim[- ]athletic|slim|slender|lean|athletic|willowy|narrow[- ]hipped)\s+(?=(?:frame|build|figure|body|physique)\b)/gi, "curvy hourglass ")
       .replace(/\bnarrow[- ]hipped\b/gi, "wide-hipped");
@@ -339,8 +325,8 @@ export function lockRefs(text: string, n: number, isSheet: boolean, ol: string):
   t = t.replace(/@(?!image\d)[A-Za-z][\w-]*\b/g, "@image1");
   const all = n === 1 ? "@image1" : n === 2 ? "@image1 and @image2" : "@image1, @image2 and @image3";
   const head = isSheet
-    ? "Use @image1 as the strict identity reference. @image1 is the character reference sheet and the only reference image: take the person's exact face, bone structure, eyes, brows, nose, lips, skin tone, freckles, moles and marks, hair colour, length and texture, and her exact body shape and proportions from @image1. BODY LOCK (strict): her body must match the reference exactly: the same height impression, frame, shoulder width, bust, waist, hips, glutes, thighs, leg length, arm thickness and muscle tone, and the same overall proportions. Do not slim, enlarge, lengthen, tone or idealise her figure, and do not adapt it to the pose, outfit or the original person's body. Take only the person from @image1, never its grid layout, panels, grey background, studio light or plain outfit."
-    : `Use ${all} as the strict identity reference. ${n > 1 ? "They are reference photos of one and the same person" : "@image1 is a reference photo of the person"}: take the person's exact face, bone structure, eyes, brows, nose, lips, skin tone, freckles, moles and marks, hair colour, length and texture, and her exact body shape and proportions from ${all}. BODY LOCK (strict): her body must match the reference exactly: the same height impression, frame, shoulder width, bust, waist, hips, glutes, thighs, leg length, arm thickness and muscle tone, and the same overall proportions. Do not slim, enlarge, lengthen, tone or idealise her figure, and do not adapt it to the pose, outfit or the original person's body. Take only the person from ${n > 1 ? "them" : "@image1"}, never ${n > 1 ? "their" : "its"} background, outfit, pose or lighting.`;
+    ? "Use @image1 as the strict identity reference. @image1 is the character reference sheet and the only reference image: take the person's exact face, bone structure, eyes, brows, nose, lips, skin tone, freckles, moles and marks, hair colour, length and texture, and her exact body shape and proportions from @image1. " + BODY_LOCK + " Take only the person from @image1, never its grid layout, panels, grey background, studio light or plain outfit."
+    : `Use ${all} as the strict identity reference. ${n > 1 ? "They are reference photos of one and the same person" : "@image1 is a reference photo of the person"}: take the person's exact face, bone structure, eyes, brows, nose, lips, skin tone, freckles, moles and marks, hair colour, length and texture, and her exact body shape and proportions from ${all}. ${BODY_LOCK} Take only the person from ${n > 1 ? "them" : "@image1"}, never ${n > 1 ? "their" : "its"} background, outfit, pose or lighting.`;
   const tail =
     (ol || "") +
     (/beauty filter/i.test(t) ? "" : " " + REALISM_FIX.quality) +

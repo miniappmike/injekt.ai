@@ -17,7 +17,7 @@ describe("reference sheet prompts (A13b)", () => {
   it("the face sheet is a short, plain prompt: two rows of three, no text, no accessories", () => {
     const p = sheetPrompts(false, false).face;
     expect(p).toBe(
-      "Give me a no text facial reference sheet of the woman in @image1, bare shoulders and up. One row she has a straight face facing forward, 45 degrees, then side profile. Next row her smiling facing forward, 45 degrees, then side profile. Make sure she has no accessories or earrings.",
+      "Give me a no text, borderless face reference sheet of the woman in @image1, with no boxes, frames or borders around the portraits. One row she makes a straight, neutral face looking forward, then at 45 degrees, then in side profile. Next row she is smiling with realistic, non-perfect human teeth, forward, then at 45 degrees, then in side profile. She is bare shoulders and up, with no accessories and no earrings.",
     );
     expect(sheetPrompts(true, 3).face).toBe(p);
   });
@@ -26,17 +26,22 @@ describe("reference sheet prompts (A13b)", () => {
     for (const hasSheet of [false, true]) {
       const { face, body } = sheetPrompts(hasSheet, 3, { outfit: "custom", outfitText: "a red dress" });
       expect(body).toContain("No earrings or necklaces.");
-      expect(face).toContain("no accessories or earrings");
-      for (const p of [face, body]) expect(p.toLowerCase()).not.toContain("piercing");
+      // Borderless: the views are never put in boxes.
+      expect(body).toContain("borderless with no boxes, frames or outlines");
+      // Four full-length panels in one row with thin white gutters, uncropped, and no separate portrait grid.
+      expect(body).toContain("Four uncropped full-body views side by side in one row, separated by thin white vertical gutters");
+      expect(body).toContain("nothing cut off at the edges");
+      expect(body).not.toContain("2 by 2");
+      expect(body).not.toContain("Right third");
     }
   });
 
   it("the turnaround takes her face from @image1 and her body from one or two body photos", () => {
     const one = sheetPrompts(true, false).body;
-    expect(one).toContain("of the woman in @image1 (her face reference sheet), with her body taken from @image2 (body reference). Wide 16:9 layout");
+    expect(one).toContain("of the woman in @image1 (her face reference sheet), with her body taken from @image2 (body reference). Four uncropped full-body views side by side in one row, separated by thin white vertical gutters");
     expect(one).toContain("proportions and height exactly as in @image2, shown in a neutral");
-    expect(one).toContain("Outfit in all four views: a plain fitted white athletic-fit crop top and matching plain white athletic-fit shorts, with bare feet.");
-    expect(one).toContain(" Do not beautify, slim, age or change her. ");
+    expect(one).toContain("Outfit in all four views: a plain white crop tube top and very short plain white shorts, both wrapped tightly and fitted close to her body, with bare feet.");
+    expect(one).toContain(" Do not beautify, slim, shrink, age or change her. ");
     const two = sheetPrompts(false, true).body;
     expect(two).toContain("of the woman in @image1 (face reference), with her body taken from @image2 and @image3 (body references");
     expect(two).toContain("from both body references");
@@ -52,15 +57,20 @@ describe("reference sheet prompts (A13b)", () => {
   it("outfit choices and body tuning", () => {
     expect(sheetPrompts(true, false, { outfit: "photo" }).body).toContain("Outfit in all four views: the exact outfit she wears in @image2.");
     expect(sheetPrompts(true, false, { outfit: "custom", outfitText: "a red <<<dress" }).body).toContain("Outfit in all four views: a red dress.");
-    expect(sheetPrompts(true, false, { outfit: "custom", outfitText: " " }).body).toContain("plain fitted white athletic-fit crop top");
+    expect(sheetPrompts(true, false, { outfit: "custom", outfitText: " " }).body).toContain("plain white crop tube top");
+    const covered = "Outfit in all four views: a plain white crop tube top and very short plain white shorts, both wrapped tightly and fitted close to her body, with bare feet.";
+    expect(sheetPrompts(true, false).body).toContain(covered);
+    expect(sheetPrompts(true, false, { outfit: "covered" }).body).toContain(covered);
+    expect(sheetPrompts(true, false, { outfit: "default" }).body).toContain(covered); // older saved runs
+    expect(sheetPrompts(true, false, { outfit: "bikini" }).body).toContain("Outfit in all four views: a plain black bikini, a fitted triangle top and a matching bikini bottom, with bare feet.");
     const tuned = sheetPrompts(true, false, { gluteSize: "larger", gluteShape: "heart", cup: "D" }).body;
     expect(tuned).toContain(" Body adjustments, applied the same way in every view: noticeably fuller, larger glutes than in the body photos; a heart-shaped glute shape, fuller at the lower curve; a natural bust proportionate to a D cup. Everything else about her body");
-    expect(tuned).toContain("Apart from the listed body adjustments, do not beautify, slim, age or change her.");
+    expect(tuned).toContain("Apart from the listed body adjustments, do not beautify, slim, shrink, age or change her.");
     expect(tuneLine({ gluteSize: "match", cup: "Z" })).toBe("");
   });
 
   it("makes each sheet in a shape the image model accepts", () => {
-    expect(SHEET_ASPECT_RATIO).toEqual({ face: "3:2", body: "16:9" });
+    expect(SHEET_ASPECT_RATIO).toEqual({ face: "3:2", body: "1:1" });
     for (const shape of Object.values(SHEET_ASPECT_RATIO)) expect(IMAGE_ASPECT_RATIOS).toContain(shape);
   });
 });
@@ -204,5 +214,16 @@ describe("attachGeneratedSheet", () => {
     const [up] = log.uploads;
     // Only the file that was just stored is removed; the character's current sheet is still in place.
     expect(log.removed).toEqual([{ bucket: "character-media", paths: [up.path] }]);
+  });
+});
+
+describe("exaggerated proportions", () => {
+  it("the body sheet keeps an extreme figure at full scale; neutral means pose and framing only", async () => {
+    const { sheetPrompts } = await import("@/lib/ai/prompts/sheets");
+    const { PROPORTIONS_RULE, BODY_LOCK } = await import("@/lib/ai/prompts/rules");
+    const body = sheetPrompts(true, 2).body;
+    expect(body).toContain(PROPORTIONS_RULE);
+    expect(body).toContain("never smaller or more modest proportions");
+    expect(BODY_LOCK).toContain(PROPORTIONS_RULE);
   });
 });

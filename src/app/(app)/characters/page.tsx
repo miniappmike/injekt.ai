@@ -1,6 +1,4 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { CharacterCard } from "@/components/character-card";
+import { CharactersBoard } from "@/components/group-photo";
 import { requireUser } from "@/lib/auth";
 import { signedUrlMap } from "@/lib/media-urls";
 import { entitlements } from "@/lib/entitlements";
@@ -42,38 +40,19 @@ export default async function CharactersPage() {
   const urls = await signedUrlMap(supabase, (characters ?? []).flatMap((c) => [c.profile_photo_path, ...thumbs(c), ...labelled(c).map((x) => x.path)]));
 
   return (
-    <div>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4 max-sm:mb-4">
-        <h1 className="page-title">Characters</h1>
-        {atLimit ? (
-          <Button disabled>New character</Button>
-        ) : (
-          <Button asChild className="max-sm:w-full"><Link href="/characters/new">New character</Link></Button>
-        )}
-      </div>
-      {atLimit && <p className="mb-4 text-sm text-neutral-400">{limitMessage("characters")}</p>}
-      {!characters?.length ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-neutral-700 px-6 py-16 text-center">
-          <p className="text-neutral-400">No characters yet. Create your first one.</p>
-        </div>
-      ) : (
-        <div className="stagger grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
-          {characters.map((c) => (
-            <CharacterCard
-              key={c.id}
-              canList={isAdmin}
-              c={{
-                id: c.id,
-                name: c.name,
-                identityLine: (c.profile as CharacterProfile).identity_line ?? null,
-                photo: c.profile_photo_path ? (urls[c.profile_photo_path] ?? null) : null,
-                thumbs: thumbs(c).map((p) => urls[p]).filter((u): u is string => !!u),
-                images: labelled(c).flatMap((x) => (urls[x.path] ? [{ label: x.label, url: urls[x.path] }] : [])),
-              }}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    <CharactersBoard
+      canList={isAdmin}
+      atLimit={atLimit}
+      limitText={limitMessage("characters")}
+      characters={(characters ?? []).map((c) => ({
+        id: c.id,
+        name: c.name,
+        identityLine: (c.profile as CharacterProfile).identity_line ?? null,
+        photo: c.profile_photo_path ? (urls[c.profile_photo_path] ?? null) : null,
+        thumbs: thumbs(c).map((p) => urls[p]).filter((u): u is string => !!u),
+        hasSheet: !!(c.face_sheet_path || c.body_sheet_path),
+        images: labelled(c).flatMap((x) => (urls[x.path] ? [{ label: x.label, url: urls[x.path] }] : [])),
+      }))}
+    />
   );
 }

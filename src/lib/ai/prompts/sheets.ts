@@ -1,12 +1,13 @@
 /** Reference sheet prompts. The face sheet is deliberately short and plain: a 2 by 3 grid, no accessories. */
-import { fence } from "./rules";
+import { fence, PROPORTIONS_RULE } from "./rules";
 
 const SH_GLUTE_SIZE: Record<string, string> = {smaller:'noticeably smaller glutes than in the body photos',ssmaller:'slightly smaller glutes than in the body photos',slarger:'slightly fuller, larger glutes than in the body photos',larger:'noticeably fuller, larger glutes than in the body photos',xlarger:'much fuller, larger glutes than in the body photos, still natural and in proportion to her frame'};
 const SH_GLUTE_SHAPE: Record<string, string> = {round:'a round, full glute shape',heart:'a heart-shaped glute shape, fuller at the lower curve',lifted:'a lifted, toned, firm glute shape',athletic:'athletic, muscular glutes with visible muscle definition, like a regular gym-goer',soft:'a soft, natural glute shape with little muscle definition'};
 const CUPS = ["A", "B", "C", "D", "DD", "E", "F"];
 
 export interface SheetOptions {
-  outfit?: "default" | "photo" | "custom";
+  /** "covered" (also the old "default") and "bikini" are the two standard looks; "photo" and "custom" are the extras. */
+  outfit?: "covered" | "bikini" | "default" | "photo" | "custom";
   outfitText?: string;
   gluteSize?: string;
   gluteShape?: string;
@@ -23,21 +24,23 @@ export function tuneLine(o: SheetOptions): string {
 }
 
 /**
- * The face sheet (one face photo as @image1) and the face + body turnaround (@image1 her face sheet or face photo,
+ * The face sheet (one face photo as @image1) and the four-view body turnaround (@image1 her face sheet or face photo,
  * @image2 to @image4 her body photos). `bodies` is how many body photos there are (true counts as 2, false as 1).
  */
 export function sheetPrompts(hasSheet: boolean, bodies: boolean | number, o: SheetOptions = {}): { face: string; body: string } {
   const n = typeof bodies === 'number' ? Math.max(1, Math.min(3, Math.floor(bodies))) : bodies ? 2 : 1;
   const two = n > 1;
-  const outfit = o.outfit === 'photo' ? 'the exact outfit she wears in @image2' : o.outfit === 'custom' && o.outfitText?.trim() ? fence(o.outfitText.trim()) : 'a plain fitted white athletic-fit crop top and matching plain white athletic-fit shorts, with bare feet';
+  const COVERED = 'a plain white crop tube top and very short plain white shorts, both wrapped tightly and fitted close to her body, with bare feet';
+  const BIKINI = 'a plain black bikini, a fitted triangle top and a matching bikini bottom, with bare feet';
+  const outfit = o.outfit === 'photo' ? 'the exact outfit she wears in @image2' : o.outfit === 'custom' && o.outfitText?.trim() ? fence(o.outfitText.trim()) : o.outfit === 'bikini' ? BIKINI : COVERED;
   const tune = tuneLine(o);
   const ident = (ref: string) => `Identity must be identical in every panel: the same face shape, eyes and eye colour, brows, nose, lips, jaw, skin tone, freckles, moles and marks as ${ref}, and the exact same hairstyle, hair colour, parting and length. She is an adult woman.`;
-  const keep = tune ? 'Apart from the listed body adjustments, do not beautify, slim, age or change her.' : 'Do not beautify, slim, age or change her.';
+  const keep = tune ? 'Apart from the listed body adjustments, do not beautify, slim, shrink, age or change her.' : 'Do not beautify, slim, shrink, age or change her.';
   const look = 'Flat, even, diffused front studio lighting with soft fill and no dramatic shadows, neutral white balance so skin tone and hair colour read accurately, sharp focus on the face. Real, unretouched skin with fine visible pores and natural tonal variation. SKIN REALISM, always: render her as a real photographed person, never as a render, doll or illustration. If any input image looks waxy, airbrushed, plastic, over-smoothed, CGI, cartoon or anime, ignore that surface finish completely and keep only her identity, features and true skin tone. Her skin shows natural texture: visible pores on the nose, cheeks and forehead, fine peach fuzz, faint natural redness around the nose and cheeks, slight unevenness in tone, and a few tiny imperfections such as small blemishes, faint freckles or fine lines where they fit her. Matte skin with only a little natural oil on the nose, no glossy, plastic, porcelain or blurred skin and no beauty filter. Hair has individual strands and a few flyaways. No earrings or necklaces. No text, labels, numbers, arrows, logos or watermarks anywhere.';
   const faceRef = hasSheet ? '@image1 (her face reference sheet)' : '@image1 (face reference)';
   const bodyRef = n === 3 ? '@image2, @image3 and @image4 (body references showing her from different angles, such as front, back and side)' : n === 2 ? '@image2 and @image3 (body references showing her from different angles, such as front and back or side)' : '@image2 (body reference)';
   return {
-    face: 'Give me a no text facial reference sheet of the woman in @image1, bare shoulders and up. One row she has a straight face facing forward, 45 degrees, then side profile. Next row her smiling facing forward, 45 degrees, then side profile. Make sure she has no accessories or earrings.',
-    body: `Create a clean character face and body turnaround reference sheet of the woman in ${faceRef}, with her body taken from ${bodyRef}. Wide 16:9 layout on one plain seamless mid-grey studio background. Left two thirds: four full-body views side by side, all at exactly the same scale and standing on the same floor line, head to feet fully visible with a little space above and below: front view, three-quarter view turned to her left, left side profile, and back view. Pose in all four: standing straight and relaxed, arms slightly away from the body, feet hip-width apart, neutral friendly expression. Body adherence is strict: match her exact body shape, build, shoulder width, bust, waist, hips, glutes, thighs, leg length, muscle tone, proportions and height ${n === 3 ? 'from all three body references' : n === 2 ? 'from both body references' : 'exactly as in @image2'}, shown in a neutral, non-sexual, fashion-catalogue way.${tune ? ' ' + tune : ''} Outfit in all four views: ${outfit}. Right third: a 2 by 2 grid of large beauty-headshot portraits from the top of the head to just below the collarbones, separated by thin white gutters, same background and lighting, with bare neck and bare shoulders and no clothing, straps or necklines visible in these four portraits, so her skin complexion reads evenly from face to shoulders with no colour shift: front neutral; front natural smile with teeth; three-quarter view to her left; left profile. ${ident('@image1')} ${keep} ${look}`,
+    face: 'Give me a no text, borderless face reference sheet of the woman in @image1, with no boxes, frames or borders around the portraits. One row she makes a straight, neutral face looking forward, then at 45 degrees, then in side profile. Next row she is smiling with realistic, non-perfect human teeth, forward, then at 45 degrees, then in side profile. She is bare shoulders and up, with no accessories and no earrings.',
+    body: `Create a clean character body reference sheet of the woman in ${faceRef}, with her body taken from ${bodyRef}. Four uncropped full-body views side by side in one row, separated by thin white vertical gutters, on one plain seamless mid-grey studio background, borderless with no boxes, frames or outlines, and nothing cut off at the edges. All four at exactly the same scale and standing on the same floor line, head to feet fully visible with a little space above and below: front view, three-quarter view turned to her left, left side profile, and back view. Pose in all four: standing straight and relaxed, arms slightly away from the body, feet hip-width apart, neutral friendly expression. Body adherence is strict: match her exact body shape, build, shoulder width, bust, waist, hips, glutes, thighs, leg length, muscle tone, proportions and height ${n === 3 ? 'from all three body references' : n === 2 ? 'from both body references' : 'exactly as in @image2'}, shown in a neutral, non-sexual, fashion-catalogue way; neutral means the pose and framing only, never smaller or more modest proportions. ${PROPORTIONS_RULE}${tune ? ' ' + tune : ''} Outfit in all four views: ${outfit}. ${ident('@image1')} ${keep} ${look}`,
   };
 }

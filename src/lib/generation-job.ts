@@ -14,6 +14,7 @@ import { swapPrompt } from "@/lib/ai/prompts/swap";
 import { sheetPrompts } from "@/lib/ai/prompts/sheets";
 import { MAX_BODY_PHOTOS } from "@/lib/sheet-options";
 import { asksMakeup, makeupRule } from "@/lib/ai/prompts/rules";
+import { groupPhotoPrompt, MAX_GROUP, MIN_GROUP, type GroupMember } from "@/lib/ai/prompts/group";
 
 /** The image provider's prompt limit; longer prompts are condensed by the person's own text model. */
 export const PROMPT_LIMIT = 5000;
@@ -192,6 +193,31 @@ export function editJob(c: JobCharacter | null, pack: SheetPack | null, text: st
   return { prompt, paths, photoEdit: !!meta.target };
 }
 
+/** A group photo member's references: only her reference sheets (face sheet, then body sheet), never her photos. */
+export function groupRefs(c: JobCharacter): { paths: string[]; roles: string[] } {
+  const out: { path: string; role: string }[] = [];
+  if (c.face_sheet_path) out.push({ path: c.face_sheet_path, role: "her face reference sheet, a grid of her face from many angles" });
+  if (c.body_sheet_path) out.push({ path: c.body_sheet_path, role: "her character reference sheet, her full body from several angles" });
+  return { paths: out.map((x) => x.path), roles: out.map((x) => x.role) };
+}
+
+/**
+ * Group photo: each character's reference sheets in turn (at most 2 each, so at most 8 images for 4 people), her look
+ * in words from her read sheet pack, and the person's creative direction.
+ */
+export function groupJob(members: { c: JobCharacter & { name: string }; pack: SheetPack | null }[], direction: string, max: number): BuiltJob {
+  if (members.length < MIN_GROUP || members.length > MAX_GROUP) throw new UserFacingError(`Pick ${MIN_GROUP} to ${MAX_GROUP} characters.`);
+  const paths: string[] = [];
+  const people: GroupMember[] = members.map(({ c, pack }) => {
+    const r = groupRefs(c);
+    if (!r.paths.length) throw new UserFacingError(`${c.name} needs a reference sheet first. Group photos use only reference sheets.`);
+    paths.push(...r.paths);
+    return { name: c.name, roles: r.roles, anchors: pack?.anchors ?? null };
+  });
+  if (paths.length > max) throw new UserFacingError(`That's too many images (${max} at most).`);
+  return { prompt: groupPhotoPrompt(people, direction), paths, photoEdit: false };
+}
+
 export interface JobRequest {
   kind: string;
   characterId?: string | null;
@@ -221,6 +247,19 @@ export async function buildJob(
 
   // A price check never pays to read the sheet; it uses the pack only if one is already saved.
   const packOf = (ch: JobCharacter) => (opts.forQuote ? currentPack(ch) : ensureSheetPack(supabase, userId, ch));
+
+  if (request.kind === "group_photo") {
+    const ids = [...new Set(request.meta?.group ?? [])];
+    if (ids.length < MIN_GROUP) throw new UserFacingError(`Pick at least ${MIN_GROUP} characters for a group photo.`);
+    const members = await Promise.all(
+      ids.map(async (id) => {
+        const ch = await selectCharacter<JobCharacter & { name: string }>(supabase, id, "id, name, face_sheet_path, body_sheet_path, reference_paths, sheet_pack");
+        if (!ch) throw new UserFacingError("One of those characters couldn't be found.");
+        return { c: ch, pack: await packOf(ch) };
+      }),
+    );
+    return groupJob(members, request.prompt, opts.max);
+  }
 
   if (request.kind === "inject" && request.meta && c) return injectJob(c, await packOf(c), request.prompt, request.meta, opts.model, opts.max);
 

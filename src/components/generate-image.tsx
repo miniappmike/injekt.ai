@@ -54,11 +54,12 @@ function GenerateImageInner({
   compareTo,
   checkLikeness = true,
   historyId,
+  autoLabel = "match the photo",
 }: {
   prompt: string;
   characterId?: string | null;
   extraPaths: string[];
-  kind: "inject" | "direct_swap" | "edit" | "variant" | "carousel" | "face_fix" | "likeness_fix" | "reference_sheet";
+  kind: "inject" | "direct_swap" | "edit" | "variant" | "carousel" | "face_fix" | "likeness_fix" | "reference_sheet" | "group_photo";
   /** Free plan: images left (generated at 1k, no price shown). `null` means a Pro or admin account. */
   freeImagesLeft?: number | null;
   /** Fixes the shape and hides its choice (a sheet has a set layout). */
@@ -83,6 +84,8 @@ function GenerateImageInner({
   checkLikeness?: boolean;
   /** The History prompt this runs, so History can open the image from it. */
   historyId?: string | null;
+  /** What the "auto" shape is called (a group photo has no photo to match). */
+  autoLabel?: string;
 }) {
   const router = useRouter();
   const free = freeImagesLeft !== null;
@@ -105,7 +108,7 @@ function GenerateImageInner({
 
   const request = { kind, characterId: characterId ?? null, extraPaths, prompt, resolution: free ? "1k" : resolution, aspectRatio, outputFormat, ...(meta ? { meta } : {}), ...(historyId ? { historyId } : {}) };
   // Something to send: pictures, or (for a framed Inject prompt) a character whose references the server picks.
-  const hasImages = extraPaths.length > 0 || (!!meta && (!!characterId || !!meta.target));
+  const hasImages = extraPaths.length > 0 || (!!meta && (!!characterId || !!meta.target || (meta.group?.length ?? 0) >= 2));
   const requestKey = JSON.stringify(request);
 
   // Show the price before anything is spent. Free images have no price, and a failed lookup just hides it.
@@ -183,7 +186,7 @@ function GenerateImageInner({
     void generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, ready]);
-  const label = free ? `Generate my free image (${freeImagesLeft} left)` : `${actionLabel}${price ? ` · about $${Number(price).toFixed(3)}` : ""}`;
+  const label = free ? `Generate my free image (${freeImagesLeft} left)` : `${result ? "Regenerate" : actionLabel}${price ? ` · about $${Number(price).toFixed(3)}` : ""}`;
 
   return (
     <div className="flex flex-col gap-3 border-t border-neutral-800 pt-3">
@@ -198,7 +201,7 @@ function GenerateImageInner({
           <label className="flex items-center gap-1.5 text-neutral-400">
             Shape
             <select className={select} value={chosenAspectRatio} disabled={busy} onChange={(e) => setAspectRatio(e.target.value as ImageAspectRatio)}>
-              {IMAGE_ASPECT_RATIOS.map((r) => <option key={r} value={r}>{r === "auto" ? "match the photo" : r}</option>)}
+              {IMAGE_ASPECT_RATIOS.map((r) => <option key={r} value={r}>{r === "auto" ? autoLabel : r}</option>)}
             </select>
           </label>
         )}

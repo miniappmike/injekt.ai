@@ -2,7 +2,7 @@
  * The likeness system from the artifact (A10, A17, A18, A19), word for word: the full report, the quick score that runs
  * on generated images, the likeness fix (repaint the person) and the face fix (repaint only the face).
  */
-import { asksMakeup, BODY_LOCK, fence, joinTags, makeupRule, MODS_RULE, REALISM_FIX, TEXT_SHORT } from "./rules";
+import { asksMakeup, BODY_LOCK, PROPORTIONS_WORDS, fence, joinTags, makeupRule, MODS_RULE, REALISM_FIX, TEXT_SHORT } from "./rules";
 import { pickAnchors, type Anchors, type ModelFamily } from "./identity";
 
 /**
@@ -46,7 +46,7 @@ ${
 Write "revised_prompt": the same prompt with everything else kept, but with the identity strengthened. Put the corrected traits as clear anchors near the start, repeat the three most drifted traits briefly near the end, and remove any wording that may have caused the drift. Keep its style and length.`
     : 'Set "revised_prompt" to an empty string.'
 }
-Use mild, neutral wording for body shape and always describe the character as an adult.
+Use mild, neutral wording for body shape and always describe the character as an adult. ${PROPORTIONS_WORDS} A figure that came out smaller or more average than the reference is a difference to list.
 
 Reply with only a JSON object:
 {"overall": number, "verdict": "one sentence", "traits": [{"trait": "Eyes", "score": number, "reference": "short description", "generated": "short description", "fix": "phrase or empty"}], "edit_prompt": "...", "revised_prompt": "..."}`;
