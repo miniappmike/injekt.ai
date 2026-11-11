@@ -17,7 +17,7 @@ describe("reference sheet prompts (A13b)", () => {
   it("the face sheet is a short, plain prompt: two rows of three, no text, no accessories", () => {
     const p = sheetPrompts(false, false).face;
     expect(p).toBe(
-      "Give me a no text facial reference sheet of the woman in @image1, bare shoulders and up. One row she has a straight face facing forward, 45 degrees, then side profile. Next row her smiling facing forward, 45 degrees, then side profile. Make sure she has no accessories or earrings.",
+      "Give me a no text face reference sheet of the woman in @image1. One row she makes a straight, neutral face looking forward, then at 45 degrees, then in side profile. Next row she is smiling with realistic, non-perfect human teeth, forward, then at 45 degrees, then in side profile. She is bare shoulders and up, with no accessories and no earrings.",
     );
     expect(sheetPrompts(true, 3).face).toBe(p);
   });
@@ -26,7 +26,7 @@ describe("reference sheet prompts (A13b)", () => {
     for (const hasSheet of [false, true]) {
       const { face, body } = sheetPrompts(hasSheet, 3, { outfit: "custom", outfitText: "a red dress" });
       expect(body).toContain("No earrings or necklaces.");
-      expect(face).toContain("no accessories or earrings");
+      expect(face).toContain("no accessories and no earrings");
       for (const p of [face, body]) expect(p.toLowerCase()).not.toContain("piercing");
     }
   });

@@ -183,7 +183,7 @@ function GenerateImageInner({
     void generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, ready]);
-  const label = free ? `Generate my free image (${freeImagesLeft} left)` : `${actionLabel}${price ? ` · about $${Number(price).toFixed(3)}` : ""}`;
+  const label = free ? `Generate my free image (${freeImagesLeft} left)` : `${result ? "Regenerate" : actionLabel}${price ? ` · about $${Number(price).toFixed(3)}` : ""}`;
 
   return (
     <div className="flex flex-col gap-3 border-t border-neutral-800 pt-3">

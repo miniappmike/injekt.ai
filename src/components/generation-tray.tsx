@@ -14,6 +14,8 @@ import { GENERATION_EVENT, openHistory, viewImage, type TrayGeneration } from "@
 // another page or refresh; everything is still in History > Images.
 export function GenerationTray() {
   const pathname = usePathname();
+  // The Create Model wizard shows each result right where it was made, so the tray would only repeat it there.
+  const hiddenHere = pathname.startsWith("/reference-sheet");
   const [items, setItems] = useState<TrayGeneration[]>([]);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -82,9 +84,10 @@ export function GenerationTray() {
       ro.disconnect();
       root.style.removeProperty("--tray-h");
     };
-  }, [items.length > 0]);
+  }, [items.length > 0 && !hiddenHere]);
 
-  if (!items.length) return null;
+  // The tray keeps tracking jobs while hidden, so a sheet started on one wizard step still lands in History if she moves on.
+  if (!items.length || hiddenHere) return null;
   const running = items.filter((i) => i.state === "generating").length;
 
   return (
