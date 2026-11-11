@@ -1,6 +1,6 @@
 // Browser-safe choices for the reference sheet maker (artifact A13b). The prompt text stays on the server.
 
-export const SHEET_ASPECT_RATIO = { face: "4:5", body: "16:9" } as const;
+export const SHEET_ASPECT_RATIO = { face: "3:2", body: "16:9" } as const;
 /** Body photos that can go into the face and body sheet. */
 export const MAX_BODY_PHOTOS = 3;
 

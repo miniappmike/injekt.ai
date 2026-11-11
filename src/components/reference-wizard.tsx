@@ -354,7 +354,7 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
         <StepCard
           n={2}
           title="Make her face sheet"
-          intro="One face photo becomes a 3×3 sheet of the same face from nine angles. It's the strict identity reference for everything that follows."
+          intro="One face photo becomes a clean sheet of the same face: straight and smiling, facing forward, at 45 degrees and in profile. It's the strict identity reference for everything that follows."
         >
           {generation ? (
             facePhoto?.path ? (

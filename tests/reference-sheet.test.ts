@@ -14,26 +14,20 @@ import { UserFacingError } from "@/lib/errors";
 import { attachGeneratedSheet } from "@/lib/reference-sheet";
 
 describe("reference sheet prompts (A13b)", () => {
-  it("the face sheet is a 3x3 grid of beauty headshots in the artifact's panel order, with the realism block", () => {
+  it("the face sheet is a short, plain prompt: two rows of three, no text, no accessories", () => {
     const p = sheetPrompts(false, false).face;
-    expect(p.startsWith("Create a clean character face reference sheet of the woman in @image1 (face reference). Layout: a 3 by 3 grid of 9 equal portrait panels")).toBe(true);
-    expect(p).toContain("Row 1: front view, neutral relaxed expression, mouth closed;");
-    expect(p).toContain("Row 3: head tilted slightly down, eyes lowered, gentle smile; laughing with eyes crinkled, slight head tilt; back of the head showing the full hairstyle.");
-    expect(p).toContain("SKIN REALISM, always");
-    expect(p.endsWith("No text, labels, numbers, arrows, logos or watermarks anywhere.")).toBe(true);
+    expect(p).toBe(
+      "Give me a no text facial reference sheet of the woman in @image1, bare shoulders and up. One row she has a straight face facing forward, 45 degrees, then side profile. Next row her smiling facing forward, 45 degrees, then side profile. Make sure she has no accessories or earrings.",
+    );
+    expect(sheetPrompts(true, 3).face).toBe(p);
   });
 
-  it("both sheets always remove earrings and necklaces", () => {
+  it("the body sheet states no earrings or necklaces, and nothing about piercings", () => {
     for (const hasSheet of [false, true]) {
-      const { face, body } = sheetPrompts(hasSheet, 3, { outfit: "custom", outfitText: "a gold necklace and hoop earrings" });
-      for (const p of [face, body]) {
-        expect(p).toContain("JEWELLERY, always: no earrings, necklaces");
-        expect(p).toContain("remove them completely and show bare ears and a bare neck");
-        // Face piercings are identity, not jewellery: kept, and never invented.
-        expect(p).toContain("FACE PIERCINGS are the exception");
-        expect(p).toContain("never add one she does not have");
-        expect(p).toContain("face piercings (nose, septum, lip, eyebrow)");
-      }
+      const { face, body } = sheetPrompts(hasSheet, 3, { outfit: "custom", outfitText: "a red dress" });
+      expect(body).toContain("No earrings or necklaces.");
+      expect(face).toContain("no accessories or earrings");
+      for (const p of [face, body]) expect(p.toLowerCase()).not.toContain("piercing");
     }
   });
 
@@ -66,7 +60,7 @@ describe("reference sheet prompts (A13b)", () => {
   });
 
   it("makes each sheet in a shape the image model accepts", () => {
-    expect(SHEET_ASPECT_RATIO).toEqual({ face: "4:5", body: "16:9" });
+    expect(SHEET_ASPECT_RATIO).toEqual({ face: "3:2", body: "16:9" });
     for (const shape of Object.values(SHEET_ASPECT_RATIO)) expect(IMAGE_ASPECT_RATIOS).toContain(shape);
   });
 });
