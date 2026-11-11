@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
+import { clipboardImages, usePasteTarget } from "@/components/paste-router";
 import { FixRun, type ImageRef } from "@/components/likeness-panel";
 import { GenerateImage } from "@/components/generate-image";
 import { useGeneration } from "@/components/app-context";
@@ -84,6 +85,7 @@ export function LikenessChecker({
     }
   }, [characters]);
 
+  usePasteTarget(top, (f) => pick(f), busy);
   function pick(files: FileList | File[] | null) {
     const f = files && Array.from(files).find((x) => x.type.startsWith("image/"));
     if (f) setPicked({ file: f, preview: URL.createObjectURL(f) });
@@ -136,7 +138,7 @@ export function LikenessChecker({
           onClick={(e) => {
             if (!busy && !(e.target as HTMLElement).closest("button")) input.current?.click();
           }}
-          onPaste={(e) => pick(e.clipboardData.files)}
+          onPaste={(e) => pick(clipboardImages(e.clipboardData))}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();

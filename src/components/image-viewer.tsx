@@ -127,7 +127,12 @@ export function ImageViewer() {
     return () => el.removeEventListener("wheel", onWheel);
   }, [image, zoomAt]);
 
+  // A click (press and release without dragging) outside the picture closes the viewer.
+  const press = useRef<{ x: number; y: number; onImage: boolean } | null>(null);
+
   function onPointerDown(e: React.PointerEvent) {
+    // Read before capture: once captured, every event's target is the stage.
+    press.current = pointers.current.size === 0 ? { x: e.clientX, y: e.clientY, onImage: (e.target as HTMLElement).tagName === "IMG" } : null;
     stage.current?.setPointerCapture(e.pointerId);
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
   }
@@ -136,6 +141,7 @@ export function ImageViewer() {
     const all = pointers.current;
     const prev = all.get(e.pointerId);
     if (!prev) return;
+    if (all.size > 1) press.current = null;
     if (all.size === 1) {
       setPos((p) => ({ x: p.x + e.clientX - prev.x, y: p.y + e.clientY - prev.y }));
     } else if (all.size === 2) {
@@ -153,6 +159,9 @@ export function ImageViewer() {
 
   function onPointerUp(e: React.PointerEvent) {
     pointers.current.delete(e.pointerId);
+    const p = press.current;
+    press.current = null;
+    if (e.type === "pointerup" && p && !p.onImage && pointers.current.size === 0 && Math.hypot(e.clientX - p.x, e.clientY - p.y) < 6) close();
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -179,9 +188,13 @@ export function ImageViewer() {
       aria-modal="true"
       aria-label={image.title ?? "Image"}
       onKeyDown={onKeyDown}
+      // The empty parts of the bars around the picture close it too.
+      onClick={(e) => {
+        if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.viewerBar !== undefined) close();
+      }}
       className="fixed inset-0 z-50 flex animate-fade-in flex-col bg-black/90 text-neutral-100 backdrop-blur-md"
     >
-      <div className="absolute right-3 top-3 z-10 flex flex-wrap justify-end gap-2">
+      <div data-viewer-bar className="absolute right-3 top-3 z-10 flex flex-wrap justify-end gap-2">
         <Button type="button" size="sm" variant="secondary" onClick={fit}>Fit to screen</Button>
         <Button type="button" size="sm" variant="secondary" onClick={toggleFullscreen}>{fullscreen ? "Exit full screen" : "Full screen"}</Button>
         <Button ref={closeButton} type="button" size="sm" variant="secondary" onClick={close} aria-label="Close image">Close ✕</Button>
@@ -215,7 +228,7 @@ export function ImageViewer() {
         {!natural && <p className="absolute inset-0 flex items-center justify-center text-sm text-neutral-400">Loading...</p>}
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-2 p-3">
+      <div data-viewer-bar className="flex flex-wrap items-center justify-center gap-2 p-3">
         <div className="flex items-center gap-1 rounded-full border border-neutral-800 bg-neutral-900/90 px-2 py-1 shadow-lg backdrop-blur">
           <Button type="button" size="sm" variant="ghost" onClick={() => zoomAt(0.8)} aria-label="Zoom out">−</Button>
           <span className="w-12 text-center text-sm tabular-nums" aria-live="polite">{natural ? `${Math.round(scale * 100)}%` : ""}</span>
