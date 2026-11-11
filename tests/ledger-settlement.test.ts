@@ -5,7 +5,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/server", () => ({ after: () => { throw new Error("outside a request"); } }));
 vi.mock("@/lib/ai/providers/spicyapi", () => ({ spicyTaskCost: h.spicyTaskCost }));
 
-import { settleRow } from "@/lib/ledger-settle";
+import { checkRow, settleRow } from "@/lib/ledger-settle";
 import { finances, type FinanceRow } from "@/lib/admin-stats";
 
 function fakeDb() {
@@ -31,6 +31,18 @@ describe("settleRow", () => {
     h.spicyTaskCost.mockResolvedValueOnce(null);
     expect(await settleRow(db, 1, "key", ["a"])).toBe(false);
     expect(h.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("checkRow", () => {
+  it("says whether a charge settled, is still held, or couldn't be read", async () => {
+    const { db } = fakeDb();
+    h.spicyTaskCost.mockResolvedValueOnce({ cost: 0.05, settled: true });
+    expect(await checkRow(db, 1, "k", ["a"])).toBe("settled");
+    h.spicyTaskCost.mockResolvedValueOnce({ cost: 0.05, settled: false });
+    expect(await checkRow(db, 1, "k", ["a"])).toBe("held");
+    h.spicyTaskCost.mockResolvedValueOnce(null);
+    expect(await checkRow(db, 1, "k", ["a"])).toBe("unreadable");
   });
 });
 

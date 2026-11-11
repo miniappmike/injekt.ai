@@ -1,4 +1,6 @@
 import { AppHeader } from "@/components/app-header";
+import { AppFooter } from "@/components/app-footer";
+import { ModelRefusedToast, PageModelBox } from "@/components/page-model";
 import { GenerationTray } from "@/components/generation-tray";
 import { ImageViewer } from "@/components/image-viewer";
 import { PasteRouter } from "@/components/paste-router";
@@ -19,7 +21,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <AppProvider value={{ generation, imageKey: hasImageKey, generationConfirmed: confirmed }}>
       <div className="min-h-screen">
         <AppHeader email={user.email ?? "Account"} admin={plan === "admin"} />
-        <main className="mx-auto max-w-6xl 2xl:max-w-[88rem] p-4 pb-44 max-sm:pt-1 sm:p-6 sm:pb-28">{children}</main>
+        {/* The footer below leaves the room for the phone dock and the generation tray. */}
+        <main className="mx-auto max-w-6xl 2xl:max-w-[88rem] p-4 pb-16 max-sm:pt-1 sm:p-6 sm:pb-20">{children}</main>
+        <PageModelBox />
+        <AppFooter />
+        <ModelRefusedToast />
         <MobileDock />
         <HistoryPanel />
         {generation && <GenerationTray />}

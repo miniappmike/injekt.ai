@@ -48,9 +48,9 @@ export function toProviderError(e: unknown): ProviderError {
       case 40202:
         return say("A spend cap on your SpicyAPI key was reached. Raise it in the SpicyAPI console.");
       case 40301:
-        return say("This SpicyAPI key isn't allowed to use that image model. Add the model to the key's allowed models.");
+        return new ProviderError("spicyapi", e.status, "This SpicyAPI key isn't allowed to use that image model. Add the model to the key's allowed models.", "model_not_allowed");
       case 404:
-        return say("SpicyAPI couldn't find that model. Check the model name on the API keys page.");
+        return new ProviderError("spicyapi", e.status, "SpicyAPI couldn't find that model. Check the model name on the API keys page.", "model_not_found");
       case 429:
         return say("SpicyAPI is rate limiting this key. Wait a moment and try again.");
       case 50301:

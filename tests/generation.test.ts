@@ -142,6 +142,20 @@ describe("parseGenerationRequest", () => {
   });
 });
 
+describe("one-off image model (the page's model box)", () => {
+  it("accepts a model ID, treats an empty one as none, and refuses one that isn't an ID", () => {
+    expect(parseGenerationRequest(request({ model: "bytedance/seedream-5.5/edit" })).model).toBe("bytedance/seedream-5.5/edit");
+    expect(parseGenerationRequest(request({ model: "" })).model).toBeUndefined();
+    expect(() => parseGenerationRequest(request({ model: "not a model" }))).toThrow(/doesn't look right/);
+    expect(() => parseGenerationRequest(request({ model: "https://evil.test/x" }))).toThrow(UserFacingError);
+  });
+  it("sends the page's model instead of the one in Settings, with the same key", async () => {
+    await startGeneration(userClient(), verified, request({ model: "bytedance/seedream-5.5/edit" }));
+    expect(h.submit.mock.calls[0][0]).toMatchObject({ apiKey: "sk-spicy-theirs", model: "bytedance/seedream-5.5/edit" });
+    expect(db.rows[0]).toMatchObject({ model: "bytedance/seedream-5.5/edit" });
+  });
+});
+
 describe("startGeneration: opt-in generation", () => {
   it("uses the person's own Image key and model, at the size they chose, with references first and the photo last", async () => {
     const r = await startGeneration(userClient(), verified, request());

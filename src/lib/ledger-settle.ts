@@ -10,18 +10,27 @@ import { spicyTaskCost } from "@/lib/ai/providers/spicyapi";
  * and again in the daily cleanup (settlePendingLedger in ledger-sweep) for any that weren't settled yet.
  */
 
-/** Looks up a row's tasks and, once every one is settled, writes their total as its cost. True when settled. */
-export async function settleRow(db: SupabaseClient, id: number, apiKey: string, taskIds: string[]): Promise<boolean> {
-  if (!taskIds.length) return false;
+export type SettleOutcome = "settled" | "held" | "unreadable";
+
+/**
+ * Looks up a row's tasks and, once every one is settled, writes their total as its cost. "held": SpicyAPI hasn't
+ * finalised the charge yet. "unreadable": a task couldn't be read (wrong key, or SpicyAPI doesn't know it).
+ */
+export async function checkRow(db: SupabaseClient, id: number, apiKey: string, taskIds: string[]): Promise<SettleOutcome> {
+  if (!taskIds.length) return "unreadable";
   const records = await Promise.all(taskIds.map((t) => spicyTaskCost(apiKey, t)));
-  if (records.some((r) => !r || !r.settled)) return false;
+  if (records.some((r) => !r)) return "unreadable";
+  if (records.some((r) => !r!.settled)) return "held";
   const total = Math.round(records.reduce((n, r) => n + r!.cost, 0) * 1e6) / 1e6;
   const { error } = await db
     .from("api_ledger")
     .update({ cost_usd: total, cost_known: true, cost_source: "provider", cost_settled: true })
     .eq("id", id);
-  return !error;
+  return error ? "unreadable" : "settled";
 }
+
+/** True when the row now has its final charge. */
+export const settleRow = async (db: SupabaseClient, id: number, apiKey: string, taskIds: string[]) => (await checkRow(db, id, apiKey, taskIds)) === "settled";
 
 const SETTLE_DELAYS_MS = [1500, 4000, 10000];
 

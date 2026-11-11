@@ -41,6 +41,7 @@ const FEATURES: Record<string, string> = {
   "image:likeness_fix": "Likeness fix",
   "image:reference_sheet": "Reference sheet",
   "image:group_photo": "Group photo",
+  "image:art_to_real": "Art to Real",
 };
 
 export const featureLabel = (feature: string) => FEATURES[feature] ?? feature;

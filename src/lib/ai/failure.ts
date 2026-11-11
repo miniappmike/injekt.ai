@@ -3,7 +3,14 @@ import { limitMessage } from "@/lib/limits";
 import { ProviderError } from "./providers/text";
 
 /** `stop` marks failures that will repeat for every remaining item, so a batch stops instead of retrying each one. */
-export type AiFailure = { ok: false; error: string; redirectTo?: string; stop?: "no_key" | "limit" | "rate_limited" };
+export type AiFailure = {
+  ok: false;
+  error: string;
+  redirectTo?: string;
+  stop?: "no_key" | "limit" | "rate_limited";
+  /** The image model was refused: the key may not use it, or it doesn't exist. */
+  reason?: "model_not_allowed" | "model_not_found";
+};
 
 // Maps anything thrown during an AI call to a message that is safe to show the user.
 export function toFailure(e: unknown): AiFailure {
@@ -11,7 +18,8 @@ export function toFailure(e: unknown): AiFailure {
   if (e instanceof LimitReachedError) return { ok: false, error: limitMessage(e.key), stop: "limit" };
   if (e instanceof DailyLimitError) return { ok: false, error: dailyLimitMessage(e), stop: "limit" };
   if (e instanceof RateLimitError) return { ok: false, error: `Too many requests. Try again in ${e.retryAfterSeconds}s.`, stop: "rate_limited" };
-  if (e instanceof ProviderError || e instanceof UserFacingError) return { ok: false, error: e.message };
+  if (e instanceof ProviderError) return { ok: false, error: e.message, ...(e.reason ? { reason: e.reason } : {}) };
+  if (e instanceof UserFacingError) return { ok: false, error: e.message };
   console.error("ai call failed", e instanceof Error ? e.message : e);
   return { ok: false, error: e instanceof Error ? e.message : "Something went wrong" };
 }

@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     // Purchases whose files didn't all reach the buyer's folder get another try. Never fails the cleanup.
     const purchases = await repairUncopiedPurchases().catch(() => ({ repaired: 0, failed: 0 }));
     // Ledger rows still showing an estimate get SpicyAPI's final charge. Never fails the cleanup.
-    const ledger = await settlePendingLedger(adminClient()).catch(() => ({ settled: 0, pending: 0 }));
+    const ledger = await settlePendingLedger(adminClient(), { budgetMs: 40_000 }).catch(() => null);
     return NextResponse.json({ ok: true, ...generations, purchases, ledger });
   } catch (e) {
     console.error("cleanup failed", e instanceof Error ? e.message : e);

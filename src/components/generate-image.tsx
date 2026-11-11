@@ -13,6 +13,7 @@ import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageAspectRatio, type ImageOutputFormat, type ImageResolution } from "@/lib/ai/providers/types";
 import type { InjectMeta } from "@/lib/inject-meta";
 import { LikenessPanel, type ImageRef } from "@/components/likeness-panel";
+import { reportModelRefused, usePageModelForRequest } from "@/lib/page-model";
 
 type Phase = "idle" | "starting" | "running" | "done" | "failed";
 interface Result {
@@ -59,7 +60,7 @@ function GenerateImageInner({
   prompt: string;
   characterId?: string | null;
   extraPaths: string[];
-  kind: "inject" | "direct_swap" | "edit" | "variant" | "carousel" | "face_fix" | "likeness_fix" | "reference_sheet" | "group_photo";
+  kind: "inject" | "direct_swap" | "edit" | "variant" | "carousel" | "face_fix" | "likeness_fix" | "reference_sheet" | "group_photo" | "art_to_real";
   /** Free plan: images left (generated at 1k, no price shown). `null` means a Pro or admin account. */
   freeImagesLeft?: number | null;
   /** Fixes the shape and hides its choice (a sheet has a set layout). */
@@ -106,7 +107,20 @@ function GenerateImageInner({
     };
   }, []);
 
-  const request = { kind, characterId: characterId ?? null, extraPaths, prompt, resolution: free ? "1k" : resolution, aspectRatio, outputFormat, ...(meta ? { meta } : {}), ...(historyId ? { historyId } : {}) };
+  // The page's one-off model, when its box has one.
+  const pageModel = usePageModelForRequest();
+  const request = {
+    kind,
+    characterId: characterId ?? null,
+    extraPaths,
+    prompt,
+    resolution: free ? "1k" : resolution,
+    aspectRatio,
+    outputFormat,
+    ...(meta ? { meta } : {}),
+    ...(historyId ? { historyId } : {}),
+    ...(pageModel ? { model: pageModel } : {}),
+  };
   // Something to send: pictures, or (for a framed Inject prompt) a character whose references the server picks.
   const hasImages = extraPaths.length > 0 || (!!meta && (!!characterId || !!meta.target || (meta.group?.length ?? 0) >= 2));
   const requestKey = JSON.stringify(request);
@@ -132,6 +146,7 @@ function GenerateImageInner({
     const started = await startImageGeneration(request);
     if (!started.ok) {
       reportGeneration({ ...tray, state: "failed", error: started.error });
+      if (started.reason) reportModelRefused({ reason: started.reason, model: pageModel ?? null });
       if (started.redirectTo) return router.push(started.redirectTo);
       setPhase("failed");
       return setMessage(started.error);

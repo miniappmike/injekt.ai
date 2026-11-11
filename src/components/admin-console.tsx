@@ -8,6 +8,8 @@ import { InfoTip } from "@/components/info-tip";
 import { saveSettings, setUserPlan } from "@/app/(app)/admin/actions";
 import type { AdminStats, FinanceStats, UserStats } from "@/lib/admin-stats";
 import { featureLabel } from "@/lib/ledger-types";
+import { snapshotCsv, snapshotJson, snapshotMarkdown, type AdminSnapshot } from "@/lib/admin-export";
+import type { SweepResult } from "@/lib/ledger-sweep";
 import { cn } from "@/lib/utils";
 
 type Config = {
@@ -260,6 +262,57 @@ function UsersTable({ users, caps }: { users: UserStats[]; caps: Config["caps"] 
   );
 }
 
+/** "Export as": every number on the page, as a file or copied for pasting into a chat. */
+function ExportMenu({ snapshot }: { snapshot: () => AdminSnapshot }) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState<string>();
+  const stamp = () => new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+  const download = (text: string, ext: string, type: string) => {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: `model-spawn-admin-${stamp()}.${ext}` });
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const options = [
+    { label: "Copy as Markdown", hint: "Paste straight into a chat", run: async () => {
+      await navigator.clipboard.writeText(snapshotMarkdown(snapshot()));
+      setNote("Copied");
+    } },
+    { label: "Markdown (.md)", hint: "A readable report", run: () => download(snapshotMarkdown(snapshot()), "md", "text/markdown") },
+    { label: "JSON (.json)", hint: "Every number, for tools and AI", run: () => download(snapshotJson(snapshot()), "json", "application/json") },
+    { label: "CSV (.csv)", hint: "Every table, for spreadsheets", run: () => download(snapshotCsv(snapshot()), "csv", "text/csv") },
+  ];
+  return (
+    <div className="relative" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setOpen(false)}>
+      <Button type="button" variant="secondary" size="sm" aria-haspopup="menu" aria-expanded={open} onClick={() => { setOpen((o) => !o); setNote(undefined); }}>
+        {note ?? "Export as"}
+        <svg viewBox="0 0 20 20" aria-hidden="true" className={cn("h-3.5 w-3.5 fill-none stroke-current transition-transform", open && "rotate-180")} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 8 5 5 5-5" /></svg>
+      </Button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-full z-30 mt-2 w-64 animate-pop-in rounded-xl border border-neutral-800 bg-neutral-900/95 p-1.5 shadow-[0_20px_50px_-15px_rgb(0_0_0/0.9)] backdrop-blur-xl">
+          {options.map((o) => (
+            <button
+              key={o.label}
+              type="button"
+              role="menuitem"
+              onClick={async () => {
+                await o.run();
+                setOpen(false);
+              }}
+              className="flex w-full flex-col rounded-lg px-3 py-2 text-left hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none"
+            >
+              <span className="text-sm font-semibold text-neutral-100">{o.label}</span>
+              <span className="text-xs text-neutral-500">{o.hint}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const tok = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(Math.round(n)));
 const money = (n: number) => (n === 0 ? "$0" : n < 1 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`);
 const th = "py-2 pr-3 font-medium";
@@ -269,7 +322,7 @@ const td = "py-2 pr-3 tabular-nums";
  * What your SpicyAPI key really costs: calls it paid for, and (switch on by default) admins' own testing on their saved
  * keys. People who bring their own keys are never counted. For pricing on-site credits.
  */
-function RealCosts({ only, withAdmins }: { only: FinanceStats; withAdmins: FinanceStats }) {
+function RealCosts({ only, withAdmins, sweep }: { only: FinanceStats; withAdmins: FinanceStats; sweep: SweepResult | null }) {
   const [mine, setMine] = useState(true);
   const f = mine ? withAdmins : only;
   return (
@@ -286,6 +339,13 @@ function RealCosts({ only, withAdmins }: { only: FinanceStats; withAdmins: Finan
         <p className="text-sm text-neutral-400">
           {f.people30} {f.people30 === 1 ? "person" : "people"} used it. {Math.round(f.realShare * 100)}% of calls show SpicyAPI&apos;s final charge.
         </p>
+        {sweep && sweep.checked > 0 && (
+          <p className={cn("mt-1 text-xs", sweep.unreadable ? "text-amber-300" : "text-neutral-500")}>
+            Just now: checked {sweep.checked} waiting {sweep.checked === 1 ? "call" : "calls"} with SpicyAPI. {sweep.settled} got their final charge
+            {sweep.held ? `, ${sweep.held} still held by SpicyAPI` : ""}
+            {sweep.unreadable ? `, ${sweep.unreadable} couldn't be read` : ""}.
+          </p>
+        )}
         <label className="mt-2 flex items-center gap-2 text-sm text-neutral-300">
           <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} />
           Include admin accounts&apos; own testing (images you make with the SpicyAPI key saved in your settings)
@@ -395,14 +455,23 @@ export function AdminConsole({
   stats,
   finance,
   financeWithAdmins,
+  sweep = null,
   usageMissing,
 }: {
   config: Config;
   stats: AdminStats;
   finance: FinanceStats;
   financeWithAdmins: FinanceStats;
+  sweep?: SweepResult | null;
   usageMissing: boolean;
 }) {
+  const snapshot = (): AdminSnapshot => ({
+    generatedAt: new Date().toISOString(),
+    config: { caps: config.caps, serverModel: config.serverModel },
+    stats,
+    realCosts: { platformKeyOnly: finance, withAdminTesting: financeWithAdmins },
+    sweep,
+  });
   const payingUsers = stats.users.filter((u) => u.server30 > 0).length;
   return (
     <div className="mt-6 flex flex-col gap-5">
@@ -411,6 +480,9 @@ export function AdminConsole({
           Daily limits aren&apos;t switched on yet: run migrations <b>0012_daily_usage.sql</b> and <b>0013_app_settings.sql</b> in the Supabase SQL editor.
         </p>
       )}
+      <div className="-mt-2 flex justify-end">
+        <ExportMenu snapshot={snapshot} />
+      </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Spent today" value={usd(stats.serverToday)} note={`${stats.activeToday} active · ${stats.runsToday} prompts`} />
         <Tile label="Average a day" value={usd(stats.avgPerDay7)} note={`last 7 days · 30-day avg ${usd(stats.avgPerDay30)}`} />
@@ -422,7 +494,7 @@ export function AdminConsole({
           tone={stats.unpricedCalls30 ? "warn" : undefined}
         />
       </div>
-      <RealCosts only={finance} withAdmins={financeWithAdmins} />
+      <RealCosts only={finance} withAdmins={financeWithAdmins} sweep={sweep} />
       <SpendChart daily={stats.daily} />
       <CapsForm config={config} />
       <UsersTable users={stats.users} caps={config.caps} />
