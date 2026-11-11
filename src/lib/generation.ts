@@ -1,5 +1,6 @@
 import { loadGenerationState } from "@/lib/generation-access";
 import "server-only";
+import { after } from "next/server";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/env";
@@ -218,7 +219,7 @@ type Row = {
   model: string | null;
   status: string;
   provider_job_id: string | null;
-  params: { key_source?: string; free?: boolean } | null;
+  params: { key_source?: string; free?: boolean; output_url?: string; output_mime?: string } | null;
   output_path: string | null;
   error: string | null;
   expires_at: string | null;
@@ -226,7 +227,12 @@ type Row = {
 
 async function view(supabase: SupabaseClient, row: Row): Promise<CollectResult> {
   if (row.status === "failed") return { state: "failed", error: row.error ?? "The image couldn't be generated." };
-  if (row.status !== "complete" || !row.output_path || !row.expires_at) return { state: "processing" };
+  if (row.status !== "complete" || !row.expires_at) return { state: "processing" };
+  // Finished, and our copy is still being saved: show the provider's own link meanwhile.
+  if (!row.output_path) {
+    const direct = row.params?.output_url;
+    return direct ? { state: "complete", url: direct, downloadUrl: direct, expiresAt: row.expires_at } : { state: "failed", error: "This image has expired." };
+  }
   const ttl = Math.max(60, Math.min(3600, Math.floor((new Date(row.expires_at).getTime() - Date.now()) / 1000)));
   const storage = supabase.storage.from(GENERATIONS_BUCKET);
   const [shown, saved] = await Promise.all([storage.createSignedUrl(row.output_path, ttl), storage.createSignedUrl(row.output_path, ttl, { download: true })]);
@@ -241,6 +247,11 @@ export async function collectGeneration(supabase: SupabaseClient, user: Actor, g
   const { data } = await supabase.from("generations").select(columns).eq("id", generationId).maybeSingle();
   const row = data as Row | null;
   if (!row) throw new UserFacingError("Generation not found.");
+  if (row.status === "complete" && !row.output_path && row.params?.output_url) {
+    // Our copy wasn't saved yet (or saving failed): try again now.
+    const path = await storeOutput(adminClient(), user.id, row.id, row.params.output_url, row.params.output_mime).catch(() => null);
+    return view(supabase, path ? { ...row, output_path: path } : row);
+  }
   if (row.status === "complete" || row.status === "failed") return view(supabase, row);
   if (!row.provider_job_id) return { state: "pending" };
 
@@ -299,26 +310,57 @@ export async function collectGeneration(supabase: SupabaseClient, user: Actor, g
     return { state: "failed", error: job.error ?? "The image couldn't be generated." };
   }
 
-  const { bytes, contentType } = await safeFetchBytes(job.outputUrl as string);
-  const path = `${user.id}/${row.id}.${extensionFor(job.mime ?? contentType)}`;
-  const up = await db.storage.from(GENERATIONS_BUCKET).upload(path, bytes, { contentType: job.mime ?? contentType, upsert: true });
-  if (up.error) throw new UserFacingError("Couldn't save the finished image. Try again in a moment.");
-  await finish("succeeded", { status: "complete", output_path: path, expires_at: generationExpiry().toISOString() });
+  // Shown at once from the provider's link; our own copy is saved right after the answer goes out (and again on the
+  // next check if that fails), so nobody waits for the download and upload.
+  const outputUrl = job.outputUrl as string;
+  const params = { ...(row.params ?? {}), output_url: outputUrl, ...(job.mime ? { output_mime: job.mime } : {}) };
+  const won = await finish("succeeded", { status: "complete", params, expires_at: generationExpiry().toISOString() });
+  if (won) {
+    const save = () => storeOutput(db, user.id, row.id, outputUrl, job.mime).catch(() => null);
+    try {
+      after(save);
+    } catch {
+      await save(); // Outside a request (tests): save it now.
+    }
+  }
 
   const { data: fresh } = await supabase.from("generations").select(columns).eq("id", row.id).maybeSingle();
   return view(supabase, (fresh as Row | null) ?? row);
 }
 
+/** Copies a finished image from the provider into our storage and points the row at it. Returns the stored path. */
+export async function storeOutput(db: SupabaseClient, userId: string, generationId: string, outputUrl: string, mime?: string): Promise<string> {
+  const { bytes, contentType } = await safeFetchBytes(outputUrl);
+  const path = `${userId}/${generationId}.${extensionFor(mime ?? contentType)}`;
+  const up = await db.storage.from(GENERATIONS_BUCKET).upload(path, bytes, { contentType: mime ?? contentType, upsert: true });
+  if (up.error) throw new Error("Couldn't save the finished image.");
+  const { error } = await db.from("generations").update({ output_path: path }).eq("id", generationId);
+  if (error) throw new Error("Couldn't save the finished image.");
+  return path;
+}
+
 /** Checks the newest unfinished generations, so a page can show their result when the user comes back. */
 export async function collectPending(supabase: SupabaseClient, user: Actor, limit = 5): Promise<void> {
-  const { data } = await supabase
-    .from("generations")
-    .select("id")
-    .in("status", ["pending", "processing"])
-    .not("provider_job_id", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-  for (const r of data ?? []) {
+  const [{ data }, { data: unsaved }] = await Promise.all([
+    supabase
+      .from("generations")
+      .select("id")
+      .in("status", ["pending", "processing"])
+      .not("provider_job_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(limit),
+    // Finished, but our copy of the image wasn't saved yet.
+    supabase
+      .from("generations")
+      .select("id")
+      .eq("status", "complete")
+      .is("output_path", null)
+      .not("params->>output_url", "is", null)
+      .gte("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(limit),
+  ]);
+  for (const r of [...(data ?? []), ...(unsaved ?? [])]) {
     try {
       await collectGeneration(supabase, user, r.id as string);
     } catch {

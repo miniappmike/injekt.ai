@@ -302,7 +302,9 @@ export async function buildJob(
 
 /** A finished generated image the person owns, as an input path in the generations bucket. */
 async function generationSource(supabase: SupabaseClient, generationId: string): Promise<string> {
-  const { data } = await supabase.from("generations").select("output_path, status, expires_at").eq("id", generationId).maybeSingle();
+  const { data } = await supabase.from("generations").select("output_path, status, expires_at, params").eq("id", generationId).maybeSingle();
+  if (data?.status === "complete" && !data.output_path && (data.params as { output_url?: string } | null)?.output_url)
+    throw new UserFacingError("That image is still being saved. Try again in a few seconds.");
   if (!data?.output_path || data.status !== "complete") throw new UserFacingError("That image isn't ready, or has expired.");
   if (data.expires_at && Date.parse(data.expires_at) <= Date.now()) throw new UserFacingError("That image has expired.");
   return GEN_PREFIX + data.output_path;
