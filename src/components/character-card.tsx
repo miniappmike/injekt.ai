@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SparkIcon } from "@/components/icons";
+import { CharacterImagesButton, DeleteCharacterButton, type CardImage } from "@/components/character-card-actions";
 
 export interface CharacterCardData {
   id: string;
@@ -9,13 +10,15 @@ export interface CharacterCardData {
   /** Signed links: her profile photo, and up to three reference images (photos first, then sheets). */
   photo: string | null;
   thumbs: string[];
+  /** All of her reference images and sheets, labelled, for the magnifier. */
+  images: CardImage[];
 }
 
 /**
  * A character as a poster: her first reference large, with her name over a dark fade, the rest of her references in a
  * strip, and her identity line. The whole card lifts and the picture zooms a little on hover.
  */
-export function CharacterCard({ c }: { c: CharacterCardData }) {
+export function CharacterCard({ c, canList = false }: { c: CharacterCardData; canList?: boolean }) {
   const [cover, ...rest] = c.thumbs;
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 max-sm:rounded-[1.25rem] shadow-[0_14px_40px_-24px_rgb(0_0_0/0.9)] transition-all duration-300 hover:-translate-y-1 hover:border-brand-500/40 hover:shadow-[0_24px_50px_-24px_rgb(232_38_94/0.45)]">
@@ -43,6 +46,7 @@ export function CharacterCard({ c }: { c: CharacterCardData }) {
           </div>
         )}
       </Link>
+      <CharacterImagesButton name={c.name} images={c.images} />
       {/* Phones: straight into Inject with her picked. */}
       <Link
         href={`/inject?character=${c.id}`}
@@ -65,7 +69,13 @@ export function CharacterCard({ c }: { c: CharacterCardData }) {
           <h3 className="truncate text-xl font-bold text-neutral-50 drop-shadow max-sm:hidden">{c.name}</h3>
         </div>
         <p className="line-clamp-3 text-sm leading-relaxed text-neutral-400 max-sm:line-clamp-1 max-sm:text-xs">{c.identityLine ?? "No identity line yet"}</p>
-        <div className="mt-auto flex justify-end pt-1 max-sm:hidden">
+        <div className="mt-auto flex justify-end gap-2 pt-1 max-sm:hidden">
+          {canList && (
+            <Button asChild size="sm" className="bg-emerald-600 text-white hover:bg-emerald-500">
+              <Link href={`/characters/${c.id}#marketplace`}>List</Link>
+            </Button>
+          )}
+          <DeleteCharacterButton id={c.id} name={c.name} />
           <Button asChild size="sm" variant="secondary">
             <Link href={`/characters/${c.id}`}>Edit</Link>
           </Button>

@@ -84,7 +84,7 @@ export function ListingEditor({
   }
 
   const wrap = (children: React.ReactNode) => (
-    <section className="panel grid gap-4 p-4 sm:p-5" aria-labelledby="marketplace-heading">
+    <section id="marketplace" className="panel grid scroll-mt-28 gap-4 p-4 sm:p-5" aria-labelledby="marketplace-heading">
       <h2 id="marketplace-heading" className="text-lg font-semibold">Marketplace</h2>
       {children}
       {error && <p role="alert" className="rounded-md border border-red-800 p-3 text-sm text-red-300">{error}</p>}
