@@ -14,6 +14,7 @@ import { swapPrompt } from "@/lib/ai/prompts/swap";
 import { sheetPrompts } from "@/lib/ai/prompts/sheets";
 import { MAX_BODY_PHOTOS } from "@/lib/sheet-options";
 import { asksMakeup, makeupRule } from "@/lib/ai/prompts/rules";
+import { artToRealPrompt } from "@/lib/ai/prompts/art-to-real";
 import { groupPhotoPrompt, MAX_GROUP, MIN_GROUP, type GroupMember } from "@/lib/ai/prompts/group";
 
 /** The image provider's prompt limit; longer prompts are condensed by the person's own text model. */
@@ -218,6 +219,17 @@ export function groupJob(members: { c: JobCharacter & { name: string }; pack: Sh
   return { prompt: groupPhotoPrompt(people, direction), paths, photoEdit: false };
 }
 
+/**
+ * Art to Real: the artwork is @image1. With a character, her references follow (pack crops, else her sheet, else up to
+ * 2 photos) and she becomes the woman in it. `direction` is the person's optional extra note.
+ */
+export function artToRealJob(c: JobCharacter | null, pack: SheetPack | null, artwork: string, direction: string | undefined, max: number): BuiltJob {
+  if (!c) return { prompt: artToRealPrompt(null, direction), paths: [artwork], photoEdit: true };
+  const { paths, R } = swapRefs(c, pack, max - 1);
+  if (!paths.length) throw new UserFacingError("This character needs a reference sheet or photo first, or choose no character.");
+  return { prompt: artToRealPrompt(R, direction), paths: [artwork, ...paths], photoEdit: true };
+}
+
 export interface JobRequest {
   kind: string;
   characterId?: string | null;
@@ -259,6 +271,12 @@ export async function buildJob(
       }),
     );
     return groupJob(members, request.prompt, opts.max);
+  }
+
+  if (request.kind === "art_to_real") {
+    const artwork = request.extraPaths[0];
+    if (!artwork) throw new UserFacingError("Add the artwork first.");
+    return artToRealJob(c, c ? await packOf(c) : null, artwork, request.meta?.extra, opts.max);
   }
 
   if (request.kind === "inject" && request.meta && c) return injectJob(c, await packOf(c), request.prompt, request.meta, opts.model, opts.max);

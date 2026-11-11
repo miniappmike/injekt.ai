@@ -19,7 +19,7 @@ import { GENERATION_RETENTION_HOURS, generationExpiry } from "@/lib/retention";
 import { recordLedgerEntry } from "@/lib/ledger";
 import { settleSoon } from "@/lib/ledger-settle";
 
-export const GENERATION_KINDS = ["inject", "direct_swap", "edit", "variant", "carousel", "face_fix", "likeness_fix", "reference_sheet", "group_photo"] as const;
+export const GENERATION_KINDS = ["inject", "direct_swap", "edit", "variant", "carousel", "face_fix", "likeness_fix", "reference_sheet", "group_photo", "art_to_real"] as const;
 export const GENERATIONS_BUCKET = "generations";
 /** How long the image provider has to fetch the pictures we hand it. */
 export const INPUT_URL_SECONDS = 1800;

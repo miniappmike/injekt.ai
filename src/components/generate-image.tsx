@@ -59,7 +59,7 @@ function GenerateImageInner({
   prompt: string;
   characterId?: string | null;
   extraPaths: string[];
-  kind: "inject" | "direct_swap" | "edit" | "variant" | "carousel" | "face_fix" | "likeness_fix" | "reference_sheet" | "group_photo";
+  kind: "inject" | "direct_swap" | "edit" | "variant" | "carousel" | "face_fix" | "likeness_fix" | "reference_sheet" | "group_photo" | "art_to_real";
   /** Free plan: images left (generated at 1k, no price shown). `null` means a Pro or admin account. */
   freeImagesLeft?: number | null;
   /** Fixes the shape and hides its choice (a sheet has a set layout). */
