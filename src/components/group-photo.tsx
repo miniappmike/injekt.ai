@@ -15,13 +15,6 @@ const MAX_GROUP = 4;
 const MIN_GROUP = 2;
 const MAX_DIRECTION = 1500;
 const DEFAULT_DIRECTION = "A candid photo of them together, like friends posing for a phone photo on a night out, each in a stylish outfit that suits the setting.";
-const IDEAS = [
-  "Rooftop bar at golden hour, laughing together",
-  "Mirror selfie in a stylish apartment",
-  "Matching white summer dresses on a beach",
-  "Red carpet, flash photography, glamorous gowns",
-  "Cozy brunch at a sunny café table",
-];
 
 /**
  * The characters grid with Group photo: a button by "New character" (only when image generation is on) turns the cards
@@ -62,7 +55,7 @@ export function CharactersBoard({ characters, canList, atLimit, limitText }: { c
   const chosen = picked.map((id) => characters.find((c) => c.id === id)).filter((c): c is CharacterCardData => !!c);
 
   return (
-    <div className={cn(picking && "pb-28")}>
+    <div className={cn(picking && "pb-28 max-sm:pb-12")}>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4 max-sm:mb-4">
         <h1 className="page-title">Characters</h1>
         <div className="flex items-center gap-2 max-sm:w-full">
@@ -204,7 +197,6 @@ function Composer({ chosen, onRemove, onBack, onClose }: { chosen: CharacterCard
     };
   }, [onBack]);
 
-  const addIdea = (idea: string) => setDirection((d) => (d.trim() ? `${d.trim().replace(/[.,]?$/, ".")} ${idea}` : idea).slice(0, MAX_DIRECTION));
   const names = chosen.map((c) => c.name);
 
   return (
@@ -263,17 +255,10 @@ function Composer({ chosen, onRemove, onBack, onClose }: { chosen: CharacterCard
             placeholder={`Setting, poses, outfits, mood, lighting, camera... Use their names, e.g. "${names[0]} on the left in a red dress, ${names[1]} laughing beside her, neon-lit Tokyo street at night."`}
             className="resize-y text-[15px] leading-relaxed"
           />
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex flex-wrap gap-1.5">
-              {IDEAS.map((idea) => (
-                <button key={idea} type="button" onClick={() => addIdea(idea)} className="rounded-full bg-neutral-800/80 px-2.5 py-1 text-xs text-neutral-300 transition-colors hover:bg-iris-500/20 hover:text-neutral-50">
-                  {idea}
-                </button>
-              ))}
-            </div>
-            <span className="shrink-0 pt-1 text-xs tabular-nums text-neutral-500">{direction.length}/{MAX_DIRECTION}</span>
+          <div className="flex items-center justify-between gap-3 text-xs text-neutral-500">
+            <p className="flex items-center gap-1.5">{!direction.trim() && <><CheckIcon className="h-3.5 w-3.5" /> Left blank, you get a candid photo of them together.</>}</p>
+            <span className="shrink-0 tabular-nums">{direction.length}/{MAX_DIRECTION}</span>
           </div>
-          {!direction.trim() && <p className="flex items-center gap-1.5 text-xs text-neutral-500"><CheckIcon className="h-3.5 w-3.5" /> Left blank, you get a candid photo of them together.</p>}
         </div>
 
         <GenerateImage
