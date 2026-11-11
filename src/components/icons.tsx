@@ -50,6 +50,9 @@ export const BookmarkIcon = ({ className, filled = false }: P & { filled?: boole
 export const SearchIcon = ({ className }: P) => (
   <svg {...base(className)}><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
 );
+export const TrashIcon = ({ className }: P) => (
+  <svg {...base(className)}><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4L17.5 7M10 11v6M14 11v6" /></svg>
+);
 export const LockIcon = ({ className }: P) => (
   <svg {...base(className)}><rect x="5" y="10.5" width="14" height="9.5" rx="2.5" /><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" /></svg>
 );

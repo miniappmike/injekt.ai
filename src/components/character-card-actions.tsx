@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { SearchIcon } from "@/components/icons";
+import { SearchIcon, TrashIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { deleteCharacter } from "@/app/(app)/characters/actions";
 import { viewImage } from "@/lib/panel-events";
@@ -13,7 +13,7 @@ export interface CardImage {
 }
 
 /** Delete with a confirmation. Deleting also removes her stored images, so it asks first. */
-export function DeleteCharacterButton({ id, name }: { id: string; name: string }) {
+export function DeleteCharacterButton({ id, name, icon = false }: { id: string; name: string; icon?: boolean }) {
   return (
     <form
       action={deleteCharacter.bind(null, id)}
@@ -21,7 +21,13 @@ export function DeleteCharacterButton({ id, name }: { id: string; name: string }
         if (!window.confirm(`Delete ${name}? Her images and sheets will be removed too. This can't be undone.`)) e.preventDefault();
       }}
     >
-      <Button type="submit" size="sm" variant="destructive">Delete</Button>
+      {icon ? (
+        <button type="submit" aria-label={`Delete ${name}`} className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-600/90 text-white transition-transform active:scale-90">
+          <TrashIcon className="h-[18px] w-[18px]" />
+        </button>
+      ) : (
+        <Button type="submit" size="sm" variant="destructive">Delete</Button>
+      )}
     </form>
   );
 }
@@ -60,12 +66,12 @@ export function CharacterImagesButton({ name, images }: { name: string; images: 
         createPortal(
           <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={`${name}'s images`}>
             <div aria-hidden="true" onClick={() => setOpen(false)} className="absolute inset-0 animate-fade-in bg-black/75 backdrop-blur-sm" />
-            <div className="panel relative flex max-h-[92vh] w-full max-w-5xl animate-pop-in flex-col overflow-hidden max-sm:rounded-b-none">
-              <div className="flex items-center justify-between gap-3 border-b border-neutral-800 px-5 py-3">
-                <h2 className="font-display text-lg font-bold text-neutral-50">{name}&apos;s images</h2>
+            <div className="panel relative flex max-h-[88dvh] w-full max-w-5xl animate-pop-in flex-col overflow-hidden max-sm:rounded-b-none sm:max-h-[90dvh]">
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-neutral-800 px-5 py-3">
+                <h2 className="font-display text-lg font-bold text-neutral-50">{name}&apos;s images <span className="text-sm font-medium text-neutral-500">{images.length}</span></h2>
                 <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>Close</Button>
               </div>
-              <div className="overflow-y-auto p-4 sm:p-5">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5">
                 {images.length === 0 ? (
                   <p className="py-10 text-center text-sm text-neutral-400">No reference images or sheets yet.</p>
                 ) : (

@@ -69,7 +69,17 @@ export function CharacterCard({ c, canList = false }: { c: CharacterCardData; ca
           <h3 className="truncate text-xl font-bold text-neutral-50 drop-shadow max-sm:hidden">{c.name}</h3>
         </div>
         <p className="line-clamp-3 text-sm leading-relaxed text-neutral-400 max-sm:line-clamp-1 max-sm:text-xs">{c.identityLine ?? "No identity line yet"}</p>
-        <div className="mt-auto flex justify-end gap-2 pt-1 max-sm:hidden">
+        <div className="mt-auto flex justify-end gap-2 pt-1 max-sm:mt-2 max-sm:items-center max-sm:justify-between">
+          {/* Phones: just List (admin) and a trash icon; the card itself opens her page. */}
+          <div className="flex w-full items-center justify-between gap-2 sm:hidden">
+            {canList ? (
+              <Link href={`/characters/${c.id}#marketplace`} className="flex h-9 flex-1 items-center justify-center rounded-xl bg-emerald-600 text-sm font-semibold text-white transition-transform active:scale-95">List</Link>
+            ) : (
+              <Link href={`/characters/${c.id}`} className="flex h-9 flex-1 items-center justify-center rounded-xl bg-neutral-800 text-sm font-semibold text-neutral-100 transition-transform active:scale-95">Edit</Link>
+            )}
+            <DeleteCharacterButton id={c.id} name={c.name} icon />
+          </div>
+          <div className="contents max-sm:hidden">
           {canList && (
             <Button asChild size="sm" className="bg-emerald-600 text-white hover:bg-emerald-500">
               <Link href={`/characters/${c.id}#marketplace`}>List</Link>
@@ -79,6 +89,7 @@ export function CharacterCard({ c, canList = false }: { c: CharacterCardData; ca
           <Button asChild size="sm" variant="secondary">
             <Link href={`/characters/${c.id}`}>Edit</Link>
           </Button>
+          </div>
         </div>
       </div>
     </article>
