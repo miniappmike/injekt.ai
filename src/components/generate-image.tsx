@@ -14,6 +14,7 @@ import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageAspectRatio, type Ima
 import type { InjectMeta } from "@/lib/inject-meta";
 import { LikenessPanel, type ImageRef } from "@/components/likeness-panel";
 import { reportModelRefused, usePageModelForRequest } from "@/lib/page-model";
+import { forgetGeneration, latestForRequest, rememberGeneration, requestHash, waitOrWake } from "@/lib/pending-generations";
 
 type Phase = "idle" | "starting" | "running" | "done" | "failed";
 interface Result {
@@ -151,27 +152,48 @@ function GenerateImageInner({
       setPhase("failed");
       return setMessage(started.error);
     }
-    // If this button goes away (another tab, a new result) or gives up waiting, the tray keeps checking the job.
-    const handOff = () => reportGeneration({ ...tray, state: "generating", generationId: started.generationId, detached: true });
+    // Remembered for this tab, so a page the phone reloads (after switching apps) still shows the image.
+    rememberGeneration({ generationId: started.generationId, key: tray.key, request: requestHash(requestKey), path: location.pathname, label: tray.label, prompt, startedAt: Date.now() });
+    await follow(started.generationId, tray);
+  }
+
+  /**
+   * Checks the job until it finishes. A check that fails (the phone was asleep, the network dropped) is tried again,
+   * and coming back to the tab or app checks at once. If this panel goes away, the tray keeps checking.
+   */
+  async function follow(generationId: string, tray: { key: string; label: string; prompt: string }) {
+    const handOff = () => reportGeneration({ ...tray, state: "generating", generationId, detached: true });
     if (!alive.current) return handOff();
     setPhase("running");
-    for (let i = 0; i < MAX_POLLS; i++) {
-      await new Promise((r) => setTimeout(r, POLL_MS));
+    const deadline = Date.now() + MAX_POLLS * POLL_MS;
+    let errors = 0;
+    while (Date.now() < deadline) {
+      await waitOrWake(POLL_MS);
       if (!alive.current) return handOff();
-      const status = await checkImageGeneration(started.generationId);
+      let status: Awaited<ReturnType<typeof checkImageGeneration>>;
+      try {
+        status = await checkImageGeneration(generationId);
+      } catch {
+        continue; // Couldn't reach the server (asleep or offline): try again.
+      }
       if (!status.ok) {
+        // A real answer saying it can't be checked; give it a few tries in case it was a blip.
+        if (++errors < 3) continue;
+        forgetGeneration(generationId);
         reportGeneration({ ...tray, state: "failed", error: status.error });
         setPhase("failed");
         return setMessage(status.error);
       }
+      errors = 0;
       if (status.state === "complete") {
         reportGeneration({ ...tray, state: "ready", url: status.url, downloadUrl: status.downloadUrl });
-        setResult({ generationId: started.generationId, url: status.url, downloadUrl: status.downloadUrl });
+        setResult({ generationId, url: status.url, downloadUrl: status.downloadUrl });
         setPhase("done");
         router.refresh();
         return;
       }
       if (status.state === "failed") {
+        forgetGeneration(generationId);
         reportGeneration({ ...tray, state: "failed", error: status.error });
         setPhase("failed");
         return setMessage(status.error);
@@ -181,6 +203,20 @@ function GenerateImageInner({
     setPhase("failed");
     setMessage("Still working on it. It will show up in the tray below and in History, under Images, when it's ready.");
   }
+
+  // The page was reloaded (or this panel shown again) while a job it started was running or had just finished: pick
+  // it back up and show the image.
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (resumed.current) return;
+    resumed.current = true;
+    const p = latestForRequest(requestHash(requestKey));
+    if (!p) return;
+    const tray = { key: p.key, label: p.label, prompt: p.prompt };
+    reportGeneration({ ...tray, state: "generating", generationId: p.generationId });
+    void follow(p.generationId, tray);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const busy = phase === "starting" || phase === "running";
   const ready = !!prompt.trim() && hasImages;
