@@ -265,26 +265,35 @@ const money = (n: number) => (n === 0 ? "$0" : n < 1 ? `$${n.toFixed(4)}` : `$${
 const th = "py-2 pr-3 font-medium";
 const td = "py-2 pr-3 tabular-nums";
 
-/** Real costs from everyone's ledger, whoever's key paid: what images and text calls actually cost, for pricing. */
-function RealCosts({ f }: { f: FinanceStats }) {
+/**
+ * What your SpicyAPI key really costs: calls it paid for, and (switch on by default) admins' own testing on their saved
+ * keys. People who bring their own keys are never counted. For pricing on-site credits.
+ */
+function RealCosts({ only, withAdmins }: { only: FinanceStats; withAdmins: FinanceStats }) {
+  const [mine, setMine] = useState(true);
+  const f = mine ? withAdmins : only;
   return (
     <section className="panel flex flex-col gap-5 p-5" aria-labelledby="real-title">
       <div>
         <h2 id="real-title" className="flex items-center gap-1.5 font-display text-lg font-bold text-neutral-50">
-          Real costs, everyone, last 30 days
+          Real costs of your key, last 30 days
           <InfoTip label="Where these numbers come from">
-            Every AI call anyone makes goes on their ledger. On SpicyAPI the server looks up what each call was actually charged a few seconds after it
-            finishes (and again in the daily cleanup), so these are real charges, not estimates. Until a charge settles, an image shows the amount held for it
-            (the most it can cost) and a text call shows tokens times the list price.
+            Only calls paid by your SpicyAPI key (the platform key), never people&apos;s own keys. The server looks up what SpicyAPI actually charged for each
+            call a few seconds after it finishes (and again in the daily cleanup), so these are real charges, not estimates. Until a charge settles, an image
+            shows the amount held for it (the most it can cost) and a text call shows tokens times the list price.
           </InfoTip>
         </h2>
         <p className="text-sm text-neutral-400">
-          All {f.people30} active {f.people30 === 1 ? "person" : "people"}, own keys and yours. {Math.round(f.realShare * 100)}% of calls show SpicyAPI&apos;s final charge.
+          {f.people30} {f.people30 === 1 ? "person" : "people"} used it. {Math.round(f.realShare * 100)}% of calls show SpicyAPI&apos;s final charge.
         </p>
+        <label className="mt-2 flex items-center gap-2 text-sm text-neutral-300">
+          <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} />
+          Include admin accounts&apos; own testing (images you make with the SpicyAPI key saved in your settings)
+        </label>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile label="AI spend, everyone" value={money(f.total30)} note={`own keys ${money(f.byok30)} · your key ${money(f.server30)}`} />
+        <Tile label="Spent on your key" value={money(f.total30)} note={mine ? `platform key ${money(f.server30)} · admin testing ${money(f.byok30)}` : "platform key only"} />
         <Tile label="Images generated" value={String(f.images30)} note={`${money(f.imageCost30)} total${f.failedImages30 ? ` · ${f.failedImages30} failed` : ""}`} />
         <Tile label="Average per image" value={f.images30 ? money(f.avgImage) : "-"} note="all sizes and models" />
         <Tile label="Tokens in / out" value={`${tok(f.tokensIn30)} / ${tok(f.tokensOut30)}`} note={`${f.textCalls30} text calls · ${money(f.textCost30)}`} />
@@ -336,7 +345,7 @@ function RealCosts({ f }: { f: FinanceStats }) {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-neutral-500">No images in the last 30 days.</p>
+          <p className="text-sm text-neutral-500">No images on your key in the last 30 days. Image generation uses each person&apos;s own key until on-site credits launch.</p>
         )}
       </div>
 
@@ -381,7 +390,19 @@ function RealCosts({ f }: { f: FinanceStats }) {
   );
 }
 
-export function AdminConsole({ config, stats, finance, usageMissing }: { config: Config; stats: AdminStats; finance: FinanceStats; usageMissing: boolean }) {
+export function AdminConsole({
+  config,
+  stats,
+  finance,
+  financeWithAdmins,
+  usageMissing,
+}: {
+  config: Config;
+  stats: AdminStats;
+  finance: FinanceStats;
+  financeWithAdmins: FinanceStats;
+  usageMissing: boolean;
+}) {
   const payingUsers = stats.users.filter((u) => u.server30 > 0).length;
   return (
     <div className="mt-6 flex flex-col gap-5">
@@ -401,7 +422,7 @@ export function AdminConsole({ config, stats, finance, usageMissing }: { config:
           tone={stats.unpricedCalls30 ? "warn" : undefined}
         />
       </div>
-      <RealCosts f={finance} />
+      <RealCosts only={finance} withAdmins={financeWithAdmins} />
       <SpendChart daily={stats.daily} />
       <CapsForm config={config} />
       <UsersTable users={stats.users} caps={config.caps} />

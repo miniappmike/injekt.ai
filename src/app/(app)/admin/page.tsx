@@ -12,14 +12,14 @@ export default async function AdminPage() {
   const { user } = await requireUser();
   // Anyone else sees a plain 404, so the page's existence isn't advertised.
   if ((await entitlements.planOf(user.id)) !== "admin") notFound();
-  const [config, { stats, finance, usageMissing }] = await Promise.all([getAppConfig(), loadAdminStats()]);
+  const [config, { stats, finance, financeWithAdmins, usageMissing }] = await Promise.all([getAppConfig(), loadAdminStats()]);
   return (
     <div>
       <h1 className="page-title">Admin</h1>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-400">
         What your AI key is costing, who is using it, and the limits. Only admins can see this page.
       </p>
-      <AdminConsole config={config} stats={stats} finance={finance} usageMissing={usageMissing} />
+      <AdminConsole config={config} stats={stats} finance={finance} financeWithAdmins={financeWithAdmins} usageMissing={usageMissing} />
     </div>
   );
 }

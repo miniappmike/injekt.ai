@@ -35,6 +35,15 @@ describe("settleRow", () => {
 });
 
 describe("finances", () => {
+  it("never counts people's calls on their own keys, only the platform key (and admins when asked)", () => {
+    const now = Date.parse("2026-11-11T00:00:00Z");
+    const row = (user: string, key: "byok" | "server", cost: number): FinanceRow => ({ user_id: user, created_at: "2026-11-10T00:00:00Z", key_source: key, job: "image", status: "succeeded", model: "m", cost_usd: cost, cost_known: true, cost_source: "provider", cost_settled: true });
+    const rows = [row("user", "byok", 1), row("user", "server", 0.05), row("admin", "byok", 0.03)];
+    expect(finances(rows, new Map(), now)).toMatchObject({ images30: 1, people30: 1 });
+    expect(finances(rows, new Map(), now).total30).toBeCloseTo(0.05);
+    expect(finances(rows, new Map(), now, new Set(["admin"])).total30).toBeCloseTo(0.08);
+  });
+
   const now = Date.parse("2026-11-11T00:00:00Z");
   const at = "2026-11-10T00:00:00Z";
   const img = (cost: number, gen: string, over: Partial<FinanceRow> = {}): FinanceRow => ({
@@ -46,7 +55,7 @@ describe("finances", () => {
     status: "succeeded", input_tokens: tin, output_tokens: tout, cost_usd: cost, cost_known: true, cost_source: "provider", cost_settled: true, ...over,
   });
 
-  it("counts images, their real cost per model and size, and tokens in and out across everyone", () => {
+  it("counts only the platform key: images, real cost per model and size, tokens in and out", () => {
     const sizes = new Map([["g1", "1k"], ["g2", "1k"], ["g3", "2k"]]);
     const f = finances(
       [
@@ -59,6 +68,7 @@ describe("finances", () => {
       ],
       sizes,
       now,
+      new Set(["u1", "u2"]), // admins: their own-key testing counts
     );
     expect(f.images30).toBe(3);
     expect(f.failedImages30).toBe(1);
@@ -77,7 +87,7 @@ describe("finances", () => {
   it("fits the real per-million text price from settled charges", () => {
     // $2 per 1M in, $10 per 1M out
     const rows = [[1000, 200], [5000, 800], [2000, 2000], [8000, 100], [3000, 1500]].map(([i, o]) => text(i, o, (i * 2 + o * 10) / 1e6));
-    const m = finances(rows, new Map(), now).measured[0];
+    const m = finances(rows, new Map(), now, new Set(["u2"])).measured[0];
     expect(m.model).toBe("sonnet");
     expect(m.input).toBeCloseTo(2, 6);
     expect(m.output).toBeCloseTo(10, 6);

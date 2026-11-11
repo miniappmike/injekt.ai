@@ -47,7 +47,9 @@ export async function loadAdminStats() {
   }
   return {
     stats: summarize(rows as unknown as LedgerRow[], (usage.data ?? []) as UsageRow[], users),
+    // Only the platform key's own usage; the second view adds the admins' own testing on their saved keys.
     finance: finances(rows, sizes),
+    financeWithAdmins: finances(rows, sizes, Date.now(), new Set(users.filter((u) => u.is_admin).map((u) => u.id))),
     usageMissing: !!usage.error,
   };
 }

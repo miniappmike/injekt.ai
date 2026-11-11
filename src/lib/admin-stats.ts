@@ -135,7 +135,7 @@ export function summarize(ledger: LedgerRow[], usage: UsageRow[], users: UserRow
   };
 }
 
-/** One ledger row as the finance view reads it: every call by everyone, whoever's key paid. */
+/** One ledger row as the finance view reads it. */
 export interface FinanceRow {
   user_id: string;
   created_at: string;
@@ -197,10 +197,12 @@ export interface FinanceStats {
 }
 
 /**
- * Real costs across everyone's ledger over the last 30 days, for pricing: every call counts, whoever's key paid.
+ * Real costs of the platform's own SpicyAPI key over the last 30 days, for pricing on-site credits: only calls the
+ * platform's key paid for (key_source "server"), plus, when `alsoUsers` is given, those people's calls on their own
+ * keys (the admins' own testing). People who bring their own keys are never counted.
  * `sizes` maps a generation id to its image size (1k, 1.5k, 2k).
  */
-export function finances(rows: FinanceRow[], sizes: Map<string, string>, now = Date.now()): FinanceStats {
+export function finances(rows: FinanceRow[], sizes: Map<string, string>, now = Date.now(), alsoUsers: ReadonlySet<string> = new Set()): FinanceStats {
   const since = now - 30 * DAY;
   let total30 = 0, byok30 = 0, server30 = 0, textCalls30 = 0, tokensIn30 = 0, tokensOut30 = 0, textCost30 = 0;
   let images30 = 0, failedImages30 = 0, imageCost30 = 0, pricedImages = 0, real = 0, n = 0;
@@ -212,6 +214,7 @@ export function finances(rows: FinanceRow[], sizes: Map<string, string>, now = D
   for (const r of rows) {
     const t = Date.parse(r.created_at);
     if (!Number.isFinite(t) || t < since) continue;
+    if (r.key_source !== "server" && !alsoUsers.has(r.user_id)) continue;
     const cost = num(r.cost_usd);
     const isReal = r.cost_source === "provider" && (r.job !== "image" || r.cost_settled !== false);
     n++;
