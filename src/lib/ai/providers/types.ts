@@ -16,14 +16,15 @@ export interface TextBackend {
   readonly id: string;
   /** Longest image edge to send, for providers that cap total image tokens per request. */
   readonly imageMaxEdge?: number;
-  complete(args: { system?: string; text: string; images?: string[]; apiKey: string }): Promise<TextResult>;
+  /** `onDelta`: stream the reply, handing over each piece of text as it arrives (backends that can't, ignore it). */
+  complete(args: { system?: string; text: string; images?: string[]; apiKey: string; onDelta?: (text: string) => void }): Promise<TextResult>;
 }
 
 // The only client callers get. It always puts the SCOPE guard first.
 export interface GuardedTextClient {
   run(task: TaskInput): Promise<string>;
   /** Like run, and also says whether the reply was cut off at the output limit. */
-  complete?(task: TaskInput): Promise<{ text: string; truncated: boolean }>;
+  complete?(task: TaskInput, opts?: { onDelta?: (text: string) => void }): Promise<{ text: string; truncated: boolean }>;
 }
 
 export type ImageJobStatus = "pending" | "processing" | "complete" | "failed";

@@ -54,6 +54,8 @@ export async function runInject(
   userId: string,
   input: { characterId: string; targetPath: string; options: InjectOptionsInput },
   random: () => number = Math.random,
+  /** Each piece of the reply as the model writes it (the streaming route shows it live). */
+  onDelta?: (text: string) => void,
 ): Promise<InjectRunResult> {
   if (!isOwnPath(userId, input.targetPath)) throw new UserFacingError("That image couldn't be used. Upload it again.");
   const parsed = injectOptionsSchema.safeParse(input.options ?? {});
@@ -101,7 +103,7 @@ export async function runInject(
 
   const prompt = buildInjectPrompt({ ...c, profile: c.profile ?? {} }, sheetLines(pack), o, plans, refs.length, recent, inspo);
   const task = { prompt, images: [target, ...refs].map((x) => x.dataUri) };
-  const reply = client.complete ? await client.complete(task) : { text: await client.run(task), truncated: false };
+  const reply = client.complete ? await client.complete(task, { onDelta }) : { text: await client.run(task), truncated: false };
 
   const parsedVersions = parseVersions(reply.text);
   const chg = { pose: o.pose, outfit: o.newOutfit || o.recolor || o.ward === "extracted" || o.ward === "signature", hair: o.hair, who: o.who };

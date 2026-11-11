@@ -9,8 +9,8 @@ export interface GuardedClientOptions {
 
 // Wraps any vision/LLM backend so the SCOPE guard cannot be skipped.
 export function createGuardedClient(backend: TextBackend, apiKey: string, options: GuardedClientOptions = {}): GuardedTextClient {
-  const complete = async (task: { prompt: string; images?: string[] }) => {
-    const result = await backend.complete({ text: withScope(task.prompt), images: task.images, apiKey });
+  const complete = async (task: { prompt: string; images?: string[] }, opts: { onDelta?: (text: string) => void } = {}) => {
+    const result = await backend.complete({ text: withScope(task.prompt), images: task.images, apiKey, onDelta: opts.onDelta });
     try {
       await options.onUsage?.(result.usage, result.taskIds);
     } catch {

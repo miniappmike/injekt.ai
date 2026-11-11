@@ -16,8 +16,9 @@ import { InfoTip } from "@/components/info-tip";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { clipboardImages, usePasteTarget } from "@/components/paste-router";
-import { cleanOverlays, deleteOutfit, extractOutfit, recoverInjectPrompts, saveOutfit, warmSheetPack, writeInjectPrompts, writeInjectStandalone } from "@/app/(app)/inject/actions";
+import { cleanOverlays, deleteOutfit, extractOutfit, recoverInjectPrompts, saveOutfit, warmSheetPack, writeInjectStandalone } from "@/app/(app)/inject/actions";
 import { awaitOrRecover } from "@/lib/recoverable";
+import { liveText, streamInjectPrompts } from "@/lib/inject-stream";
 import type { AiFailure } from "@/lib/ai/failure";
 import type { StandalonePrompt } from "@/lib/inject-standalone";
 import type { SavedOutfit } from "@/lib/outfits";
@@ -72,6 +73,8 @@ interface Target {
   /** The photo the versions were written for (the cleaned copy when cleaning was on). */
   writtenPath?: string;
   versions?: (Version | null)[];
+  /** The prompt so far, while the model is writing it. */
+  live?: string;
 }
 
 type Options = Required<Omit<InjectOptionsInput, "count">> & { count: number };
@@ -233,10 +236,23 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
       // On a phone the answer can be lost while Safari is in the background; the server still saves the prompts to
       // History, so they are picked up from there when the page comes back.
       const since = new Date().toISOString();
-      const res = await awaitOrRecover(writeInjectPrompts({ characterId, targetPath: path, options: { ...o } }), async () => {
+      // The words appear in the card as they are written (updated once per frame, not per piece).
+      let raw = "";
+      let frame = 0;
+      const onDelta = (d: string) => {
+        raw += d;
+        if (frame) return;
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          update(t.id, { live: raw });
+        });
+      };
+      const res = await awaitOrRecover(streamInjectPrompts({ characterId, targetPath: path, options: { ...o } }, onDelta), async () => {
         const r = await recoverInjectPrompts({ characterId, targetPath: path, since, count: o.count });
         return r.ok && r.result ? { ok: true as const, ...r.result } : null;
       }).catch((e: unknown): AiFailure => ({ ok: false, error: e instanceof Error ? e.message : "Couldn't write the prompts. Try again." }));
+      if (frame) cancelAnimationFrame(frame);
+      update(t.id, { live: undefined });
       usageChanged();
       if (!res.ok) {
         if (res.redirectTo) {
@@ -711,6 +727,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                         {v ? t.status : t.state === "done" ? "This version was not written. Press Write prompts to try again." : t.status}
                       </span>
                       {o.clean && t.clean && t.clean.removed.length > 0 && <span className="text-xs text-emerald-300">Cleaned. Removed: {t.clean.removed.join(", ")}</span>}
+                      {t.state === "busy" && t.live && <LiveText text={liveText(t.live)} />}
                     </div>
                     {v && (
                       <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
@@ -792,6 +809,24 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
         </section>
       )}
       {toast}
+    </div>
+  );
+}
+
+/** The prompt as the model writes it, kept scrolled to the newest words, with a blinking cursor. */
+function LiveText({ text }: { text: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (box.current) box.current.scrollTop = box.current.scrollHeight;
+  }, [text]);
+  return (
+    <div
+      ref={box}
+      aria-live="off"
+      className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-lg border border-neutral-800 bg-neutral-950/60 p-3 font-mono text-xs leading-relaxed text-neutral-300"
+    >
+      {text}
+      <span aria-hidden="true" className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse bg-brand-400 align-middle" />
     </div>
   );
 }

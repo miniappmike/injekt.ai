@@ -70,6 +70,79 @@ async function post(
   return json;
 }
 
+/**
+ * An OpenAI-style streaming call (SSE): every piece of text goes to `onDelta` as it arrives, and the whole reply,
+ * its token use and whether it was cut off come back at the end, the same as a normal call.
+ */
+async function postStream(
+  provider: string,
+  url: string,
+  headers: Record<string, string>,
+  body: { model: string } & Record<string, unknown>,
+  apiKey: string,
+  onDelta: (text: string) => void,
+  taskIds?: string[],
+): Promise<{ text: string; usage?: TokenUsage; truncated: boolean; finish: string | null }> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "text/event-stream", ...headers },
+      body: JSON.stringify({ ...body, stream: true, stream_options: { include_usage: true } }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      redirect: "error",
+    });
+  } catch {
+    throw new ProviderError(provider, 0, `${provider} did not respond in time. Try again.`);
+  }
+  const taskId = res.headers.get("x-spicy-task-id");
+  if (taskIds && taskId) taskIds.push(taskId);
+  if (!res.ok || !res.body) {
+    const json = await res.json().catch(() => null);
+    const detail = String(json?.error?.message ?? json?.message ?? res.statusText ?? "");
+    throw new ProviderError(provider, res.status, describeProviderError(provider, res.status, detail, body.model, apiKey));
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let text = "";
+  let usage: TokenUsage | undefined;
+  let finish: string | null = null;
+  const handle = (line: string) => {
+    const l = line.trim();
+    if (!l.startsWith("data:")) return;
+    const data = l.slice(5).trim();
+    if (!data || data === "[DONE]") return;
+    let json: { error?: { message?: string }; choices?: { delta?: { content?: unknown }; finish_reason?: string | null }[]; usage?: { prompt_tokens?: unknown; completion_tokens?: unknown } };
+    try {
+      json = JSON.parse(data);
+    } catch {
+      return;
+    }
+    if (json.error) throw new ProviderError(provider, 200, describeProviderError(provider, 200, String(json.error.message ?? ""), body.model, apiKey));
+    const choice = json.choices?.[0];
+    const piece = choice?.delta?.content;
+    if (typeof piece === "string" && piece) {
+      text += piece;
+      onDelta(piece);
+    }
+    if (choice?.finish_reason) finish = choice.finish_reason;
+    if (json.usage) usage = readUsage(json.usage.prompt_tokens, json.usage.completion_tokens) ?? usage;
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf("\n")) >= 0) {
+      handle(buffer.slice(0, nl));
+      buffer = buffer.slice(nl + 1);
+    }
+  }
+  if (buffer) handle(buffer);
+  return { text, usage, truncated: finish === "length", finish };
+}
+
 export function anthropicBackend(model: string): TextBackend {
   return {
     id: "anthropic",
@@ -174,9 +247,31 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
   return {
     id: "spicyapi",
     imageMaxEdge: 768,
-    async complete({ system, text, images = [], apiKey }) {
+    async complete({ system, text, images = [], apiKey, onDelta }) {
       await assertPublicHttpsUrl(baseUrl);
       const taskIds: string[] = [];
+      // Streaming (for prompts shown as they're written): each piece of text goes out as it arrives. A reply that
+      // came back empty falls through to the normal call below.
+      if (onDelta) {
+        const streamed = await postStream(
+          "spicyapi",
+          `${baseUrl}/chat/completions`,
+          { authorization: `Bearer ${apiKey}`, "idempotency-key": randomUUID() },
+          {
+            model,
+            max_tokens: SPICY_MAX_TOKENS,
+            reasoning_effort: effort,
+            messages: [
+              ...(system ? [{ role: "system", content: system }] : []),
+              { role: "user", content: [...images.map((uri) => ({ type: "image_url", image_url: { url: uri } })), { type: "text", text }] },
+            ],
+          },
+          apiKey,
+          onDelta,
+          taskIds,
+        );
+        if (streamed.text.trim()) return { text: streamed.text, usage: streamed.usage, truncated: streamed.truncated, taskIds };
+      }
       const ask = (effort: SpicyEffort) =>
         post(
           "spicyapi",
