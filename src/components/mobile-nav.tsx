@@ -52,7 +52,7 @@ export function MobileTitle() {
         </button>
       ) : (
         <Link href="/characters" aria-label="Model Spawn home" className="-ml-1 flex h-10 w-9 shrink-0 items-center justify-center">
-          <Logo withName={false} />
+          <Logo withName={false} small />
         </Link>
       )}
       <span className="min-w-0 flex-1 truncate font-display text-[19px] font-bold tracking-tight text-neutral-50">{title}</span>

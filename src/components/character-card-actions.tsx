@@ -71,13 +71,13 @@ export function CharacterImagesButton({ name, images }: { name: string; images: 
                 <h2 className="font-display text-lg font-bold text-neutral-50">{name}&apos;s images <span className="text-sm font-medium text-neutral-500">{images.length}</span></h2>
                 <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>Close</Button>
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5">
+              <div className="min-h-0 flex-1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5">
                 {images.length === 0 ? (
                   <p className="py-10 text-center text-sm text-neutral-400">No reference images or sheets yet.</p>
                 ) : (
-                  <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  <ul className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-3 [scrollbar-width:thin]" aria-label="Scroll sideways for more">
                     {images.map((img) => (
-                      <li key={img.label + img.url}>
+                      <li key={img.label + img.url} className="w-[62vw] max-w-[18rem] shrink-0 snap-start sm:w-64">
                         <button
                           type="button"
                           onClick={() => viewImage({ url: img.url, title: `${name}: ${img.label}` })}
