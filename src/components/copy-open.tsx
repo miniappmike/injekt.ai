@@ -5,10 +5,11 @@ import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/components/app-context";
 import { GENERATION_SETTINGS_PATH, GET_KEY_PATH } from "@/lib/links";
 import { cn } from "@/lib/utils";
+import { TokenIcon } from "@/components/token-icon";
 
 /**
  * Under a finished prompt: Copy prompt, and (while image generation is off) a greyed-out Generate image button whose
- * card says how to turn it on: buy credits, get an API key, or switch image generation on in Settings. With
+ * card says how to turn it on: buy tokens, get an API key, or switch image generation on in Settings. With
  * generation on, pages show the real Generate controls instead.
  */
 export function CopyOpen({ text, disabled, className }: { text: string; disabled?: boolean; className?: string }) {
@@ -44,10 +45,10 @@ export function CopyOpen({ text, disabled, className }: { text: string; disabled
 
 /**
  * A greyed-out Generate image button. Hovering, focusing or tapping it opens a small card with the three ways to
- * generate: buy credits (coming soon), get an API key, or turn on image generation.
+ * generate: buy tokens (coming soon), get an API key, or turn on image generation.
  */
 export function LockedGenerate({ label = "Generate image", size = "sm" }: { label?: string; size?: "sm" | "xs" }) {
-  const { imageKey } = useApp();
+  const { imageKey, pro } = useApp();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -100,16 +101,23 @@ export function LockedGenerate({ label = "Generate image", size = "sm" }: { labe
           className="absolute bottom-full left-0 z-40 mb-2 w-72 animate-pop-in rounded-xl border border-neutral-800 bg-neutral-900/95 p-2 text-sm shadow-[0_20px_50px_-15px_rgb(0_0_0/0.9)] backdrop-blur-xl max-sm:fixed max-sm:inset-x-4 max-sm:bottom-24 max-sm:w-auto max-sm:bg-neutral-900"
         >
           <p className="px-2.5 pb-1 pt-1.5 text-xs text-neutral-400">Generate images right here, with any of these:</p>
-          <div className={cn(row, "cursor-default opacity-60")} aria-disabled="true">
-            <span aria-hidden="true" className="mt-0.5 text-base leading-none">🪙</span>
+          <Link href="/tokens" onClick={() => setOpen(false)} className={cn(row, "hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none")}>
+            <TokenIcon className="mt-0.5 h-4 w-4" />
             <span>
-              <span className="font-semibold text-neutral-100">Buy credits</span>{" "}
-              <span className="rounded-full bg-neutral-800 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-400">Coming soon</span>
+              <span className="font-semibold text-neutral-100">Buy tokens</span>
               <span className="block text-xs text-neutral-500">Pay as you go, no key needed.</span>
             </span>
-          </div>
-          {/* Only until they have a key; after that the guide stays in the footer. */}
-          {!imageKey && (
+          </Link>
+          {/* Own keys are a Pro feature: Pro without a key gets the guide; Free gets the upgrade. */}
+          {!pro ? (
+            <Link href="/upgrade" onClick={() => setOpen(false)} className={cn(row, "hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none")}>
+              <span aria-hidden="true" className="mt-0.5 text-base leading-none">💎</span>
+              <span>
+                <span className="font-semibold text-neutral-100">Upgrade to Pro</span>
+                <span className="block text-xs text-neutral-500">Use your own API key, no daily limits.</span>
+              </span>
+            </Link>
+          ) : !imageKey && (
             <Link href={GET_KEY_PATH} onClick={() => setOpen(false)} className={cn(row, "hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none")}>
               <span aria-hidden="true" className="mt-0.5 text-base leading-none">🔑</span>
               <span>
@@ -122,7 +130,7 @@ export function LockedGenerate({ label = "Generate image", size = "sm" }: { labe
             <span aria-hidden="true" className="mt-0.5 text-base leading-none">⚡</span>
             <span>
               <span className="font-semibold text-neutral-100">Turn on image generation</span>
-              <span className="block text-xs text-neutral-500">{imageKey ? "You have a key: switch it on in Settings." : "In Settings, once your key is added."}</span>
+              <span className="block text-xs text-neutral-500">It&apos;s switched off in Settings: turn it back on.</span>
             </span>
           </Link>
         </div>

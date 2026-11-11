@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { CharacterForm } from "@/components/character-form";
 import { requireUser } from "@/lib/auth";
 import { entitlements } from "@/lib/entitlements";
+import { hasOwnAiKey } from "@/lib/daily-limits";
+import { PROFILE_BUILD_CREDITS } from "@/lib/plans";
 import { FREE_LIMITS, limitMessage } from "@/lib/limits";
 import { createCharacter } from "../actions";
 
@@ -24,12 +26,13 @@ export default async function NewCharacterPage() {
     );
   }
 
-  const { profile_builds: buildsLeft } = await entitlements.remaining(user.id);
+  // Profile builds cost credits on the platform's key (free with their own key on Pro).
+  const buildCredits = (await hasOwnAiKey(supabase, user.id)) ? null : PROFILE_BUILD_CREDITS;
 
   return (
     <div>
       <h1 className="page-title mb-6">New character</h1>
-      <CharacterForm action={createCharacter} submitLabel="Save character" buildsLeft={buildsLeft} buildsTotal={FREE_LIMITS.profile_builds} />
+      <CharacterForm action={createCharacter} submitLabel="Save character" buildCredits={buildCredits} />
     </div>
   );
 }

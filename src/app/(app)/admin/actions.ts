@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { entitlements } from "@/lib/entitlements";
 import { appConfigSchema, saveAppConfig, type AppConfigInput } from "@/lib/app-config";
 import { adminClient } from "@/lib/supabase/admin";
+import { fulfillOrder } from "@/lib/orders";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -39,5 +40,34 @@ export async function setUserPlan(input: { userId: string; plan: "free" | "pro" 
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Couldn't change the plan." };
+  }
+}
+
+/**
+ * Marks an order paid and delivers it, exactly as the payment webhook will once checkout is connected. For testing the
+ * whole flow until then. Safe to press twice: a paid order is never delivered again.
+ */
+export async function markOrderPaid(orderId: string): Promise<Result> {
+  try {
+    await requireAdmin();
+    if (!/^[0-9a-f-]{36}$/i.test(orderId)) return { ok: false, error: "That order couldn't be found." };
+    const delivered = await fulfillOrder(orderId, "admin", null);
+    revalidatePath("/admin");
+    return delivered ? { ok: true } : { ok: false, error: "That order was already paid." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't complete the order." };
+  }
+}
+
+/** Cancels an unpaid order. */
+export async function cancelOrder(orderId: string): Promise<Result> {
+  try {
+    await requireAdmin();
+    const { error } = await adminClient().from("orders").update({ status: "cancelled" }).eq("id", orderId).eq("status", "pending");
+    if (error) return { ok: false, error: "Couldn't cancel it." };
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't cancel it." };
   }
 }

@@ -181,10 +181,6 @@ export async function setGeneration(input: { enabled: boolean; confirmed?: boole
   const { supabase, user } = await requireUser();
   const prefs = await loadPrefs(supabase, user.id);
   const before = generationState(prefs);
-  if (input.enabled) {
-    if (!input.confirmed) return { ok: false, error: "Tick the box to confirm first." };
-    if (!before.hasImageKey) return { ok: false, error: "Add your own Image key above first." };
-  }
   const { error } = await supabase
     .from("user_settings")
     .update({ prefs: { ...prefs, generation: { enabled: input.enabled, confirmed: input.enabled ? true : before.confirmed } } })
@@ -202,9 +198,7 @@ export async function toggleGeneration(): Promise<{ ok: true; enabled: boolean }
   const { supabase, user } = await requireUser();
   const prefs = await loadPrefs(supabase, user.id);
   const before = generationState(prefs);
-  if (!before.hasImageKey) return { ok: false, settings: true };
   const next = !before.enabled;
-  if (next && !before.confirmed) return { ok: false, settings: true };
   const { error } = await supabase
     .from("user_settings")
     .update({ prefs: { ...prefs, generation: { enabled: next, confirmed: before.confirmed || next } } })

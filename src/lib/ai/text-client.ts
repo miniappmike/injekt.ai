@@ -10,6 +10,7 @@ import { keyResolverDeps } from "@/lib/key-store";
 import { ApiKeyRequiredError } from "@/lib/errors";
 import { env } from "@/env";
 import { getAppConfig } from "@/lib/app-config";
+import { canUseOwnKeys } from "@/lib/daily-limits";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -24,7 +25,8 @@ const WRITING: ReadonlySet<TextFeature> = new Set(["prompt", "variants", "carous
 // the platform's key (SPICY_API_KEY with SERVER_VISION_MODEL). Throws ApiKeyRequiredError only when there's no key at all.
 export async function getUserTextClient(supabase: SupabaseClient, userId: string, role: "vision" | "llm", feature: TextFeature) {
   const { data } = await supabase.from("user_settings").select("prefs").eq("user_id", userId).maybeSingle();
-  const chosen = effectiveRole(readRoles(data?.prefs), role);
+  // Own keys are a Pro feature: on the free plan a saved key is ignored and the platform's key does the job.
+  const chosen = (await canUseOwnKeys(userId)) ? effectiveRole(readRoles(data?.prefs), role) : null;
   // No key of their own: the platform's key and model do the job (its daily allowance is checked by the caller).
   if (!chosen && !env.SPICY_API_KEY) throw new ApiKeyRequiredError(role);
 

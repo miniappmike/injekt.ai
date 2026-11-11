@@ -2,10 +2,11 @@ import "server-only";
 import { after } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { enforceRateLimit } from "@/lib/ratelimit";
-import { LimitReachedError } from "@/lib/errors";
+import { InsufficientCreditsError, LimitReachedError } from "@/lib/errors";
 import { toFailure, type AiFailure } from "@/lib/ai/failure";
-import { entitlements } from "@/lib/entitlements";
-import type { Allowance } from "@/lib/entitlements-core";
+import { NO_SPEND, spendCredits, type CreditSpend } from "@/lib/credits";
+import { hasOwnAiKey } from "@/lib/daily-limits";
+import { PROFILE_BUILD_CREDITS } from "@/lib/plans";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { buildProfileTask, parseProfileResponse, PROFILE_ROLES } from "@/lib/ai/tasks/profile-builder";
 import { loadForVision, type CharacterImagePaths } from "@/lib/character-images";
@@ -18,9 +19,10 @@ export type ProfileBuildResult = ({ ok: true; profile: CharacterProfile } | AiFa
 export type BuildCode = "no_images" | "no_key" | "limit" | "failed";
 
 // Reads the character's images, asks the user's vision model for a profile and saves it to the character.
-// Takes a free-plan generation first and gives it back if nothing useful came out.
+// On the platform's key it costs PROFILE_BUILD_CREDITS, given back if nothing useful came out; with their own key
+// (Pro) it's free.
 export async function runProfileBuild(supabase: SupabaseClient, userId: string, characterId: string): Promise<ProfileBuildResult> {
-  let allowance: Allowance | undefined;
+  let spend: CreditSpend = NO_SPEND;
   try {
     await enforceRateLimit(userId, "llm", 10, 60);
 
@@ -34,7 +36,7 @@ export async function runProfileBuild(supabase: SupabaseClient, userId: string, 
     const refs = profileImages(c);
     if (!refs.length) return { ok: false, error: "Upload a face sheet, body sheet or reference photo first.", code: "no_images" };
 
-    allowance = await entitlements.useAllowance(userId, "profile_builds");
+    if (!(await hasOwnAiKey(supabase, userId))) spend = await spendCredits(userId, PROFILE_BUILD_CREDITS, "profile", characterId);
 
     const { client, imageMaxEdge } = await getUserTextClient(supabase, userId, "vision", "profile");
     const images = await loadForVision(supabase, refs.map((r) => ({ label: r.role, path: r.path })), imageMaxEdge);
@@ -51,9 +53,9 @@ export async function runProfileBuild(supabase: SupabaseClient, userId: string, 
     if (c.face_sheet_path || c.body_sheet_path) after(() => ensureSheetPack(supabase, userId, c).catch(() => null));
     return { ok: true, profile };
   } catch (e) {
-    await allowance?.release();
+    await spend.refund().catch(() => {});
     const f = toFailure(e);
-    const code: BuildCode = f.redirectTo ? "no_key" : e instanceof LimitReachedError ? "limit" : "failed";
+    const code: BuildCode = f.redirectTo ? "no_key" : e instanceof LimitReachedError || e instanceof InsufficientCreditsError ? "limit" : "failed";
     return { ...f, code };
   }
 }

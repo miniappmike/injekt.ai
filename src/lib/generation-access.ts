@@ -2,16 +2,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { effectiveRole, readRoles } from "@/lib/ai/roles";
 
 /**
- * Image generation on the site is opt-in: a person adds their own Image key in Settings, then turns generation on
- * (with two confirmations). Without both, every tool writes prompts to paste into a generator instead.
+ * Image generation on the site is on unless the person switched it off in Settings (then every tool only writes prompts
+ * to paste into a generator). Images are paid with credits, or on Pro with their own Image key. Credits are bought
+ * up front, so turning it on needs no confirmation.
  */
 export function generationState(prefs: unknown): { hasImageKey: boolean; enabled: boolean; confirmed: boolean } {
   const hasImageKey = !!effectiveRole(readRoles(prefs), "image");
-  const g = (prefs as { generation?: { enabled?: unknown; confirmed?: unknown } } | null)?.generation;
-  const on = g?.enabled === true;
-  // "Confirmed" means they have been through the two-step confirmation in Settings once (anyone who already had it on
-  // counts). After that, the profile menu can switch it on again with one click.
-  return { hasImageKey, enabled: hasImageKey && on, confirmed: g?.confirmed === true || on };
+  const g = (prefs as { generation?: { enabled?: unknown } } | null)?.generation;
+  return { hasImageKey, enabled: g?.enabled !== false, confirmed: true };
 }
 
 export async function loadGenerationState(supabase: SupabaseClient, userId: string) {

@@ -14,6 +14,11 @@ const h = vi.hoisted(() => ({
   safeFetchBytes: vi.fn(),
   release: vi.fn(async () => {}),
   genState: vi.fn(),
+  own: vi.fn(async () => true),
+  spend: vi.fn(),
+  refund: vi.fn(async (_id?: string) => {}),
+  daily: vi.fn(),
+  slotRelease: vi.fn(async () => {}),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -31,6 +36,13 @@ vi.mock("@/lib/ai/text-client", async () => {
   return { getUserTextClient: async () => { throw new ApiKeyRequiredError("vision"); } };
 });
 vi.mock("@/lib/generation-access", () => ({ loadGenerationState: h.genState }));
+vi.mock("@/lib/daily-limits", () => ({ canUseOwnKeys: h.own, useDaily: h.daily }));
+vi.mock("@/lib/credits", () => ({
+  NO_SPEND: { id: null, refund: async () => {} },
+  spendCredits: h.spend,
+  spendHandle: (id: string) => ({ id, refund: () => h.refund(id) }),
+}));
+vi.mock("@/lib/app-config", () => ({ getAppConfig: async () => ({ serverImageModel: "bytedance/seedream-5.0-pro/edit" }) }));
 vi.mock("@/lib/ai/image-setup", () => ({ getUserImageConfig: h.getUserImageConfig, resolveUserImageKey: h.resolveUserImageKey }));
 vi.mock("@/lib/ai/providers/registry", () => ({ getImageProvider: () => ({ submit: h.submit, quote: h.quote, poll: h.poll }) }));
 
@@ -126,6 +138,10 @@ beforeEach(() => {
   h.genState.mockResolvedValue({ hasImageKey: true, enabled: true });
   h.getUserImageConfig.mockResolvedValue({ model: "bytedance/seedream-5.0-pro/edit", storedProvider: "spicyapi", keyRole: "image" });
   h.resolveUserImageKey.mockResolvedValue("sk-spicy-theirs");
+  // Pro by default (own keys allowed); the credits tests switch it off.
+  h.own.mockResolvedValue(true);
+  h.spend.mockImplementation(async () => ({ id: "spend_1", refund: h.refund }));
+  h.daily.mockResolvedValue({ release: h.slotRelease });
 });
 
 describe("parseGenerationRequest", () => {
@@ -204,12 +220,54 @@ describe("startGeneration: opt-in generation", () => {
     expect(h.submit).not.toHaveBeenCalled();
   });
 
-  it("is refused without their own Image key, even for a Pro account", async () => {
-    h.isUnlimited.mockResolvedValue(true);
-    h.getUserImageConfig.mockResolvedValue(null);
-    await expect(startGeneration(userClient(), verified, request())).rejects.toThrow(/Image generation is off/);
-    expect(h.resolveApiKey).not.toHaveBeenCalled();
+  it("without their own Image key (or on the free plan) it runs on the platform's key and costs credits by size", async () => {
+    h.own.mockResolvedValue(false); // free plan: a saved key is ignored
+    const { generationId } = await startGeneration(userClient(), verified, request({ model: "someone/else/edit" }));
+    expect(h.resolveUserImageKey).not.toHaveBeenCalled();
+    expect(h.daily).toHaveBeenCalledWith(expect.anything(), U, "images");
+    expect(h.spend).toHaveBeenCalledWith(U, 4, "image:inject"); // 2k
+    // The platform's key and model; the page's one-off model is for own keys only.
+    expect(h.submit.mock.calls[0][0]).toMatchObject({ apiKey: "sk-spicy-house", model: "bytedance/seedream-5.0-pro/edit" });
+    expect(db.rows[0].params).toMatchObject({ key_source: "server", credit_spend: "spend_1", credits: 4 });
+    expect(generationId).toBe("g1");
+    // No dollar quote on credits: the button shows the credits.
+    expect(await quoteGeneration(userClient(), verified, request())).toBeNull();
+
+    h.own.mockResolvedValue(true);
+    h.getUserImageConfig.mockResolvedValue(null); // Pro without an Image key
+    await startGeneration(userClient(), verified, request({ resolution: "1k" }));
+    expect(h.spend).toHaveBeenLastCalledWith(U, 2, "image:inject");
+  });
+
+  it("with too few credits nothing starts, and today's image is given back", async () => {
+    h.own.mockResolvedValue(false);
+    const { InsufficientCreditsError } = await import("@/lib/errors");
+    h.spend.mockRejectedValueOnce(new InsufficientCreditsError(4, 1));
+    await expect(startGeneration(userClient(), verified, request())).rejects.toThrow(InsufficientCreditsError);
+    expect(db.rows).toHaveLength(0);
     expect(h.submit).not.toHaveBeenCalled();
+    expect(h.slotRelease).toHaveBeenCalled();
+  });
+
+  it("gives the credits back when the job can't start, or when it fails", async () => {
+    h.own.mockResolvedValue(false);
+    h.submit.mockRejectedValueOnce(new Error("provider down"));
+    await expect(startGeneration(userClient(), verified, request())).rejects.toThrow(/provider down/);
+    expect(h.refund).toHaveBeenCalledTimes(1);
+    expect(h.slotRelease).toHaveBeenCalledTimes(1);
+
+    const { generationId } = await startGeneration(userClient(), verified, request());
+    h.poll.mockResolvedValue({ status: "failed", error: "declined" });
+    await collectGeneration(userClient(), verified, generationId);
+    expect(h.refund).toHaveBeenLastCalledWith("spend_1");
+    expect(h.refund).toHaveBeenCalledTimes(2);
+  });
+
+  it("an own key costs no credits", async () => {
+    await startGeneration(userClient(), verified, request());
+    expect(h.spend).not.toHaveBeenCalled();
+    expect(h.daily).not.toHaveBeenCalled();
+    expect(db.rows[0].params.credit_spend).toBeUndefined();
   });
 });
 

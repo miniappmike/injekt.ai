@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ProGem } from "@/components/pro-badge";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useApp } from "@/components/app-context";
@@ -18,21 +19,15 @@ export function ProfileMenu({ email, admin = false }: { email: string; admin?: b
   const button = useRef<HTMLButtonElement>(null);
   const menuId = useId();
   const router = useRouter();
-  const { generation, imageKey } = useApp();
+  const { generation, imageKey, pro } = useApp();
   // The switch shows the new state at once and goes back if the server says no.
   const [genOn, setGenOn] = useState(generation);
   const [genNote, setGenNote] = useState<string>();
   const [, startToggle] = useTransition();
   useEffect(() => setGenOn(generation), [generation]);
 
-  // One click flips image generation. With no Image key yet (or the confirmation in Settings never done) it opens
-  // Settings instead, where the key and the two confirmations live.
+  // One click flips image generation (images are paid with tokens, or on Pro with their own key).
   function flipGeneration() {
-    if (!imageKey) {
-      setOpen(false);
-      router.push("/settings/api-keys");
-      return;
-    }
     const before = genOn;
     setGenOn(!before);
     setGenNote(undefined);
@@ -136,7 +131,7 @@ export function ProfileMenu({ email, admin = false }: { email: string; admin?: b
                 <span className="min-w-0">
                   <span className="block">Image generation</span>
                   <span className={cn("block text-xs", genOn ? "text-emerald-300" : "text-neutral-500")}>
-                    {genOn ? "On" : imageKey ? "Off" : "Off · add a key in Settings"}
+                    {genOn ? "On" : "Off"}
                   </span>
                 </span>
                 <span
@@ -147,10 +142,16 @@ export function ProfileMenu({ email, admin = false }: { email: string; admin?: b
                 </span>
               </button>
               <div role="separator" className="my-1 border-t border-neutral-800" />
+              <Link href="/tokens" role="menuitem" onClick={close} className={item}>Tokens</Link>
+              {!pro && (
+                <Link href="/upgrade" role="menuitem" onClick={close} className={cn(item, "flex items-center gap-2 font-semibold text-[#ff8fc0]")}>
+                  <ProGem className="h-5 w-5" glow={false} /> Upgrade to Pro
+                </Link>
+              )}
               <Link href="/ledger" role="menuitem" onClick={close} className={item}>Ledger</Link>
               <Link href="/settings/api-keys" role="menuitem" onClick={close} className={item}>Settings</Link>
               {/* Only until they have a key; after that the guide stays in the footer. */}
-              {!imageKey && <Link href={GET_KEY_PATH} role="menuitem" onClick={close} className={item}>Get an API key</Link>}
+              {pro && !imageKey && <Link href={GET_KEY_PATH} role="menuitem" onClick={close} className={item}>Get an API key</Link>}
               {admin && <Link href="/admin" role="menuitem" onClick={close} className={item}>Admin</Link>}
               <form action="/auth/signout" method="post" className="mt-1 border-t border-neutral-800 pt-1">
                 <button type="submit" role="menuitem" className={item}>Log out</button>

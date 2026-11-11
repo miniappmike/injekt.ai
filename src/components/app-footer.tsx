@@ -26,7 +26,8 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
   {
     title: "Account",
     links: [
-      { label: "Get Credits", soon: true },
+      { label: "Get Tokens", href: "/tokens" },
+      { label: "Upgrade to Pro", href: "/upgrade" },
       { label: "Characters", href: "/characters" },
       { label: "Settings", href: "/settings/api-keys" },
       { label: "Ledger", href: "/ledger" },

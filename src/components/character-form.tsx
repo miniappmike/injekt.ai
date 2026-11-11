@@ -1,5 +1,7 @@
 "use client";
 
+import { usageChanged } from "@/lib/panel-events";
+import { TokenCost } from "@/components/token-icon";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
@@ -29,6 +31,7 @@ export function CharacterForm({
   characterId,
   canBuildProfile = false,
   buildsLeft = null,
+  buildCredits = null,
   buildsTotal,
   fromWizard = false,
 }: {
@@ -40,6 +43,8 @@ export function CharacterForm({
   canBuildProfile?: boolean;
   /** Free plan: profile builds left. `null` means unlimited. */
   buildsLeft?: number | null;
+  /** What a profile build costs on the platform's key; null with their own key. */
+  buildCredits?: number | null;
   buildsTotal?: number;
   /** Arrived straight from the Create Model wizard: point at Build profile, the last step. */
   fromWizard?: boolean;
@@ -92,7 +97,8 @@ export function CharacterForm({
     } else {
       setBuildError(result.error);
     }
-    router.refresh(); // updates "builds left"
+    usageChanged(); // the tokens in the header
+    router.refresh();
   }
 
   return (
@@ -169,7 +175,7 @@ export function CharacterForm({
               disabled={building || !canBuildProfile || buildsLeft === 0}
               className={`self-start ${nudge ? "animate-pulse ring-2 ring-brand-400/70 ring-offset-2 ring-offset-neutral-950" : ""}`}
             >
-              {building ? "Building..." : "Build profile from images"}
+              {building ? "Building..." : <>Build profile from images{buildCredits ? <TokenCost n={buildCredits} onPink={nudge} /> : null}</>}
             </Button>
             {!canBuildProfile && <p className="text-xs text-neutral-500">Upload a face sheet, body sheet or reference photo to enable this.</p>}
             {buildsLeft !== null && buildsTotal !== undefined && (
@@ -211,7 +217,7 @@ export function CharacterForm({
         <Button type="submit" disabled={pending}>{pending ? "Saving..." : submitLabel}</Button>
         {!characterId && (
           <Button type="submit" name="build" value="1" variant="secondary" disabled={pending || !canBuildDraft || buildsLeft === 0}>
-            {pending ? "Working..." : "Save and build profile"}
+            {pending ? "Working..." : <>Save and build profile{buildCredits ? <TokenCost n={buildCredits} /> : null}</>}
           </Button>
         )}
         <Button asChild variant="outline"><Link href="/characters">Back</Link></Button>
