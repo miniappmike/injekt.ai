@@ -306,6 +306,17 @@ Migrations: `0018_listing_views_rank.sql` (views table, `record_listing_view`, `
   stack it: tabs 50/50, then sort + toggle. Story bubbles (52px) only in Cards view. The live-count logic (Realtime, 30s poll, refresh) is unchanged.
 - **Virality Rank** = views + likes among personas still for sale, #1 highest; sold personas have no rank.
 
+## Also shipped on this branch (not marketplace phases)
+
+- **Create Model wizard** (was Reference Sheet): details in `docs/HANDOFF.md`. Face photo, face sheet, up to 3 body photos, then
+  the body sheet with a Covered / Bikini toggle. Prompts live in `src/lib/ai/prompts/sheets.ts` and are covered by
+  `tests/reference-sheet.test.ts`.
+- **Characters page**: magnifier gallery, Delete for everyone, **List** for admins only (it opens the character page's
+  Marketplace panel, where the price, public profile and previews are set).
+- **Look and feel**: new logo and favicon, floating History button, profile menu with the Image generation switch, generation
+  tray tile fix.
+- **Still on hold**: Phase 6 (Stripe), 7 (compliance), 8 (tests), 9 (crypto, design only).
+
 ## Manual setup so far
 
 Run these in the Supabase SQL editor, in order. Skip any you've already run: each one fails with "already exists" if
