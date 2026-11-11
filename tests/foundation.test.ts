@@ -77,3 +77,12 @@ describe("SCOPE guard", () => {
     expect(seen).toHaveBeenCalledWith(undefined, undefined); // still counted as a call
   });
 });
+
+describe("model refusals reach the page", () => {
+  it("keeps the reason a key refused an image model", async () => {
+    const { toFailure } = await import("@/lib/ai/failure");
+    const { ProviderError } = await import("@/lib/ai/providers/text");
+    expect(toFailure(new ProviderError("spicyapi", 403, "nope", "model_not_allowed"))).toEqual({ ok: false, error: "nope", reason: "model_not_allowed" });
+    expect(toFailure(new ProviderError("spicyapi", 500, "down"))).toEqual({ ok: false, error: "down" });
+  });
+});

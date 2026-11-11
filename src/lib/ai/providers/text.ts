@@ -10,6 +10,8 @@ export class ProviderError extends Error {
     public readonly provider: string,
     public readonly status: number,
     message: string,
+    /** Why, when a page should react to it: the key may not use the model, or the model doesn't exist. */
+    public readonly reason?: "model_not_allowed" | "model_not_found",
   ) {
     super(message);
     this.name = "ProviderError";

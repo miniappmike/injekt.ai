@@ -39,6 +39,14 @@ const requestSchema = z.object({
   meta: injectMetaSchema.optional(),
   /** The History prompt this image was made from, so History can show it again ("Preview generation"). */
   historyId: z.string().uuid().nullish(),
+  /** A one-off image model for this generation (the page's model box); without it, the one in Settings. */
+  model: z
+    .string()
+    .trim()
+    .max(120)
+    .regex(/^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*){1,3}$/i, "That model ID doesn't look right. It looks like bytedance/seedream-5.5/edit.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
 });
 
 export type GenerationRequest = z.infer<typeof requestSchema>;
@@ -75,6 +83,9 @@ async function resolveAccess(supabase: SupabaseClient, user: Actor, _opts: { for
   if (!state.enabled || !cfg) throw new UserFacingError("Image generation is off. To generate here, add your own image key in Settings and turn on image generation.");
   return { source: "byok", apiKey: await resolveUserImageKey(user.id, cfg), model: cfg.model, free: false };
 }
+
+/** The page's one-off model, when it set one, in place of the person's Settings model. */
+const withModel = (access: Access, model?: string): Access => (model ? { ...access, model } : access);
 
 // The prompt to send and signed links to its images, in prompt order.
 async function prepareInput(
@@ -117,7 +128,7 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
   // 12 a minute leaves room for "Generate all" on the largest carousel (7 slides) or variant set (8).
   await enforceRateLimit(user.id, "image", 12, 60);
 
-  const access = await resolveAccess(supabase, user);
+  const access = withModel(await resolveAccess(supabase, user), request.model);
   let submitted = false;
   let generationId: string | undefined;
   const db = adminClient();
@@ -187,7 +198,7 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
 export async function quoteGeneration(supabase: SupabaseClient, user: Actor, raw: unknown): Promise<{ estimatedCost: string } | null> {
   const request = parseGenerationRequest(raw);
   await enforceRateLimit(user.id, "image-quote", 30, 60);
-  const access = await resolveAccess(supabase, user, { forQuote: true });
+  const access = withModel(await resolveAccess(supabase, user, { forQuote: true }), request.model);
   if (access.free) return null;
   const prepared = await prepareInput(supabase, user.id, request, access.model, { forQuote: true });
   return getImageProvider("spicyapi").quote({ apiKey: access.apiKey, model: access.model, input: toInput(request, prepared, request.resolution) });

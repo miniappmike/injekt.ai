@@ -13,8 +13,6 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
       { label: "Variants", href: "/variants" },
       { label: "Likeness", href: "/likeness" },
       { label: "Create Model", href: "/reference-sheet" },
-      { label: "Characters", href: "/characters" },
-      { label: "Marketplace", href: "/marketplace" },
     ],
   },
   {
@@ -22,13 +20,16 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
     links: [
       { label: "Art to Real", href: "/art-to-real" },
       { label: "Group photo", href: "/characters" },
-      { label: "Ledger", href: "/ledger" },
+      { label: "Marketplace", href: "/marketplace" },
     ],
   },
   {
     title: "Account",
     links: [
+      { label: "Get Credits", soon: true },
+      { label: "Characters", href: "/characters" },
       { label: "Settings", href: "/settings/api-keys" },
+      { label: "Ledger", href: "/ledger" },
       { label: "API key guide", href: GET_KEY_PATH },
     ],
   },
