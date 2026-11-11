@@ -69,17 +69,27 @@ export function UsageMeterView({ s, startOpen = false }: { s: DailyStatus; start
 
   return (
     <div ref={root} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-label={`${credits} tokens${pro ? ", Pro" : ""}`}
-        className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm text-neutral-300 max-sm:h-10 max-sm:rounded-xl max-sm:border max-sm:border-neutral-800 max-sm:bg-neutral-900 max-sm:px-3 transition-colors hover:bg-neutral-800 hover:text-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
-      >
-        <TokenIcon className="h-[18px] w-[18px]" />
-        <span className={cn("font-semibold tabular-nums", low ? "text-amber-200" : "text-white")}>{credits.toLocaleString()}</span>
-        {pro && <ProBadge className="max-sm:hidden" />}
-      </button>
+      {/* The count goes to the Tokens page to top up; the arrow beside it opens the details. */}
+      <div className="flex h-9 items-center rounded-lg text-sm text-neutral-300 max-sm:h-10 max-sm:rounded-xl max-sm:border max-sm:border-neutral-800 max-sm:bg-neutral-900">
+        <Link
+          href="/tokens"
+          aria-label={`${credits} tokens${pro ? ", Pro" : ""}. Buy tokens`}
+          className="flex h-full items-center gap-2 rounded-l-lg pl-2.5 pr-1.5 transition-colors hover:bg-neutral-800 hover:text-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 max-sm:rounded-l-xl max-sm:pl-3"
+        >
+          <TokenIcon className="h-[18px] w-[18px]" />
+          <span className={cn("font-semibold tabular-nums", low ? "text-amber-200" : "text-white")}>{credits.toLocaleString()}</span>
+          {pro && <ProBadge className="max-sm:hidden" />}
+        </Link>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label="Token details"
+          className="grid h-full w-7 place-items-center rounded-r-lg text-neutral-500 transition-colors hover:bg-neutral-800 hover:text-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 max-sm:rounded-r-xl max-sm:w-8"
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true" className={cn("h-3.5 w-3.5 fill-none stroke-current transition-transform", open && "rotate-180")} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 8l5 5 5-5" /></svg>
+        </button>
+      </div>
       {open && (
         <div className="absolute left-0 top-full z-30 mt-2 w-80 max-sm:fixed max-sm:inset-x-4 max-sm:top-16 max-sm:w-auto max-sm:bg-neutral-900 max-sm:backdrop-blur-none origin-top-left animate-pop-in rounded-xl border border-neutral-800 bg-neutral-900/95 p-4 text-sm shadow-[0_20px_50px_-15px_rgb(0_0_0/0.9)] backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3">
