@@ -20,5 +20,5 @@ export function toFailure(e: unknown): AiFailure {
 export function dailyLimitMessage(e: Pick<DailyLimitError, "key" | "plan" | "limit" | "proLimit">): string {
   const what = e.key === "runs" ? `prompt${e.limit === 1 ? "" : "s"}` : `likeness check${e.limit === 1 ? "" : "s"}`;
   const more = e.plan === "free" ? ` Pro gives you ${e.proLimit} a day, and is coming soon.` : "";
-  return `You've used today's ${e.limit} ${what}. They reset at midnight UTC.${more} You can also add your own AI key in Settings for unlimited use.`;
+  return `You've used today's ${e.limit} ${what}. They reset at midnight UTC.${more} For unlimited use, get your own API key: open your profile menu and choose Get an API key.`;
 }

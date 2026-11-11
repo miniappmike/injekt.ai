@@ -10,7 +10,7 @@ import { HistoryImages } from "@/components/history-images";
 import { GenerateImage } from "@/components/generate-image";
 import { useGeneration } from "@/components/app-context";
 import { ScrollQuillIcon } from "@/components/icons";
-import { GENERATOR } from "@/lib/links";
+import { LockedGenerate } from "@/components/copy-open";
 import { checkImageGeneration } from "@/app/(app)/generate/actions";
 import { deleteAllHistory, deleteHistoryEntry, getGenerationPreview, getGenerations, getHistory } from "@/app/(app)/history/actions";
 import { filterHistory, historyCharacters } from "@/lib/history-filter";
@@ -359,24 +359,14 @@ export function HistoryPanel() {
                               <p className="text-xs text-neutral-500">{i.characterName} · {when(i.createdAt)}</p>
                               <p className={`mt-1 whitespace-pre-wrap text-sm text-neutral-300 ${isOpen ? "" : "line-clamp-2"}`}>{i.prompt}</p>
                               <div className="mt-1 flex flex-wrap gap-1">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-brand-300 hover:text-brand-200"
-                                  onClick={() => {
-                                    window.open(GENERATOR.url, "_blank", "noopener,noreferrer");
-                                    void copy(i.prompt);
-                                  }}
-                                >
-                                  Copy &amp; open {GENERATOR.name}
-                                </Button>
-                                <Button type="button" size="sm" variant="ghost" onClick={() => copy(i.prompt)}>Copy</Button>
+                                <Button type="button" size="sm" variant="ghost" className="text-brand-300 hover:text-brand-200" onClick={() => copy(i.prompt)}>Copy prompt</Button>
                                 <Button type="button" size="sm" variant="ghost" onClick={() => toggle(i.id)}>{isOpen ? "Collapse" : "Expand"}</Button>
-                                {canGenerate && (
+                                {canGenerate ? (
                                   <Button type="button" size="sm" variant="ghost" aria-expanded={showGenerate} onClick={() => toggleGenerate(i.id)}>
                                     {showGenerate ? "Hide" : "Generate"}
                                   </Button>
+                                ) : (
+                                  !generation && <LockedGenerate label="Generate" />
                                 )}
                                 {i.generationId && (
                                   <Button type="button" size="sm" variant="ghost" onClick={() => preview(i)}>Preview generation</Button>

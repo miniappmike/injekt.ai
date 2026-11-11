@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { GET_KEY_PATH } from "@/lib/links";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { setGeneration } from "@/app/(app)/settings/api-keys/actions";
@@ -30,7 +32,7 @@ export function GenerationToggle({ hasImageKey, enabled }: { hasImageKey: boolea
   }
 
   return (
-    <section className="panel flex flex-col gap-3 p-5" aria-labelledby="gen-title">
+    <section id="image-generation" className="panel flex scroll-mt-28 flex-col gap-3 p-5" aria-labelledby="gen-title">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 id="gen-title" className="font-display text-lg font-bold text-neutral-50">Image generation</h2>
@@ -45,7 +47,8 @@ export function GenerationToggle({ hasImageKey, enabled }: { hasImageKey: boolea
 
       {!hasImageKey ? (
         <p className="rounded-lg border border-neutral-800 bg-neutral-950/50 p-3 text-sm text-neutral-400">
-          Want to make images right here instead of copying prompts? Add your own <b className="text-neutral-200">Image</b> key above, and a switch to turn it on appears here.
+          Want to make images right here instead of copying prompts? Add your own <b className="text-neutral-200">Image</b> key above, and a switch to turn it on appears here.{" "}
+          <Link href={GET_KEY_PATH} className="font-semibold text-brand-400 underline-offset-4 hover:text-brand-300 hover:underline">Get an API key →</Link>
         </p>
       ) : enabled ? (
         <div>
