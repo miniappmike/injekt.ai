@@ -1,7 +1,7 @@
 export const ROLES = [
   { id: "vision", label: "Vision", description: "Does every job that looks at a photo: writing prompts (Inject, Variants, Carousel), the profile builder, reading sheets, likeness checks and overlay cleanup. This is the one that sets how fast prompts are written." },
-  { id: "llm", label: "Text", description: "Only for steps with no photo: shortening a prompt that's too long for the image model. Rarely used; a fast, cheap model is fine." },
   { id: "image", label: "Image", description: "Generates images: inject, direct swap, edits, variants." },
+  { id: "llm", label: "Text", optional: true, description: "A fail-safe for steps with no photo: shortening a prompt that's too long for the image model. Rarely used; a fast, cheap model is fine." },
 ] as const;
 
 export type RoleId = (typeof ROLES)[number]["id"];

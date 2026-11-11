@@ -76,7 +76,12 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           return (
             <Card key={r.id} className={wanted === r.id ? "border-amber-500" : undefined}>
               <CardHeader>
-                <CardTitle>{r.label}</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  {r.label}
+                  {"optional" in r && r.optional && (
+                    <span className="rounded-full bg-neutral-800 px-2 py-0.5 text-[11px] font-semibold text-neutral-400 ring-1 ring-neutral-700">Optional</span>
+                  )}
+                </CardTitle>
                 <CardDescription>{r.description}</CardDescription>
               </CardHeader>
               <CardContent>
