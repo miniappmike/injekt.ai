@@ -28,7 +28,10 @@ describe("reference sheet prompts (A13b)", () => {
       expect(body).toContain("No earrings or necklaces.");
       // Borderless: the views are never put in boxes.
       expect(body).toContain("borderless: no boxes, frames, borders or panel outlines around any view");
-      expect(body).not.toContain("gutters");
+      // The four close-up portraits keep their thin white gutters; everything is uncropped.
+      expect(body).toContain("separated by thin white gutters");
+      expect(body).toContain("four uncropped full-body views");
+      expect(body).toContain("uncropped, with nothing cut off at the edges");
       expect(face).toContain("no accessories and no earrings");
       for (const p of [face, body]) expect(p.toLowerCase()).not.toContain("piercing");
     }
