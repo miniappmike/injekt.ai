@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { GUIDE_BALANCE_NOTE, GUIDE_PHASES, GUIDE_UPDATED, type GuideStep } from "@/lib/key-guide";
+import { GUIDE_BALANCE_NOTE, GUIDE_PHASES, GUIDE_UPDATED } from "@/lib/key-guide";
 import { GENERATION_SETTINGS_PATH } from "@/lib/links";
 import { cn } from "@/lib/utils";
 import { Shot, SpicyCta, StepBody, Where } from "./parts";
 
 /** Every step with its number across the whole guide, and its phase. */
 const STEPS = GUIDE_PHASES.flatMap((phase, p) => phase.steps.map((step) => ({ step, phase: p }))).map((s, i) => ({ ...s, n: i + 1 }));
-const anchor = (n: number) => `step-${n}`;
 
 function Hero({ compact = false }: { compact?: boolean }) {
   return (
@@ -33,7 +32,7 @@ function Hero({ compact = false }: { compact?: boolean }) {
 
 function Footer() {
   return (
-    <footer className="flex flex-col gap-4">
+    <footer id="guide-done" className="flex scroll-mt-28 flex-col gap-4">
       <div className="rounded-2xl border border-iris-500/30 bg-iris-500/[0.06] p-5">
         <p className="font-display text-lg font-bold text-neutral-50">Before you generate</p>
         <p className="mt-1 text-sm leading-relaxed text-neutral-300">{GUIDE_BALANCE_NOTE}</p>
@@ -51,148 +50,11 @@ function Footer() {
   );
 }
 
-const Shots = ({ step, className }: { step: GuideStep; className?: string }) =>
-  step.shots?.length ? (
-    <div className={cn("grid items-start gap-3", step.shots.length > 1 && "sm:grid-cols-2", className)}>
-      {/* A tall screenshot on its own stays a readable size instead of filling the width. */}
-      {step.shots.map((s) => <Shot key={s.src} shot={s} className={cn(step.shots!.length === 1 && s.height > s.width * 0.9 && "max-w-md")} />)}
-    </div>
-  ) : null;
 
 /* ------------------------------------------------------------------------------------------------------------------ */
-/** A: Timeline. One column of steps on a glowing line, with a sticky step list beside it on wide screens. */
-export function GuideTimeline() {
-  const [active, setActive] = useState(1);
-  useEffect(() => {
-    const io = new IntersectionObserver(
-      (entries) => {
-        const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (top) setActive(Number(top.target.id.slice(5)));
-      },
-      { rootMargin: "-30% 0px -60% 0px" },
-    );
-    STEPS.forEach((s) => {
-      const el = document.getElementById(anchor(s.n));
-      if (el) io.observe(el);
-    });
-    return () => io.disconnect();
-  }, []);
-
-  return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-10">
-      <Hero />
-      <div className="grid gap-10 lg:grid-cols-[13rem_minmax(0,1fr)]">
-        <nav aria-label="Steps" className="max-lg:hidden">
-          <ol className="sticky top-28 flex flex-col gap-0.5 border-l border-neutral-800">
-            {STEPS.map((s) => (
-              <li key={s.n}>
-                <a
-                  href={`#${anchor(s.n)}`}
-                  className={cn(
-                    "-ml-px block border-l-2 py-1.5 pl-3 text-sm transition-colors",
-                    active === s.n ? "border-brand-500 font-semibold text-neutral-50" : "border-transparent text-neutral-500 hover:text-neutral-200",
-                  )}
-                >
-                  <span className="tabular-nums text-neutral-600">{String(s.n).padStart(2, "0")}</span> {s.step.title}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </nav>
-
-        <ol className="relative flex flex-col">
-          <span aria-hidden="true" className="absolute bottom-6 left-[19px] top-6 w-px bg-gradient-to-b from-brand-500 via-iris-500 to-brand-500/10" />
-          {STEPS.map((s, i) => {
-            const newPhase = i === 0 || STEPS[i - 1].phase !== s.phase;
-            return (
-              <li key={s.n} id={anchor(s.n)} className="relative scroll-mt-28 pb-12 pl-14 last:pb-0">
-                {newPhase && (
-                  <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                    Part {s.phase + 1} · {GUIDE_PHASES[s.phase].title}
-                  </p>
-                )}
-                <span className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-neutral-950 font-display text-base font-bold text-white ring-2 ring-brand-500 shadow-[0_0_24px_-4px_rgb(232_38_94/0.7)]" style={{ top: newPhase ? "2.1rem" : 0 }}>
-                  {s.n}
-                </span>
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="font-display text-2xl font-bold text-neutral-50">{s.step.title}</h2>
-                    <Where where={s.step.where} />
-                  </div>
-                  <StepBody step={s.step} />
-                  <Shots step={s.step} />
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      </div>
-      <Footer />
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------------------------------------------------------ */
-/** B: Chapters. Three parts with big poster numbers; each step is a row with the text beside its screenshot. */
-export function GuideChapters() {
-  return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-12">
-      <Hero />
-      <nav aria-label="Parts" className="grid gap-3 sm:grid-cols-3">
-        {GUIDE_PHASES.map((p, i) => (
-          <a key={p.title} href={`#part-${i + 1}`} className="group rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 transition-all hover:-translate-y-0.5 hover:border-brand-500/40">
-            <span className="font-poster text-4xl leading-none text-brand-400">0{i + 1}</span>
-            <p className="mt-1 font-display text-base font-bold text-neutral-50">{p.title}</p>
-            <p className="text-xs text-neutral-500">{p.blurb} · {p.steps.length} steps</p>
-          </a>
-        ))}
-      </nav>
-
-      {GUIDE_PHASES.map((phase, p) => (
-        <section key={phase.title} id={`part-${p + 1}`} className="scroll-mt-28">
-          <div className="mb-6 flex items-end gap-4 border-b border-neutral-800 pb-4">
-            <span className="font-poster text-7xl leading-[0.8] text-transparent [-webkit-text-stroke:1.5px_var(--color-brand-500)] max-sm:text-6xl">0{p + 1}</span>
-            <div>
-              <h2 className="font-display text-3xl font-extrabold text-neutral-50 max-sm:text-2xl">{phase.title}</h2>
-              <p className="text-sm text-neutral-400">{phase.blurb}</p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-6">
-            {STEPS.filter((s) => s.phase === p).map((s, k) => {
-              const wide = !s.step.shots?.length || s.step.models;
-              return (
-                <article
-                  key={s.n}
-                  id={anchor(s.n)}
-                  className={cn(
-                    "panel grid scroll-mt-28 items-start gap-6 p-6 max-sm:p-4",
-                    !wide && "lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]",
-                  )}
-                >
-                  <div className={cn("flex flex-col gap-3", !wide && k % 2 === 1 && "lg:order-2")}>
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 font-display text-sm font-bold text-white shadow-[0_8px_20px_-8px_rgb(232_38_94/0.8)]">{s.n}</span>
-                      <Where where={s.step.where} />
-                    </div>
-                    <h3 className="font-display text-2xl font-bold text-neutral-50">{s.step.title}</h3>
-                    <StepBody step={s.step} />
-                  </div>
-                  <Shots step={s.step} />
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      ))}
-      <Footer />
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------------------------------------------------------ */
-/** C: Step-through. One step at a time with a big screenshot, Back and Next, and a checklist that remembers progress. */
+/** The guide: one step at a time with a big screenshot, Back and Next, and a checklist that remembers progress. */
 const DONE_KEY = "ms.keyGuide.done";
-export function GuideStepper() {
+export function KeyGuide() {
   const [at, setAt] = useState(0);
   const [done, setDone] = useState<Set<number>>(new Set());
   useEffect(() => {
@@ -217,6 +79,11 @@ export function GuideStepper() {
   const next = () => {
     save(new Set(done).add(STEPS[at].n));
     go(at + 1);
+  };
+  // The last step: tick it and scroll down to "You're all set".
+  const finish = () => {
+    save(new Set(done).add(STEPS[at].n));
+    requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" }));
   };
   const s = STEPS[at];
   const pct = Math.round((done.size / STEPS.length) * 100);
@@ -286,7 +153,7 @@ export function GuideStepper() {
                 Done, next →
               </button>
             ) : (
-              <button type="button" onClick={() => save(new Set(done).add(s.n))} className="h-10 rounded-lg bg-emerald-500 px-5 text-sm font-semibold text-white hover:bg-emerald-400 active:scale-95">
+              <button type="button" onClick={finish} className="h-10 rounded-lg bg-emerald-500 px-5 text-sm font-semibold text-white hover:bg-emerald-400 active:scale-95">
                 Finish ✓
               </button>
             )}
