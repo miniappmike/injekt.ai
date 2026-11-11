@@ -8,9 +8,7 @@ import { signedUrlMap } from "@/lib/media-urls";
 import { entitlements } from "@/lib/entitlements";
 import { FREE_LIMITS } from "@/lib/limits";
 import { referenceList } from "@/lib/character-images";
-import { SheetPackStatus } from "@/components/sheet-pack-status";
-import { currentPack, selectCharacter } from "@/lib/sheet-pack";
-import { packStateText } from "@/lib/ai/prompts/identity";
+import { selectCharacter } from "@/lib/sheet-pack";
 import type { CharacterProfile } from "@/lib/characters";
 import { ListingEditor, type OwnImage } from "@/components/listing-editor";
 import { loadEditorListing } from "@/lib/marketplace/admin-data";
@@ -63,8 +61,6 @@ export default async function EditCharacterPage({
 
   const { profile_builds: buildsLeft } = await entitlements.remaining(user.id);
   const urls = await signedUrlMap(supabase, [c.profile_photo_path, c.face_sheet_path, c.body_sheet_path, ...c.reference_paths]);
-  const pack = currentPack(c);
-  const packState = packStateText({ hasBody: !!c.body_sheet_path, hasFace: !!c.face_sheet_path, pack });
   const imgs = (paths: (string | null)[]) => paths.filter((p): p is string => !!p && !!urls[p]).map((p) => ({ path: p, url: urls[p] }));
 
   // The marketplace panel is for admins only. The listing data is read with the service role, after this admin check.
@@ -122,7 +118,6 @@ export default async function EditCharacterPage({
             <ImageSlot label="Body sheet" slot="body_sheet" characterId={c.id} images={imgs([c.body_sheet_path])} hint="Front, back and side of the body." />
             <ImageSlot label="Reference images (up to 3)" slot="reference" characterId={c.id} images={imgs(c.reference_paths)} max={3} />
           </div>
-          <SheetPackStatus key={packState} characterId={c.id} state={packState} read={!!pack} />
         </section>
 
         <CharacterForm

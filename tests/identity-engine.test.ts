@@ -14,7 +14,6 @@ import {
   okBox,
   outfitLock,
   PACK_V,
-  packStateText,
   parseSheetAnalysis,
   pickAnchors,
   planCrops,
@@ -303,11 +302,3 @@ describe("photo edit and the no-pack fallback", () => {
   });
 });
 
-describe("packStateText", () => {
-  const pack = { v: PACK_V, faces: { box: [0, 0, 1, 1], rows: 2, cols: 2, front: [0, 0] }, body: [0, 0, 1, 1], side: null, anchors: { hair: "jet black" } } as unknown as SheetPack;
-  it("says what Generate sends once the sheet is read, and what will happen before", () => {
-    expect(packStateText({ hasBody: true, hasFace: false, pack })).toBe("Sheet read: Generate sends face close-up, face angles, full body, with her look written out (hair: jet black).");
-    expect(packStateText({ hasBody: true, hasFace: true, pack: null })).toMatch(/^Generate reads both sheets once/);
-    expect(packStateText({ hasBody: false, hasFace: false, pack: null })).toBe("");
-  });
-});

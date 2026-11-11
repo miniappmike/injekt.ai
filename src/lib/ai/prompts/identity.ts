@@ -233,20 +233,6 @@ export function fitCrops<T extends { kind: CropKind }>(crops: T[], max: number):
     .slice(0, max);
 }
 
-/** What the character page says about her sheet pack. */
-export function packStateText(c: { hasBody: boolean; hasFace: boolean; pack: SheetPack | null }): string {
-  if (!c.hasBody && !c.hasFace) return "";
-  const p = c.pack;
-  if (p && p.v === PACK_V) {
-    const a = p.anchors || {};
-    const parts = [p.faces && "face close-up", p.faces && p.faces.rows * p.faces.cols > 1 && "face angles", p.body && "full body", p.side && "side profile"].filter(Boolean);
-    return `${c.hasBody && c.hasFace ? "Face and body sheets read" : "Sheet read"}: Generate sends ${parts.join(", ") || "one image"}${a.hair ? `, with her look written out (hair: ${a.hair})` : ""}.`;
-  }
-  return c.hasBody && c.hasFace
-    ? "Generate reads both sheets once: face references from the face sheet, body references and proportions from the body sheet."
-    : "Generate reads this sheet once, splits it into face and body references and writes out her look.";
-}
-
 const bodyRefTags = (kinds: string[], tags: string[]) => joinTags(kinds.map((k, i) => (k === "body" || k === "side" ? tags[i] : null)).filter((x): x is string => !!x));
 
 /** The sheet's words, given to the prompt writer as the source of truth. */
