@@ -193,7 +193,7 @@ describe("startGeneration: opt-in generation", () => {
     await startGeneration(userClient(), verified, request({ kind: "likeness_fix", prompt: "", extraPaths: [], meta: { sourceGeneration: G, fixes: ["dark brown eyes"] } }));
     const call = h.submit.mock.calls[0][0];
     expect(call.input.imageUrls).toEqual([`https://signed.test/gen/${U}/${G}.png`, `https://signed.test/${U}/characters/${C}/face.jpg`]);
-    expect(call.input.prompt).toMatch(/^Replace the woman in @image1 with the woman from @image2\. @image2 is her character reference sheet\./);
+    expect(call.input.prompt).toMatch(/^Replace the woman in @image1 with the woman from @image2\. @image2 is her face reference sheet/);
     expect(call.input.prompt).toContain("In particular: dark brown eyes.");
   });
 

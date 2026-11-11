@@ -342,10 +342,10 @@ describe("carouselJob", () => {
   const crop = (kind: "front" | "faces" | "side" | "body") => ({ kind, role: `her ${kind}`, path: `${U}/pack/${kind}.jpg` });
   const pack = { v: 3, sig: "", body: null, side: null, faces: null, facesFrom: "face" as const, anchors: {}, crops: [crop("front"), crop("faces"), crop("side"), crop("body")], at: "" };
 
-  it("slides with her send her crops (room left for the cover and extras), then the cover, then extras", () => {
+  it("slides with her send her reference sheets (never crops), then the cover, then extras", () => {
     const job = carouselJob(c, pack, "Same woman as {REF}.", "full", `${U}/cover.jpg`, [`${U}/x.jpg`], 4);
-    expect(job.paths).toEqual([`${U}/pack/front.jpg`, `${U}/pack/body.jpg`, `${U}/cover.jpg`, `${U}/x.jpg`]);
-    expect(job.prompt).toContain("Same woman as @image1 and @image2.");
+    expect(job.paths).toEqual([`${U}/face.jpg`, `${U}/cover.jpg`, `${U}/x.jpg`]);
+    expect(job.prompt).toContain("Same woman as @image1.");
   });
   it("without a pack her whole sheet goes first; slides without her send only the cover", () => {
     expect(carouselJob(c, null, "p", "partial", `${U}/cover.jpg`, [], 10).paths).toEqual([`${U}/face.jpg`, `${U}/cover.jpg`]);

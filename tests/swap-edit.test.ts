@@ -39,43 +39,41 @@ describe("swapPrompt (A14b)", () => {
 });
 
 describe("direct swap job", () => {
-  it("sends the target first and every crop after it", () => {
+  it("sends the target first, then her two reference sheets (never crops)", () => {
     const job = swapJob(c, pack, `${U}/t.jpg`, { who: "left" }, 10);
-    expect(job.paths).toEqual([`${U}/t.jpg`, ...pack.crops.map((x) => x.path)]);
+    expect(job.paths).toEqual([`${U}/t.jpg`, `${U}/face.jpg`, `${U}/body.jpg`]);
     expect(job.prompt.startsWith("Replace the person left in @image1")).toBe(true);
   });
-  it("without a pack uses the whole sheet, else up to 2 photos", () => {
-    expect(swapRefs(c, null, 9).paths).toEqual([`${U}/body.jpg`]);
+  it("uses her sheets, else up to 2 photos", () => {
+    expect(swapRefs(c, null, 9).paths).toEqual([`${U}/face.jpg`, `${U}/body.jpg`]);
     expect(swapRefs({ ...c, face_sheet_path: null, body_sheet_path: null }, null, 9).paths).toEqual([`${U}/r1.jpg`, `${U}/r2.jpg`]);
     expect(() => swapJob({ ...c, face_sheet_path: null, body_sheet_path: null, reference_paths: [] }, null, "t", {}, 10)).toThrow(/needs a reference/);
   });
 });
 
 describe("Edit references", () => {
-  it("crops are on by default; sheets only without crops; photos only with nothing else", () => {
+  it("her two sheets are on by default (no crops offered); photos only without a sheet", () => {
     expect(refOptions(c, pack).map((o) => [o.id, o.on])).toEqual([
-      ["front", true], ["faces", true], ["side", true], ["body", true],
-      ["face_sheet", false], ["body_sheet", false], ["photo1", false], ["photo2", false], ["photo3", false],
+      ["face_sheet", true], ["body_sheet", true], ["photo1", false], ["photo2", false], ["photo3", false],
     ]);
-    expect(refOptions(c, null).filter((o) => o.on).map((o) => o.id)).toEqual(["face_sheet", "body_sheet"]);
     expect(refOptions({ ...c, face_sheet_path: null, body_sheet_path: null }, null).filter((o) => o.on).map((o) => o.id)).toEqual(["photo1", "photo2", "photo3"]);
   });
 
   it("sends the target first, then the picked references in their order, then extras, with the makeup rule", () => {
-    const job = editJob(c, pack, "Put her on a beach", { target: `${U}/t.jpg`, refs: ["body", "front"] }, [`${U}/x.jpg`], 10);
-    expect(job.paths).toEqual([`${U}/t.jpg`, `${U}/pack/front.jpg`, `${U}/pack/body.jpg`, `${U}/x.jpg`]);
+    const job = editJob(c, pack, "Put her on a beach", { target: `${U}/t.jpg`, refs: ["body_sheet", "face_sheet"] }, [`${U}/x.jpg`], 10);
+    expect(job.paths).toEqual([`${U}/t.jpg`, `${U}/face.jpg`, `${U}/body.jpg`, `${U}/x.jpg`]);
     expect(job.prompt).toBe("Put her on a beach. MAKEUP STAYS: keep her makeup exactly as it is in @image1: the same foundation finish, concealer, blush, bronzer and contour, highlighter, eyeshadow colours and placement, eyeliner shape, lashes, brow styling, lip liner, lip colour and finish, and nail polish. Do not remove, lighten, tone down, restyle or add makeup unless this prompt explicitly asks for a makeup change.");
     expect(job.prompt).not.toMatch(/nudity|clothed/i);
   });
 
   it("no makeup rule without a target or when the prompt asks about makeup; nothing to send is an error", () => {
-    expect(editJob(c, pack, "Make her.", { refs: ["front"] }, [], 10)).toEqual({ prompt: "Make her.", paths: [`${U}/pack/front.jpg`], photoEdit: false });
+    expect(editJob(c, pack, "Make her.", { refs: ["face_sheet"] }, [], 10)).toEqual({ prompt: "Make her.", paths: [`${U}/face.jpg`], photoEdit: false });
     expect(editJob(c, pack, "Red lipstick.", { target: "t", refs: [] }, [], 10).prompt).toBe("Red lipstick.");
-    expect(editJob(null, null, "Edit it.", { target: "t", refs: ["front"] }, [], 10).paths).toEqual(["t"]);
+    expect(editJob(null, null, "Edit it.", { target: "t", refs: ["face_sheet"] }, [], 10).paths).toEqual(["t"]);
     expect(() => editJob(c, pack, "x", { refs: [] }, [], 10)).toThrow(/Add a target photo/);
     // No picks at all (a revised prompt from the Likeness page): the references that are on by default.
-    expect(editJob(c, pack, "Revised.", {}, [], 10).paths).toEqual(pack.crops.map((x) => x.path));
-    expect(() => editJob(c, pack, "x", { target: "t", refs: ["front", "faces", "side", "body"] }, ["a", "b"], 5)).toThrow(/too many/);
+    expect(editJob(c, pack, "Revised.", {}, [], 10).paths).toEqual([`${U}/face.jpg`, `${U}/body.jpg`]);
+    expect(() => editJob(c, pack, "x", { target: "t", refs: ["face_sheet", "body_sheet", "photo1", "photo2"] }, ["a", "b"], 5)).toThrow(/too many/);
   });
 });
 
@@ -96,8 +94,8 @@ describe("buildJob for swap and edit", () => {
   });
 
   it("an edit uses the person's prompt and the picks", async () => {
-    const job = await buildJob(client, U, { kind: "edit", characterId: "c1", extraPaths: [], prompt: "Edit it", meta: { target: `${U}/t.jpg`, refs: ["front"] } }, { model: "x", max: 10 });
-    expect(job.paths).toEqual([`${U}/t.jpg`, `${U}/pack/front.jpg`]);
+    const job = await buildJob(client, U, { kind: "edit", characterId: "c1", extraPaths: [], prompt: "Edit it", meta: { target: `${U}/t.jpg`, refs: ["face_sheet"] } }, { model: "x", max: 10 });
+    expect(job.paths).toEqual([`${U}/t.jpg`, `${U}/face.jpg`]);
     expect(job.prompt.startsWith("Edit it. MAKEUP STAYS")).toBe(true);
   });
 });

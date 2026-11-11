@@ -6,7 +6,7 @@ import { isOwnPath } from "@/lib/uploads";
 import { referencesFor } from "@/lib/character-images";
 import { currentPack, ensureSheetPack, selectCharacter } from "@/lib/sheet-pack";
 import { getUserTextClient } from "@/lib/ai/text-client";
-import { basePrompt, clampTags, condenseTask, fitCrops, framePrompt, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
+import { basePrompt, clampTags, condenseTask, framePrompt, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
 import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
 import { faceFixPrompt, likenessFixPrompt, type FixRefs } from "@/lib/ai/prompts/likeness";
 import { carouselSlidePrompt } from "@/lib/ai/prompts/variants";
@@ -40,63 +40,56 @@ export interface BuiltJob {
   photoEdit: boolean;
 }
 
-/** Her references when there is no pack: the whole sheet (body sheet first), or up to 3 photos. */
-function sheetFor(c: JobCharacter): { paths: string[]; isSheet: boolean } {
-  const sheet = c.body_sheet_path || c.face_sheet_path;
-  return sheet ? { paths: [sheet], isSheet: true } : { paths: c.reference_paths.slice(0, 3), isSheet: false };
+export const FACE_SHEET_ROLE = "her face reference sheet, a grid of her face from many angles";
+export const BODY_SHEET_ROLE = "her full-body reference sheet, front, side and back views";
+
+/**
+ * The image model's references for her: her two reference sheets, face sheet then body sheet (never the crops cut
+ * from them), with her look in words from the sheet pack. Without a sheet, up to `photos` reference photos.
+ */
+export function sheetRefs(c: JobCharacter, pack: SheetPack | null, max: number, photos = 2): { paths: string[]; R: RefSet; isSheet: boolean } {
+  const sheets = [
+    c.face_sheet_path ? { path: c.face_sheet_path, role: FACE_SHEET_ROLE, kind: "faces" } : null,
+    c.body_sheet_path ? { path: c.body_sheet_path, role: BODY_SHEET_ROLE, kind: "body" } : null,
+  ]
+    .filter((x): x is { path: string; role: string; kind: string } => !!x)
+    .slice(0, Math.max(0, max));
+  if (sheets.length) return { paths: sheets.map((x) => x.path), R: { roles: sheets.map((x) => x.role), kinds: sheets.map((x) => x.kind), anchors: pack?.anchors ?? null }, isSheet: true };
+  const ph = c.reference_paths.slice(0, Math.max(0, Math.min(photos, max)));
+  return { paths: ph, R: { roles: ph.map(() => "a reference photo of her"), kinds: [], anchors: null }, isSheet: false };
 }
 
 /**
- * Artifact genJobFor: a photo edit when the target may be sent (her pack crops after the target, with basePrompt),
- * otherwise her references alone with the model's identity framing around the written scene.
+ * Artifact genJobFor: a photo edit when the target may be sent (her sheets after the target, with basePrompt),
+ * otherwise her sheets alone with the model's identity framing around the written scene.
  */
 export function injectJob(c: JobCharacter, pack: SheetPack | null, text: string, meta: InjectMeta, model: string, max: number): BuiltJob {
   const chg = { ...meta.chg, outfitText: meta.outfit || "", clean: !!meta.clean };
   if (meta.target) {
-    let R: RefSet;
-    let paths: string[];
-    if (pack?.crops.length) {
-      const cr = fitCrops(pack.crops, max - 1);
-      R = { roles: cr.map((x) => x.role), kinds: cr.map((x) => x.kind), anchors: pack.anchors };
-      paths = cr.map((x) => x.path);
-    } else {
-      const s = sheetFor(c);
-      paths = s.isSheet ? s.paths : s.paths.slice(0, Math.min(3, max - 1));
-      R = { roles: paths.map(() => (s.isSheet ? "her character reference sheet" : "a reference photo of her")), kinds: [], anchors: null };
-    }
-    if (paths.length) return { prompt: basePrompt(R, meta.edit, meta.frame, chg), paths: [meta.target, ...paths], photoEdit: true };
+    const s = sheetRefs(c, pack, max - 1, 3);
+    if (s.paths.length) return { prompt: basePrompt(s.R, meta.edit, meta.frame, chg), paths: [meta.target, ...s.paths], photoEdit: true };
   }
-  if (pack?.crops.length) {
-    const cr = fitCrops(pack.crops, max);
-    const R: RefSet = { roles: cr.map((x) => x.role), kinds: cr.map((x) => x.kind), anchors: pack.anchors };
-    return { prompt: framePrompt(modelFamily(model), text, R, meta.frame, { outfit: meta.outfit, clean: meta.clean }), paths: cr.map((x) => x.path), photoEdit: false };
-  }
-  const s = sheetFor(c);
-  const paths = s.paths.slice(0, max);
-  if (!paths.length) throw new UserFacingError("This character needs a reference sheet or photo first.");
-  const n = paths.length;
+  const s = sheetRefs(c, pack, max, 3);
+  if (!s.paths.length) throw new UserFacingError("This character needs a reference sheet or photo first.");
+  if (s.isSheet) return { prompt: framePrompt(modelFamily(model), text, s.R, meta.frame, { outfit: meta.outfit, clean: meta.clean }), paths: s.paths, photoEdit: false };
+  const n = s.paths.length;
   const ol = outfitLock(n > 1 ? "the reference images" : "@image1", meta.outfit, "", "prompt") + (meta.clean ? " " + OVERLAY_RULE : "");
-  return { prompt: lockRefs(text, n, s.isSheet, ol), paths, photoEdit: false };
+  return { prompt: lockRefs(text, n, false, ol), paths: s.paths, photoEdit: false };
 }
 
-/** Artifact fixParts references: every pack crop, else the whole sheet, else 2 reference photos. */
+/** A likeness fix's references: her two sheets (her look in words from the pack), else 2 reference photos. */
 export function fixRefs(c: JobCharacter, pack: SheetPack | null, max: number): { paths: string[]; R: FixRefs } {
-  if (pack?.crops.length) {
-    const cr = fitCrops(pack.crops, max);
-    return { paths: cr.map((x) => x.path), R: { roles: cr.map((x) => x.role), kinds: cr.map((x) => x.kind), anchors: pack.anchors, usePack: true } };
-  }
-  const s = sheetFor(c);
-  const paths = s.paths.slice(0, Math.min(s.isSheet ? 1 : 2, max));
-  return { paths, R: { roles: paths.map(() => (s.isSheet ? "her character reference sheet" : "a reference photo of her")), kinds: [], anchors: null, usePack: false } };
+  const s = sheetRefs(c, pack, max);
+  return { paths: s.paths, R: { ...s.R, usePack: s.isSheet && !!s.R.anchors } };
 }
 
-/** Artifact faceRefs: her face crops, else the face sheet, else the body sheet (its face only), else 2 photos. */
+/** A face fix's references: the face sheet, then the body sheet (its face only), else 2 photos of her face. */
 export function faceRefs(c: JobCharacter, pack: SheetPack | null): { paths: string[]; roles: string[]; anchors: SheetPack["anchors"] | null } {
   const anchors = pack?.anchors ?? null;
-  const f = pack?.crops.filter((x) => x.kind === "front" || x.kind === "faces") ?? [];
-  if (f.length) return { paths: f.map((x) => x.path), roles: f.map((x) => x.role), anchors };
-  if (c.face_sheet_path) return { paths: [c.face_sheet_path], roles: ["her face reference sheet, a grid of her face from many angles"], anchors };
-  if (c.body_sheet_path) return { paths: [c.body_sheet_path], roles: ["her character reference sheet (use only her face from it)"], anchors };
+  const out: { path: string; role: string }[] = [];
+  if (c.face_sheet_path) out.push({ path: c.face_sheet_path, role: FACE_SHEET_ROLE });
+  if (c.body_sheet_path) out.push({ path: c.body_sheet_path, role: out.length ? "her full-body reference sheet (for her face from other angles)" : "her character reference sheet (use only her face from it)" });
+  if (out.length) return { paths: out.map((x) => x.path), roles: out.map((x) => x.role), anchors };
   const refs = c.reference_paths.slice(0, 2);
   return { paths: refs, roles: refs.map(() => "a reference photo of her face"), anchors: null };
 }
@@ -115,36 +108,25 @@ export function fixJob(kind: "likeness_fix" | "face_fix", c: JobCharacter, pack:
 }
 
 /**
- * A carousel slide (artifact carJob): her pack crops (or whole sheet) for slides with her, then the cover, then any
- * extra images; slides without her send only the cover and the extras.
+ * A carousel slide (artifact carJob): her sheets for slides with her, then the cover, then any extra images; slides
+ * without her send only the cover and the extras.
  */
 export function carouselJob(c: JobCharacter | null, pack: SheetPack | null, slidePrompt: string, person: "full" | "partial" | "none", cover: string, extras: string[], max: number): BuiltJob {
   let paths: string[] = [];
   let roles: string[] = [];
   if (c && person !== "none") {
-    if (pack?.crops.length) {
-      const cr = fitCrops(pack.crops, Math.max(1, max - 1 - extras.length));
-      paths = cr.map((x) => x.path);
-      roles = cr.map((x) => x.role);
-    } else {
-      const s = sheetFor(c);
-      paths = s.paths.slice(0, 1);
-      roles = paths.map(() => (s.isSheet ? "her character reference sheet" : "a reference photo of her"));
-    }
+    const s = sheetRefs(c, pack, Math.max(1, max - 1 - extras.length), 1);
+    paths = s.paths;
+    roles = s.R.roles;
   }
   const prompt = carouselSlidePrompt({ person, prompt: slidePrompt }, { roles, anchors: pack?.anchors ?? null }, extras.length);
   return { prompt, paths: [...paths, cover, ...extras], photoEdit: false };
 }
 
-/** Artifact swapRefs: every pack crop, else the whole sheet, else up to 2 reference photos. */
+/** Direct swap and Art to Real references: her two sheets, else up to 2 reference photos. */
 export function swapRefs(c: JobCharacter, pack: SheetPack | null, max: number): { paths: string[]; R: RefSet } {
-  if (pack?.crops.length) {
-    const cr = fitCrops(pack.crops, max);
-    return { paths: cr.map((x) => x.path), R: { roles: cr.map((x) => x.role), kinds: cr.map((x) => x.kind), anchors: pack.anchors } };
-  }
-  const s = sheetFor(c);
-  const paths = s.paths.slice(0, s.isSheet ? 1 : Math.min(2, max));
-  return { paths, R: { roles: paths.map(() => (s.isSheet ? "her character reference sheet" : "a reference photo of her")), kinds: [], anchors: null } };
+  const s = sheetRefs(c, pack, max);
+  return { paths: s.paths, R: s.R };
 }
 
 /** Direct swap: the target photo first, her references after it, and the artifact's fixed swap prompt. */
@@ -154,7 +136,7 @@ export function swapJob(c: JobCharacter, pack: SheetPack | null, target: string,
   return { prompt: swapPrompt(R, { who: meta.who, extra: meta.extra, clean: meta.clean, plen: PROMPT_LIMIT }), paths: [target, ...paths], photoEdit: true };
 }
 
-/** A reference Edit mode can send: her pack crops, her sheets and her photos. */
+/** A reference Edit mode can send: her sheets and her photos. */
 export interface RefOption {
   id: string;
   label: string;
@@ -165,16 +147,12 @@ export interface RefOption {
   on: boolean;
 }
 
-const CROP_LABELS: Record<string, string> = { front: "Face close-up", faces: "Face angles", side: "Side profile", body: "Full body" };
-
-/** Artifact edRefState: her crops (on by default), her sheets (on when there are no crops), her photos (on when nothing else). */
-export function refOptions(c: JobCharacter, pack: SheetPack | null): RefOption[] {
-  const crops = pack?.crops ?? [];
-  const out: RefOption[] = crops.map((x) => ({ id: x.kind, label: CROP_LABELS[x.kind] ?? x.kind, role: x.role, path: x.path, kind: x.kind, on: true }));
-  const sheetOn = !crops.length;
-  if (c.face_sheet_path) out.push({ id: "face_sheet", label: "Face sheet", role: "her face reference sheet, a grid of her face from many angles", path: c.face_sheet_path, on: sheetOn });
-  if (c.body_sheet_path) out.push({ id: "body_sheet", label: "Body sheet", role: "her character reference sheet", path: c.body_sheet_path, on: sheetOn });
-  const photosOn = !crops.length && !c.face_sheet_path && !c.body_sheet_path;
+/** Edit's references: her two sheets (on by default), and her photos (on only when she has no sheet). */
+export function refOptions(c: JobCharacter, _pack: SheetPack | null): RefOption[] {
+  const out: RefOption[] = [];
+  if (c.face_sheet_path) out.push({ id: "face_sheet", label: "Face sheet", role: FACE_SHEET_ROLE, path: c.face_sheet_path, kind: "faces", on: true });
+  if (c.body_sheet_path) out.push({ id: "body_sheet", label: "Body sheet", role: BODY_SHEET_ROLE, path: c.body_sheet_path, kind: "body", on: true });
+  const photosOn = !c.face_sheet_path && !c.body_sheet_path;
   c.reference_paths.forEach((path, i) => out.push({ id: `photo${i + 1}`, label: `Photo ${i + 1}`, role: "a reference photo of her", path, on: photosOn }));
   return out;
 }
