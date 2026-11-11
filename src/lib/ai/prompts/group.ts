@@ -56,6 +56,3 @@ export function groupPhotoPrompt(members: GroupMember[], direction: string): str
   ];
   return [head, blocks.join("\n"), scene, rules.join(" ")].join("\n\n");
 }
-
-/** How many images each member gets out of the provider's limit: an even share, at most 3. */
-export const groupShare = (n: number, max: number) => Math.max(1, Math.min(3, Math.floor(max / Math.max(1, n))));

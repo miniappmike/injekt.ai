@@ -5,7 +5,7 @@ vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: vi.fn() }));
 vi.mock("@/lib/sheet-pack", () => ({ currentPack: vi.fn(), ensureSheetPack: vi.fn(), selectCharacter: vi.fn() }));
 
 import { groupJob, type JobCharacter } from "@/lib/generation-job";
-import { groupPhotoPrompt, groupShare } from "@/lib/ai/prompts/group";
+import { groupPhotoPrompt } from "@/lib/ai/prompts/group";
 import { PACK_V, type SheetPack } from "@/lib/ai/prompts/identity";
 import { UserFacingError } from "@/lib/errors";
 
@@ -31,40 +31,41 @@ const pack = (id: string): SheetPack => ({
 });
 
 describe("group photo", () => {
-  it("splits the image limit evenly, at most 3 each", () => {
-    expect(groupShare(2, 10)).toBe(3);
-    expect(groupShare(3, 10)).toBe(3);
-    expect(groupShare(4, 10)).toBe(2);
-  });
-
-  it("sends each member's references in order, with her tags in her block and the direction in the prompt", () => {
+  it("sends only reference sheets (face sheet, then body sheet), never photos or pack crops: at most 8 for 4 people", () => {
+    const both = { face_sheet_path: "", body_sheet_path: "" };
+    const full = (id: string, name: string) => ch(id, name, { ...both, face_sheet_path: `${U}/${id}/face.jpg`, body_sheet_path: `${U}/${id}/body.jpg` });
     const job = groupJob(
       [
-        { c: ch("a", "Ava"), pack: pack("a") },
-        { c: ch("b", "Bea"), pack: null },
-        { c: ch("c", "Cleo", { body_sheet_path: null, reference_paths: [`${U}/c/r1.jpg`, `${U}/c/r2.jpg`] }), pack: null },
-        { c: ch("d", "Dee"), pack: pack("d") },
+        { c: full("a", "Ava"), pack: pack("a") },
+        { c: full("b", "Bea"), pack: null },
+        { c: full("c", "Cleo"), pack: null },
+        { c: full("d", "Dee"), pack: pack("d") },
       ],
       "Ava on the left in a red dress, rooftop at night",
       10,
     );
-    expect(job.paths).toEqual([`${U}/a/pack/front.jpg`, `${U}/a/pack/body.jpg`, `${U}/b/body.jpg`, `${U}/c/r1.jpg`, `${U}/c/r2.jpg`, `${U}/d/pack/front.jpg`, `${U}/d/pack/body.jpg`]);
+    expect(job.paths).toEqual(["a", "b", "c", "d"].flatMap((id) => [`${U}/${id}/face.jpg`, `${U}/${id}/body.jpg`]));
+    expect(job.paths.some((p) => /r1|pack/.test(p))).toBe(false);
     expect(job.prompt).toContain("exactly 4 women");
     expect(job.prompt).toContain("PERSON 1, Ava: @image1 and @image2");
-    expect(job.prompt).toContain("PERSON 2, Bea: @image3 (");
-    expect(job.prompt).toContain("PERSON 3, Cleo: @image4 and @image5");
-    expect(job.prompt).toContain("PERSON 4, Dee: @image6 and @image7");
+    expect(job.prompt).toContain("PERSON 4, Dee: @image7 and @image8");
     expect(job.prompt).toContain("Ava on the left in a red dress, rooftop at night.");
     expect(job.prompt).toContain("a hair");
     expect(job.prompt).toContain("Never dress Ava in the reference outfit (white shorts)");
     expect(job.photoEdit).toBe(false);
   });
 
-  it("refuses too few people or a member without references", () => {
+  it("uses just the one sheet a character has", () => {
+    const job = groupJob([{ c: ch("a", "Ava"), pack: null }, { c: ch("b", "Bea", { face_sheet_path: `${U}/b/face.jpg`, body_sheet_path: null }), pack: null }], "x", 10);
+    expect(job.paths).toEqual([`${U}/a/body.jpg`, `${U}/b/face.jpg`]);
+    expect(job.prompt).toContain("PERSON 2, Bea: @image2 (");
+  });
+
+  it("refuses too few people, or a character with photos but no reference sheet", () => {
     expect(() => groupJob([{ c: ch("a", "Ava"), pack: null }], "x", 10)).toThrow(UserFacingError);
     expect(() =>
-      groupJob([{ c: ch("a", "Ava"), pack: null }, { c: ch("b", "Bea", { body_sheet_path: null, reference_paths: [] }), pack: null }], "x", 10),
-    ).toThrow(/Bea needs/);
+      groupJob([{ c: ch("a", "Ava"), pack: null }, { c: ch("b", "Bea", { body_sheet_path: null }), pack: pack("b") }], "x", 10),
+    ).toThrow(/Bea needs a reference sheet/);
   });
 
   it("fences the direction so it can't break out", () => {

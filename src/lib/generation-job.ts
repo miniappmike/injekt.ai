@@ -14,7 +14,7 @@ import { swapPrompt } from "@/lib/ai/prompts/swap";
 import { sheetPrompts } from "@/lib/ai/prompts/sheets";
 import { MAX_BODY_PHOTOS } from "@/lib/sheet-options";
 import { asksMakeup, makeupRule } from "@/lib/ai/prompts/rules";
-import { groupPhotoPrompt, groupShare, MAX_GROUP, MIN_GROUP, type GroupMember } from "@/lib/ai/prompts/group";
+import { groupPhotoPrompt, MAX_GROUP, MIN_GROUP, type GroupMember } from "@/lib/ai/prompts/group";
 
 /** The image provider's prompt limit; longer prompts are condensed by the person's own text model. */
 export const PROMPT_LIMIT = 5000;
@@ -193,28 +193,28 @@ export function editJob(c: JobCharacter | null, pack: SheetPack | null, text: st
   return { prompt, paths, photoEdit: !!meta.target };
 }
 
-/** A group photo member's references: her best pack crops (face close-up first, then full body), else her sheet, else photos. */
-export function groupRefs(c: JobCharacter, pack: SheetPack | null, share: number): { paths: string[]; roles: string[] } {
-  if (pack?.crops.length) {
-    const cr = fitCrops(pack.crops, share);
-    return { paths: cr.map((x) => x.path), roles: cr.map((x) => x.role) };
-  }
-  const s = sheetFor(c);
-  const paths = s.paths.slice(0, s.isSheet ? 1 : share);
-  return { paths, roles: paths.map(() => (s.isSheet ? "her character reference sheet" : "a reference photo of her")) };
+/** A group photo member's references: only her reference sheets (face sheet, then body sheet), never her photos. */
+export function groupRefs(c: JobCharacter): { paths: string[]; roles: string[] } {
+  const out: { path: string; role: string }[] = [];
+  if (c.face_sheet_path) out.push({ path: c.face_sheet_path, role: "her face reference sheet, a grid of her face from many angles" });
+  if (c.body_sheet_path) out.push({ path: c.body_sheet_path, role: "her character reference sheet, her full body from several angles" });
+  return { paths: out.map((x) => x.path), roles: out.map((x) => x.role) };
 }
 
-/** Group photo: each character's references in turn (an even share of the limit), and the person's creative direction. */
+/**
+ * Group photo: each character's reference sheets in turn (at most 2 each, so at most 8 images for 4 people), her look
+ * in words from her read sheet pack, and the person's creative direction.
+ */
 export function groupJob(members: { c: JobCharacter & { name: string }; pack: SheetPack | null }[], direction: string, max: number): BuiltJob {
   if (members.length < MIN_GROUP || members.length > MAX_GROUP) throw new UserFacingError(`Pick ${MIN_GROUP} to ${MAX_GROUP} characters.`);
-  const share = groupShare(members.length, max);
   const paths: string[] = [];
   const people: GroupMember[] = members.map(({ c, pack }) => {
-    const r = groupRefs(c, pack, share);
-    if (!r.paths.length) throw new UserFacingError(`${c.name} needs a reference sheet or photo first.`);
+    const r = groupRefs(c);
+    if (!r.paths.length) throw new UserFacingError(`${c.name} needs a reference sheet first. Group photos use only reference sheets.`);
     paths.push(...r.paths);
     return { name: c.name, roles: r.roles, anchors: pack?.anchors ?? null };
   });
+  if (paths.length > max) throw new UserFacingError(`That's too many images (${max} at most).`);
   return { prompt: groupPhotoPrompt(people, direction), paths, photoEdit: false };
 }
 

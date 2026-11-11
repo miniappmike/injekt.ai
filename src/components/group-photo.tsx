@@ -65,7 +65,7 @@ export function CharactersBoard({ characters, canList, atLimit, limitText }: { c
               variant="outline"
               aria-pressed={picking}
               disabled={!canGroup}
-              title={canGroup ? "Put 2 to 4 of your characters in one photo" : "You need at least 2 characters with reference images"}
+              title={canGroup ? "Put 2 to 4 of your characters in one photo" : "You need at least 2 characters with a reference sheet"}
               onClick={() => (picking ? stop() : setPicking(true))}
               className={cn(
                 "group/gp relative overflow-hidden rounded-full border-iris-500/40 bg-iris-500/[0.07] pl-3.5 text-neutral-100 hover:border-iris-400/70 hover:bg-iris-500/15 max-sm:flex-1",
@@ -111,7 +111,7 @@ export function CharactersBoard({ characters, canList, atLimit, limitText }: { c
                   <button
                     type="button"
                     aria-pressed={on}
-                    aria-label={ok ? `${on ? "Remove" : "Add"} ${c.name}` : `${c.name} needs reference images first`}
+                    aria-label={ok ? `${on ? "Remove" : "Add"} ${c.name}` : `${c.name} needs a reference sheet first`}
                     disabled={!ok || full}
                     onClick={() => toggle(c.id)}
                     className={cn(
@@ -128,7 +128,7 @@ export function CharactersBoard({ characters, canList, atLimit, limitText }: { c
                     >
                       {on ? at + 1 : <span aria-hidden="true" className="h-4 w-4 rounded-full ring-2 ring-white/70" />}
                     </span>
-                    {!ok && <span className="absolute inset-x-3 bottom-3 rounded-full bg-neutral-950/80 px-2 py-1 text-center text-[11px] font-semibold text-neutral-300">Needs reference images</span>}
+                    {!ok && <span className="absolute inset-x-3 bottom-3 rounded-full bg-neutral-950/80 px-2 py-1 text-center text-[11px] font-semibold text-neutral-300">Needs a reference sheet</span>}
                   </button>
                 )}
               </div>
@@ -168,7 +168,7 @@ export function CharactersBoard({ characters, canList, atLimit, limitText }: { c
   );
 }
 
-const hasRefs = (c: CharacterCardData) => c.thumbs.length > 0;
+const hasRefs = (c: CharacterCardData) => !!c.hasSheet;
 
 function Avatar({ c, className }: { c: CharacterCardData; className?: string }) {
   const src = c.photo ?? c.thumbs[0];
@@ -213,7 +213,7 @@ function Composer({ chosen, onRemove, onBack, onClose }: { chosen: CharacterCard
             <h2 id="group-title" className="flex items-center gap-2 font-display text-xl font-bold text-neutral-50">
               <GroupIcon className="h-5 w-5 text-iris-300" /> Group photo
             </h2>
-            <p className="mt-1 text-sm text-neutral-400">Each character keeps her own face and body from her references. Your direction sets the rest.</p>
+            <p className="mt-1 text-sm text-neutral-400">Each character keeps her own face and body from her reference sheets. Your direction sets the rest.</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close group photo" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-neutral-50">
             <CloseIcon className="h-5 w-5" />

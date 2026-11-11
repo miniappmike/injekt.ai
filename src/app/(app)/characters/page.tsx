@@ -50,6 +50,7 @@ export default async function CharactersPage() {
         identityLine: (c.profile as CharacterProfile).identity_line ?? null,
         photo: c.profile_photo_path ? (urls[c.profile_photo_path] ?? null) : null,
         thumbs: thumbs(c).map((p) => urls[p]).filter((u): u is string => !!u),
+        hasSheet: !!(c.face_sheet_path || c.body_sheet_path),
         images: labelled(c).flatMap((x) => (urls[x.path] ? [{ label: x.label, url: urls[x.path] }] : [])),
       }))}
     />
