@@ -1,8 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { checkImageGeneration } from "@/app/(app)/generate/actions";
 
 const POLL_MS = 4000;
@@ -67,6 +68,22 @@ export function GenerationTray() {
     };
   }, [watchKey]);
 
+  // Tells the floating History button how tall the tray is, so it floats just above it.
+  const tray = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = tray.current;
+    const root = document.documentElement;
+    if (!el) return;
+    const set = () => root.style.setProperty("--tray-h", `${el.offsetHeight + 12}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      root.style.removeProperty("--tray-h");
+    };
+  }, [items.length > 0]);
+
   if (!items.length) return null;
   const running = items.filter((i) => i.state === "generating").length;
 
@@ -75,8 +92,9 @@ export function GenerationTray() {
       {/* Keeps the end of the page from hiding behind the tray. */}
       <div aria-hidden="true" className={collapsed ? "h-12" : "h-36"} />
       <section
+        ref={tray}
         aria-label="Images generated on this page"
-        className="fixed inset-x-0 bottom-0 z-30 animate-fade-up border-t border-neutral-800/80 bg-neutral-950/85 px-4 py-2 shadow-[0_-12px_40px_-12px_rgb(0_0_0/0.8)] backdrop-blur-xl"
+        className="fixed inset-x-0 bottom-0 z-30 animate-fade-up max-sm:inset-x-3 max-sm:bottom-[5.25rem] max-sm:rounded-2xl max-sm:border border-t border-neutral-800/80 bg-neutral-950/85 px-4 py-2 shadow-[0_-12px_40px_-12px_rgb(0_0_0/0.8)] backdrop-blur-xl"
       >
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-medium">
@@ -108,11 +126,11 @@ export function GenerationTray() {
                 ) : (
                   <div
                     title={i.state === "failed" ? i.error : i.label}
-                    className={`flex h-20 w-20 items-center justify-center rounded-lg px-1 text-center text-xs ${
+                    className={`flex h-20 w-20 flex-col items-center justify-center gap-1.5 rounded-lg px-1 text-center text-[11px] leading-tight ${
                       i.state === "failed" ? "bg-red-950/70 text-red-300 ring-1 ring-red-500/30" : "skeleton text-neutral-300 ring-1 ring-brand-500/30"
                     }`}
                   >
-                    {i.state === "failed" ? "Failed" : "Generating..."}
+                    {i.state === "failed" ? "Failed" : (<><Spinner className="h-5 w-5 text-brand-400" />Generating</>)}
                   </div>
                 )}
               </li>

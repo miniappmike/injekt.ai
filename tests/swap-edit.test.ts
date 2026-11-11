@@ -110,7 +110,7 @@ describe("reference sheet jobs", () => {
   it("step 1 sends the face photo; step 2 the face sheet then the body photos", async () => {
     const face = await buildJob(client(), U, req({ sheet: { kind: "face" } }, [`${U}/f.jpg`]), { model: "x", max: 10 });
     expect(face.paths).toEqual([`${U}/f.jpg`]);
-    expect(face.prompt.startsWith("Create a clean character face reference sheet")).toBe(true);
+    expect(face.prompt.startsWith("Give me a no text facial reference sheet")).toBe(true);
     const body = await buildJob(client(), U, req({ sheet: { kind: "body", hasSheet: true, outfit: "photo" } }, [`${U}/fs.jpg`, `${U}/b1.jpg`, `${U}/b2.jpg`]), { model: "x", max: 10 });
     expect(body.paths).toEqual([`${U}/fs.jpg`, `${U}/b1.jpg`, `${U}/b2.jpg`]);
     expect(body.prompt).toContain("@image1 (her face reference sheet), with her body taken from @image2 and @image3");
@@ -123,9 +123,9 @@ describe("reference sheet jobs", () => {
     expect(job.paths).toEqual([`gen:${U}/g.png`, `${U}/b1.jpg`]);
   });
 
-  it("needs a body photo, and no more than two", async () => {
+  it("needs a body photo, and no more than three", async () => {
     await expect(buildJob(client(), U, req({ sheet: { kind: "body" } }, [`${U}/f.jpg`]), { model: "x", max: 10 })).rejects.toThrow(/at least one body photo/);
-    await expect(buildJob(client(), U, req({ sheet: { kind: "body" } }, [`${U}/f.jpg`, "a", "b", "c"].map((x) => (x.startsWith(U) ? x : `${U}/${x}`))), { model: "x", max: 10 })).rejects.toThrow(/at most 2/);
+    await expect(buildJob(client(), U, req({ sheet: { kind: "body" } }, [`${U}/f.jpg`, "a", "b", "c", "d"].map((x) => (x.startsWith(U) ? x : `${U}/${x}`))), { model: "x", max: 10 })).rejects.toThrow(/at most 3/);
     await expect(buildJob(client(), U, req({ sheet: { kind: "face" } }, []), { model: "x", max: 10 })).rejects.toThrow(/face photo/);
   });
 });

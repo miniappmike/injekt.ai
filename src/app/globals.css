@@ -6,6 +6,7 @@
  */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-poster: "Bebas Neue", "Oswald", "Arial Narrow", Impact, sans-serif;
   --font-display: "Exo 2", "Inter", ui-sans-serif, system-ui, sans-serif;
 
   --color-neutral-50: #fafafc;
@@ -34,6 +35,7 @@
   --animate-fade-in: fade-in 0.25s ease-out both;
   --animate-pop-in: pop-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
   --animate-slide-in-right: slide-in-right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-sheet-up: sheet-up 0.32s cubic-bezier(0.2, 0.9, 0.25, 1) both;
 
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(10px); }
@@ -46,6 +48,10 @@
   @keyframes pop-in {
     from { opacity: 0; transform: scale(0.96); }
     to { opacity: 1; transform: none; }
+  }
+  @keyframes sheet-up {
+    from { transform: translateY(100%); }
+    to { transform: none; }
   }
   @keyframes slide-in-right {
     from { opacity: 0; transform: translateX(24px); }
@@ -256,4 +262,81 @@
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(10px) scale(0.96); }
   to { opacity: 1; transform: none; }
+}
+
+/*
+ * Phones: the top bar names the page, so the big title steps aside and its description shrinks to a short line.
+ * Taps don't flash grey, and nothing scrolls sideways.
+ */
+@layer components {
+@media (max-width: 639px) {
+  .page-title {
+    display: none;
+  }
+  .page-title + p {
+    margin-top: 0;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+}
+
+/* The heart's little bounce when someone hearts a persona. */
+@keyframes heart-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.45); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*="heart-pop"] { animation: none !important; }
+}
+
+/* Marketplace */
+@layer components {
+  /* Hides the scrollbar on rows that scroll sideways by touch or wheel (story bubbles, stat cards, the coverflow). */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Cards and the persona page share a picture and a name (React <ViewTransition>); this sets how they glide. */
+::view-transition-group(.persona-morph) {
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+::view-transition-old(.persona-morph),
+::view-transition-new(.persona-morph) {
+  height: 100%;
+  object-fit: cover;
+}
+::view-transition-old(.page-soft) {
+  animation: 180ms ease-in both fade-out-soft;
+}
+::view-transition-new(.page-soft) {
+  animation: 320ms ease-out 80ms both fade-in-soft;
+}
+@keyframes fade-out-soft {
+  to { opacity: 0; }
+}
+@keyframes fade-in-soft {
+  from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+  }
 }

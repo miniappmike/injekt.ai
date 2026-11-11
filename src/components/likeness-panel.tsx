@@ -1,5 +1,6 @@
 "use client";
 
+import { usageChanged } from "@/lib/panel-events";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,7 @@ export function LikenessPanel({ characterId, image, original, frame }: { charact
   useEffect(() => {
     let alive = true;
     void quickLikeness({ characterId, image, original }).then((r) => {
+      usageChanged();
       if (!alive) return;
       if (r.ok) setState({ busy: false, result: r.result });
       else setState({ busy: false, error: r.error });

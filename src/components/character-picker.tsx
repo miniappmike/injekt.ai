@@ -39,7 +39,7 @@ export function CharacterPicker({
   value: string;
   onChange: (id: string) => void;
   characters: PickerCharacter[];
-  none?: { label: string; note?: string };
+  none?: { label: string; note?: string; /** What the "none" circle shows (default ∅). */ symbol?: string };
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -76,7 +76,40 @@ export function CharacterPicker({
   };
 
   return (
-    <div ref={root} className="relative">
+    <>
+    {/* Phones: her face, big and round, in a row to swipe through; tap to pick. */}
+    <div role="radiogroup" aria-label="Choose who" className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 pt-0.5 [contain:inline-size] [scrollbar-width:none] sm:hidden">
+      {options.map((o) => {
+        const selected = o.id === value;
+        return (
+          <button
+            key={o.id || "none"}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            disabled={disabled}
+            onClick={() => onChange(o.id)}
+            className="group flex w-[4.5rem] shrink-0 snap-start flex-col items-center gap-1.5 disabled:opacity-50"
+          >
+            <span
+              className={cn(
+                "relative flex h-[4.25rem] w-[4.25rem] items-center justify-center rounded-full border-2 bg-neutral-900 transition-all duration-200 group-active:scale-95",
+                selected ? "border-brand-500 shadow-[0_0_0_4px_rgb(232_38_94/0.18),0_8px_24px_-8px_rgb(232_38_94/0.7)]" : "border-neutral-800",
+              )}
+            >
+              {o.none ? (
+                <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-full border border-dashed border-neutral-600 text-lg text-neutral-500">{none?.symbol ?? "∅"}</span>
+              ) : (
+                <Avatar c={o} size="h-14 w-14 text-xl" />
+              )}
+              {o.note && !o.none && <span aria-hidden="true" className="absolute right-0.5 top-0.5 h-3 w-3 rounded-full bg-amber-400 ring-2 ring-neutral-950" />}
+            </span>
+            <span className={cn("w-full break-words text-center text-xs leading-tight [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden", selected ? "font-semibold text-neutral-50" : "text-neutral-400")}>{o.name}</span>
+          </button>
+        );
+      })}
+    </div>
+    <div ref={root} className="relative max-sm:hidden">
       <button
         id={id}
         type="button"
@@ -115,7 +148,7 @@ export function CharacterPicker({
         )}
       >
         {chosen?.none ? (
-          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-dashed border-neutral-600 text-neutral-500">∅</span>
+          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-dashed border-neutral-600 text-neutral-500">{none?.symbol ?? "∅"}</span>
         ) : (
           chosen && <Avatar c={chosen} />
         )}
@@ -154,7 +187,7 @@ export function CharacterPicker({
                 )}
               >
                 {o.none ? (
-                  <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-dashed border-neutral-600 text-neutral-500">∅</span>
+                  <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-dashed border-neutral-600 text-neutral-500">{none?.symbol ?? "∅"}</span>
                 ) : (
                   <Avatar c={o} size="h-11 w-11" />
                 )}
@@ -173,5 +206,6 @@ export function CharacterPicker({
         </ul>
       )}
     </div>
+    </>
   );
 }

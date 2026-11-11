@@ -12,6 +12,8 @@ import { SheetPackStatus } from "@/components/sheet-pack-status";
 import { currentPack, selectCharacter } from "@/lib/sheet-pack";
 import { packStateText } from "@/lib/ai/prompts/identity";
 import type { CharacterProfile } from "@/lib/characters";
+import { ListingEditor, type OwnImage } from "@/components/listing-editor";
+import { loadEditorListing } from "@/lib/marketplace/admin-data";
 import { deleteCharacter, updateCharacter } from "../actions";
 
 // The profile builder calls a vision model from this page.
@@ -65,6 +67,16 @@ export default async function EditCharacterPage({
   const packState = packStateText({ hasBody: !!c.body_sheet_path, hasFace: !!c.face_sheet_path, pack });
   const imgs = (paths: (string | null)[]) => paths.filter((p): p is string => !!p && !!urls[p]).map((p) => ({ path: p, url: urls[p] }));
 
+  // The marketplace panel is for admins only. The listing data is read with the service role, after this admin check.
+  const isAdmin = (await entitlements.planOf(user.id)) === "admin";
+  const listing = isAdmin ? await loadEditorListing(c.id) : null;
+  const ownImages: OwnImage[] = [
+    { which: "profile_photo", label: "Profile photo", path: c.profile_photo_path },
+    { which: "face_sheet", label: "Face sheet", path: c.face_sheet_path },
+    { which: "body_sheet", label: "Body sheet", path: c.body_sheet_path },
+    ...c.reference_paths.slice(0, 3).map((path, i) => ({ which: `reference:${i}`, label: `Reference ${i + 1}`, path })),
+  ].flatMap((x) => (x.path && urls[x.path] ? [{ which: x.which, label: x.label, url: urls[x.path] }] : []));
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -80,31 +92,49 @@ export default async function EditCharacterPage({
         </p>
       )}
 
-      <section className="mb-8 grid max-w-2xl gap-3">
-        <h2 className="text-lg font-semibold">Images</h2>
-        <p className="text-sm text-neutral-400">
-          Click to upload, drop a file, or paste with Ctrl+V while a box is focused. Photo metadata (location, device) is stripped on upload.
-          The profile photo is only for display and is never sent to an AI model.
-        </p>
-        <p className="text-sm text-neutral-400">
-          No sheets yet? <Link href={`/reference-sheet?character=${c.id}`} className="underline">Make them from photos</Link>: a face sheet from one face photo, then a face and body sheet.
-        </p>
-        <ImageSlot label="Profile photo" slot="profile_photo" characterId={c.id} images={imgs([c.profile_photo_path])} />
-        <ImageSlot label="Face sheet" slot="face_sheet" characterId={c.id} images={imgs([c.face_sheet_path])} hint="A sheet of the face from several angles, or one clear face photo." />
-        <ImageSlot label="Body sheet" slot="body_sheet" characterId={c.id} images={imgs([c.body_sheet_path])} hint="Front, back and side of the body." />
-        <ImageSlot label="Reference images (up to 3)" slot="reference" characterId={c.id} images={imgs(c.reference_paths)} max={3} />
-        <SheetPackStatus key={packState} characterId={c.id} state={packState} read={!!pack} />
-      </section>
+      {isAdmin && (
+        <div className="mb-8">
+          <ListingEditor
+            characterId={c.id}
+            characterName={c.name}
+            listing={listing}
+            hasAssets={!!c.face_sheet_path || !!c.body_sheet_path || c.reference_paths.length > 0}
+            ownImages={ownImages}
+            profile={(c.profile ?? {}) as CharacterProfile}
+          />
+        </div>
+      )}
 
-      <CharacterForm
-        action={updateCharacter.bind(null, c.id)}
-        initial={{ ...c, profile: c.profile as CharacterProfile }}
-        submitLabel="Save character"
-        characterId={c.id}
-        canBuildProfile={referenceList(c).length > 0}
-        buildsLeft={buildsLeft}
-        buildsTotal={FREE_LIMITS.profile_builds}
-      />
+      {/* Wide screens: her images on the left, staying in view, and the details and profile on the right. */}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start xl:gap-10">
+        <section className="grid gap-3 lg:sticky lg:top-28 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-1">
+          <h2 className="text-lg font-semibold">Images</h2>
+          <p className="text-sm text-neutral-400 max-sm:hidden">
+            Click a picture to see it full size. To add one, press Upload, drop a file, or paste with Ctrl+V while a box is focused. Photo
+            metadata (location, device) is stripped on upload. The profile photo is only for display and is never sent to an AI model.
+          </p>
+          <p className="text-sm text-neutral-400">
+            No sheets yet? <Link href={`/reference-sheet?character=${c.id}`} className="underline">Make them from photos</Link>: a face sheet from one face photo, then a face and body sheet.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <ImageSlot label="Profile photo" slot="profile_photo" characterId={c.id} images={imgs([c.profile_photo_path])} hint="For display only." />
+            <ImageSlot label="Face sheet" slot="face_sheet" characterId={c.id} images={imgs([c.face_sheet_path])} hint="A sheet of the face from several angles, or one clear face photo." />
+            <ImageSlot label="Body sheet" slot="body_sheet" characterId={c.id} images={imgs([c.body_sheet_path])} hint="Front, back and side of the body." />
+            <ImageSlot label="Reference images (up to 3)" slot="reference" characterId={c.id} images={imgs(c.reference_paths)} max={3} />
+          </div>
+          <SheetPackStatus key={packState} characterId={c.id} state={packState} read={!!pack} />
+        </section>
+
+        <CharacterForm
+          action={updateCharacter.bind(null, c.id)}
+          initial={{ ...c, profile: c.profile as CharacterProfile }}
+          submitLabel="Save character"
+          characterId={c.id}
+          canBuildProfile={referenceList(c).length > 0}
+          buildsLeft={buildsLeft}
+          buildsTotal={FREE_LIMITS.profile_builds}
+        />
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { usageChanged } from "@/lib/panel-events";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -9,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { GenerateImage } from "@/components/generate-image";
 import { AttachStrip, TaggedPrompt } from "@/components/attach-strip";
+import { CopyOpen } from "@/components/copy-open";
+import { useGeneration } from "@/components/app-context";
 import { InfoTip } from "@/components/info-tip";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
@@ -21,6 +24,9 @@ import { SEND_TO_LIKENESS_KEY } from "@/lib/likeness-link";
 import type { ImageAspectRatio } from "@/lib/ai/providers/types";
 import { segItem, segTrack } from "@/components/ui/segmented";
 import { CharacterPicker } from "@/components/character-picker";
+import { MobileSheet } from "@/components/mobile-sheet";
+import { PasteIcon, SlidersIcon, UploadIcon } from "@/components/icons";
+import { readClipboardImages } from "@/lib/clipboard";
 
 const MAX_TARGETS = 10;
 const OPTIONS_KEY = "ms.injectOptions";
@@ -76,15 +82,18 @@ function loadOptions(): Options {
   }
 }
 
-export function InjectWriter({ characters, outfits: initialOutfits = [] }: { characters: InjectCharacter[]; outfits?: SavedOutfit[] }) {
+export function InjectWriter({ characters, outfits: initialOutfits = [], initialCharacterId }: { characters: InjectCharacter[]; outfits?: SavedOutfit[]; initialCharacterId?: string }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const { toast, show } = useToast();
-  const [characterId, setCharacterId] = useState(characters.find((c) => c.ready)?.id ?? characters[0].id);
+  const [characterId, setCharacterId] = useState(initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id);
   const [targets, setTargets] = useState<Target[]>([]);
   const [o, setO] = useState<Options>({ ...INJECT_DEFAULTS });
   const [editTarget, setEditTarget] = useState(true);
-  const [writeOnly, setWriteOnly] = useState(false);
+  const generation = useGeneration();
+  const [writeOnlyChoice, setWriteOnly] = useState(false);
+  // Without image generation turned on, every prompt is written to paste into a generator.
+  const writeOnly = !generation || writeOnlyChoice;
   // Write only: each target's finished prompts, for the versions and settings they were made from.
   const [standalone, setStandalone] = useState<Record<string, { key: string; prompts?: StandalonePrompt[]; error?: string }>>({});
   const [running, setRunning] = useState(false);
@@ -92,6 +101,18 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
   const [extracting, setExtracting] = useState(false);
   const [outfits, setOutfits] = useState<SavedOutfit[]>(initialOutfits);
   const [outfitName, setOutfitName] = useState("");
+  // Phones: the options live in a bottom sheet.
+  const [sheet, setSheet] = useState(false);
+  // Which layout is showing, so the prompt controls render once: in the sheet on a phone, beside the button otherwise.
+  const [phone, setPhone] = useState(false);
+  useEffect(() => {
+    const mq = matchMedia("(max-width: 639px)");
+    const on = () => setPhone(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  const [pasteError, setPasteError] = useState<string>();
   const stop = useRef(false);
   const rerunAfter = useRef(false);
   const lastRunFor = useRef<string | null>(null);
@@ -141,6 +162,29 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
       img.src = t.preview;
     }
   }
+
+  async function pasteFromClipboard() {
+    try {
+      addFiles(await readClipboardImages());
+      setPasteError(undefined);
+    } catch (e) {
+      setPasteError(e instanceof Error ? e.message : "Couldn't paste.");
+    }
+  }
+
+  // Ctrl+V anywhere on the page adds the copied photo as a target (not while typing in a box).
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (running || t?.closest("input, textarea, [contenteditable=true], [aria-label='Target images']")) return;
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
+      if (!files.length) return;
+      e.preventDefault();
+      addFiles(files);
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  });
 
   async function ensureUploaded(t: Target): Promise<string | null> {
     if (t.path) return t.path;
@@ -194,6 +238,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
         update(t.id, { status: o.count > 1 ? `Writing ${o.count} versions in one call…` : "Reading the target image…" });
       }
       const res = await writeInjectPrompts({ characterId, targetPath: path, options: { ...o } });
+      usageChanged();
       if (!res.ok) {
         if (res.redirectTo) {
           setRunning(false);
@@ -295,11 +340,71 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingKey, editTarget]);
 
+  // How the prompts are used, and whether they edit the target: under Options on a phone, beside the button otherwise.
+  const controls = (
+        <fieldset>
+          <legend className="mb-1.5 text-sm font-medium">{generation ? "How you'll use the prompts" : "Prompt options"}</legend>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+{generation && (
+            <div role="radiogroup" aria-label="What to do with the prompts" className={segTrack}>
+              {([false, true] as const).map((w) => (
+                <button
+                  key={String(w)}
+                  type="button"
+                  role="radio"
+                  aria-checked={writeOnly === w}
+                  onClick={() => {
+                    setWriteOnly(w);
+                    try {
+                      localStorage.setItem(WRITE_ONLY_KEY, w ? "1" : "0");
+                    } catch {
+                      // Not remembered in a private window.
+                    }
+                  }}
+                  className={segItem(writeOnly === w)}
+                >
+                  {w ? "Write only" : "Generate here"}
+                </button>
+              ))}
+            </div>
+            )}
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={editTarget} onChange={(e) => { setEditTarget(e.target.checked); writeEditTarget(e.target.checked); }} />
+              Edit the target photo
+              <InfoTip label="About editing the target photo">Sends the target photo with her references so the model swaps her into the real photo, which holds her body much closer to the sheet. Off: the written prompt is generated from her references alone. In Write only it decides whether the prompt is an edit of the target photo (attached after her sheets) or a new photo from her sheets. You can change both after writing; the prompts update without writing again.</InfoTip>
+            </label>
+          </div>
+        </fieldset>
+  );
+
   return (
-    <div className="mt-5 flex flex-col gap-4">
-      <div className="panel grid gap-4 p-4 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+    <div className="mt-5 flex flex-col gap-4 max-sm:mt-4">
+      {/* Phones: a paste box (long-press, Paste) with the options button beside it, like a search bar. */}
+      <div className="flex h-12 items-center gap-2 rounded-2xl border border-neutral-800 bg-neutral-900 pl-4 pr-1.5 transition-colors focus-within:border-brand-500/70 sm:hidden">
+        <PasteIcon className="h-5 w-5 shrink-0 text-neutral-500" />
+        <input
+          aria-label="Paste a target photo"
+          placeholder="Long-press here to paste a photo"
+          inputMode="none"
+          value=""
+          onChange={() => {}}
+          onPaste={(e) => {
+            e.preventDefault();
+            addFiles(e.clipboardData.files);
+          }}
+          className="h-full min-w-0 flex-1 bg-transparent text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
+        />
+        <button type="button" aria-label="Options" onClick={() => setSheet(true)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-900 transition-transform active:scale-95">
+          <SlidersIcon className="h-[18px] w-[18px]" />
+        </button>
+      </div>
+
+      <div className="panel grid gap-4 p-4 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] max-sm:flex max-sm:flex-col max-sm:gap-5 max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none">
         <section className="flex flex-col gap-2">
-          <Label htmlFor="character">Character</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="character" className="max-sm:font-display max-sm:text-base max-sm:font-bold">Character</Label>
+            <Link href="/characters" className="text-xs text-neutral-400 hover:text-neutral-100 sm:hidden">See all</Link>
+          </div>
           <CharacterPicker
             id="character"
             value={characterId}
@@ -320,7 +425,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
         </section>
 
         <section
-          className="dropzone group flex cursor-pointer flex-col gap-2 p-4"
+          className="dropzone group flex cursor-pointer flex-col gap-2 p-4 max-sm:order-first max-sm:rounded-3xl max-sm:border-solid max-sm:border-neutral-800 max-sm:bg-[radial-gradient(120%_140%_at_100%_0%,rgb(232_38_94/0.28),transparent_55%),radial-gradient(90%_120%_at_0%_100%,rgb(91_91_246/0.18),transparent_60%),var(--color-neutral-900)]"
           tabIndex={0}
           aria-label="Target images"
           // Clicking anywhere on the box adds photos (the thumbnails' own buttons excepted).
@@ -334,13 +439,49 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
             addFiles(e.dataTransfer.files);
           }}
         >
-          <div className="flex items-center justify-between gap-2">
+          {/* Phones, before any photo: a banner with her picture and one big Paste button. */}
+          {!targets.length && (
+            <div className="relative -m-4 flex min-h-[10rem] overflow-hidden rounded-3xl p-4 sm:hidden">
+              <div className="relative z-10 flex max-w-[64%] flex-col items-start gap-2">
+                <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-neutral-100 ring-1 ring-white/15">Step 1</span>
+                <h2 className="font-display text-[1.6rem] font-extrabold leading-[1.05] text-neutral-50">Add a photo you like</h2>
+                <p className="text-xs leading-snug text-neutral-300">{character.name} goes into it, in the same pose, outfit and scene.</p>
+                <div className="mt-1 flex gap-2">
+                  <button type="button" disabled={running} onClick={() => void pasteFromClipboard()} className="glow-brand flex h-10 items-center gap-1.5 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white transition-transform active:scale-95">
+                    <PasteIcon className="h-[18px] w-[18px]" /> Paste
+                  </button>
+                  <button type="button" disabled={running} onClick={() => input.current?.click()} className="flex h-10 items-center gap-1.5 rounded-xl bg-white/10 px-3.5 text-sm font-semibold text-neutral-100 ring-1 ring-white/15 transition-transform active:scale-95">
+                    <UploadIcon className="h-[18px] w-[18px]" /> Upload
+                  </button>
+                </div>
+              </div>
+              {character.photo && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={character.photo} alt="" className="pointer-events-none absolute bottom-0 right-0 h-full w-[45%] object-cover object-top [mask-image:linear-gradient(to_left,black_55%,transparent)]" />
+              )}
+            </div>
+          )}
+          {/* Phones, with photos: the count, and paste or upload more. */}
+          {targets.length > 0 && (
+            <div className="flex items-center justify-between gap-2 sm:hidden">
+              <h2 className="font-display text-base font-bold">Target photos <span className="text-xs font-normal text-neutral-400">{targets.length} of {MAX_TARGETS}</span></h2>
+              <div className="flex gap-1.5">
+                <button type="button" aria-label="Paste another photo" disabled={running || targets.length >= MAX_TARGETS} onClick={() => void pasteFromClipboard()} className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-500 text-white active:scale-95 disabled:opacity-50"><PasteIcon className="h-[18px] w-[18px]" /></button>
+                <button type="button" aria-label="Upload another photo" disabled={running || targets.length >= MAX_TARGETS} onClick={() => input.current?.click()} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-neutral-100 ring-1 ring-white/15 active:scale-95 disabled:opacity-50"><UploadIcon className="h-[18px] w-[18px]" /></button>
+              </div>
+            </div>
+          )}
+          {pasteError && <p role="alert" className="text-xs text-amber-300">{pasteError}</p>}
+          <div className="flex items-center justify-between gap-2 max-sm:hidden">
             <h2 className="font-semibold">1. Target images <span className="text-xs font-normal text-neutral-500">up to {MAX_TARGETS}</span></h2>
-            <Button type="button" size="sm" variant="secondary" disabled={running} onClick={() => input.current?.click()}>Add images</Button>
+            <div className="flex gap-1.5">
+              <button type="button" aria-label="Paste from the clipboard" title="Paste from the clipboard" disabled={running} onClick={() => void pasteFromClipboard()} className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-700 bg-neutral-800/70 text-neutral-200 transition-all hover:border-brand-500/60 hover:text-white active:scale-95 disabled:opacity-50"><PasteIcon className="h-[18px] w-[18px]" /></button>
+              <Button type="button" size="sm" variant="secondary" disabled={running} onClick={() => input.current?.click()}>Add images</Button>
+            </div>
           </div>
-          <p className="-mt-1 text-xs text-neutral-500">Click, drop, or paste with Ctrl+V. JPEG, PNG or WebP.</p>
+          <p className="-mt-1 text-xs text-neutral-500 max-sm:hidden">Click, drop, or paste with Ctrl+V. JPEG, PNG or WebP.</p>
           <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onClick={(e) => e.stopPropagation()} onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
-          <div className="flex flex-wrap gap-2.5">
+          <div className={`flex flex-wrap gap-2.5 ${targets.length ? "" : "max-sm:hidden"}`}>
             {targets.map((t) => (
               <div key={t.id} className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -372,8 +513,8 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
         </section>
       </div>
 
-      <section className="panel flex flex-col gap-4 p-4">
-        <h2 className="font-semibold">2. Options</h2>
+      <MobileSheet open={sheet} onClose={() => setSheet(false)} title="Options" className="panel flex flex-col gap-4 p-4">
+        <h2 className="font-semibold max-sm:hidden">2. Options</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="flex items-center gap-1.5">Prompt for <InfoTip label="About Prompt for">With character sheet: the prompt opens with your reference tag, for generators that get her sheet. Text only: her identity is written out in full.</InfoTip></span>
@@ -503,51 +644,26 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
             </label>
           </div>
         </details>
-      </section>
+        {phone && <div className="border-t border-neutral-800 pt-4">{controls}</div>}
+      </MobileSheet>
 
-      <div className="panel flex flex-wrap items-end justify-between gap-4 p-4">
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 text-sm font-medium">How you'll use the prompts</legend>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <div role="radiogroup" aria-label="What to do with the prompts" className={segTrack}>
-              {([false, true] as const).map((w) => (
-                <button
-                  key={String(w)}
-                  type="button"
-                  role="radio"
-                  aria-checked={writeOnly === w}
-                  onClick={() => {
-                    setWriteOnly(w);
-                    try {
-                      localStorage.setItem(WRITE_ONLY_KEY, w ? "1" : "0");
-                    } catch {
-                      // Not remembered in a private window.
-                    }
-                  }}
-                  className={segItem(writeOnly === w)}
-                >
-                  {w ? "Write only" : "Generate here"}
-                </button>
-              ))}
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={editTarget} onChange={(e) => { setEditTarget(e.target.checked); writeEditTarget(e.target.checked); }} />
-              Edit the target photo
-              <InfoTip label="About editing the target photo">Sends the target photo with her references so the model swaps her into the real photo, which holds her body much closer to the sheet. Off: the written prompt is generated from her references alone. In Write only it decides whether the prompt is an edit of the target photo (attached after her sheets) or a new photo from her sheets. You can change both after writing; the prompts update without writing again.</InfoTip>
-            </label>
-          </div>
-        </fieldset>
+      <div className="panel flex flex-wrap items-end justify-between gap-4 p-4 max-sm:flex-nowrap max-sm:rounded-3xl max-sm:p-2">
+        {!phone && controls}
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="button" size="lg" onClick={() => void run()} disabled={running || !targets.length || !character.ready}>
+        <div className="flex flex-wrap items-center gap-3 max-sm:w-full max-sm:flex-nowrap max-sm:gap-2">
+          <button type="button" onClick={() => setSheet(true)} className="flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-neutral-700 bg-neutral-800/60 px-4 text-sm font-semibold text-neutral-100 transition-transform active:scale-95 sm:hidden">
+            <SlidersIcon className="h-[18px] w-[18px]" /> Options
+          </button>
+          <Button type="button" size="lg" onClick={() => void run()} disabled={running || !targets.length || !character.ready} className="max-sm:h-12 max-sm:flex-1 max-sm:rounded-2xl">
             {running ? "Writing..." : "Write prompts"}
           </Button>
           {running && (
             <Button type="button" variant="secondary" onClick={() => { stop.current = true; rerunAfter.current = false; }}>Stop</Button>
           )}
-          {summary && <p role="status" className={`text-sm ${summary.good ? "text-neutral-300" : "text-red-400"}`}>{summary.text}</p>}
+          {summary && <p role="status" className={`text-sm max-sm:hidden ${summary.good ? "text-neutral-300" : "text-red-400"}`}>{summary.text}</p>}
         </div>
       </div>
+      {summary && <p role="status" className={`-mt-2 px-1 text-sm sm:hidden ${summary.good ? "text-neutral-300" : "text-red-400"}`}>{summary.text}</p>}
 
       {results.length > 0 && (
         <section className="flex flex-col gap-4">
@@ -585,7 +701,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
               const sa = writeOnly && v ? standalone[t.id] : undefined;
               const ready = sa?.key === standaloneKey(t) ? sa.prompts?.[k] : undefined;
               return (
-                <article key={`${t.id}-${k}`} className="panel flex animate-fade-up flex-col gap-3 p-5">
+                <article key={`${t.id}-${k}`} className="panel flex animate-fade-up flex-col gap-3 p-5 max-sm:rounded-3xl max-sm:p-4">
                   <div className="flex items-start gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={t.preview} alt={`Target ${ti + 1}`} className="h-14 w-14 shrink-0 rounded-lg object-cover ring-1 ring-white/10" />
@@ -598,18 +714,19 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
                     </div>
                     {v && (
                       <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          disabled={writeOnly && !ready}
-                          onClick={() => {
-                            void navigator.clipboard.writeText(writeOnly && ready ? ready.copy : v.text);
-                            show("Copied.");
-                          }}
-                        >
-                          Copy
-                        </Button>
+                        {!writeOnly && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(v.text);
+                              show("Copied.");
+                            }}
+                          >
+                            Copy
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           size="sm"
@@ -633,6 +750,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [] }: { cha
                       {ready ? (
                         <>
                           <AttachStrip items={ready.attachItems} photo={t.preview} />
+                          <CopyOpen text={ready.copy} />
                           <div className="max-h-96 overflow-auto text-sm">
                             <TaggedPrompt text={ready.copy} />
                           </div>

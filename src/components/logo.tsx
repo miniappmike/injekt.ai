@@ -1,17 +1,22 @@
-/** The Model Spawn mark: a crimson peak with a notch, and the wordmark in the display font. */
-export function Logo({ withName = true }: { withName?: boolean }) {
+/** The Model Spawn mark (the pink "m" ribbon) and the wordmark in the display font. */
+const MARK =
+  "M803.0,1397.0C763.3,1393.2 730.3,1374.5 718.2,1349.0C711.3,1334.2 709.6,1321.8 712.5,1304.9C717.8,1273.0 733.2,1245.1 786.0,1172.0C846.3,1088.6 852.4,1079.6 863.4,1058.1C888.7,1008.6 868.7,988.7 818.0,1013.1C779.4,1031.6 754.5,1056.4 703.0,1127.5C668.7,1174.8 663.3,1182.1 637.0,1217.4C583.3,1289.2 552.9,1322.5 514.0,1352.2C477.3,1380.1 435.4,1396.0 398.3,1396.0C328.5,1396.0 281.9,1356.7 268.4,1286.5C265.9,1273.5 265.9,1236.9 268.4,1220.5C272.1,1195.7 278.4,1172.2 288.4,1146.4C338.3,1016.5 445.3,888.0 575.5,801.6C586.0,794.7 595.4,788.4 596.5,787.7C625.3,768.4 683.7,738.7 723.0,723.4C761.8,708.3 772.0,704.9 809.0,695.4C910.1,669.4 1011.7,666.6 1082.5,687.8C1126.1,700.8 1154.1,722.4 1169.1,754.6C1184.4,787.2 1179.1,834.1 1154.4,883.1C1151.9,888.1 1150.1,892.4 1150.4,892.7C1150.7,893.0 1159.6,884.7 1170.2,874.3C1216.0,829.4 1237.9,811.8 1298.5,771.6C1309.9,764.0 1337.6,748.1 1352.0,740.9C1357.8,738.0 1363.6,734.9 1365.0,734.0C1381.5,723.0 1454.0,695.5 1483.5,689.1C1489.0,687.9 1496.0,686.2 1499.0,685.4C1525.7,678.3 1581.5,674.0 1609.5,677.0C1614.5,677.5 1623.7,678.4 1630.0,679.0C1645.7,680.5 1665.6,685.8 1685.9,693.9C1736.5,714.2 1770.4,756.0 1779.7,809.8C1783.1,829.7 1781.6,868.6 1776.5,889.5C1775.7,892.8 1774.1,899.5 1773.0,904.5C1764.5,943.2 1737.3,1005.8 1708.5,1053.0C1699.6,1067.6 1675.4,1103.6 1668.9,1112.0C1636.8,1153.1 1627.7,1163.9 1600.4,1193.2C1579.5,1215.6 1538.1,1254.9 1520.0,1269.5C1516.4,1272.4 1509.5,1278.1 1504.5,1282.2C1467.4,1312.5 1422.2,1342.3 1386.0,1360.5C1366.3,1370.4 1343.1,1379.8 1324.0,1385.6C1246.0,1409.4 1181.9,1396.5 1166.2,1353.7C1162.2,1342.7 1162.3,1321.8 1166.4,1307.5C1175.7,1275.4 1192.5,1248.3 1266.5,1146.0C1319.7,1072.5 1333.4,1048.2 1334.7,1025.0C1337.1,982.9 1270.0,1003.3 1214.0,1061.6C1199.2,1077.1 1185.4,1094.9 1152.0,1141.4C1071.3,1254.0 1034.2,1296.7 984.0,1334.6C924.8,1379.4 858.6,1402.2 803.0,1397.0Z";
+
+export function Logo({ withName = true, small = false }: { withName?: boolean; small?: boolean }) {
+  // Its own gradient id per variant: the phone and desktop bars both draw a mark, and one is always hidden.
+  const gid = withName ? "ms-mark" : "ms-mark-solo";
   return (
     <span className="group inline-flex items-center gap-2">
-      <svg viewBox="0 0 32 32" aria-hidden="true" className="h-7 w-7 drop-shadow-[0_4px_12px_rgb(232_38_94/0.55)] transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110">
+      <svg viewBox="255 655 1540 760" aria-hidden="true" className={`${small ? "h-[18px]" : "h-7"} w-auto drop-shadow-[0_4px_12px_rgb(249_39_118/0.5)] transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110`}>
         <defs>
-          <linearGradient id="ms-mark" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#ff7a9c" />
-            <stop offset="0.55" stopColor="#e8265e" />
-            <stop offset="1" stopColor="#a21541" />
-          </linearGradient>
+          <radialGradient id={gid} gradientUnits="userSpaceOnUse" cx="1000" cy="965" r="1" gradientTransform="translate(1000 965) rotate(-12) scale(820 400) translate(-1000 -965)">
+          <stop offset="0" stopColor="#ff8fc0" />
+          <stop offset="0.45" stopColor="#ff5fa2" />
+          <stop offset="0.8" stopColor="#fb3a82" />
+          <stop offset="1" stopColor="#f92776" />
+          </radialGradient>
         </defs>
-        <path d="M16 2 30 28H2Z" fill="url(#ms-mark)" />
-        <path d="M16 14 21.5 24h-11Z" fill="#131316" />
+        <path d={MARK} fill={`url(#${gid})`} />
       </svg>
       {withName && <span className="font-display text-lg font-bold tracking-tight text-neutral-50">Model Spawn</span>}
     </span>

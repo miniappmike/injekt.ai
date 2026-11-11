@@ -1,7 +1,7 @@
 /** Pill switches (page sub-tabs and two-way choices): a dark track with the chosen option in crimson. */
-export const segTrack = "inline-flex w-fit flex-wrap gap-1 rounded-full border border-neutral-800 bg-neutral-900/80 p-1 shadow-[inset_0_1px_2px_rgb(0_0_0/0.4)]";
+export const segTrack = "inline-flex w-fit flex-wrap gap-1 rounded-full border border-neutral-800 bg-neutral-900/80 p-1 shadow-[inset_0_1px_2px_rgb(0_0_0/0.4)] max-sm:flex max-sm:w-full max-sm:flex-nowrap max-sm:rounded-2xl max-sm:p-1.5";
 export const segItem = (on: boolean) =>
-  `rounded-full px-4 py-1.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 ${
+  `rounded-full px-4 py-1.5 text-sm font-semibold max-sm:flex-1 max-sm:whitespace-nowrap max-sm:rounded-xl max-sm:px-2 max-sm:py-2.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 ${
     on
       ? "bg-gradient-to-b from-brand-400 to-brand-600 text-white shadow-[0_4px_14px_-4px_rgb(232_38_94/0.7)]"
       : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-50"

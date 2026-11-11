@@ -9,8 +9,9 @@ const TABS = [
   { href: "/inject", label: "Inject" },
   { href: "/variants", label: "Variants" },
   { href: "/likeness", label: "Likeness" },
-  { href: "/reference-sheet", label: "Reference Sheet" },
+  { href: "/reference-sheet", label: "Create Model" },
   { href: "/characters", label: "Characters" },
+  { href: "/marketplace", label: "Marketplace" },
 ];
 
 export function MainNav() {

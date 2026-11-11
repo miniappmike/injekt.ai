@@ -87,16 +87,18 @@ export function CharacterForm({
         const data = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
         startSubmit(() => formAction(data));
       }}
-      className="flex max-w-2xl flex-col gap-5"
+      className="flex max-w-2xl flex-col gap-5 lg:max-w-none"
     >
       {toast}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="name">Name</Label>
-        <Input id="name" name="name" defaultValue={initial.name} required maxLength={80} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="always_keep">Always keep</Label>
-        <Input id="always_keep" name="always_keep" defaultValue={initial.always_keep ?? ""} placeholder="e.g. gold chain" />
+      <div className="grid gap-5 sm:grid-cols-2 sm:gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="name">Name</Label>
+          <Input id="name" name="name" defaultValue={initial.name} required maxLength={80} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="always_keep">Always keep</Label>
+          <Input id="always_keep" name="always_keep" defaultValue={initial.always_keep ?? ""} placeholder="e.g. gold chain" />
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">

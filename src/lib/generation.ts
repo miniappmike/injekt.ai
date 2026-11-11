@@ -1,3 +1,4 @@
+import { loadGenerationState } from "@/lib/generation-access";
 import "server-only";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -6,13 +7,10 @@ import { adminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { safeFetchBytes } from "@/lib/ssrf";
 import { entitlements } from "@/lib/entitlements";
-import { isEmailVerified, type Allowance } from "@/lib/entitlements-core";
+import type { Allowance } from "@/lib/entitlements-core";
 import { ApiKeyRequiredError, UserFacingError } from "@/lib/errors";
-import { resolveApiKey } from "@/lib/keys";
-import { keyResolverDeps } from "@/lib/key-store";
 import { getUserImageConfig, resolveUserImageKey } from "@/lib/ai/image-setup";
 import { getImageProvider } from "@/lib/ai/providers/registry";
-import { SPICY_IMAGE_MODEL } from "@/lib/ai/providers/spicyapi";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageJobInput, type ImageResolution } from "@/lib/ai/providers/types";
 import { buildJob, fitPrompt, GEN_PREFIX, SERVER_PROMPT_KINDS } from "@/lib/generation-job";
 import { injectMetaSchema } from "@/lib/inject-meta";
@@ -69,26 +67,12 @@ interface Access {
   allowance?: Allowance;
 }
 
-// Decides whose key pays. Pro and admin accounts use their own Image key (admins may fall back to the server key).
-// Free accounts get one image on the platform's key, with a confirmed email.
-async function resolveAccess(supabase: SupabaseClient, user: Actor, { forQuote = false } = {}): Promise<Access> {
-  if (await entitlements.isUnlimited(user.id)) {
-    const cfg = await getUserImageConfig(supabase, user.id);
-    if (cfg) return { source: "byok", apiKey: await resolveUserImageKey(user.id, cfg), model: cfg.model, free: false };
-    try {
-      const { key, source } = await resolveApiKey(keyResolverDeps, user.id, "spicyapi", "image");
-      return { source, apiKey: key, model: SPICY_IMAGE_MODEL, free: false };
-    } catch (e) {
-      if (e instanceof ApiKeyRequiredError) throw new ApiKeyRequiredError("image");
-      throw e;
-    }
-  }
-
-  if (!isEmailVerified(user)) throw new UserFacingError("Confirm your email address to use your free image.");
-  if (!env.SPICY_API_KEY) throw new UserFacingError("The free image isn't available right now. Check back soon.");
-  // A price check never uses up the free image.
-  const allowance = forQuote ? undefined : await entitlements.useAllowance(user.id, "free_images");
-  return { source: "server", apiKey: env.SPICY_API_KEY, model: SPICY_IMAGE_MODEL, free: true, allowance };
+// Decides whose key pays. Image generation is opt-in: the person's own Image key, with generation turned on in
+// Settings. Everyone else writes prompts to paste into a generator, so the platform never pays for images.
+async function resolveAccess(supabase: SupabaseClient, user: Actor, _opts: { forQuote?: boolean } = {}): Promise<Access> {
+  const [state, cfg] = await Promise.all([loadGenerationState(supabase, user.id), getUserImageConfig(supabase, user.id)]);
+  if (!state.enabled || !cfg) throw new UserFacingError("Image generation is off. To generate here, add your own image key in Settings and turn on image generation.");
+  return { source: "byok", apiKey: await resolveUserImageKey(user.id, cfg), model: cfg.model, free: false };
 }
 
 // The prompt to send and signed links to its images, in prompt order.

@@ -2,13 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/toast";
 import { HistoryImages } from "@/components/history-images";
 import { GenerateImage } from "@/components/generate-image";
+import { useGeneration } from "@/components/app-context";
+import { ScrollQuillIcon } from "@/components/icons";
+import { GENERATOR } from "@/lib/links";
 import { checkImageGeneration } from "@/app/(app)/generate/actions";
-import { deleteAllHistory, deleteHistoryEntry, getFreeImagesLeft, getGenerationPreview, getGenerations, getHistory } from "@/app/(app)/history/actions";
+import { deleteAllHistory, deleteHistoryEntry, getGenerationPreview, getGenerations, getHistory } from "@/app/(app)/history/actions";
 import { filterHistory, historyCharacters } from "@/lib/history-filter";
 import { GENERATION_EVENT, OPEN_HISTORY_EVENT, viewImage, type HistoryTab, type TrayGeneration } from "@/lib/panel-events";
 import { historyGenerationKind, type GenerationItem, type HistoryItem } from "@/lib/history-types";
@@ -37,6 +41,8 @@ const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabi
 // Header button plus a panel that slides in from the right, with the prompts you saved and the images you made.
 // Loads fresh each time it opens. Anything in the app can open it on a tab with openHistory().
 export function HistoryPanel() {
+  // On the Characters grid (phones) the button tucks against the right edge, mid-height, clear of each card's buttons.
+  const tucked = usePathname() === "/characters";
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<HistoryTab>("prompts");
   const [items, setItems] = useState<HistoryItem[] | null>(null);
@@ -47,9 +53,12 @@ export function HistoryPanel() {
   const [characterId, setCharacterId] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
-  // Entries with their Generate controls open, and the free images left (loaded the first time one opens; null means Pro).
+  // Entries with their Generate controls open (only with image generation on).
+  const generation = useGeneration();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const tabs = generation ? TABS : TABS.filter((t) => t.id === "prompts");
   const [generating, setGenerating] = useState<Set<string>>(new Set());
-  const [freeLeft, setFreeLeft] = useState<number | null | undefined>(undefined);
   const { toast, show } = useToast(2500);
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -174,7 +183,6 @@ export function HistoryPanel() {
       if (!next.delete(id)) next.add(id);
       return next;
     });
-    if (freeLeft === undefined) getFreeImagesLeft().then(setFreeLeft, () => setFreeLeft(null));
   }
 
   async function remove(id: string) {
@@ -199,7 +207,7 @@ export function HistoryPanel() {
   function onTabKeyDown(e: React.KeyboardEvent) {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
-    const next = TABS[(TABS.findIndex((t) => t.id === tab) + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length].id;
+    const next = tabs[(tabs.findIndex((t) => t.id === tab) + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length].id;
     setTab(next);
     panel.current?.querySelector<HTMLElement>(`#history-tab-${next}`)?.focus();
   }
@@ -213,7 +221,12 @@ export function HistoryPanel() {
 
   return (
     <>
-      <button
+      {/* A round button floating in the bottom-right corner on every screen: above the phone dock, and above the
+          image tray while it shows (the tray sets --tray-h). Steps aside while a bottom sheet is open. */}
+      {/* Drawn on the page body so no transformed parent can move it off the screen. */}
+      {mounted &&
+        createPortal(
+<button
         ref={trigger}
         type="button"
         onClick={() => {
@@ -221,14 +234,14 @@ export function HistoryPanel() {
           setOpen(true);
         }}
         aria-haspopup="dialog"
-        className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-neutral-300 transition-colors hover:bg-neutral-800 hover:text-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
+        aria-label="History"
+        title="History"
+        className={"group fixed bottom-[calc(var(--tray-h,0px)+1.5rem)] right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-600 text-white shadow-[0_12px_32px_-10px_rgb(232_38_94/0.85),0_4px_12px_-4px_rgb(0_0_0/0.7)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_16px_40px_-10px_rgb(232_38_94/0.95),0_4px_12px_-4px_rgb(0_0_0/0.7)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/40 active:scale-95 max-sm:bottom-[calc(var(--tray-h,0px)+max(5.5rem,calc(env(safe-area-inset-bottom)+4.75rem)))] max-sm:right-4 max-sm:h-[3.25rem] max-sm:w-[3.25rem] [.sheet-open_&]:pointer-events-none [.sheet-open_&]:scale-75 [.sheet-open_&]:opacity-0" + (tucked ? " max-sm:top-1/2 max-sm:bottom-auto! max-sm:-right-5! max-sm:h-11! max-sm:w-11! max-sm:justify-start max-sm:pl-1 max-sm:opacity-90" : "")}
       >
-        <svg viewBox="0 0 20 20" aria-hidden="true" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8" strokeLinecap="round">
-          <circle cx="10" cy="10" r="7.2" />
-          <path d="M10 6v4l2.6 1.8" />
-        </svg>
-        History
-      </button>
+        <ScrollQuillIcon className="h-7 w-7 transition-transform duration-200 group-hover:-rotate-6 max-sm:h-6 max-sm:w-6" />
+      </button>,
+          document.body,
+        )}
 
       {/* Drawn on the page body, not inside the header: the header's blur makes it the anchor for anything fixed within it,
           which squashed the panel into the header strip and let the page show through. */}
@@ -274,7 +287,7 @@ export function HistoryPanel() {
               </div>
 
               <div role="tablist" aria-label="History" onKeyDown={onTabKeyDown} className="flex gap-1 border-b border-neutral-800 px-4">
-                {TABS.map((t) => (
+                {tabs.map((t) => (
                   <button
                     key={t.id}
                     id={`history-tab-${t.id}`}
@@ -326,7 +339,7 @@ export function HistoryPanel() {
                         const framed = genKind === "inject" && !!i.characterId && Object.keys(i.meta ?? {}).length > 0;
                         // Carousel slides saved with their placeholders are framed again by the server.
                         const slide = genKind === "carousel" && typeof i.meta?.slidePrompt === "string" && typeof i.meta?.person === "string" ? (i.meta as { slidePrompt: string; person: "full" | "partial" | "none" }) : null;
-                        const canGenerate = !!genKind && (!!i.imagePath || framed);
+                        const canGenerate = generation && !!genKind && (!!i.imagePath || framed);
                         const showGenerate = canGenerate && generating.has(i.id);
                         return (
                           <li key={i.id} className="flex gap-3 rounded-xl border border-neutral-800 bg-neutral-900/80 p-3 transition-colors duration-200 hover:border-neutral-700 hover:bg-neutral-900">
@@ -346,6 +359,18 @@ export function HistoryPanel() {
                               <p className="text-xs text-neutral-500">{i.characterName} · {when(i.createdAt)}</p>
                               <p className={`mt-1 whitespace-pre-wrap text-sm text-neutral-300 ${isOpen ? "" : "line-clamp-2"}`}>{i.prompt}</p>
                               <div className="mt-1 flex flex-wrap gap-1">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-brand-300 hover:text-brand-200"
+                                  onClick={() => {
+                                    window.open(GENERATOR.url, "_blank", "noopener,noreferrer");
+                                    void copy(i.prompt);
+                                  }}
+                                >
+                                  Copy &amp; open {GENERATOR.name}
+                                </Button>
                                 <Button type="button" size="sm" variant="ghost" onClick={() => copy(i.prompt)}>Copy</Button>
                                 <Button type="button" size="sm" variant="ghost" onClick={() => toggle(i.id)}>{isOpen ? "Collapse" : "Expand"}</Button>
                                 {canGenerate && (
@@ -360,20 +385,15 @@ export function HistoryPanel() {
                               </div>
                               {showGenerate && (
                                 <div className="mt-2">
-                                  {freeLeft === undefined ? (
-                                    <p className="text-xs text-neutral-500">Loading...</p>
-                                  ) : (
-                                    <GenerateImage
-                                      prompt={slide ? slide.slidePrompt : i.prompt}
-                                      characterId={i.characterId}
-                                      extraPaths={framed ? [] : [i.imagePath as string, ...i.extraPaths]}
-                                      kind={genKind}
-                                      freeImagesLeft={freeLeft}
-                                      meta={framed ? metaForRun(i.meta as InjectMeta, i.imagePath, readEditTarget()) : slide ? { person: slide.person } : undefined}
-                                      checkLikeness={!slide || slide.person === "full"}
-                                      historyId={i.id}
-                                    />
-                                  )}
+                                  <GenerateImage
+                                    prompt={slide ? slide.slidePrompt : i.prompt}
+                                    characterId={i.characterId}
+                                    extraPaths={framed ? [] : [i.imagePath as string, ...i.extraPaths]}
+                                    kind={genKind}
+                                    meta={framed ? metaForRun(i.meta as InjectMeta, i.imagePath, readEditTarget()) : slide ? { person: slide.person } : undefined}
+                                    checkLikeness={!slide || slide.person === "full"}
+                                    historyId={i.id}
+                                  />
                                   <p className="mt-2 text-xs text-neutral-500">
                                     {framed
                                       ? readEditTarget() && i.imagePath

@@ -8,6 +8,8 @@ import { priceFor } from "@/lib/pricing";
 import { recordTextCall, type TextFeature } from "@/lib/ledger";
 import { keyResolverDeps } from "@/lib/key-store";
 import { ApiKeyRequiredError } from "@/lib/errors";
+import { env } from "@/env";
+import { getAppConfig } from "@/lib/app-config";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -17,16 +19,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  */
 const WRITING: ReadonlySet<TextFeature> = new Set(["prompt", "variants", "carousel", "outfit", "condense", "test"]);
 
-// `feature` says what the call is for, which is how spend is broken down. Returns the guarded client for a role plus the image size the provider can take. A role with no
-// setup of its own falls back to the other one. Throws ApiKeyRequiredError (redirecting to the key
-// page) when neither is set.
+// `feature` says what the call is for, which is how spend is broken down. Returns the guarded client for a role plus the
+// image size the provider can take. A role with no setup of its own falls back to the other one, and with neither, to
+// the platform's key (SPICY_API_KEY with SERVER_VISION_MODEL). Throws ApiKeyRequiredError only when there's no key at all.
 export async function getUserTextClient(supabase: SupabaseClient, userId: string, role: "vision" | "llm", feature: TextFeature) {
   const { data } = await supabase.from("user_settings").select("prefs").eq("user_id", userId).maybeSingle();
   const chosen = effectiveRole(readRoles(data?.prefs), role);
-  if (!chosen) throw new ApiKeyRequiredError(role);
+  // No key of their own: the platform's key and model do the job (its daily allowance is checked by the caller).
+  if (!chosen && !env.SPICY_API_KEY) throw new ApiKeyRequiredError(role);
 
-  const { cfg, keyRole } = chosen;
-  const { key, source } = await resolveApiKey(keyResolverDeps, userId, cfg.provider, keyRole);
+  const server = chosen ? null : await getAppConfig();
+  const cfg = chosen?.cfg ?? { provider: "spicyapi", model: server!.serverModel, ...(server!.serverPrice ? { price: server!.serverPrice } : {}) };
+  const { key, source } = chosen
+    ? await resolveApiKey(keyResolverDeps, userId, cfg.provider, chosen.keyRole)
+    : { key: env.SPICY_API_KEY as string, source: "server" as const };
   const backend = getTextBackend(cfg.provider, cfg.model, cfg.baseUrl, WRITING.has(feature) ? "none" : "low");
   const price = priceFor(cfg);
   // Every call is written to the ledger as it finishes.
@@ -38,5 +44,5 @@ export async function getUserTextClient(supabase: SupabaseClient, userId: string
       return recordTextCall(adminClient(), { userId, job: role, feature, setup: cfg, keySource: source, usage, price });
     },
   });
-  return { client, imageMaxEdge: backend.imageMaxEdge };
+  return { client, imageMaxEdge: backend.imageMaxEdge, ownKey: !!chosen };
 }

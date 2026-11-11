@@ -39,3 +39,9 @@ export interface TrayGeneration {
 export function reportGeneration(update: TrayGeneration) {
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(GENERATION_EVENT, { detail: update }));
 }
+
+export const USAGE_EVENT = "modelspawn:usage";
+/** Tells the usage meter in the header that a prompt run or likeness check may have used some of today's allowance. */
+export function usageChanged() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(USAGE_EVENT));
+}
