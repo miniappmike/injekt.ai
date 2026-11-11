@@ -1,8 +1,14 @@
 import { LedgerView } from "@/components/ledger-view";
 import { requireUser } from "@/lib/auth";
+import { settlePendingLedger } from "@/lib/ledger-sweep";
+import { adminClient } from "@/lib/supabase/admin";
+
+export const maxDuration = 30;
 
 export default async function LedgerPage() {
-  await requireUser();
+  const { user } = await requireUser();
+  // Their calls still showing an estimate get SpicyAPI's final charge before the page shows them.
+  await settlePendingLedger(adminClient(), { userId: user.id, limit: 60, budgetMs: 5000 }).catch(() => null);
   return (
     <div className="max-w-5xl">
       <h1 className="page-title">Ledger</h1>
