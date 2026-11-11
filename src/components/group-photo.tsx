@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CharacterCard, type CharacterCardData } from "@/components/character-card";
 import { GenerateImage } from "@/components/generate-image";
 import { useGeneration } from "@/components/app-context";
+import { ModelBox } from "@/components/page-model";
 import { CheckIcon, CloseIcon, GroupIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
@@ -261,6 +262,7 @@ function Composer({ chosen, onRemove, onBack, onClose }: { chosen: CharacterCard
           </div>
         </div>
 
+        <ModelBox compact />
         <GenerateImage
           kind="group_photo"
           prompt={direction.trim() || DEFAULT_DIRECTION}

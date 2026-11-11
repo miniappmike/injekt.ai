@@ -22,7 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="min-h-screen">
         <AppHeader email={user.email ?? "Account"} admin={plan === "admin"} />
         {/* The footer below leaves the room for the phone dock and the generation tray. */}
-        <main className="mx-auto max-w-6xl 2xl:max-w-[88rem] p-4 pb-16 max-sm:pt-1 sm:p-6 sm:pb-20">{children}</main>
+        <main className="mx-auto max-w-6xl 2xl:max-w-[88rem] p-4 pb-10 max-sm:pt-1 sm:p-6 sm:pb-12">{children}</main>
         <PageModelBox />
         <AppFooter />
         <ModelRefusedToast />
