@@ -169,6 +169,7 @@ export function LedgerView() {
                   <th className="p-2 text-right font-normal">This month</th>
                   <th className="p-2 text-right font-normal">All time</th>
                   <th className="p-2 text-right font-normal">Calls</th>
+                  <th className="p-2 text-right font-normal" title="Images generated: all time, and this month">Images generated</th>
                   <th className="hidden p-2 text-right font-normal sm:table-cell">Tokens in / out</th>
                 </tr>
               </thead>
@@ -184,6 +185,10 @@ export function LedgerView() {
                     <td className="p-2 text-right">{formatUsd(s.month)}</td>
                     <td className="p-2 text-right">{formatUsd(s.all)}</td>
                     <td className="p-2 text-right">{s.calls}</td>
+                    <td className="p-2 text-right tabular-nums">
+                      {s.images}
+                      {s.images > 0 && <span className="block text-[11px] text-neutral-500">{s.monthImages} this month</span>}
+                    </td>
                     <td className="hidden p-2 text-right text-neutral-400 sm:table-cell">{tokens(s.inputTokens) || "0"} / {tokens(s.outputTokens) || "0"}</td>
                   </tr>
                 ))}
@@ -246,9 +251,9 @@ export function LedgerView() {
       </section>
 
       <p className="text-xs text-neutral-500">
-        Totals count calls made with your own keys. Image costs are what the provider reported. Text costs are the tokens used times a price per million
-        tokens: the provider&apos;s list price where we have one, otherwise the price you enter on the API keys page (&ldquo;calc.&rdquo; marks those).
-        Your provider&apos;s invoice is the final word.
+        Totals count calls made with your own keys. On SpicyAPI, every call (images and text) shows what SpicyAPI actually charged, looked up a few
+        seconds after the call. Until then, and on other providers, text costs are the tokens used times a price per million tokens: the list price
+        where we have one, otherwise the price you enter on the API keys page (&ldquo;calc.&rdquo; marks those). Your provider&apos;s invoice is the final word.
       </p>
     </div>
   );

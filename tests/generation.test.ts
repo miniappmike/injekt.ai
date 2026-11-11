@@ -43,7 +43,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       insert: (r: Row) => {
         if (table === "api_ledger") {
           db.ledger.push(r);
-          return Promise.resolve({ error: null });
+          return { select: () => ({ single: async () => ({ data: { id: db.ledger.length }, error: null }) }) };
         }
         const row = { id: `g${db.rows.length + 1}`, status: "pending", ...r };
         db.rows.push(row);
@@ -316,6 +316,9 @@ describe("collectGeneration", () => {
         cost_known: true,
         cost_source: "provider",
         generation_id: id,
+        // The provider's job id, to look up its final charge; this one had already settled.
+        provider_task_ids: ["job_1"],
+        cost_settled: true,
       },
     ]);
 

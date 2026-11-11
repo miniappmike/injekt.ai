@@ -17,6 +17,7 @@ import { injectMetaSchema } from "@/lib/inject-meta";
 import { MEDIA_BUCKET } from "@/lib/images";
 import { GENERATION_RETENTION_HOURS, generationExpiry } from "@/lib/retention";
 import { recordLedgerEntry } from "@/lib/ledger";
+import { settleSoon } from "@/lib/ledger-settle";
 
 export const GENERATION_KINDS = ["inject", "direct_swap", "edit", "variant", "carousel", "face_fix", "likeness_fix", "reference_sheet", "group_photo"] as const;
 export const GENERATIONS_BUCKET = "generations";
@@ -258,7 +259,8 @@ export async function collectGeneration(supabase: SupabaseClient, user: Actor, g
       .select("id");
     if (!won?.length) return false;
     // Every finished generation goes on the ledger, including a failed one (it usually costs nothing, but a refusal can be charged).
-    await recordLedgerEntry(db, {
+    const settled = job.settled === true && reported !== null;
+    const ledgerId = await recordLedgerEntry(db, {
       userId: user.id,
       platform: "spicyapi",
       job: "image",
@@ -269,7 +271,11 @@ export async function collectGeneration(supabase: SupabaseClient, user: Actor, g
       costUsd: reported,
       costSource: reported !== null ? "provider" : null,
       generationId: row.id,
+      providerTaskIds: [row.provider_job_id as string],
+      costSettled: settled,
     });
+    // Until it settles, the cost is the amount held (the most it can charge): look up the final charge shortly.
+    if (ledgerId !== null && !settled) settleSoon(db, ledgerId, apiKey, [row.provider_job_id as string]);
     return true;
   };
 

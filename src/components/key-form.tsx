@@ -28,6 +28,8 @@ export interface SavedRole {
   /** Text jobs: the price used to turn tokens into dollars, and where it came from (null: none known). */
   price?: { input: number; output: number } | null;
   priceSource?: "you" | "list" | null;
+  /** A SpicyAPI key: the ledger shows what each call was really charged, so no price is needed. */
+  realCosts?: boolean;
 }
 
 export interface ShareSource {
@@ -98,7 +100,7 @@ export function RoleKeyForm({ role, saved, shareSources = [] }: { role: "vision"
           </p>
         )}
         {testState.error && <p role="alert" className="text-sm text-red-400">{testState.error}</p>}
-        {role !== "image" && (
+        {role !== "image" && !saved.realCosts && (
           <details className="rounded-md border border-neutral-800 p-3 text-sm" open={!saved.price}>
             <summary className="cursor-pointer text-neutral-300">Cost for your ledger</summary>
             <p className="mt-2 text-xs text-neutral-500">

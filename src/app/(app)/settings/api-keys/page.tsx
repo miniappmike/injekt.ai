@@ -58,6 +58,8 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                   last4: tail,
                   sharedFrom: isShared(cfg) ? labelOf(cfg.keyFrom) : undefined,
                   usedBy,
+                  // SpicyAPI keys get each call's real charge on the ledger, so they need no price.
+                  realCosts: providerSupports(own, "image"),
                   ...(r.id !== "image" ? textPrice(roles, r.id) : {}),
                 }
               : undefined;

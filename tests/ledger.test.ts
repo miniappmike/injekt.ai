@@ -55,7 +55,11 @@ describe("spendWindows and rangeStart", () => {
 
 function fakeDb(error: { message: string } | null = null) {
   const rows: Record<string, unknown>[] = [];
-  return { rows, db: { from: (t: string) => ({ insert: async (r: Record<string, unknown>) => (rows.push({ _table: t, ...r }), { error }) }) } as never };
+  const insert = (t: string, r: Record<string, unknown>) => {
+    rows.push({ _table: t, ...r });
+    return { select: () => ({ single: async () => ({ data: error ? null : { id: rows.length }, error }) }) };
+  };
+  return { rows, db: { from: (t: string) => ({ insert: (r: Record<string, unknown>) => insert(t, r) }) } as never };
 }
 
 describe("recordLedgerEntry", () => {
@@ -77,6 +81,8 @@ describe("recordLedgerEntry", () => {
       cost_known: true,
       cost_source: "provider",
       generation_id: "g1",
+      provider_task_ids: null,
+      cost_settled: false,
     });
   });
 
@@ -95,7 +101,7 @@ describe("recordLedgerEntry", () => {
   it("never throws when the ledger can't be written, so the person's work is not lost", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { db } = fakeDb({ message: "db down" });
-    await expect(recordLedgerEntry(db, { userId: "u", platform: "p", job: "llm", feature: "test", keySource: "byok", costUsd: 0 })).resolves.toBeUndefined();
+    await expect(recordLedgerEntry(db, { userId: "u", platform: "p", job: "llm", feature: "test", keySource: "byok", costUsd: 0 })).resolves.toBeNull();
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
   });
@@ -151,7 +157,7 @@ describe("reading the ledger", () => {
   it("maps the per-platform summary and rejects a failed read", async () => {
     const ok = { rpc: async () => ({ data: [{ platform: "spicyapi", day_cost: "0.1", month_cost: "0.5", all_cost: "1.25", calls: "9", month_calls: "4", input_tokens: "100", output_tokens: "10", unpriced_calls: "1" }], error: null }) } as never;
     const w = spendWindows(new Date("2026-10-24T12:00:00Z"), 0);
-    expect(await getLedgerSummary(ok, w)).toEqual([{ platform: "spicyapi", today: 0.1, month: 0.5, all: 1.25, calls: 9, monthCalls: 4, inputTokens: 100, outputTokens: 10, unpricedCalls: 1 }]);
+    expect(await getLedgerSummary(ok, w)).toEqual([{ platform: "spicyapi", today: 0.1, month: 0.5, all: 1.25, calls: 9, monthCalls: 4, inputTokens: 100, outputTokens: 10, unpricedCalls: 1, images: 0, monthImages: 0 }]);
     await expect(getLedgerSummary({ rpc: async () => ({ data: null, error: { message: "x" } }) } as never, w)).rejects.toThrow();
   });
 

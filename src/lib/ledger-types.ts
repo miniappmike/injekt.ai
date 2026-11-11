@@ -86,6 +86,9 @@ export interface PlatformSpend {
   inputTokens: number;
   outputTokens: number;
   unpricedCalls: number;
+  /** Images generated (succeeded image jobs), all time and this month. */
+  images: number;
+  monthImages: number;
 }
 
 export interface LedgerFilters {

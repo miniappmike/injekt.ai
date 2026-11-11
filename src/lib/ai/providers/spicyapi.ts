@@ -21,6 +21,20 @@ export function buildSpicyInput(input: ImageJobInput) {
 
 const client = (apiKey: string) => new SpicyClient({ apiKey });
 
+/**
+ * What a SpicyAPI task cost: every call (a chat completion as well as an image job) is charged as a task. `settled`
+ * false means `cost` is still the amount held, the most it can charge. null when the task can't be read.
+ */
+export async function spicyTaskCost(apiKey: string, taskId: string): Promise<{ cost: number; settled: boolean } | null> {
+  try {
+    const record = await client(apiKey).getTask(taskId);
+    const cost = Number(record.cost);
+    return Number.isFinite(cost) && cost >= 0 ? { cost, settled: record.settled === true } : null;
+  } catch {
+    return null;
+  }
+}
+
 // Turns SDK errors into messages a person can act on. Branches on the error code, never the wording.
 export function toProviderError(e: unknown): ProviderError {
   if (e instanceof ProviderError) return e;
