@@ -12,7 +12,7 @@ import { swapPrompt } from "@/lib/ai/prompts/swap";
 import { MEDIA_BUCKET, stripAndNormalize } from "@/lib/images";
 import { addOutfit, type SavedOutfit } from "@/lib/outfits";
 import { cleanTarget, type CleanResult } from "@/lib/overlay-cleanup";
-import type { InjectOptionsInput } from "@/lib/inject-meta";
+import type { InjectMeta, InjectOptionsInput } from "@/lib/inject-meta";
 import { finalPath, isOwnPath } from "@/lib/uploads";
 import { loadForVision } from "@/lib/character-images";
 import { getUserTextClient } from "@/lib/ai/text-client";
@@ -152,6 +152,43 @@ export async function cleanOverlays(path: string): Promise<({ ok: true } & Clean
     const { supabase, user } = await requireUser();
     await enforceRateLimit(user.id, "llm", 20, 60);
     return { ok: true, ...(await cleanTarget(supabase, user.id, path)) };
+  } catch (e) {
+    return toFailure(e);
+  }
+}
+
+/**
+ * A prompt write whose answer never reached the phone (the page was in the background, or reloaded): the server
+ * still finished it and saved every version to History, so rebuild the result from there. Null when nothing is
+ * saved yet for this photo and character since the write started.
+ */
+export async function recoverInjectPrompts(input: { characterId: string; targetPath: string; since: string; count: number }): Promise<({ ok: true; result: InjectRunResult | null }) | AiFailure> {
+  try {
+    const { supabase } = await requireUser();
+    const since = new Date(Date.parse(input.since) - 60_000).toISOString(); // a little slack for the phone's clock
+    const [{ data: rows }, { data: c }] = await Promise.all([
+      supabase
+        .from("prompt_history")
+        .select("*")
+        .eq("kind", "inject")
+        .eq("character_id", input.characterId)
+        .eq("image_path", input.targetPath)
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(Math.max(1, Math.min(input.count, 4))),
+      supabase.from("characters").select("name").eq("id", input.characterId).maybeSingle(),
+    ]);
+    if (!rows?.length) return { ok: true, result: null };
+    const name = (c?.name as string | undefined) ?? "";
+    const versions = [...rows].reverse().map((r) => {
+      // The label is "Inject · Name[ · version N][ · tag · tag]".
+      const tags = String(r.label ?? "")
+        .split(" · ")
+        .slice(2)
+        .filter((t) => !/^version \d+$/.test(t));
+      return { text: String(r.prompt), fixed: [] as string[], tags, meta: (r.meta ?? {}) as InjectMeta, historyId: r.id as string };
+    });
+    return { ok: true, result: { versions, truncated: false, characterName: name } };
   } catch (e) {
     return toFailure(e);
   }

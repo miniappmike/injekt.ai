@@ -39,6 +39,8 @@ const requestSchema = z.object({
   meta: injectMetaSchema.optional(),
   /** The History prompt this image was made from, so History can show it again ("Preview generation"). */
   historyId: z.string().uuid().nullish(),
+  /** A random id from the browser for this press, so a phone that lost the answer can find the job it started. */
+  clientRef: z.string().uuid().optional(),
   /** A one-off image model for this generation (the page's model box); without it, the one in Settings. */
   model: z
     .string()
@@ -157,6 +159,7 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
           ...(prepared.photoEdit ? { photo_edit: true } : {}),
           ...(request.historyId ? { history_id: request.historyId } : {}),
           ...(request.kind === "group_photo" && request.meta?.group ? { group_ids: request.meta.group } : {}),
+          ...(request.clientRef ? { client_ref: request.clientRef } : {}),
         },
       })
       .select("id")

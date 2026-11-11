@@ -16,7 +16,9 @@ import { InfoTip } from "@/components/info-tip";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { clipboardImages, usePasteTarget } from "@/components/paste-router";
-import { cleanOverlays, deleteOutfit, extractOutfit, saveOutfit, warmSheetPack, writeInjectPrompts, writeInjectStandalone } from "@/app/(app)/inject/actions";
+import { cleanOverlays, deleteOutfit, extractOutfit, recoverInjectPrompts, saveOutfit, warmSheetPack, writeInjectPrompts, writeInjectStandalone } from "@/app/(app)/inject/actions";
+import { awaitOrRecover } from "@/lib/recoverable";
+import type { AiFailure } from "@/lib/ai/failure";
 import type { StandalonePrompt } from "@/lib/inject-standalone";
 import type { SavedOutfit } from "@/lib/outfits";
 import { INJECT_DEFAULTS, MAX_VERSIONS, metaForRun, readEditTarget, writeEditTarget, type InjectMeta, type InjectOptionsInput } from "@/lib/inject-meta";
@@ -228,7 +230,13 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
         if (clean) path = clean.path;
         update(t.id, { status: o.count > 1 ? `Writing ${o.count} versions in one call…` : "Reading the target image…" });
       }
-      const res = await writeInjectPrompts({ characterId, targetPath: path, options: { ...o } });
+      // On a phone the answer can be lost while Safari is in the background; the server still saves the prompts to
+      // History, so they are picked up from there when the page comes back.
+      const since = new Date().toISOString();
+      const res = await awaitOrRecover(writeInjectPrompts({ characterId, targetPath: path, options: { ...o } }), async () => {
+        const r = await recoverInjectPrompts({ characterId, targetPath: path, since, count: o.count });
+        return r.ok && r.result ? { ok: true as const, ...r.result } : null;
+      }).catch((e: unknown): AiFailure => ({ ok: false, error: e instanceof Error ? e.message : "Couldn't write the prompts. Try again." }));
       usageChanged();
       if (!res.ok) {
         if (res.redirectTo) {

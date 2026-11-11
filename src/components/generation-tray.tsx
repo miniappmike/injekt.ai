@@ -9,6 +9,7 @@ import { checkImageGeneration } from "@/app/(app)/generate/actions";
 const POLL_MS = 4000;
 const MAX_POLLS = 150; // about 10 minutes
 import { GENERATION_EVENT, openHistory, viewImage, type TrayGeneration } from "@/lib/panel-events";
+import { generationsOnPage } from "@/lib/pending-generations";
 
 // A strip along the bottom of the page with every image generated on it, newest first. It empties when you go to
 // another page or refresh; everything is still in History > Images.
@@ -36,9 +37,12 @@ export function GenerationTray() {
     return () => window.removeEventListener(GENERATION_EVENT, onUpdate);
   }, [update]);
 
-  // A new page starts with an empty tray.
+  // A new page starts with only the jobs started on it in this tab (remembered across a reload, which a phone can do
+  // when you switch apps); they are checked again and show their image once ready.
   useEffect(() => {
-    setItems([]);
+    setItems(
+      generationsOnPage(pathname).map((p) => ({ key: p.key, label: p.label, prompt: p.prompt, state: "generating" as const, generationId: p.generationId, detached: true })),
+    );
     setCollapsed(false);
   }, [pathname]);
 
@@ -51,7 +55,7 @@ export function GenerationTray() {
     if (!watchKey) return;
     let stopped = false;
     let ticks = 0;
-    const timer = setInterval(async () => {
+    const tick = async () => {
       if (stopped || ++ticks > MAX_POLLS) return clearInterval(timer);
       await Promise.all(
         watchKey.split(",").map(async (pair) => {
@@ -63,10 +67,18 @@ export function GenerationTray() {
           else if (status.state === "failed") update({ key, state: "failed", error: status.error });
         }),
       );
-    }, POLL_MS);
+    };
+    const timer = setInterval(tick, POLL_MS);
+    void tick(); // A job picked back up after a reload may already be done.
+    // Back on the tab or app: check at once instead of waiting for the next tick.
+    const onVisible = () => document.visibilityState === "visible" && void tick();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onVisible);
     return () => {
       stopped = true;
       clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onVisible);
     };
   }, [watchKey]);
 

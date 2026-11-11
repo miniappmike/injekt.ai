@@ -33,3 +33,21 @@ export async function quoteImageGeneration(raw: unknown): Promise<{ ok: true; es
     return toFailure(e);
   }
 }
+
+/** The job a Generate press started, by the id the browser sent with it: for a phone that lost the answer. */
+export async function findGenerationByRef(clientRef: string): Promise<{ ok: true; generationId: string | null }> {
+  try {
+    if (!/^[0-9a-f-]{36}$/i.test(clientRef)) return { ok: true, generationId: null };
+    const { supabase } = await requireUser();
+    const { data } = await supabase
+      .from("generations")
+      .select("id")
+      .eq("params->>client_ref", clientRef)
+      .gte("created_at", new Date(Date.now() - 30 * 60_000).toISOString())
+      .limit(1)
+      .maybeSingle();
+    return { ok: true, generationId: (data?.id as string | undefined) ?? null };
+  } catch {
+    return { ok: true, generationId: null };
+  }
+}
