@@ -108,13 +108,16 @@ export function LockedGenerate({ label = "Generate image", size = "sm" }: { labe
               <span className="block text-xs text-neutral-500">Pay as you go, no key needed.</span>
             </span>
           </div>
-          <Link href={GET_KEY_PATH} onClick={() => setOpen(false)} className={cn(row, "hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none")}>
-            <span aria-hidden="true" className="mt-0.5 text-base leading-none">🔑</span>
-            <span>
-              <span className="font-semibold text-neutral-100">Get an API key</span>
-              <span className="block text-xs text-neutral-500">Your own SpicyAPI key. Takes a few minutes.</span>
-            </span>
-          </Link>
+          {/* Only until they have a key; after that the guide stays in the footer. */}
+          {!imageKey && (
+            <Link href={GET_KEY_PATH} onClick={() => setOpen(false)} className={cn(row, "hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none")}>
+              <span aria-hidden="true" className="mt-0.5 text-base leading-none">🔑</span>
+              <span>
+                <span className="font-semibold text-neutral-100">Get an API key</span>
+                <span className="block text-xs text-neutral-500">Your own SpicyAPI key. Takes a few minutes.</span>
+              </span>
+            </Link>
+          )}
           <Link href={GENERATION_SETTINGS_PATH} onClick={() => setOpen(false)} className={cn(row, "hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none")}>
             <span aria-hidden="true" className="mt-0.5 text-base leading-none">⚡</span>
             <span>

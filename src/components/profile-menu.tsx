@@ -149,7 +149,8 @@ export function ProfileMenu({ email, admin = false }: { email: string; admin?: b
               <div role="separator" className="my-1 border-t border-neutral-800" />
               <Link href="/ledger" role="menuitem" onClick={close} className={item}>Ledger</Link>
               <Link href="/settings/api-keys" role="menuitem" onClick={close} className={item}>Settings</Link>
-              <Link href={GET_KEY_PATH} role="menuitem" onClick={close} className={item}>Get an API key</Link>
+              {/* Only until they have a key; after that the guide stays in the footer. */}
+              {!imageKey && <Link href={GET_KEY_PATH} role="menuitem" onClick={close} className={item}>Get an API key</Link>}
               {admin && <Link href="/admin" role="menuitem" onClick={close} className={item}>Admin</Link>}
               <form action="/auth/signout" method="post" className="mt-1 border-t border-neutral-800 pt-1">
                 <button type="submit" role="menuitem" className={item}>Log out</button>
