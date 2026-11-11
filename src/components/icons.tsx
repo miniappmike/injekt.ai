@@ -77,3 +77,13 @@ export const ScrollQuillIcon = ({ className }: P) => (
     <path d="M13.5 15.5 17 11" />
   </svg>
 );
+/** Three people side by side: the Group photo button. */
+export const GroupIcon = ({ className }: P) => (
+  <svg {...base(className)}><circle cx="12" cy="8.5" r="2.8" /><path d="M7.2 19c.7-2.8 2.5-4.3 4.8-4.3s4.1 1.5 4.8 4.3" /><circle cx="5.5" cy="10" r="2.1" /><path d="M2.5 18c.4-1.9 1.5-3 3-3.2" /><circle cx="18.5" cy="10" r="2.1" /><path d="M21.5 18c-.4-1.9-1.5-3-3-3.2" /></svg>
+);
+export const CheckIcon = ({ className }: P) => (
+  <svg {...base(className)}><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+);
+export const CloseIcon = ({ className }: P) => (
+  <svg {...base(className)}><path d="M6 6l12 12M18 6 6 18" /></svg>
+);

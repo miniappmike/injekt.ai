@@ -18,7 +18,7 @@ import { MEDIA_BUCKET } from "@/lib/images";
 import { GENERATION_RETENTION_HOURS, generationExpiry } from "@/lib/retention";
 import { recordLedgerEntry } from "@/lib/ledger";
 
-export const GENERATION_KINDS = ["inject", "direct_swap", "edit", "variant", "carousel", "face_fix", "likeness_fix", "reference_sheet"] as const;
+export const GENERATION_KINDS = ["inject", "direct_swap", "edit", "variant", "carousel", "face_fix", "likeness_fix", "reference_sheet", "group_photo"] as const;
 export const GENERATIONS_BUCKET = "generations";
 /** How long the image provider has to fetch the pictures we hand it. */
 export const INPUT_URL_SECONDS = 1800;
@@ -144,6 +144,7 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
           image_count: prepared.imageUrls.length,
           ...(prepared.photoEdit ? { photo_edit: true } : {}),
           ...(request.historyId ? { history_id: request.historyId } : {}),
+          ...(request.kind === "group_photo" && request.meta?.group ? { group_ids: request.meta.group } : {}),
         },
       })
       .select("id")
