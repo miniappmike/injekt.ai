@@ -29,8 +29,8 @@ describe("Art to Real", () => {
 
   it("with a character: the artwork first, then her references, and her identity replaces the drawn woman's", () => {
     const job = artToRealJob(c, null, ART, "warm lamp light", 10);
-    expect(job.paths).toEqual([ART, `${U}/body.jpg`]);
-    expect(job.prompt).toContain("real photo of the woman from @image2");
+    expect(job.paths).toEqual([ART, `${U}/face.jpg`, `${U}/body.jpg`]);
+    expect(job.prompt).toContain("real photo of the woman from @image2 and @image3");
     expect(job.prompt).toContain("Take from @image1: the pose");
     expect(job.prompt).toContain(PROPORTIONS_RULE);
     expect(job.prompt).toContain("Also: warm lamp light.");

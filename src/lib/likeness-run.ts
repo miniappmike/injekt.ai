@@ -52,7 +52,9 @@ async function download(supabase: SupabaseClient, bucket: string, path: string):
 /** Loads the image to check, shrunk for the vision model. */
 export async function loadSource(supabase: SupabaseClient, userId: string, src: ImageSource, maxEdge: number): Promise<string> {
   if (src.generationId) {
-    const { data } = await supabase.from("generations").select("output_path, status").eq("id", src.generationId).maybeSingle();
+    const { data } = await supabase.from("generations").select("output_path, status, params").eq("id", src.generationId).maybeSingle();
+    if (data?.status === "complete" && !data.output_path && (data.params as { output_url?: string } | null)?.output_url)
+      throw new UserFacingError("That image is still being saved. Try again in a few seconds.");
     if (!data?.output_path || data.status !== "complete") throw new UserFacingError("That image isn't ready, or has expired.");
     return toDataUri(await shrinkForVision(await download(supabase, GENERATIONS_BUCKET, data.output_path as string), maxEdge));
   }
