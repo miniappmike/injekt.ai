@@ -14,8 +14,9 @@ export const FREE_LIMITS = {
  * their own AI key aren't counted.
  */
 export const DAILY_LIMITS = {
-  free: { runs: 3, likeness: 1 },
-  pro: { runs: 100, likeness: 30 },
+  free: { runs: 3, likeness: 1, images: 20 },
+  // Pro has no daily limits; these stay for the config's shape (and older saved settings).
+  pro: { runs: 100000, likeness: 100000, images: 100000 },
 } as const;
 export type DailyKey = keyof (typeof DAILY_LIMITS)["free"];
 
@@ -25,12 +26,12 @@ export type ProFeature = "prompt_writer" | "likeness" | "variants";
 export type LimitKey = keyof typeof FREE_LIMITS | ProFeature;
 
 const MESSAGES: Record<LimitKey, string> = {
-  characters: `The free plan includes ${FREE_LIMITS.characters} character. Pro, with unlimited characters, is coming soon.`,
-  profile_builds: `You've used all ${FREE_LIMITS.profile_builds} free profile generations. Pro, with unlimited generations, is coming soon.`,
-  free_images: `The free plan includes ${FREE_LIMITS.free_images} image generation. Pro is coming soon.`,
-  prompt_writer: "Prompt writing is part of Pro, which is coming soon.",
-  likeness: "Likeness checks are part of Pro, which is coming soon.",
-  variants: "Variants and carousels are part of Pro, which is coming soon.",
+  characters: `The free plan includes ${FREE_LIMITS.characters} character. Upgrade to Pro for unlimited characters.`,
+  profile_builds: `You've used all ${FREE_LIMITS.profile_builds} free profile generations. Upgrade to Pro for more.`,
+  free_images: `The free plan includes ${FREE_LIMITS.free_images} image generation. Upgrade to Pro for more.`,
+  prompt_writer: "Prompt writing is part of Pro.",
+  likeness: "Likeness checks are part of Pro.",
+  variants: "Variants and carousels are part of Pro.",
 };
 
 export const limitMessage = (key: LimitKey) => MESSAGES[key];

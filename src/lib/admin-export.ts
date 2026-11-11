@@ -4,7 +4,7 @@ import { featureLabel } from "@/lib/ledger-types";
 /** Everything on the Admin page, for "Export as". */
 export interface AdminSnapshot {
   generatedAt: string;
-  config: { caps: { free: { runs: number; likeness: number }; pro: { runs: number; likeness: number } }; serverModel: string };
+  config: { caps: { free: { runs: number; likeness: number; images?: number }; pro: { runs: number; likeness: number } }; serverModel: string };
   stats: AdminStats;
   /** Real costs of the platform key alone, and with admin accounts' own testing. */
   realCosts: { platformKeyOnly: FinanceStats; withAdminTesting: FinanceStats };
@@ -86,7 +86,7 @@ export function snapshotMarkdown(s: AdminSnapshot): string {
     ),
     "## Settings",
     "",
-    `- Daily caps: Free ${s.config.caps.free.runs} prompts / ${s.config.caps.free.likeness} likeness; Pro ${s.config.caps.pro.runs} / ${s.config.caps.pro.likeness}`,
+    `- Daily caps (free plan): ${s.config.caps.free.runs} prompts / ${s.config.caps.free.likeness} likeness / ${s.config.caps.free.images ?? "-"} images; Pro has no daily limits`,
     `- Model on the platform key: ${s.config.serverModel}`,
     "",
   ].join("\n");

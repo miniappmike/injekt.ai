@@ -8,7 +8,8 @@ import { MobileDock } from "@/components/mobile-nav";
 import { HistoryPanel } from "@/components/history-panel";
 import { requireUser } from "@/lib/auth";
 import { AppProvider } from "@/components/app-context";
-import { entitlements } from "@/lib/entitlements";
+import { entitlements, loadProfile } from "@/lib/entitlements";
+import { RenewBanner } from "@/components/renew-banner";
 import { loadGenerationState } from "@/lib/generation-access";
 
 // Opening the Images tab finishes any job that completed while you were away, which downloads and stores the image.
@@ -16,11 +17,16 @@ export const maxDuration = 60;
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, supabase } = await requireUser();
-  const [{ enabled: generation, hasImageKey, confirmed }, plan] = await Promise.all([loadGenerationState(supabase, user.id), entitlements.planOf(user.id)]);
+  const [{ enabled: generation, hasImageKey, confirmed }, plan, profile] = await Promise.all([
+    loadGenerationState(supabase, user.id),
+    entitlements.planOf(user.id),
+    loadProfile(user.id),
+  ]);
   return (
-    <AppProvider value={{ generation, imageKey: hasImageKey, generationConfirmed: confirmed }}>
+    <AppProvider value={{ generation, imageKey: hasImageKey, generationConfirmed: confirmed, pro: plan !== "free", billing: plan !== "free" && hasImageKey ? "own" : "credits" }}>
       <div className="min-h-screen">
         <AppHeader email={user.email ?? "Account"} admin={plan === "admin"} />
+        <RenewBanner proUntil={profile?.proUntil ?? null} manualPro={profile?.manualPro ?? false} />
         {/* The footer below leaves the room for the phone dock and the generation tray. */}
         <main className="mx-auto max-w-6xl 2xl:max-w-[88rem] p-4 pb-10 max-sm:pt-1 sm:p-6 sm:pb-12">{children}</main>
         <PageModelBox />

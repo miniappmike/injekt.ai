@@ -7,8 +7,10 @@ import { env } from "@/env";
 import { adminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { safeFetchBytes } from "@/lib/ssrf";
-import { entitlements } from "@/lib/entitlements";
-import type { Allowance } from "@/lib/entitlements-core";
+import { NO_SPEND, spendCredits, spendHandle, type CreditSpend } from "@/lib/credits";
+import { canUseOwnKeys, useDaily, type DailySlot } from "@/lib/daily-limits";
+import { getAppConfig } from "@/lib/app-config";
+import { IMAGE_CREDITS } from "@/lib/plans";
 import { ApiKeyRequiredError, UserFacingError } from "@/lib/errors";
 import { getUserImageConfig, resolveUserImageKey } from "@/lib/ai/image-setup";
 import { getImageProvider } from "@/lib/ai/providers/registry";
@@ -74,21 +76,22 @@ interface Access {
   source: "byok" | "server";
   apiKey: string;
   model: string;
-  /** Uses the one-off free image, paid for by the platform. */
+  /** Always false now (the old one-off free image); kept for the client's result shape. */
   free: boolean;
-  allowance?: Allowance;
 }
 
-// Decides whose key pays. Image generation is opt-in: the person's own Image key, with generation turned on in
-// Settings. Everyone else writes prompts to paste into a generator, so the platform never pays for images.
-async function resolveAccess(supabase: SupabaseClient, user: Actor, _opts: { forQuote?: boolean } = {}): Promise<Access> {
-  const [state, cfg] = await Promise.all([loadGenerationState(supabase, user.id), getUserImageConfig(supabase, user.id)]);
-  if (!state.enabled || !cfg) throw new UserFacingError("Image generation is off. To generate here, add your own image key in Settings and turn on image generation.");
-  return { source: "byok", apiKey: await resolveUserImageKey(user.id, cfg), model: cfg.model, free: false };
+// Decides whose key pays. Pro accounts with their own Image key use it (nothing is charged here). Everyone else uses
+// the platform's key and pays in credits (IMAGE_CREDITS by size), with a daily image cap on the free plan.
+async function resolveAccess(supabase: SupabaseClient, user: Actor): Promise<Access> {
+  const [state, cfg, own] = await Promise.all([loadGenerationState(supabase, user.id), getUserImageConfig(supabase, user.id), canUseOwnKeys(user.id)]);
+  if (!state.enabled) throw new UserFacingError("Image generation is off. Turn it on in Settings to generate here.");
+  if (own && cfg) return { source: "byok", apiKey: await resolveUserImageKey(user.id, cfg), model: cfg.model, free: false };
+  if (!env.SPICY_API_KEY) throw new UserFacingError("Image generation isn't available right now. Try again later.");
+  return { source: "server", apiKey: env.SPICY_API_KEY, model: (await getAppConfig()).serverImageModel, free: false };
 }
 
-/** The page's one-off model, when it set one, in place of the person's Settings model. */
-const withModel = (access: Access, model?: string): Access => (model ? { ...access, model } : access);
+/** The page's one-off model, when it set one, in place of the person's Settings model (own key only). */
+const withModel = (access: Access, model?: string): Access => (model && access.source === "byok" ? { ...access, model } : access);
 
 // The prompt to send and signed links to its images, in prompt order.
 async function prepareInput(
@@ -134,10 +137,17 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
   const access = withModel(await resolveAccess(supabase, user), request.model);
   let submitted = false;
   let generationId: string | undefined;
+  let spend: CreditSpend = NO_SPEND;
+  let slot: DailySlot | null = null;
   const db = adminClient();
   try {
-    const resolution = access.free ? FREE_IMAGE_RESOLUTION : request.resolution;
+    const resolution = request.resolution;
     const prepared = await prepareInput(supabase, user.id, request, access.model);
+    // Credits (and the free plan's daily image cap) are taken only once the request is known to be good.
+    if (access.source === "server") {
+      slot = await useDaily(supabase, user.id, "images");
+      spend = await spendCredits(user.id, IMAGE_CREDITS[resolution], `image:${request.kind}`);
+    }
 
     // The row comes first: its id is the idempotency key, so a retry can never start (or charge) a second job.
     const { data: row, error } = await db
@@ -156,6 +166,7 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
           output_format: request.outputFormat,
           key_source: access.source,
           free: access.free,
+          ...(spend.id ? { credit_spend: spend.id, credits: IMAGE_CREDITS[resolution] } : {}),
           image_count: prepared.imageUrls.length,
           ...(prepared.photoEdit ? { photo_edit: true } : {}),
           ...(request.historyId ? { history_id: request.historyId } : {}),
@@ -192,8 +203,11 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
     }
     return { generationId, free: access.free };
   } catch (e) {
-    // The free image is only used up when a job really started.
-    if (!submitted) await access.allowance?.release();
+    // Credits are only used up when a job really started.
+    if (!submitted) {
+      await spend.refund().catch(() => {});
+      await slot?.release().catch(() => {});
+    }
     throw e;
   }
 }
@@ -202,8 +216,9 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
 export async function quoteGeneration(supabase: SupabaseClient, user: Actor, raw: unknown): Promise<{ estimatedCost: string } | null> {
   const request = parseGenerationRequest(raw);
   await enforceRateLimit(user.id, "image-quote", 30, 60);
-  const access = withModel(await resolveAccess(supabase, user, { forQuote: true }), request.model);
-  if (access.free) return null;
+  const access = withModel(await resolveAccess(supabase, user), request.model);
+  // Credits have a fixed price per size, shown on the button; only an own key gets a dollar quote.
+  if (access.source === "server") return null;
   const prepared = await prepareInput(supabase, user.id, request, access.model, { forQuote: true });
   return getImageProvider("spicyapi").quote({ apiKey: access.apiKey, model: access.model, input: toInput(request, prepared, request.resolution) });
 }
@@ -219,7 +234,7 @@ type Row = {
   model: string | null;
   status: string;
   provider_job_id: string | null;
-  params: { key_source?: string; free?: boolean; output_url?: string; output_mime?: string } | null;
+  params: { key_source?: string; free?: boolean; output_url?: string; output_mime?: string; credit_spend?: string } | null;
   output_path: string | null;
   error: string | null;
   expires_at: string | null;
@@ -306,7 +321,8 @@ export async function collectGeneration(supabase: SupabaseClient, user: Actor, g
 
   if (job.status === "failed") {
     const won = await finish("failed", { status: "failed", error: job.error ?? "The image couldn't be generated." });
-    if (won && row.params?.free) await entitlements.releaseAllowance(user.id, "free_images");
+    // A failed image costs nothing: its credits go back.
+    if (won && row.params?.credit_spend) await spendHandle(row.params.credit_spend).refund().catch(() => {});
     return { state: "failed", error: job.error ?? "The image couldn't be generated." };
   }
 

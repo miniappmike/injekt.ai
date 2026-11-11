@@ -6,6 +6,8 @@ import { ImageSlot } from "@/components/image-slot";
 import { requireUser } from "@/lib/auth";
 import { signedUrlMap } from "@/lib/media-urls";
 import { entitlements } from "@/lib/entitlements";
+import { hasOwnAiKey } from "@/lib/daily-limits";
+import { PROFILE_BUILD_CREDITS } from "@/lib/plans";
 import { FREE_LIMITS } from "@/lib/limits";
 import { referenceList } from "@/lib/character-images";
 import { selectCharacter } from "@/lib/sheet-pack";
@@ -59,7 +61,8 @@ export default async function EditCharacterPage({
   );
   if (!c) notFound();
 
-  const { profile_builds: buildsLeft } = await entitlements.remaining(user.id);
+  // Profile builds cost credits on the platform's key (free with their own key on Pro).
+  const buildCredits = (await hasOwnAiKey(supabase, user.id)) ? null : PROFILE_BUILD_CREDITS;
   const urls = await signedUrlMap(supabase, [c.profile_photo_path, c.face_sheet_path, c.body_sheet_path, ...c.reference_paths]);
   const imgs = (paths: (string | null)[]) => paths.filter((p): p is string => !!p && !!urls[p]).map((p) => ({ path: p, url: urls[p] }));
 
@@ -126,7 +129,7 @@ export default async function EditCharacterPage({
           submitLabel="Save character"
           characterId={c.id}
           canBuildProfile={referenceList(c).length > 0}
-          buildsLeft={buildsLeft}
+          buildCredits={buildCredits}
           buildsTotal={FREE_LIMITS.profile_builds}
           fromWizard={from === "wizard"}
         />

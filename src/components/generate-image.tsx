@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useGeneration } from "@/components/app-context";
+import { useApp, useGeneration } from "@/components/app-context";
+import { IMAGE_CREDITS } from "@/lib/plans";
+import { TokenCost } from "@/components/token-icon";
 import { InfoTip } from "@/components/info-tip";
 import { Spinner } from "@/components/ui/spinner";
 import { checkImageGeneration, findGenerationByRef, quoteImageGeneration, startImageGeneration } from "@/app/(app)/generate/actions";
@@ -93,6 +95,7 @@ function GenerateImageInner({
 }) {
   const router = useRouter();
   const free = freeImagesLeft !== null;
+  const { billing = "credits" } = useApp();
   const [resolution, setResolution] = useState<ImageResolution>(defaultResolution);
   const [chosenAspectRatio, setAspectRatio] = useState<ImageAspectRatio>("auto");
   const aspectRatio = lockedAspectRatio ?? (chosenAspectRatio === "auto" && autoAspectRatio ? autoAspectRatio : chosenAspectRatio);
@@ -244,7 +247,11 @@ function GenerateImageInner({
     void generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, ready]);
-  const label = free ? `Generate my free image (${freeImagesLeft} left)` : `${result ? "Regenerate" : actionLabel}${price ? ` · about $${Number(price).toFixed(3)}` : ""}`;
+  // Tokens have a set price per size; an own key (Pro) shows the provider's quote instead.
+  // On the pink button the token is drawn in the page's background colour, so it reads as a cut-out.
+  const cost =
+    billing === "credits" ? <TokenCost n={IMAGE_CREDITS[resolution]} onPink /> : price ? ` · about $${Number(price).toFixed(3)}` : "";
+  const label = free ? `Generate my free image (${freeImagesLeft} left)` : <>{result ? "Regenerate" : actionLabel}{cost}</>;
 
   return (
     <div className="flex flex-col gap-3 border-t border-neutral-800 pt-3">

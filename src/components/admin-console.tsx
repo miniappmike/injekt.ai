@@ -13,8 +13,9 @@ import type { SweepResult } from "@/lib/ledger-sweep";
 import { cn } from "@/lib/utils";
 
 type Config = {
-  caps: { free: { runs: number; likeness: number }; pro: { runs: number; likeness: number } };
+  caps: { free: { runs: number; likeness: number; images: number }; pro: { runs: number; likeness: number; images: number } };
   serverModel: string;
+  serverImageModel: string;
   serverPrice: { input: number; output: number } | null;
 };
 
@@ -83,14 +84,14 @@ function CapsForm({ config }: { config: Config }) {
   const [c, setC] = useState(config);
   const [msg, setMsg] = useState<{ text: string; ok: boolean }>();
   const [pending, start] = useTransition();
-  const capInput = (plan: "free" | "pro", key: "runs" | "likeness") => (
+  const capInput = (key: "runs" | "likeness" | "images") => (
     <Input
       type="number"
       min={0}
       inputMode="numeric"
-      aria-label={`${plan === "free" ? "Free" : "Pro"} ${key === "runs" ? "prompts" : "likeness checks"} per day`}
-      value={c.caps[plan][key]}
-      onChange={(e) => setC((x) => ({ ...x, caps: { ...x.caps, [plan]: { ...x.caps[plan], [key]: Number(e.target.value) } } }))}
+      aria-label={`Free ${key === "runs" ? "prompts" : key === "images" ? "images" : "likeness checks"} per day`}
+      value={c.caps.free[key]}
+      onChange={(e) => setC((x) => ({ ...x, caps: { ...x.caps, free: { ...x.caps.free, [key]: Number(e.target.value) } } }))}
       className="w-24 tabular-nums"
     />
   );
@@ -98,7 +99,7 @@ function CapsForm({ config }: { config: Config }) {
     <section className="panel flex flex-col gap-5 p-5" aria-labelledby="caps-title">
       <div>
         <h2 id="caps-title" className="font-display text-lg font-bold text-neutral-50">Limits and AI model</h2>
-        <p className="text-sm text-neutral-400">Changes apply to everyone within about 15 seconds. People using their own AI key are never limited.</p>
+        <p className="text-sm text-neutral-400">Free accounts only: Pro has no daily limits. Changes apply within about 15 seconds.</p>
       </div>
 
       <div className="overflow-x-auto">
@@ -106,8 +107,7 @@ function CapsForm({ config }: { config: Config }) {
           <thead>
             <tr className="text-left text-xs text-neutral-400">
               <th className="pb-2 font-medium">Per day</th>
-              <th className="pb-2 font-medium">Free</th>
-              <th className="pb-2 font-medium">Pro</th>
+              <th className="pb-2 font-medium">Free plan</th>
             </tr>
           </thead>
           <tbody>
@@ -115,13 +115,17 @@ function CapsForm({ config }: { config: Config }) {
               <td className="py-1.5 pr-4 text-neutral-200">
                 <span className="flex items-center gap-1.5">Prompts <InfoTip label="What counts as a prompt">Each target photo in Inject, and each press of Write variations, Write variant edits or Plan carousel. Direct swap and copying are free.</InfoTip></span>
               </td>
-              <td className="py-1.5 pr-3">{capInput("free", "runs")}</td>
-              <td className="py-1.5">{capInput("pro", "runs")}</td>
+              <td className="py-1.5 pr-3">{capInput("runs")}</td>
+            </tr>
+            <tr>
+              <td className="py-1.5 pr-4 text-neutral-200">
+                <span className="flex items-center gap-1.5">Images <InfoTip label="What counts as an image">Each image made with tokens, at any size.</InfoTip></span>
+              </td>
+              <td className="py-1.5 pr-3">{capInput("images")}</td>
             </tr>
             <tr>
               <td className="py-1.5 pr-4 text-neutral-200">Likeness checks</td>
-              <td className="py-1.5 pr-3">{capInput("free", "likeness")}</td>
-              <td className="py-1.5">{capInput("pro", "likeness")}</td>
+              <td className="py-1.5 pr-3">{capInput("likeness")}</td>
             </tr>
           </tbody>
         </table>
@@ -131,6 +135,10 @@ function CapsForm({ config }: { config: Config }) {
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="flex items-center gap-1.5 text-neutral-200">Model on your key <InfoTip label="About the model">The SpicyAPI model your key uses for everyone without their own key: prompt writing, sheet reading and likeness checks.</InfoTip></span>
           <Input value={c.serverModel} onChange={(e) => setC((x) => ({ ...x, serverModel: e.target.value }))} />
+        </label>
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="flex items-center gap-1.5 text-neutral-200">Image model on your key <InfoTip label="About the image model">The SpicyAPI image model used for images paid with tokens.</InfoTip></span>
+          <Input value={c.serverImageModel} onChange={(e) => setC((x) => ({ ...x, serverImageModel: e.target.value }))} />
         </label>
       </div>
       <p className="-mt-3 text-xs text-neutral-500">No prices to enter: every call on SpicyAPI is costed at what SpicyAPI actually charged (see Real costs above).</p>
@@ -142,7 +150,7 @@ function CapsForm({ config }: { config: Config }) {
           onClick={() =>
             start(async () => {
               // Costs come from SpicyAPI's real charges now, so no typed-in price is kept.
-              const r = await saveSettings({ caps: c.caps, serverModel: c.serverModel, serverPrice: null });
+              const r = await saveSettings({ caps: c.caps, serverModel: c.serverModel, serverImageModel: c.serverImageModel, serverPrice: null });
               setMsg(r.ok ? { text: "Saved.", ok: true } : { text: r.error, ok: false });
               if (r.ok) router.refresh();
             })
@@ -320,7 +328,7 @@ const td = "py-2 pr-3 tabular-nums";
 
 /**
  * What your SpicyAPI key really costs: calls it paid for, and (switch on by default) admins' own testing on their saved
- * keys. People who bring their own keys are never counted. For pricing on-site credits.
+ * keys. People who bring their own keys are never counted. For pricing on-site tokens.
  */
 function RealCosts({ only, withAdmins, sweep }: { only: FinanceStats; withAdmins: FinanceStats; sweep: SweepResult | null }) {
   const [mine, setMine] = useState(true);
@@ -405,7 +413,7 @@ function RealCosts({ only, withAdmins, sweep }: { only: FinanceStats; withAdmins
             </table>
           </div>
         ) : (
-          <p className="text-sm text-neutral-500">No images on your key in the last 30 days. Image generation uses each person&apos;s own key until on-site credits launch.</p>
+          <p className="text-sm text-neutral-500">No images on your key in the last 30 days. Image generation uses each person&apos;s own key until on-site tokens launch.</p>
         )}
       </div>
 

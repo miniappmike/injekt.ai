@@ -4,6 +4,9 @@ import { adminClient } from "@/lib/supabase/admin";
 import { env } from "@/env";
 import { DAILY_LIMITS } from "@/lib/limits";
 
+/** Images paid with credits are made with this unless the admin page sets another. */
+export const DEFAULT_SERVER_IMAGE_MODEL = "bytedance/seedream-5.0-pro/edit";
+
 const cap = z.coerce.number().int().min(0).max(100000);
 const price = z.coerce.number().min(0).max(1000);
 
@@ -11,10 +14,13 @@ const price = z.coerce.number().min(0).max(1000);
 export const appConfigSchema = z.object({
   caps: z
     .object({
-      free: z.object({ runs: cap, likeness: cap }),
-      pro: z.object({ runs: cap, likeness: cap }),
+      free: z.object({ runs: cap, likeness: cap, images: cap.optional() }),
+      // Pro has no daily limits now; older saved settings may still carry these.
+      pro: z.object({ runs: cap, likeness: cap, images: cap.optional() }).optional(),
     })
     .optional(),
+  /** The image model used for images paid with credits (on the platform's key). */
+  serverImageModel: z.string().trim().min(3).max(200).optional(),
   /** The model the platform's key uses for prompt writing, sheets and likeness checks. */
   serverModel: z.string().trim().min(3).max(200).optional(),
   /** Dollars per million tokens for that model, so its calls are priced on the admin page. */
@@ -22,15 +28,18 @@ export const appConfigSchema = z.object({
 });
 export type AppConfigInput = z.infer<typeof appConfigSchema>;
 
+type Caps = { runs: number; likeness: number; images: number };
 export interface AppConfig {
-  caps: { free: { runs: number; likeness: number }; pro: { runs: number; likeness: number } };
+  caps: { free: Caps; pro: Caps };
   serverModel: string;
+  serverImageModel: string;
   serverPrice: { input: number; output: number } | null;
 }
 
 export const defaultConfig = (): AppConfig => ({
   caps: { free: { ...DAILY_LIMITS.free }, pro: { ...DAILY_LIMITS.pro } },
   serverModel: env.SERVER_VISION_MODEL,
+  serverImageModel: DEFAULT_SERVER_IMAGE_MODEL,
   serverPrice: null,
 });
 
@@ -38,7 +47,15 @@ export function mergeConfig(raw: unknown): AppConfig {
   const d = defaultConfig();
   const p = appConfigSchema.safeParse(raw ?? {});
   if (!p.success) return d;
-  return { caps: p.data.caps ?? d.caps, serverModel: p.data.serverModel ?? d.serverModel, serverPrice: p.data.serverPrice ?? d.serverPrice };
+  const caps = p.data.caps
+    ? { free: { ...d.caps.free, ...p.data.caps.free, images: p.data.caps.free.images ?? d.caps.free.images }, pro: d.caps.pro }
+    : d.caps;
+  return {
+    caps,
+    serverModel: p.data.serverModel ?? d.serverModel,
+    serverImageModel: p.data.serverImageModel ?? d.serverImageModel,
+    serverPrice: p.data.serverPrice ?? d.serverPrice,
+  };
 }
 
 // Read on most AI calls, so kept for a few seconds per server instance; saving clears it.

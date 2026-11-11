@@ -10,6 +10,10 @@ export interface AppInfo {
   imageKey?: boolean;
   /** They have been through the two-step confirmation in Settings once. */
   generationConfirmed?: boolean;
+  /** Who pays for images: credits (the platform's key), or their own Image key on Pro. */
+  billing?: "credits" | "own";
+  /** Pro (or admin): own keys, no daily limits. */
+  pro?: boolean;
 }
 
 const Ctx = createContext<AppInfo>({ generation: false });

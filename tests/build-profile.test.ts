@@ -4,7 +4,8 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/server", () => ({ after: vi.fn() }));
 vi.mock("@/lib/sheet-pack", async (orig) => ({ ...(await orig<typeof import("@/lib/sheet-pack")>()), ensureSheetPack: vi.fn(async () => null) }));
 vi.mock("@/lib/ratelimit", () => ({ enforceRateLimit: vi.fn(async () => {}) }));
-vi.mock("@/lib/entitlements", () => ({ entitlements: { useAllowance: vi.fn() } }));
+vi.mock("@/lib/credits", () => ({ NO_SPEND: { id: null, refund: async () => {} }, spendCredits: vi.fn() }));
+vi.mock("@/lib/daily-limits", () => ({ hasOwnAiKey: vi.fn(async () => false) }));
 vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: vi.fn() }));
 vi.mock("@/lib/character-images", async (orig) => ({
   ...(await orig<typeof import("@/lib/character-images")>()),
@@ -12,9 +13,10 @@ vi.mock("@/lib/character-images", async (orig) => ({
 }));
 
 import { runProfileBuild } from "@/lib/ai/build-profile";
-import { entitlements } from "@/lib/entitlements";
+import { spendCredits } from "@/lib/credits";
+import { hasOwnAiKey } from "@/lib/daily-limits";
 import { getUserTextClient } from "@/lib/ai/text-client";
-import { ApiKeyRequiredError, LimitReachedError } from "@/lib/errors";
+import { ApiKeyRequiredError, InsufficientCreditsError } from "@/lib/errors";
 
 const character = { name: "Juno", height: null, weight: null, always_keep: null, face_sheet_path: "u/characters/c/a.jpg", body_sheet_path: null, reference_paths: [] };
 
@@ -38,24 +40,34 @@ const modelReplies = (text: string | Error) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(entitlements.useAllowance).mockResolvedValue({ release });
+  vi.mocked(spendCredits).mockResolvedValue({ id: "s1", refund: release });
+  vi.mocked(hasOwnAiKey).mockResolvedValue(false);
 });
 
 describe("runProfileBuild", () => {
-  it("saves the generated profile and keeps the free-plan attempt used", async () => {
+  it("saves the generated profile and keeps its 2 credits spent", async () => {
     modelReplies('{"identity":"Tall brunette","face":"oval"}');
     const { client, updates } = fakeSupabase();
     const r = await runProfileBuild(client, "u", "c");
     expect(r).toEqual({ ok: true, profile: { identity_line: "Tall brunette", face: "oval" } });
     expect(updates[0]).toMatchObject({ profile: { identity_line: "Tall brunette", face: "oval" } });
+    expect(spendCredits).toHaveBeenCalledWith("u", 2, "profile", "c");
     expect(release).not.toHaveBeenCalled();
   });
 
-  it("does not use an attempt when there are no images", async () => {
+  it("costs nothing on their own key (Pro)", async () => {
+    vi.mocked(hasOwnAiKey).mockResolvedValue(true);
+    modelReplies('{"identity":"Tall brunette"}');
+    const { client } = fakeSupabase();
+    expect(await runProfileBuild(client, "u", "c")).toMatchObject({ ok: true });
+    expect(spendCredits).not.toHaveBeenCalled();
+  });
+
+  it("does not spend credits when there are no images", async () => {
     const { client } = fakeSupabase({ character: { ...character, face_sheet_path: null } });
     const r = await runProfileBuild(client, "u", "c");
     expect(r).toMatchObject({ ok: false, code: "no_images" });
-    expect(entitlements.useAllowance).not.toHaveBeenCalled();
+    expect(spendCredits).not.toHaveBeenCalled();
   });
 
   it("reports a missing character as a failure", async () => {
@@ -63,7 +75,7 @@ describe("runProfileBuild", () => {
     expect(await runProfileBuild(client, "u", "c")).toMatchObject({ ok: false, code: "failed" });
   });
 
-  it("gives the attempt back and points at API keys when no key is set up", async () => {
+  it("gives the credits back and points at API keys when no key is set up", async () => {
     vi.mocked(getUserTextClient).mockRejectedValue(new ApiKeyRequiredError("vision"));
     const { client } = fakeSupabase();
     const r = await runProfileBuild(client, "u", "c");
@@ -71,8 +83,8 @@ describe("runProfileBuild", () => {
     expect(release).toHaveBeenCalledTimes(1);
   });
 
-  it("reports the free limit without having used an attempt", async () => {
-    vi.mocked(entitlements.useAllowance).mockRejectedValue(new LimitReachedError("profile_builds"));
+  it("reports too few credits without calling the model", async () => {
+    vi.mocked(spendCredits).mockRejectedValue(new InsufficientCreditsError(2, 1));
     const { client } = fakeSupabase();
     const r = await runProfileBuild(client, "u", "c");
     expect(r).toMatchObject({ ok: false, code: "limit" });

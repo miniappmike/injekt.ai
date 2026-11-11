@@ -30,10 +30,21 @@ export class LimitReachedError extends Error {
   }
 }
 
+/** Not enough credits for this job. */
+export class InsufficientCreditsError extends Error {
+  constructor(
+    public readonly needed: number,
+    public readonly balance: number,
+  ) {
+    super(`Not enough credits: need ${needed}, have ${balance}`);
+    this.name = "InsufficientCreditsError";
+  }
+}
+
 /** Today's allowance of a prompt tool is used up. */
 export class DailyLimitError extends Error {
   constructor(
-    public readonly key: "runs" | "likeness",
+    public readonly key: "runs" | "likeness" | "images",
     public readonly plan: "free" | "pro",
     public readonly limit: number,
     /** Pro's limit for the same thing, to say what upgrading gives. */
