@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { SearchIcon, TrashIcon } from "@/components/icons";
+import { ChevronIcon, SearchIcon, TrashIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { deleteCharacter } from "@/app/(app)/characters/actions";
 import { viewImage } from "@/lib/panel-events";
@@ -75,21 +75,7 @@ export function CharacterImagesButton({ name, images }: { name: string; images: 
                 {images.length === 0 ? (
                   <p className="py-10 text-center text-sm text-neutral-400">No reference images or sheets yet.</p>
                 ) : (
-                  <ul className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-3 [scrollbar-width:thin]" aria-label="Scroll sideways for more">
-                    {images.map((img) => (
-                      <li key={img.label + img.url} className="w-[62vw] max-w-[18rem] shrink-0 snap-start sm:w-64">
-                        <button
-                          type="button"
-                          onClick={() => viewImage({ url: img.url, title: `${name}: ${img.label}` })}
-                          className="group block w-full overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950 text-left transition-colors hover:border-brand-500/50"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={img.url} alt={img.label} loading="lazy" className="aspect-[3/4] w-full bg-neutral-900 object-contain transition-transform duration-300 group-hover:scale-[1.02]" />
-                          <span className="block px-2.5 py-1.5 text-xs font-medium text-neutral-300">{img.label}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <ImageStrip name={name} images={images} />
                 )}
               </div>
             </div>
@@ -97,5 +83,47 @@ export function CharacterImagesButton({ name, images }: { name: string; images: 
           document.body,
         )}
     </>
+  );
+}
+
+/** The images in one sideways-scrolling row, with arrow buttons on wide screens (phones just swipe). */
+function ImageStrip({ name, images }: { name: string; images: CardImage[] }) {
+  const row = useRef<HTMLUListElement>(null);
+  const [edge, setEdge] = useState({ start: true, end: false });
+  const measure = useCallback(() => {
+    const el = row.current;
+    if (el) setEdge({ start: el.scrollLeft <= 4, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 4 });
+  }, []);
+  useEffect(() => {
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure, images.length]);
+  const go = (dir: 1 | -1) => row.current?.scrollBy({ left: dir * Math.max(240, row.current.clientWidth * 0.8), behavior: "smooth" });
+  const arrow = "absolute top-[calc(50%-1.25rem)] z-10 flex h-11 w-11 items-center justify-center rounded-full bg-neutral-950/85 text-neutral-50 shadow-lg ring-1 ring-white/20 backdrop-blur transition-all hover:scale-105 hover:bg-brand-500 disabled:pointer-events-none disabled:opacity-0 max-sm:hidden";
+  return (
+    <div className="relative">
+      <button type="button" aria-label="Scroll left" disabled={edge.start} onClick={() => go(-1)} className={arrow + " -left-3"}>
+        <ChevronIcon className="h-5 w-5 rotate-180" />
+      </button>
+      <button type="button" aria-label="Scroll right" disabled={edge.end} onClick={() => go(1)} className={arrow + " -right-3"}>
+        <ChevronIcon className="h-5 w-5" />
+      </button>
+      <ul ref={row} onScroll={measure} className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-3 [scrollbar-width:thin]" aria-label="Scroll sideways for more">
+        {images.map((img) => (
+          <li key={img.label + img.url} className="w-[62vw] max-w-[18rem] shrink-0 snap-start sm:w-64">
+            <button
+              type="button"
+              onClick={() => viewImage({ url: img.url, title: `${name}: ${img.label}` })}
+              className="group block w-full overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950 text-left transition-colors hover:border-brand-500/50"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={img.url} alt={img.label} loading="lazy" className="aspect-[3/4] w-full bg-neutral-900 object-contain transition-transform duration-300 group-hover:scale-[1.02]" />
+              <span className="block px-2.5 py-1.5 text-xs font-medium text-neutral-300">{img.label}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
