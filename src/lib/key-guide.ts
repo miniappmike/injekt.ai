@@ -8,6 +8,15 @@ export interface GuideShot {
   alt: string;
   width: number;
   height: number;
+  /** Where the screenshot was taken, shown as a label on its frame. */
+  device?: "phone" | "web" | "site";
+  /** A short line under the screenshot. */
+  caption?: string;
+}
+
+export interface GuideNote {
+  tone: "warn" | "tip";
+  text: string;
 }
 
 export interface GuideStep {
@@ -17,8 +26,8 @@ export interface GuideStep {
   body: string;
   /** Extra details as a short list. */
   points?: string[];
-  /** A callout under the text. */
-  note?: { tone: "warn" | "tip"; text: string };
+  /** A callout under the text, or several. */
+  note?: GuideNote | GuideNote[];
   /** Show the model picks here. */
   models?: boolean;
   /** The referral button here. */

@@ -24,6 +24,7 @@ function Hero() {
           <li>⏱ ~3 minutes</li>
           <li>⭐ {STEPS.length} steps</li>
           <li>💳 Card, Apple Pay or Google Pay</li>
+          <li>💻 Best price on web or desktop</li>
         </ul>
       </div>
     </header>

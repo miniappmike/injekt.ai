@@ -106,18 +106,19 @@ export function TelegramPayDialog({
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Short on Stars? ⭐</p>
           <ul className="mt-2 flex flex-col gap-2 text-sm text-neutral-300">
             <li className="flex items-start gap-2">
-              <span aria-hidden="true">📱</span>
-              <span><b className="text-neutral-100">Phone:</b> Settings → My Stars</span>
-            </li>
-            <li className="flex items-start gap-2">
               <span aria-hidden="true">💻</span>
               <span>
-                <b className="text-neutral-100">Web:</b> message{" "}
+                <b className="text-neutral-100">Web or desktop (best price):</b> message{" "}
                 <a href="https://t.me/PremiumBot" target="_blank" rel="noreferrer" className="font-semibold text-[#7cc9f0] underline-offset-4 hover:underline">@PremiumBot</a>{" "}
                 and send <code className="rounded bg-neutral-800 px-1 py-0.5 text-xs text-neutral-100">/stars</code>
               </span>
             </li>
+            <li className="flex items-start gap-2">
+              <span aria-hidden="true">📱</span>
+              <span><b className="text-neutral-100">Phone app:</b> Settings → My Stars</span>
+            </li>
           </ul>
+          <p className="mt-2 text-xs leading-relaxed text-neutral-400">The iPhone and Android apps add app store fees, so Stars cost less on web or desktop.</p>
         </div>
         <Link href={TELEGRAM_GUIDE_PATH} target="_blank" className="mt-3 inline-block text-sm font-semibold text-[#7cc9f0] underline-offset-4 hover:underline">
           How to pay with Telegram (guide)

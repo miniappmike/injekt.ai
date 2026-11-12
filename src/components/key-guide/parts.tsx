@@ -44,7 +44,14 @@ export function Where({ where, className }: { where: GuideStep["where"]; classNa
   );
 }
 
-/** A screenshot in a window frame. Click for full size. */
+/** The label on a screenshot's frame, so phone and computer screenshots are easy to tell apart. */
+const DEVICE = {
+  phone: { label: "📱 Phone app", color: "text-amber-300" },
+  web: { label: "💻 Web or desktop", color: "text-[#7cc9f0]" },
+  site: { label: "ModelSpawn", color: "text-brand-300" },
+} as const;
+
+/** A screenshot in a window frame, labelled with where it was taken. Click for full size. */
 export function Shot({ shot, className, chrome = true }: { shot: GuideShot; className?: string; chrome?: boolean }) {
   return (
     <button
@@ -61,11 +68,13 @@ export function Shot({ shot, className, chrome = true }: { shot: GuideShot; clas
           <span className="h-2.5 w-2.5 rounded-full bg-neutral-700" />
           <span className="h-2.5 w-2.5 rounded-full bg-neutral-700" />
           <span className="h-2.5 w-2.5 rounded-full bg-neutral-700" />
+          {shot.device && <span className={cn("ml-1.5 text-[10px] font-semibold uppercase tracking-wide", DEVICE[shot.device].color)}>{DEVICE[shot.device].label}</span>}
           <span className="ml-auto text-[10px] text-neutral-500 opacity-0 transition-opacity group-hover/shot:opacity-100">Click to enlarge</span>
         </span>
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={shot.src} alt={shot.alt} width={shot.width} height={shot.height} loading="lazy" className="block h-auto w-full" />
+      {shot.caption && <span className="block border-t border-white/5 bg-neutral-900 px-3 py-2 text-[13px] leading-snug text-neutral-300"><Rich text={shot.caption} /></span>}
     </button>
   );
 }
@@ -179,7 +188,7 @@ export function StepBody({ step }: { step: GuideStep }) {
     <div className="flex flex-col gap-3">
       <p className="text-[15px] leading-relaxed text-neutral-300"><Rich text={step.body} /></p>
       {step.points && <Points points={step.points} />}
-      {step.note && <Note {...step.note} />}
+      {[step.note ?? []].flat().map((n) => <Note key={n.text} {...n} />)}
       {step.models && <ModelPicks />}
       {step.cta && <SpicyCta size="md" />}
     </div>

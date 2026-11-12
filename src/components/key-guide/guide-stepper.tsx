@@ -89,7 +89,7 @@ export function GuideStepper({ phases, storageKey, hero, footer }: { phases: Gui
           <h2 key={`t${s.n}`} className="animate-fade-up font-display text-3xl font-extrabold text-neutral-50 max-sm:text-2xl">{s.step.title}</h2>
           <div key={`b${s.n}`} className="animate-fade-up"><StepBody step={s.step} /></div>
           {s.step.shots && (
-            <div key={`s${s.n}`} className={cn("grid animate-fade-up items-start gap-3", s.step.shots.length > 1 && "md:grid-cols-2")}>
+            <div key={`s${s.n}`} className={cn("grid animate-fade-up items-start gap-3", s.step.shots.length > 1 && (s.step.shots.every((x) => x.device === "phone") ? "sm:grid-cols-3" : "md:grid-cols-2"))}>
               {s.step.shots.map((x) => (
                 <Shot key={x.src} shot={x} className={cn(x.height > x.width && s.step.shots!.length === 1 && "mx-auto max-w-md")} />
               ))}
