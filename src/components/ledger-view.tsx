@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getLedger } from "@/app/(app)/ledger/actions";
+import { getLedger, settleMyLedger } from "@/app/(app)/ledger/actions";
 import { formatUsd } from "@/lib/pricing";
 import {
   COST_SOURCE_LABELS,
@@ -20,7 +20,8 @@ import {
   type PlatformSpend,
 } from "@/lib/ledger-types";
 
-const POLL_MS = 5000;
+// New calls show up within half a minute while the tab is open (checking more often costs a server call each time).
+const POLL_MS = 30_000;
 const PAGE = 50;
 const select = "h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-2 text-sm";
 const tz = () => new Date().getTimezoneOffset();
@@ -48,6 +49,8 @@ export function LedgerView() {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [moreBusy, setMoreBusy] = useState(false);
   const [updated, setUpdated] = useState<Date | null>(null);
+  const [settling, setSettling] = useState(false);
+  const [settleNote, setSettleNote] = useState<string>();
   // Answers that arrive after the filters changed belong to the old view and are dropped.
   const version = useRef(0);
   const newestId = useRef<number | undefined>(undefined);
@@ -57,7 +60,8 @@ export function LedgerView() {
     [filters],
   );
 
-  // Load from the top whenever the filters change.
+  // Load from the top whenever the filters change (or after checking final charges).
+  const [reloads, setReloads] = useState(0);
   useEffect(() => {
     const mine = ++version.current;
     setStatus("loading");
@@ -71,7 +75,18 @@ export function LedgerView() {
       setUpdated(new Date());
       setStatus("ready");
     });
-  }, [base]);
+  }, [base, reloads]);
+
+  // Calls still showing an estimate get SpicyAPI's final charge, then the list reloads.
+  async function checkCharges() {
+    setSettling(true);
+    setSettleNote(undefined);
+    const r = await settleMyLedger();
+    setSettling(false);
+    if (!r.ok) return setSettleNote(r.error);
+    setSettleNote(r.settled ? `${r.settled} updated with the final charge${r.held ? `, ${r.held} still pending` : ""}.` : r.held ? `${r.held} still pending at SpicyAPI.` : "Everything is up to date.");
+    setReloads((n) => n + 1);
+  }
 
   // Pick up anything newer, and fresh totals, every few seconds while the tab is visible.
   useEffect(() => {
@@ -141,7 +156,11 @@ export function LedgerView() {
           <span className={`h-2 w-2 rounded-full ${status === "ready" ? "animate-pulse bg-emerald-400 shadow-[0_0_8px_rgb(52_211_153)]" : "bg-neutral-600"}`} aria-hidden="true" />
           {status === "ready" && updated ? `Live · updated ${updated.toLocaleTimeString()}` : status === "loading" ? "Loading..." : "Offline"}
         </span>
+        <Button type="button" size="sm" variant="secondary" disabled={settling} onClick={checkCharges} title="Look up SpicyAPI's final charge for calls still showing an estimate">
+          {settling ? "Checking..." : "Check final charges"}
+        </Button>
         <Button type="button" size="sm" variant="secondary" disabled={!entries.length} onClick={exportCsv}>Export CSV</Button>
+        {settleNote && <span role="status" className="basis-full text-right text-xs text-neutral-400">{settleNote}</span>}
       </div>
 
       {status === "error" && <p role="alert" className="text-sm text-red-400">Couldn&apos;t load your ledger. Reload the page to try again.</p>}

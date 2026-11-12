@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getDailyUsage } from "@/app/(app)/usage/actions";
-import { GENERATION_EVENT, USAGE_EVENT } from "@/lib/panel-events";
+import { GENERATION_EVENT, USAGE_EVENT, type TrayGeneration } from "@/lib/panel-events";
 import type { DailyStatus } from "@/lib/daily-limits";
 import { cn } from "@/lib/utils";
 import { IMAGE_CREDITS, PROFILE_BUILD_CREDITS, PROMPT_CREDITS, PRO } from "@/lib/plans";
@@ -22,15 +22,30 @@ export function UsageMeter() {
 
   useEffect(() => {
     let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const load = () => void getDailyUsage().then((x) => alive && setS(x));
+    // Several updates in a row (a batch of images, a prompt run) become one reload.
+    const soon = () => {
+      clearTimeout(timer);
+      timer = setTimeout(load, 1500);
+    };
     load();
-    window.addEventListener(USAGE_EVENT, load);
-    // Starting, finishing or failing an image changes the tokens (a failed one gives them back).
-    window.addEventListener(GENERATION_EVENT, load);
+    window.addEventListener(USAGE_EVENT, soon);
+    // Tokens change only when an image starts (spent) or fails (given back); in-between updates are ignored.
+    const seen = new Set<string>();
+    const onGeneration = (e: Event) => {
+      const g = (e as CustomEvent<TrayGeneration>).detail;
+      const step = `${g.key}:${g.state === "generating" ? (g.generationId ? "started" : "") : g.state}`;
+      if (!g || step.endsWith(":") || seen.has(step)) return;
+      seen.add(step);
+      soon();
+    };
+    window.addEventListener(GENERATION_EVENT, onGeneration);
     return () => {
       alive = false;
-      window.removeEventListener(USAGE_EVENT, load);
-      window.removeEventListener(GENERATION_EVENT, load);
+      clearTimeout(timer);
+      window.removeEventListener(USAGE_EVENT, soon);
+      window.removeEventListener(GENERATION_EVENT, onGeneration);
     };
   }, []);
 

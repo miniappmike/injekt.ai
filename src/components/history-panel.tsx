@@ -10,7 +10,7 @@ import { GenerateImage } from "@/components/generate-image";
 import { useGeneration } from "@/components/app-context";
 import { ScrollQuillIcon } from "@/components/icons";
 import { LockedGenerate } from "@/components/copy-open";
-import { checkImageGeneration } from "@/app/(app)/generate/actions";
+import { checkGeneration, POLL_MS } from "@/lib/generation-check";
 import { deleteAllHistory, deleteHistoryEntry, getGenerationPreview, getGenerations, getHistory } from "@/app/(app)/history/actions";
 import { filterHistory, historyCharacters } from "@/lib/history-filter";
 import { GENERATION_EVENT, OPEN_HISTORY_EVENT, viewImage, type HistoryTab, type TrayGeneration } from "@/lib/panel-events";
@@ -32,8 +32,7 @@ const TABS: { id: HistoryTab; label: string }[] = [
   { id: "prompts", label: "Prompts" },
   { id: "images", label: "Images" },
 ];
-const POLL_MS = 4000;
-const MAX_POLLS = 75; // about 5 minutes
+const MAX_POLLS = 50; // about 5 minutes
 
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
@@ -136,7 +135,7 @@ export function HistoryPanel() {
     const timer = setInterval(async () => {
       if (stopped) return;
       if (++ticks > MAX_POLLS) return clearInterval(timer);
-      const results = await Promise.all(generatingKey.split(",").map((id) => checkImageGeneration(id)));
+      const results = await Promise.all(generatingKey.split(",").map((id) => checkGeneration(id).catch(() => ({ ok: false as const, error: "" }))));
       if (stopped || !results.some((r) => r.ok && (r.state === "complete" || r.state === "failed"))) return;
       const fresh = await getGenerations().catch(() => null);
       if (!stopped && fresh) setImages(fresh);

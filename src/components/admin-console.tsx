@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InfoTip } from "@/components/info-tip";
-import { saveSettings, setUserPlan } from "@/app/(app)/admin/actions";
+import { saveSettings, setUserPlan, settleCharges } from "@/app/(app)/admin/actions";
 import type { AdminStats, FinanceStats, UserStats } from "@/lib/admin-stats";
 import { featureLabel } from "@/lib/ledger-types";
 import { snapshotCsv, snapshotJson, snapshotMarkdown, type AdminSnapshot } from "@/lib/admin-export";
@@ -330,8 +330,21 @@ const td = "py-2 pr-3 tabular-nums";
  * What your SpicyAPI key really costs: calls it paid for, and (switch on by default) admins' own testing on their saved
  * keys. People who bring their own keys are never counted. For pricing on-site tokens.
  */
-function RealCosts({ only, withAdmins, sweep }: { only: FinanceStats; withAdmins: FinanceStats; sweep: SweepResult | null }) {
+function RealCosts({ only, withAdmins, sweep: initial }: { only: FinanceStats; withAdmins: FinanceStats; sweep: SweepResult | null }) {
+  const router = useRouter();
   const [mine, setMine] = useState(true);
+  // Final charges are looked up when asked (and nightly), not on every page load.
+  const [sweep, setSweep] = useState(initial);
+  const [sweepError, setSweepError] = useState<string>();
+  const [checking, startCheck] = useTransition();
+  const check = () =>
+    startCheck(async () => {
+      setSweepError(undefined);
+      const r = await settleCharges();
+      if (!r.ok) return setSweepError(r.error);
+      setSweep(r.sweep);
+      router.refresh();
+    });
   const f = mine ? withAdmins : only;
   return (
     <section className="panel flex flex-col gap-5 p-5" aria-labelledby="real-title">
@@ -347,9 +360,16 @@ function RealCosts({ only, withAdmins, sweep }: { only: FinanceStats; withAdmins
         <p className="text-sm text-neutral-400">
           {f.people30} {f.people30 === 1 ? "person" : "people"} used it. {Math.round(f.realShare * 100)}% of calls show SpicyAPI&apos;s final charge.
         </p>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <Button type="button" size="sm" variant="secondary" disabled={checking} onClick={check}>
+            {checking ? "Checking with SpicyAPI..." : "Check final charges"}
+          </Button>
+          {sweep && sweep.checked === 0 && <span className="text-xs text-neutral-500">Everything is up to date.</span>}
+          {sweepError && <span role="alert" className="text-xs text-red-400">{sweepError}</span>}
+        </div>
         {sweep && sweep.checked > 0 && (
           <p className={cn("mt-1 text-xs", sweep.unreadable ? "text-amber-300" : "text-neutral-500")}>
-            Just now: checked {sweep.checked} waiting {sweep.checked === 1 ? "call" : "calls"} with SpicyAPI. {sweep.settled} got their final charge
+            Checked {sweep.checked} waiting {sweep.checked === 1 ? "call" : "calls"} with SpicyAPI. {sweep.settled} got their final charge
             {sweep.held ? `, ${sweep.held} still held by SpicyAPI` : ""}
             {sweep.unreadable ? `, ${sweep.unreadable} couldn't be read` : ""}.
           </p>

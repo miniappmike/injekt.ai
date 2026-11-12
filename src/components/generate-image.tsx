@@ -18,6 +18,7 @@ import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageAspectRatio, type Ima
 import type { InjectMeta } from "@/lib/inject-meta";
 import { LikenessPanel, type ImageRef } from "@/components/likeness-panel";
 import { reportModelRefused, usePageModelForRequest } from "@/lib/page-model";
+import { checkGeneration, POLL_MS } from "@/lib/generation-check";
 import { forgetGeneration, latestForRequest, rememberGeneration, requestHash, waitOrWake } from "@/lib/pending-generations";
 
 type Phase = "idle" | "starting" | "running" | "done" | "failed";
@@ -27,8 +28,7 @@ interface Result {
   downloadUrl: string;
 }
 
-const POLL_MS = 3000;
-const MAX_POLLS = 150; // about 7 minutes
+const MAX_POLLS = 70; // about 7 minutes
 const select = "h-8 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-2 text-sm";
 
 /**
@@ -131,16 +131,17 @@ function GenerateImageInner({
   const hasImages = extraPaths.length > 0 || (!!meta && (!!characterId || !!meta.target || (meta.group?.length ?? 0) >= 2));
   const requestKey = JSON.stringify(request);
 
-  // Show the price before anything is spent. Free images have no price, and a failed lookup just hides it.
+  // Show the price before anything is spent, on their own key only (tokens have a set price per size, shown on the
+  // button, so there is nothing to look up). A failed lookup just hides it.
   useEffect(() => {
     setPrice(null);
-    if (free || !prompt.trim() || !hasImages) return;
+    if (free || billing === "credits" || !prompt.trim() || !hasImages) return;
     const t = setTimeout(async () => {
       const q = await quoteImageGeneration(JSON.parse(requestKey));
       if (alive.current && q.ok) setPrice(q.estimatedCost);
     }, 400);
     return () => clearTimeout(t);
-  }, [requestKey, free, prompt, hasImages]);
+  }, [requestKey, free, billing, prompt, hasImages]);
 
   async function generate() {
     setPhase("starting");
@@ -162,6 +163,8 @@ function GenerateImageInner({
       setPhase("failed");
       return setMessage(started.error);
     }
+    // Started: its tokens are spent, so the header's count updates.
+    reportGeneration({ ...tray, state: "generating", generationId: started.generationId });
     // Remembered for this tab, so a page the phone reloads (after switching apps) still shows the image.
     rememberGeneration({ generationId: started.generationId, key: tray.key, request: requestHash(requestKey), path: location.pathname, label: tray.label, prompt, startedAt: Date.now() });
     await follow(started.generationId, tray);
@@ -182,7 +185,7 @@ function GenerateImageInner({
       if (!alive.current) return handOff();
       let status: Awaited<ReturnType<typeof checkImageGeneration>>;
       try {
-        status = await checkImageGeneration(generationId);
+        status = await checkGeneration(generationId);
       } catch {
         continue; // Couldn't reach the server (asleep or offline): try again.
       }
