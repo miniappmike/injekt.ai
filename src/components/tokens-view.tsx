@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { PayMethods } from "@/lib/payments/methods";
 import type { CreditSummary } from "@/lib/billing";
 import { CREDIT_PACKS, IMAGE_CREDITS, PRO, PROFILE_BUILD_CREDITS, PROMPT_CREDITS } from "@/lib/plans";
 import { BuyPacks } from "@/components/buy-packs";
@@ -8,7 +9,7 @@ import { ProBadge } from "@/components/pro-badge";
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
 /** The Tokens page: the balance by where it came from, the packs to buy, what things cost, and recent activity. */
-export function TokensView({ s, emailConfirmed }: { s: CreditSummary; emailConfirmed: boolean }) {
+export function TokensView({ s, emailConfirmed, methods, justPaid = false }: { s: CreditSummary; emailConfirmed: boolean; methods: PayMethods; justPaid?: boolean }) {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -23,6 +24,11 @@ export function TokensView({ s, emailConfirmed }: { s: CreditSummary; emailConfi
         )}
       </div>
 
+      {justPaid && (
+        <p role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+          Thanks! Your payment is on its way. Tokens and Pro are added as soon as it&apos;s confirmed: usually within a few minutes for crypto. Refresh this page to see them.
+        </p>
+      )}
       <section className="panel grid gap-5 p-5 sm:grid-cols-[auto_1fr] sm:items-center" aria-label="Your balance">
         <div className="flex items-center gap-3">
           <TokenIcon className="h-12 w-12 drop-shadow-[0_6px_18px_rgb(249_39_118/0.45)]" />
@@ -53,7 +59,7 @@ export function TokensView({ s, emailConfirmed }: { s: CreditSummary; emailConfi
 
       <section aria-labelledby="packs-title" className="flex flex-col gap-3">
         <h2 id="packs-title" className="font-display text-lg font-bold text-neutral-50">Buy tokens</h2>
-        <BuyPacks packs={[...CREDIT_PACKS]} />
+        <BuyPacks packs={[...CREDIT_PACKS]} methods={methods} />
       </section>
 
       <div className="grid gap-6 md:grid-cols-2">

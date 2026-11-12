@@ -6,6 +6,8 @@ import { entitlements } from "@/lib/entitlements";
 import { appConfigSchema, saveAppConfig, type AppConfigInput } from "@/lib/app-config";
 import { adminClient } from "@/lib/supabase/admin";
 import { fulfillOrder } from "@/lib/orders";
+import { connectTelegramBot, telegramEnabled, telegramStatus } from "@/lib/payments/telegram";
+import { nowpaymentsEnabled, nowpaymentsStatus } from "@/lib/payments/nowpayments";
 import { settlePendingLedger, type SweepResult } from "@/lib/ledger-sweep";
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -82,5 +84,41 @@ export async function settleCharges(): Promise<{ ok: true; sweep: SweepResult } 
     return { ok: true, sweep };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Couldn't check with SpicyAPI." };
+  }
+}
+
+export type PaymentsStatus = {
+  telegram: { configured: boolean; username?: string; connected?: boolean; lastError?: string | null; error?: string };
+  crypto: { configured: boolean; ok?: boolean; sandbox?: boolean; error?: string };
+};
+
+/** Whether each way to pay is set up and working, for Admin → Payments. */
+export async function getPaymentsStatus(): Promise<PaymentsStatus> {
+  await requireAdmin();
+  const telegram: PaymentsStatus["telegram"] = { configured: telegramEnabled() };
+  const crypto: PaymentsStatus["crypto"] = { configured: nowpaymentsEnabled() };
+  await Promise.all([
+    telegram.configured &&
+      telegramStatus().then(
+        (s) => Object.assign(telegram, s),
+        (e) => (telegram.error = e instanceof Error ? e.message : "Couldn't reach Telegram."),
+      ),
+    crypto.configured &&
+      nowpaymentsStatus().then(
+        (s) => Object.assign(crypto, s),
+        (e) => (crypto.error = e instanceof Error ? e.message : "Couldn't reach NOWPayments."),
+      ),
+  ]);
+  return { telegram, crypto };
+}
+
+/** Points the Telegram bot at this site (its webhook and commands). Safe to press again. */
+export async function connectTelegram(): Promise<{ ok: true; username: string } | { ok: false; error: string }> {
+  try {
+    await requireAdmin();
+    const r = await connectTelegramBot();
+    return { ok: true, username: r.username };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't connect the bot." };
   }
 }

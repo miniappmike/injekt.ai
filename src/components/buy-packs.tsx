@@ -6,22 +6,25 @@ import { bonusPercent, dollars, perCredit, type CreditPack } from "@/lib/plans";
 import { deviceId } from "@/lib/device-id";
 import { TokenIcon } from "@/components/token-icon";
 import { cn } from "@/lib/utils";
+import { PackPayButtons } from "@/components/pay-buttons";
+import type { PayMethod, PayMethods } from "@/lib/payments/methods";
 
-/** The four token packs, each with a Buy button. Checkout isn't connected yet: the order is saved and the page says so. */
-export function BuyPacks({ packs }: { packs: CreditPack[] }) {
-  const [busy, setBusy] = useState<string | null>(null);
+/** The four token packs, each with its ways to pay (Telegram Stars, crypto). Paying opens the provider's page. */
+export function BuyPacks({ packs, methods }: { packs: CreditPack[]; methods: PayMethods }) {
+  const [busy, setBusy] = useState<{ pack: string; method: PayMethod } | null>(null);
   const [msg, setMsg] = useState<{ text: string; ok: boolean }>();
   const [, start] = useTransition();
 
-  function buy(p: CreditPack) {
-    setBusy(p.id);
+  function pay(p: CreditPack, method: PayMethod) {
+    setBusy({ pack: p.id, method });
     setMsg(undefined);
     start(async () => {
-      const r = await startCheckout({ kind: "pack", packId: p.id }, deviceId());
-      setBusy(null);
-      if (!r.ok) return setMsg({ text: r.error, ok: false });
-      if (r.order.checkoutUrl) return void (window.location.href = r.order.checkoutUrl);
-      setMsg({ text: `Checkout is almost ready. Your order for ${p.credits.toLocaleString()} tokens is saved, and you'll be able to pay for it here very soon.`, ok: true });
+      const r = await startCheckout({ kind: "pack", packId: p.id }, deviceId(), method);
+      if (!r.ok || !r.order.checkoutUrl) {
+        setBusy(null);
+        return setMsg({ text: r.ok ? "Couldn't open the payment. Try again." : r.error, ok: false });
+      }
+      window.location.href = r.order.checkoutUrl;
     });
   }
 
@@ -50,17 +53,15 @@ export function BuyPacks({ packs }: { packs: CreditPack[] }) {
                 {perCredit(p)} per token
                 {extra > 0 && <span className="ml-1.5 font-semibold text-emerald-300">+{extra}% more</span>}
               </div>
-              <button
-                type="button"
-                onClick={() => buy(p)}
+              <PackPayButtons
+                methods={methods}
+                stars={p.stars}
+                price={dollars(p.priceCents)}
+                featured={featured}
+                busy={busy?.pack === p.id ? busy.method : null}
                 disabled={busy !== null}
-                className={cn(
-                  "mt-auto rounded-xl py-2 text-sm font-semibold transition disabled:opacity-60",
-                  featured ? "bg-gradient-to-r from-[#ff5fa2] to-[#f92776] text-white hover:brightness-110" : "bg-neutral-800 text-neutral-100 hover:bg-neutral-700",
-                )}
-              >
-                {busy === p.id ? "One moment..." : `Buy for ${dollars(p.priceCents)}`}
-              </button>
+                onPay={(m) => pay(p, m)}
+              />
             </div>
           );
         })}

@@ -16,10 +16,14 @@ export interface AdminOrder {
   amount_cents: number;
   first_month_bonus: boolean;
   status: "pending" | "paid" | "cancelled" | "failed";
+  provider?: string | null;
+  provider_status?: string | null;
+  renews_order_id?: string | null;
   created_at: string;
   paid_at: string | null;
 }
 
+const PROVIDER_LABEL: Record<string, string> = { telegram: "Telegram", nowpayments: "crypto", manual: "manual", admin: "admin" };
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const TONE: Record<AdminOrder["status"], string> = {
   pending: "bg-amber-400/15 text-amber-300 ring-amber-400/40",
@@ -44,7 +48,7 @@ export function AdminOrders({ orders }: { orders: AdminOrder[] | null }) {
     <section className="panel mt-6 flex flex-col gap-3 p-5" aria-labelledby="orders-title">
       <div>
         <h2 id="orders-title" className="font-display text-lg font-bold text-neutral-50">Orders</h2>
-        <p className="text-sm text-neutral-400">Checkout isn&apos;t connected to a payment provider yet. &quot;Mark paid&quot; delivers an order exactly as a payment will, to test it.</p>
+        <p className="text-sm text-neutral-400">Telegram and crypto orders are delivered automatically when paid. &quot;Mark paid&quot; delivers an order by hand (for example, a payment you confirmed yourself).</p>
       </div>
       {orders === null ? (
         <p className="text-sm text-amber-300">Run migration 0023 in Supabase to turn on orders and tokens.</p>
@@ -69,7 +73,8 @@ export function AdminOrders({ orders }: { orders: AdminOrder[] | null }) {
                   <td className="py-2 pr-3 text-neutral-400">{when(o.created_at)}</td>
                   <td className="max-w-[200px] truncate py-2 pr-3 text-neutral-200" title={o.email ?? o.user_id}>{o.email ?? o.user_id.slice(0, 8)}</td>
                   <td className="py-2 pr-3 text-neutral-200">
-                    {o.kind === "pro" ? "Pro, 30 days" : "Credit pack"} · {o.credits.toLocaleString()} tokens
+                    {o.kind === "pro" ? (o.renews_order_id ? "Pro renewal" : "Pro, 30 days") : "Token pack"} · {o.credits.toLocaleString()} tokens
+                    {o.provider && <span className="ml-1.5 text-xs text-neutral-500">via {PROVIDER_LABEL[o.provider] ?? o.provider}{o.provider_status && o.status === "pending" ? ` (${o.provider_status})` : ""}</span>}
                     {o.first_month_bonus && <span className="ml-1.5 text-xs text-[#ff8fc0]">first month</span>}
                   </td>
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-100">{dollars(o.amount_cents)}</td>

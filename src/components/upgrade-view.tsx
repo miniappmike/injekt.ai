@@ -8,6 +8,8 @@ import { ProGem, ProWord } from "@/components/pro-badge";
 import { FREE_CREDITS, PRO, dollars } from "@/lib/plans";
 import { deviceId } from "@/lib/device-id";
 import { cn } from "@/lib/utils";
+import { ProPayButtons } from "@/components/pay-buttons";
+import type { PayMethod, PayMethods } from "@/lib/payments/methods";
 import { TokenIcon } from "@/components/token-icon";
 
 type Choice = "free" | "pro";
@@ -26,23 +28,37 @@ const INCLUDED: { icon: React.ReactNode; label: string }[] = [
  * The Pro page: stay Free, or Pro for $9.99 a month. Two cards, what's included, and one Continue button. Pro is a
  * 30-day pass renewed by hand (nothing charges again by itself).
  */
-export function UpgradeView({ plan, proUntil, bonusNote }: { plan: "free" | "pro" | "admin"; proUntil: string | null; bonusNote: string | null }) {
+export function UpgradeView({
+  plan,
+  proUntil,
+  bonusNote,
+  methods,
+}: {
+  plan: "free" | "pro" | "admin";
+  proUntil: string | null;
+  bonusNote: string | null;
+  methods: PayMethods;
+}) {
   const router = useRouter();
   const isPro = plan !== "free";
   const [choice, setChoice] = useState<Choice>("pro");
   const [msg, setMsg] = useState<{ text: string; ok: boolean }>();
-  const [pending, start] = useTransition();
+  const [, start] = useTransition();
+  const [busy, setBusy] = useState<PayMethod | null>(null);
   const firstMonth = !bonusNote && !isPro;
   const credits = firstMonth ? PRO.firstMonthCredits : PRO.monthlyCredits;
 
-  function go() {
+  // Opens the chosen payment page: Telegram (Stars) or NOWPayments (crypto). The order is delivered when they pay.
+  function pay(method: PayMethod) {
     setMsg(undefined);
-    if (choice === "free") return router.push("/characters");
+    setBusy(method);
     start(async () => {
-      const r = await startCheckout({ kind: "pro" }, deviceId());
-      if (!r.ok) return setMsg({ text: r.error, ok: false });
-      if (r.order.checkoutUrl) return void (window.location.href = r.order.checkoutUrl);
-      setMsg({ text: "Checkout is almost ready. Your order is saved, and you'll be able to pay for it here very soon.", ok: true });
+      const r = await startCheckout({ kind: "pro" }, deviceId(), method);
+      if (!r.ok || !r.order.checkoutUrl) {
+        setBusy(null);
+        return setMsg({ text: r.ok ? "Couldn't open the payment. Try again." : r.error, ok: false });
+      }
+      window.location.href = r.order.checkoutUrl;
     });
   }
 
@@ -122,7 +138,7 @@ export function UpgradeView({ plan, proUntil, bonusNote }: { plan: "free" | "pro
           <span className="border-t border-white/10" />
           <span>
             <span className="block font-semibold text-neutral-50">{dollars(PRO.priceCents)} / month</span>
-            <span className="mt-0.5 block text-sm text-neutral-400">{credits} tokens · no auto-charge</span>
+            <span className="mt-0.5 block text-sm text-neutral-400">{credits} tokens · Telegram or crypto</span>
           </span>
         </button>
       </div>
@@ -144,18 +160,21 @@ export function UpgradeView({ plan, proUntil, bonusNote }: { plan: "free" | "pro
       </div>
 
       <div className="mt-8 flex flex-col items-center gap-3">
-        <button
-          type="button"
-          onClick={go}
-          disabled={pending}
-          className="min-w-48 rounded-full bg-gradient-to-r from-[#ff5fa2] to-[#f92776] px-8 py-3 font-semibold text-white shadow-[0_12px_32px_-10px_rgb(249_39_118/0.8)] transition hover:brightness-110 disabled:opacity-60"
-        >
-          {pending ? "One moment..." : choice === "free" ? "Continue to app" : isPro ? "Renew Pro" : "Continue with Pro"}
-        </button>
+        {choice === "pro" ? (
+          <ProPayButtons methods={methods} stars={PRO.stars} price={dollars(PRO.priceCents)} busy={busy} onPay={pay} />
+        ) : (
+          <button
+            type="button"
+            onClick={() => router.push("/characters")}
+            className="min-w-48 rounded-full bg-gradient-to-r from-[#ff5fa2] to-[#f92776] px-8 py-3 font-semibold text-white shadow-[0_12px_32px_-10px_rgb(249_39_118/0.8)] transition hover:brightness-110"
+          >
+            Continue to app
+          </button>
+        )}
         {msg && <p role="status" className={cn("max-w-md text-center text-sm", msg.ok ? "text-emerald-300" : "text-red-400")}>{msg.text}</p>}
         {bonusNote && !isPro && choice === "pro" && <p className="max-w-md text-center text-xs text-amber-300/90">{bonusNote}</p>}
         <p className="max-w-md text-center text-xs leading-relaxed text-neutral-500">
-          Pro lasts 30 days and never renews by itself: we&apos;ll remind you before it ends. Monthly tokens expire at the end of each 30 days; tokens you buy never expire.{" "}
+          Paid with Telegram, Pro renews every 30 days until you cancel it in Telegram. Paid with crypto, it lasts 30 days and we remind you before it ends. Monthly tokens expire at the end of each 30 days; tokens you buy never expire.{" "}
           <Link href="/tokens" className="font-semibold text-neutral-300 underline-offset-4 hover:underline">Need more tokens?</Link>
         </p>
       </div>

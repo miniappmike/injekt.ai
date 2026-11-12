@@ -14,6 +14,12 @@ export const env = createEnv({
     SERVER_VISION_MODEL: z.string().min(1).default("anthropic/claude-sonnet-5.5/chat"),
     UPSTASH_REDIS_REST_URL: z.string().url().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+    // Payments. Each option shows on the site only once its keys are set.
+    TELEGRAM_BOT_TOKEN: z.string().optional(),
+    NOWPAYMENTS_API_KEY: z.string().optional(),
+    NOWPAYMENTS_IPN_SECRET: z.string().optional(),
+    // "1" sends NOWPayments calls to its sandbox (test payments with no real money).
+    NOWPAYMENTS_SANDBOX: z.string().optional(),
   },
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
@@ -30,6 +36,10 @@ export const env = createEnv({
     SERVER_VISION_MODEL: process.env.SERVER_VISION_MODEL,
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+    TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
+    NOWPAYMENTS_API_KEY: process.env.NOWPAYMENTS_API_KEY,
+    NOWPAYMENTS_IPN_SECRET: process.env.NOWPAYMENTS_IPN_SECRET,
+    NOWPAYMENTS_SANDBOX: process.env.NOWPAYMENTS_SANDBOX,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,

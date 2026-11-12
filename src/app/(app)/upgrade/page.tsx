@@ -5,6 +5,7 @@ import { loadProfile } from "@/lib/entitlements";
 import { bonusCheck } from "@/lib/orders";
 import { BONUS_BLOCK_TEXT } from "@/lib/orders-core";
 import { UpgradeView } from "@/components/upgrade-view";
+import { availablePayMethods } from "@/lib/payments/available";
 
 export const metadata: Metadata = { title: "Upgrade to Pro" };
 
@@ -17,6 +18,7 @@ export default async function UpgradePage() {
       plan={profile?.is_admin ? "admin" : profile?.pro ? "pro" : "free"}
       proUntil={profile?.proUntil ?? null}
       bonusNote={bonus.ok ? null : BONUS_BLOCK_TEXT[bonus.reason]}
+      methods={availablePayMethods()}
     />
   );
 }

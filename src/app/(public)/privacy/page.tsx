@@ -103,7 +103,10 @@ export default function PrivacyPage() {
           <b className={b}>SpicyAPI and the AI model providers it uses</b>: your prompts and the images needed for a job are sent to them to write prompts and make images.
           They handle that data under their own policies. If you use your own API key, the job goes to your chosen provider on your account.
         </li>
-        <li><b className={b}>Payment providers</b>: process your payments under their own policies.</li>
+        <li>
+          <b className={b}>Telegram</b> (payments in Telegram Stars) and <b className={b}>NOWPayments</b> (crypto payments): process your payments under their own
+          policies. We receive the order, the amount and a payment ID from them, not your card or wallet details.
+        </li>
         <li><b className={b}>Rate-limiting service</b>: may receive your account ID or IP address to count requests.</li>
         <li>
           <b className={b}>Authorities</b>: when the law requires it, or to report illegal content such as child sexual abuse material or non-consensual intimate imagery.

@@ -6,11 +6,12 @@ import { loadAdminStats } from "@/lib/admin-data";
 import { AdminConsole } from "@/components/admin-console";
 import { adminClient } from "@/lib/supabase/admin";
 import { AdminOrders, type AdminOrder } from "@/components/admin-orders";
+import { AdminPayments } from "@/components/admin-payments";
 
 // The latest orders with the buyer's email, for the Orders panel. Empty before migration 0023.
 async function loadRecentOrders(): Promise<AdminOrder[] | null> {
   const db = adminClient();
-  const { data, error } = await db.from("orders").select("id, user_id, kind, pack_id, credits, amount_cents, first_month_bonus, status, created_at, paid_at").order("created_at", { ascending: false }).limit(25);
+  const { data, error } = await db.from("orders").select("id, user_id, kind, pack_id, credits, amount_cents, first_month_bonus, status, created_at, paid_at, provider, provider_status, renews_order_id").order("created_at", { ascending: false }).limit(25);
   if (error) return null;
   const emails = new Map<string, string>();
   await Promise.all(
@@ -38,6 +39,7 @@ export default async function AdminPage() {
         What your AI key is costing, who is using it, and the limits. Only admins can see this page.
       </p>
       <AdminConsole config={config} stats={stats} finance={finance} financeWithAdmins={financeWithAdmins} usageMissing={usageMissing} />
+      <AdminPayments />
       <AdminOrders orders={orders} />
     </div>
   );
