@@ -113,7 +113,11 @@ export default function PrivacyPage() {
       <ul className={ul}>
         <li>Generated images: deleted automatically {GENERATION_RETENTION_HOURS} hours after they&apos;re made.</li>
         <li>Characters, uploads, saved outfits and prompt history: until you delete them, or your account is deleted.</li>
-        <li>Token, ledger, order and bonus records: kept as long as needed for accounting, legal and abuse-prevention purposes, including after an account is closed.</li>
+        <li>Token balances, token history, the AI-call ledger and daily usage: deleted with your account.</li>
+        <li>
+          Order and marketplace sale records, and first-month bonus records (the normalised email and hashes): kept after an account is deleted, without the link to
+          your account, for accounting and to stop the bonus being claimed twice.
+        </li>
         <li>Backups and logs held by our providers may keep copies for a short time after deletion.</li>
       </ul>
 
@@ -121,7 +125,11 @@ export default function PrivacyPage() {
       <ul className={ul}>
         <li>You can view, edit and delete your characters, and delete your prompt history (one entry or all of it), at any time in the app.</li>
         <li>Download any generated images you want to keep before they expire.</li>
-        <li>To get a copy of your data, correct it, or delete your account and its data, email <Email />.</li>
+        <li>
+          Delete your account at any time in <b className={b}>Settings → Delete account</b>. It permanently removes your account, characters, uploads, generated
+          images, prompt history, saved keys, settings and tokens.
+        </li>
+        <li>To get a copy of your data or correct it, email <Email />.</li>
         <li>
           Depending on where you live, you may have more rights over your data, such as objecting to how it&apos;s used or complaining to a data protection authority.
           Email us and we&apos;ll help.

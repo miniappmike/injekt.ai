@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RoleKeyForm, type SavedRole, type ShareSource } from "@/components/key-form";
 import { requireUser } from "@/lib/auth";
 import { GenerationToggle } from "@/components/generation-toggle";
+import { DeleteAccount } from "@/components/delete-account";
 import { GetKeyCard } from "@/components/get-key-card";
 import { generationState } from "@/lib/generation-access";
 import { PROVIDER_LABELS } from "@/lib/ai/providers/detect";
@@ -109,6 +110,9 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           If you leave Vision or Text empty, it uses the other one. A SpicyAPI key can serve all three jobs: paste it once and reuse it on the others.
         </p>
         <GenerationToggle enabled={gen.enabled} ownKey={pro && gen.hasImageKey} />
+      </div>
+      <div className="mt-10">
+        <DeleteAccount />
       </div>
     </div>
   );

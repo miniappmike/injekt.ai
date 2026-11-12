@@ -80,6 +80,8 @@ export async function copyPurchaseAssets(purchaseId: string): Promise<boolean> {
   const { data, error } = await db.from("purchases").select("id, buyer_id, asset_copies, assets_copied_at").eq("id", purchaseId).maybeSingle();
   if (error || !data) throw new Error(`purchase ${purchaseId} not found`);
   if (data.assets_copied_at) return true;
+  // The buyer deleted their account: there is no folder to copy into, so the sale is just a record now.
+  if (!data.buyer_id) return true;
 
   const jobs = (Array.isArray(data.asset_copies) ? data.asset_copies : []) as CopyJob[];
   for (const job of jobs) {
