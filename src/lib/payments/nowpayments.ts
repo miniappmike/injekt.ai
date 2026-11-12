@@ -89,6 +89,24 @@ export interface IpnBody {
   order_id?: string;
   price_amount?: number | string;
   price_currency?: string;
+  /** What the buyer was asked to send, and what actually arrived, in the coin they paid with. */
+  pay_amount?: number | string;
+  actually_paid?: number | string;
+}
+
+/**
+ * How short a payment may arrive and still count, matching "Payment covering" (1%) in the NOWPayments settings. If
+ * you change that setting, change this too.
+ */
+export const COVERING = 0.01;
+
+/** Whether enough actually arrived: at least the amount asked for, less the covering allowance. */
+export function paidEnough(body: IpnBody): boolean {
+  const asked = Number(body.pay_amount);
+  const paid = Number(body.actually_paid);
+  if (!Number.isFinite(asked) || !Number.isFinite(paid) || asked <= 0) return false;
+  // A hair of slack for rounding in the coin's last decimal places.
+  return paid >= asked * (1 - COVERING) - 1e-12;
 }
 
 /** Statuses that mean the payment won't complete. */
@@ -112,6 +130,13 @@ export async function handleIpn(body: IpnBody): Promise<string> {
     await setOrderStatus(order.id, "amount_mismatch");
     console.error("[nowpayments] amount doesn't match the order", order.id, body.price_amount, body.price_currency);
     return "amount mismatch";
+  }
+  // Safety check: "finished" alone isn't enough. What actually arrived must cover the amount asked (less the covering
+  // allowance), so a payment marked finished for any amount can never deliver a pack for less.
+  if (!paidEnough(body)) {
+    await setOrderStatus(order.id, "underpaid");
+    console.error("[nowpayments] finished but not enough arrived", order.id, body.actually_paid, body.pay_amount);
+    return "underpaid";
   }
   const delivered = await fulfillOrder(order.id, "nowpayments", body.payment_id ? String(body.payment_id) : null);
   return delivered ? "delivered" : "already delivered";
