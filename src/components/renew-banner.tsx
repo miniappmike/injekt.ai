@@ -6,12 +6,21 @@ import { ProGem } from "@/components/pro-badge";
  * The Pro pass never renews by itself, so this reminds them: from PRO.remindDays before it ends until a week after.
  * Shown under the header on every signed-in page.
  */
-export function RenewBanner({ proUntil, manualPro }: { proUntil: string | null; manualPro: boolean }) {
+/** Whether the reminder is due: from PRO.remindDays before the end until a week after. */
+export function bannerWindow(proUntil: string | null): boolean {
+  if (!proUntil) return false;
+  const ms = Date.parse(proUntil) - Date.now();
+  return ms <= PRO.remindDays * 86_400_000 && ms >= -7 * 86_400_000;
+}
+
+export function RenewBanner({ proUntil, manualPro, autoRenews = false }: { proUntil: string | null; manualPro: boolean; autoRenews?: boolean }) {
   if (!proUntil || manualPro) return null;
   const ms = Date.parse(proUntil) - Date.now();
   const days = Math.ceil(ms / 86_400_000);
-  if (ms > PRO.remindDays * 86_400_000 || ms < -7 * 86_400_000) return null;
+  if (!bannerWindow(proUntil)) return null;
   const ended = ms <= 0;
+  // Paid with Telegram Stars: it renews by itself, so there's nothing to remind them of until it actually ends.
+  if (autoRenews && !ended) return null;
   return (
     <div role="status" className="border-b border-[#f92776]/30 bg-gradient-to-r from-[#2a0b18] via-neutral-950 to-[#2a0b18]">
       <div className="mx-auto flex max-w-6xl 2xl:max-w-[88rem] flex-wrap items-center justify-center gap-x-4 gap-y-2 px-4 py-2 text-sm">

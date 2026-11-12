@@ -19,6 +19,8 @@ export const PROMPT_CREDITS = 1;
 
 export const PRO = {
   priceCents: 999,
+  /** The price in Telegram Stars (what you're paid comes to about the dollar price). */
+  stars: 750,
   days: 30,
   firstMonthCredits: 220,
   monthlyCredits: 200,
@@ -29,16 +31,18 @@ export const PRO = {
 export interface CreditPack {
   id: string;
   priceCents: number;
+  /** The price in Telegram Stars. */
+  stars: number;
   credits: number;
   /** A short tag on the card. */
   tag?: string;
 }
 
 export const CREDIT_PACKS: readonly CreditPack[] = [
-  { id: "pack-10", priceCents: 1000, credits: 200 },
-  { id: "pack-25", priceCents: 2500, credits: 525, tag: "Popular" },
-  { id: "pack-50", priceCents: 5000, credits: 1100 },
-  { id: "pack-100", priceCents: 10000, credits: 2300, tag: "Best value" },
+  { id: "pack-10", priceCents: 1000, stars: 750, credits: 200 },
+  { id: "pack-25", priceCents: 2500, stars: 1900, credits: 525, tag: "Popular" },
+  { id: "pack-50", priceCents: 5000, stars: 3850, credits: 1100 },
+  { id: "pack-100", priceCents: 10000, stars: 7700, credits: 2300, tag: "Best value" },
 ];
 
 export const packById = (id: string) => CREDIT_PACKS.find((p) => p.id === id) ?? null;

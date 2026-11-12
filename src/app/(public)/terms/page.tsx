@@ -63,12 +63,16 @@ export default function TermsPage() {
           can&apos;t be transferred or exchanged for money.
         </li>
         <li>
-          <b className="text-neutral-100">Pro</b> costs {dollars(PRO.priceCents)} for {PRO.days} days. It does not renew by itself: we remind you before it ends, and you renew
-          only if you choose to. Each Pro month includes {PRO.monthlyCredits} tokens ({PRO.firstMonthCredits} in your first month, once per person). Those monthly tokens
+          <b className="text-neutral-100">Pro</b> costs {dollars(PRO.priceCents)} in crypto, or {PRO.stars.toLocaleString("en-US")} Telegram Stars, for {PRO.days} days.
+          Paid with Telegram Stars, it renews automatically every {PRO.days} days until you cancel it in Telegram. Paid with crypto, it doesn&apos;t renew by itself: we
+          remind you before it ends, and you renew only if you choose to. Each Pro month includes {PRO.monthlyCredits} tokens ({PRO.firstMonthCredits} in your first month, once per person). Those monthly tokens
           expire at the end of that {PRO.days}-day period.
         </li>
         <li>Pro lets you use your own AI provider keys. Anything that runs on your own key is charged to you by that provider, not in tokens.</li>
-        <li>Payments are handled by third-party payment providers, and their terms also apply.</li>
+        <li>
+          You pay through <b className="text-neutral-100">Telegram</b> (with Telegram Stars, which you can buy with a card, Apple Pay or Google Pay) or{" "}
+          <b className="text-neutral-100">NOWPayments</b> (with cryptocurrency). Their terms also apply. Token packs are priced in dollars and in Stars, shown at checkout.
+        </li>
       </ul>
 
       <h2 className={h2}>5. No refunds</h2>
