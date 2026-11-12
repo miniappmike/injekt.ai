@@ -8,6 +8,8 @@ import {
   cropRect,
   fitCrops,
   framePrompt,
+  QUALITY_SHADING_KEEP,
+  QUALITY_SHADING_MATCH,
   lockRefs,
   mergeAnalyses,
   modelFamily,
@@ -252,6 +254,8 @@ describe("framing per model", () => {
 
   it("other models get the head, the scene, her look and the tail", () => {
     const p = framePrompt("other", scene, R, "");
+    // Recreate keeps the target's image quality and shading (as the prompt describes them), lit by the scene.
+    expect(p).toContain(QUALITY_SHADING_MATCH);
     expect(p.startsWith("Use @image1, @image2, @image3 and @image4 as the strict identity reference.")).toBe(true);
     expect(p).toContain(" Her look from the reference: hair: espresso brown");
     expect(p).not.toContain("IDENTITY (follow exactly");
@@ -279,7 +283,9 @@ describe("photo edit and the no-pack fallback", () => {
     expect(p).toContain(SKIN_ART_SHORT);
     expect(p).toContain("She wears exactly the outfit worn in @image1, garment for garment.");
     expect(p).toContain(" Change: New pose: she sits on the counter edge.");
-    expect(p).toContain("Keep everything the change does not mention exactly as in @image1: expression and gaze, makeup and nail polish, outfit and accessories, hairstyle, props, background, light and colour, framing, camera look. Adjust the framing only as much as the new pose needs.");
+    expect(p).toContain("Keep everything the change does not mention exactly as in @image1: expression and gaze, makeup and nail polish, outfit and accessories, hairstyle, props, background, light and colour, shading and shadows, framing, camera look, image quality. Adjust the framing only as much as the new pose needs.");
+    // She is lit by the photo's own light, and its image quality is kept.
+    expect(p).toContain(QUALITY_SHADING_KEEP);
     expect(p.endsWith("Garbled or unreadable text in @image1 becomes short, clean generic wording or a plain design.")).toBe(true);
   });
 

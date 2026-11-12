@@ -357,6 +357,17 @@ export interface RefSet {
 }
 
 /** Model-specific identity framing around the LLM's scene prompt (text + her references). Needs pack references. */
+/**
+ * Recreate: the new image keeps the image quality and shading the written prompt describes (from the target), and she is
+ * lit by the scene, never by the reference sheets' flat studio light.
+ */
+export const QUALITY_SHADING_MATCH =
+  "Match the image quality and shading described above: the same sharpness, noise or grain, compression and colour grade, and the same light direction, contrast, shadow depth and softness on her face, body and clothes as on the rest of the scene. Light her with the scene's light, never the flat even light of the reference images, and never make the image cleaner or sharper than described.";
+
+/** Edit: the edited photo keeps @image1's own image quality and shading, and she is lit by its light. */
+export const QUALITY_SHADING_KEEP =
+  "She is lit and shaded by @image1's own light: the same direction, contrast, shadow depth and softness, and colour of light on her skin, hair and clothes as on everything around her. Keep @image1's image quality exactly: the same sharpness, noise or grain, compression and colour grade; never make it cleaner, sharper or more evenly lit.";
+
 export function framePrompt(
   mk: ModelFamily,
   text: string,
@@ -376,6 +387,7 @@ export function framePrompt(
   const quality =
     outfitLock(all, ox.outfit, R.anchors?.sheetOutfit, "prompt") +
     (ox.clean ? " " + OVERLAY_RULE : "") +
+    " " + QUALITY_SHADING_MATCH +
     (/beauty filter/i.test(t) ? "" : " " + REALISM_FIX.quality) +
     (/gibberish|garbled/i.test(t) ? "" : " " + TEXT_RULE);
   if (mk === "nb") {
@@ -425,11 +437,13 @@ export function basePrompt(R: RefSet, edit: string | undefined, frame: string | 
     "props",
     "background",
     "light and colour",
+    "shading and shadows",
     "framing",
     "camera look",
+    "image quality",
   ].filter(Boolean);
   const who = chg.who?.trim() ? ` ${fence(chg.who).trim().slice(0, 60)}` : "";
-  return `Replace the person${who} in @image1 with the woman from ${ref}. ${roles}${tags.length > 1 ? "; they all show the same woman" : ""}. Copy her exact face, features, skin tone, freckles and marks, and her hair colour, length and texture${an && an.hair ? ` (${an.hair})` : ""}. Her body comes only from ${bodyRef}${body ? ` (${body})` : ""}. ${BODY_LOCK} Never keep the original person's body shape, tattoos, piercings or marks; she has only her own. ${SKIN_ART_SHORT}${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""}${outfitLock(ref, chg.outfitText, R.anchors?.sheetOutfit, chg.outfit ? "change" : "target")}${chg.clean ? " " + OVERLAY_RULE : ""}${ch ? ` Change: ${ch.replace(/\.?$/, ".")}` : ""} Keep everything ${ch ? "the change does not mention" : "else"} exactly as in @image1: ${keep.join(", ")}.${chg.pose ? " Adjust the framing only as much as the new pose needs." : ""} Take only the person from ${ref}, never ${tags.length > 1 ? "their" : "its"} layout, panels, plain background, studio light or plain outfit. It must look like a real unedited photo: matte textured skin with pores and small imperfections, slight softness and noise like a real camera; never glossy, waxy, airbrushed or plastic. If @image1 is a drawing or render, make it a real photograph. ${TEXT_SHORT} Garbled or unreadable text in @image1 becomes short, clean generic wording or a plain design.`;
+  return `Replace the person${who} in @image1 with the woman from ${ref}. ${roles}${tags.length > 1 ? "; they all show the same woman" : ""}. Copy her exact face, features, skin tone, freckles and marks, and her hair colour, length and texture${an && an.hair ? ` (${an.hair})` : ""}. Her body comes only from ${bodyRef}${body ? ` (${body})` : ""}. ${BODY_LOCK} Never keep the original person's body shape, tattoos, piercings or marks; she has only her own. ${SKIN_ART_SHORT}${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""}${outfitLock(ref, chg.outfitText, R.anchors?.sheetOutfit, chg.outfit ? "change" : "target")}${chg.clean ? " " + OVERLAY_RULE : ""}${ch ? ` Change: ${ch.replace(/\.?$/, ".")}` : ""} Keep everything ${ch ? "the change does not mention" : "else"} exactly as in @image1: ${keep.join(", ")}.${chg.pose ? " Adjust the framing only as much as the new pose needs." : ""} ${QUALITY_SHADING_KEEP} Take only the person from ${ref}, never ${tags.length > 1 ? "their" : "its"} layout, panels, plain background, studio light or plain outfit. It must look like a real unedited photo: matte textured skin with pores and small imperfections, slight softness and noise like a real camera; never glossy, waxy, airbrushed or plastic. If @image1 is a drawing or render, make it a real photograph. ${TEXT_SHORT} Garbled or unreadable text in @image1 becomes short, clean generic wording or a plain design.`;
 }
 
 /** Points every @imageN in a prompt at an image that is actually sent (out-of-range tags become @image1). */
@@ -437,4 +451,4 @@ export const clampTags = (prompt: string, n: number) => String(prompt).replace(/
 
 /** Artifact condensePrompt request, for image models with a short prompt limit. */
 export const condenseTask = (t: string, max: number) =>
-  `Rewrite this image-edit prompt in at most ${max - 40} characters. Keep every @imageN tag and what each image is for, the woman's identity, hair, body proportions, the pose, outfit, setting, light, camera look and the no-text, no-piercing and tattoos-only-on-bare-skin rules; drop filler and repetition. Output only the prompt.\n<<<${fence(t)}>>>`;
+  `Rewrite this image-edit prompt in at most ${max - 40} characters. Keep every @imageN tag and what each image is for, the woman's identity, hair, body proportions, the pose, outfit, setting, light, shading, image quality, camera look and the no-text, no-piercing and tattoos-only-on-bare-skin rules; drop filler and repetition. Output only the prompt.\n<<<${fence(t)}>>>`;
