@@ -3,7 +3,7 @@ import { ALLOWED_FORMATS } from "@/lib/images";
 
 /** Longest side of a marketplace preview. Big enough to judge the look, too small to be a usable copy. */
 export const PREVIEW_MAX_EDGE = 768;
-export const WATERMARK_TEXT = "MODEL SPAWN · PREVIEW";
+export const WATERMARK_TEXT = "MODELSPAWN · PREVIEW";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 

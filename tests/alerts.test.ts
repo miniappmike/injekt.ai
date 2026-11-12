@@ -65,7 +65,7 @@ describe("Telegram alerts", () => {
 
   it("won't connect a non-admin, a made-up code or an expired one", async () => {
     h.settings.set("u1", { telegramAlertLink: { code: "a".repeat(24), expires: new Date(Date.now() + 60_000).toISOString() } });
-    expect(await connectAlertChat("a".repeat(24), 1)).toMatch(/Only Model Spawn admins/);
+    expect(await connectAlertChat("a".repeat(24), 1)).toMatch(/Only ModelSpawn admins/);
     expect(await connectAlertChat("not-a-code", 1)).toMatch(/isn't valid/);
     h.admins.add("u2");
     h.settings.set("u2", { telegramAlertLink: { code: "b".repeat(24), expires: new Date(Date.now() - 1).toISOString() } });

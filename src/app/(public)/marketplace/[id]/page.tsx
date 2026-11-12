@@ -13,9 +13,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   try {
     const l = await getPublicListing(id);
-    return { title: `${l.name} · Marketplace · Model Spawn`, description: l.tagline || undefined };
+    return { title: `${l.name} · Marketplace · ModelSpawn`, description: l.tagline || undefined };
   } catch {
-    return { title: "Marketplace · Model Spawn" };
+    return { title: "Marketplace · ModelSpawn" };
   }
 }
 

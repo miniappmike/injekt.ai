@@ -78,7 +78,7 @@ export function AppFooter() {
           ))}
         </div>
       </div>
-      <div className="sr-only">© Model Spawn</div>
+      <div className="sr-only">© ModelSpawn</div>
     </footer>
   );
 }

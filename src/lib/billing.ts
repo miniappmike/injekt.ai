@@ -19,7 +19,7 @@ export interface CreditSummary {
 
 const SPEND_LABELS: Record<string, string> = { prompt: "Prompt", profile: "Profile build" };
 const spendLabel = (reason: string) => SPEND_LABELS[reason] ?? (reason.startsWith("image:") ? "Image" : reason);
-const LOT_LABELS: Record<string, string> = { signup: "Free tokens", pro: "Pro month", topup: "Token pack", admin: "Added by Model Spawn" };
+const LOT_LABELS: Record<string, string> = { signup: "Free tokens", pro: "Pro month", topup: "Token pack", admin: "Added by ModelSpawn" };
 
 /** Everything the Tokens page shows: the balance split by where it came from, and recent activity. */
 export async function creditSummary(userId: string, emailConfirmed: boolean): Promise<CreditSummary> {

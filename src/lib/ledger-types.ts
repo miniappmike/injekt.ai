@@ -119,7 +119,7 @@ export function ledgerCsv(entries: LedgerEntry[]): string {
     e.costKnown ? "yes" : "no",
     e.costSource ? COST_SOURCE_LABELS[e.costSource] : null,
     e.status,
-    e.keySource === "byok" ? "You" : "Model Spawn",
+    e.keySource === "byok" ? "You" : "ModelSpawn",
   ]);
   return [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\n");
 }

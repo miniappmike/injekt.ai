@@ -7,7 +7,7 @@ import { fulfillOrder, getOrder, renewProOrder, type StoredOrder } from "@/lib/o
 import { alertPaid, connectAlertChat } from "@/lib/payments/alerts";
 
 /**
- * Telegram Stars payments through the Model Spawn bot.
+ * Telegram Stars payments through the ModelSpawn bot.
  *
  * Checkout: the site makes an invoice link for the order (Pro as a 30-day Stars subscription, packs as one payment) and
  * sends the buyer to it; Telegram opens the payment, where they can buy Stars with a card, Apple Pay or Google Pay.
@@ -43,7 +43,7 @@ export async function telegramApi<T = unknown>(method: string, body: Record<stri
 export async function createStarsInvoiceLink(order: { orderId: string; kind: "pro" | "pack"; amountStars: number; label: string }): Promise<string> {
   const pro = order.kind === "pro";
   return telegramApi<string>("createInvoiceLink", {
-    title: pro ? "Model Spawn Pro" : "Model Spawn tokens",
+    title: pro ? "ModelSpawn Pro" : "ModelSpawn tokens",
     description: pro
       ? `${order.label}. Your own API keys, no daily limits. Renews every 30 days until you cancel in Telegram.`
       : `${order.label}, added to your account straight away. Bought tokens never expire.`,
@@ -78,11 +78,11 @@ const say = (chatId: number, text: string) => telegramApi("sendMessage", { chat_
 
 /** Why an order can't be paid with this pre-checkout, or null when it can. */
 export function precheckProblem(order: StoredOrder | null, q: { currency: string; total_amount: number }): string | null {
-  if (!order) return "This order wasn't found. Start again from the Model Spawn site.";
-  if (order.provider !== "telegram") return "This order isn't a Telegram payment. Start again from the Model Spawn site.";
-  if (order.status === "cancelled" || order.status === "failed") return "This order was cancelled. Start again from the Model Spawn site.";
+  if (!order) return "This order wasn't found. Start again from the ModelSpawn site.";
+  if (order.provider !== "telegram") return "This order isn't a Telegram payment. Start again from the ModelSpawn site.";
+  if (order.status === "cancelled" || order.status === "failed") return "This order was cancelled. Start again from the ModelSpawn site.";
   if (order.status === "paid" && order.kind !== "pro") return "This order is already paid.";
-  if (q.currency !== "XTR" || q.total_amount !== order.amount_stars) return "The price changed. Start again from the Model Spawn site.";
+  if (q.currency !== "XTR" || q.total_amount !== order.amount_stars) return "The price changed. Start again from the ModelSpawn site.";
   return null;
 }
 
@@ -113,8 +113,8 @@ export async function handleTelegramUpdate(update: Update): Promise<void> {
       await say(
         msg.chat.id,
         order.kind === "pro"
-          ? `${renewal ? "Renewed" : "Done"}! Your Model Spawn Pro is active for ${PRO.days} days, with ${renewal ? PRO.monthlyCredits : order.credits} tokens. It renews every 30 days until you cancel it in Telegram.\n\n${SITE()}/characters`
-          : `Done! ${order.credits.toLocaleString("en-US")} tokens were added to your Model Spawn account.\n\n${SITE()}/tokens`,
+          ? `${renewal ? "Renewed" : "Done"}! Your ModelSpawn Pro is active for ${PRO.days} days, with ${renewal ? PRO.monthlyCredits : order.credits} tokens. It renews every 30 days until you cancel it in Telegram.\n\n${SITE()}/characters`
+          : `Done! ${order.credits.toLocaleString("en-US")} tokens were added to your ModelSpawn account.\n\n${SITE()}/tokens`,
       );
     }
     return;
@@ -130,7 +130,7 @@ export async function handleTelegramUpdate(update: Update): Promise<void> {
   if (text === "/support" || text === "/paysupport")
     return void (await say(msg.chat.id, `For help with a payment, email ${CONTACT_EMAIL} with your Telegram payment receipt. All sales are final (see /terms).`));
   if (text === "/start")
-    return void (await say(msg.chat.id, `This is the Model Spawn payment bot. Buy tokens or Pro on the site, and pay here with Telegram Stars.\n\n${SITE()}/tokens\n\n/terms · /support`));
+    return void (await say(msg.chat.id, `This is the ModelSpawn payment bot. Buy tokens or Pro on the site, and pay here with Telegram Stars.\n\n${SITE()}/tokens\n\n/terms · /support`));
 }
 
 /** Points Telegram at this site's webhook and sets the bot's commands. Run once from Admin after adding the token. */

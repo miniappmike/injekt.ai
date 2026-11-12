@@ -1,7 +1,7 @@
 import "./globals.css";
 import { Bebas_Neue, Exo_2, Inter } from "next/font/google";
 
-export const metadata = { title: "Model Spawn", appleWebApp: { title: "ModelSpawn" } };
+export const metadata = { title: "ModelSpawn", appleWebApp: { title: "ModelSpawn" } };
 
 // The fonts are served from this site (downloaded when it's built), so pages don't wait on Google's servers.
 // Inter for text, Exo 2 for headings, Bebas Neue for the big poster names on the marketplace.

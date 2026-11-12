@@ -17,7 +17,7 @@ export function Rich({ text }: { text: string }) {
   );
 }
 
-/** Where a step happens: SpicyAPI (gold, like their buttons) or Model Spawn (crimson). */
+/** Where a step happens: SpicyAPI (gold, like their buttons) or ModelSpawn (crimson). */
 export function Where({ where, className }: { where: GuideStep["where"]; className?: string }) {
   const spicy = where === "spicyapi";
   return (
@@ -29,7 +29,7 @@ export function Where({ where, className }: { where: GuideStep["where"]; classNa
       )}
     >
       <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", spicy ? "bg-amber-300" : "bg-brand-400")} />
-      {spicy ? "On SpicyAPI" : "On Model Spawn"}
+      {spicy ? "On SpicyAPI" : "On ModelSpawn"}
     </span>
   );
 }

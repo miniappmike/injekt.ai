@@ -3,11 +3,19 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { CircleAlert, CircleCheck } from "lucide-react";
+import { DiscordIcon, GoogleIcon, TelegramIcon, XIcon } from "@/components/social-icons";
 import type { AuthState } from "./actions";
 
 /** Frosted-glass pill, shared by the fields. */
 const FIELD =
   "h-12 w-full rounded-full border border-white/15 bg-white/[0.08] px-5 text-[15px] text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.14)] backdrop-blur-xl transition-[border-color,background-color,box-shadow] duration-150 placeholder:text-white/50 hover:border-white/25 focus-visible:border-white/50 focus-visible:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/10";
+/** Social sign-in, shown now and wired up later: the buttons don't do anything yet. */
+const SOCIALS = [
+  { name: "Google", Icon: GoogleIcon },
+  { name: "Discord", Icon: DiscordIcon },
+  { name: "X", Icon: XIcon },
+  { name: "Telegram", Icon: TelegramIcon },
+];
 const TEXT_LINK = "font-semibold text-white underline underline-offset-4 decoration-white/40 transition-colors hover:decoration-white";
 
 export function AuthForm({
@@ -25,7 +33,7 @@ export function AuthForm({
   return (
     <div className="w-full animate-fade-up [animation-delay:60ms]">
       <h1 className="text-[2.6rem] font-bold leading-[1.08] tracking-tight text-white sm:text-5xl">
-        {isLogin ? <>Log In to<br />Model Spawn</> : <>Create Your<br />Account</>}
+        {isLogin ? <>Log In to<br />ModelSpawn</> : <>Create Your<br />Account</>}
       </h1>
       <p className="mt-3 text-[15px] text-white/70">
         {isLogin ? "Welcome back. Pick up where you left off." : "Create your model once, then put her in any photo."}
@@ -84,17 +92,31 @@ export function AuthForm({
         </button>
       </form>
 
-      <div className="mt-6 flex items-center gap-4 text-xs text-white/50">
+      <div className="mt-6 flex items-center gap-4 text-xs text-white/55">
         <span className="h-px flex-1 bg-white/15" />
-        or
+        or continue with
         <span className="h-px flex-1 bg-white/15" />
       </div>
-      <Link
-        href={isLogin ? "/signup" : "/login"}
-        className="mt-6 flex h-12 w-full items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-[15px] font-medium text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.14)] backdrop-blur-xl transition-colors duration-150 hover:border-white/30 hover:bg-white/[0.14] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/15"
-      >
-        {isLogin ? "Create an Account" : "I Already Have an Account"}
-      </Link>
+      <div className="mt-5 flex justify-center gap-3">
+        {SOCIALS.map(({ name, Icon }) => (
+          <button
+            key={name}
+            type="button"
+            aria-disabled="true"
+            aria-label={`Continue with ${name} (coming soon)`}
+            title={`${name} sign-in is coming soon`}
+            className="flex h-12 w-12 cursor-not-allowed items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-white/90 shadow-[inset_0_1px_0_rgb(255_255_255/0.14)] backdrop-blur-xl transition-colors duration-150 hover:border-white/30 hover:bg-white/[0.14] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/15"
+          >
+            <Icon className="h-[18px] w-[18px]" />
+          </button>
+        ))}
+      </div>
+      <p className="mt-7 text-center text-sm text-white/70">
+        {isLogin ? "New here? " : "Already have an account? "}
+        <Link href={isLogin ? "/signup" : "/login"} className={TEXT_LINK}>
+          {isLogin ? "Create an account" : "Log in"}
+        </Link>
+      </p>
     </div>
   );
 }

@@ -1,9 +1,9 @@
 import type { MetadataRoute } from "next";
 
-/** What phones use when someone adds Model Spawn to their home screen: the name and the logo. */
+/** What phones use when someone adds ModelSpawn to their home screen: the name and the logo. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Model Spawn",
+    name: "ModelSpawn",
     short_name: "ModelSpawn",
     start_url: "/",
     background_color: "#0a0a0a",

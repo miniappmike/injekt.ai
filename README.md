@@ -1,4 +1,4 @@
-# Model Spawn
+# ModelSpawn
 
 Build persistent AI characters, write optimized image prompts for them, and generate images. Sold as tokens and a Pro
 plan, paid with Telegram Stars or crypto.

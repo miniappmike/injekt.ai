@@ -52,7 +52,7 @@ export function PersonaActions({
     const url = window.location.href.split("?")[0];
     try {
       if (navigator.share) {
-        await navigator.share({ title: `${listing.name} on Model Spawn`, url });
+        await navigator.share({ title: `${listing.name} on ModelSpawn`, url });
         return;
       }
     } catch (e) {

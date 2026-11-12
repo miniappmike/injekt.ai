@@ -1,4 +1,4 @@
-/** Direct swap (artifact A14b swapPrompt), word for word; no screening call runs before it in Model Spawn. */
+/** Direct swap (artifact A14b swapPrompt), word for word; no screening call runs before it in ModelSpawn. */
 import { fence, joinTags, OVERLAY_RULE, PROPORTIONS_RULE, SKIN_ART_SHORT, TEXT_SHORT } from "./rules";
 import { outfitLock, pickAnchors, type RefSet } from "./identity";
 

@@ -29,7 +29,7 @@ export default function PrivacyPage() {
       <span aria-hidden="true" className="mt-2 block h-[3px] w-12 rounded-full bg-gradient-to-r from-brand-500 to-iris-500 shadow-[0_0_14px_rgb(232_38_94/0.6)]" />
       <p className="mt-3 text-xs text-neutral-500">Last updated {UPDATED}</p>
       <p className={p}>
-        This policy explains what Model Spawn (&quot;we&quot;, &quot;the service&quot;) collects, why, who it&apos;s shared with, how long it&apos;s kept, and the choices you
+        This policy explains what ModelSpawn (&quot;we&quot;, &quot;the service&quot;) collects, why, who it&apos;s shared with, how long it&apos;s kept, and the choices you
         have. It goes with our{" "}
         <Link href="/terms" className="font-semibold text-brand-400 underline-offset-4 hover:text-brand-300 hover:underline">Terms of Service</Link>.
       </p>
@@ -95,7 +95,7 @@ export default function PrivacyPage() {
       <p className={p}>We don&apos;t sell your personal information, we don&apos;t show ads, and we don&apos;t use your content to train AI models.</p>
 
       <h2 className={h2}>4. Who we share it with</h2>
-      <p className={p}>Only with the services that run Model Spawn, and only what each one needs:</p>
+      <p className={p}>Only with the services that run ModelSpawn, and only what each one needs:</p>
       <ul className={ul}>
         <li><b className={b}>Supabase</b>: our database, file storage, sign-in and account emails.</li>
         <li><b className={b}>Vercel</b>: hosts the website, so your requests pass through it.</li>
@@ -147,7 +147,7 @@ export default function PrivacyPage() {
       </ul>
 
       <h2 className={h2}>8. Age</h2>
-      <p className={p}>Model Spawn is for adults 18 and over. We don&apos;t knowingly collect data from anyone under 18, and we delete accounts we learn belong to a minor.</p>
+      <p className={p}>ModelSpawn is for adults 18 and over. We don&apos;t knowingly collect data from anyone under 18, and we delete accounts we learn belong to a minor.</p>
 
       <h2 className={h2}>9. Where data is stored</h2>
       <p className={p}>Our providers may store and process data in countries other than yours, including the United States.</p>

@@ -1,5 +1,5 @@
 /**
- * Inject: the main prompt builder (artifact A8) and output parsing (A9), word for word. Model Spawn has no app-level
+ * Inject: the main prompt builder (artifact A8) and output parsing (A9), word for word. ModelSpawn has no app-level
  * nudity screening, so the NUDITY FILTER, strict safe mode, [[SAFE-SWAP]] and the NUDITY output line are left out; the
  * "revealing clothing is fine" rule, the adult-only wording and the mild body wording stay.
  */

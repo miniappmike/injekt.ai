@@ -2,7 +2,7 @@
 
 Last updated November 2026. The numbers live in `src/lib/plans.ts`; change them there, not here.
 
-Model Spawn sells a prompt-optimization workflow. People pay with **tokens** (the site's credits) or, on Pro, bring
+ModelSpawn sells a prompt-optimization workflow. People pay with **tokens** (the site's credits) or, on Pro, bring
 their own model keys.
 
 ## Plans

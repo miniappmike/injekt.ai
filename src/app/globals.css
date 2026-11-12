@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Model Spawn theme: cool charcoal surfaces, a crimson accent and an iris (blue-violet) second accent.
+ * ModelSpawn theme: cool charcoal surfaces, a crimson accent and an iris (blue-violet) second accent.
  * The neutral scale is redefined here, so every neutral-* class in the app picks up the theme.
  */
 @theme {

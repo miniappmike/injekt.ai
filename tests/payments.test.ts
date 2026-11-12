@@ -73,7 +73,7 @@ describe("NOWPayments", () => {
   });
 
   it("makes an invoice for the order's dollar price that reports back to the site", async () => {
-    const url = await createCryptoInvoice({ orderId: "o1", amountCents: 2500, label: "525 Model Spawn tokens", kind: "pack" });
+    const url = await createCryptoInvoice({ orderId: "o1", amountCents: 2500, label: "525 ModelSpawn tokens", kind: "pack" });
     expect(url).toContain("nowpayments.io");
     expect(calls[0].method).toBe("https://api.nowpayments.io/v1/invoice");
     expect(calls[0].body).toMatchObject({ price_amount: 25, price_currency: "usd", order_id: "o1", ipn_callback_url: "https://modelspawn.test/api/webhooks/nowpayments" });
@@ -114,9 +114,9 @@ describe("NOWPayments", () => {
 
 describe("Telegram Stars", () => {
   it("makes Pro a 30-day Stars subscription and a pack a single payment", async () => {
-    await createStarsInvoiceLink({ orderId: "o1", kind: "pro", amountStars: 750, label: "Model Spawn Pro (30 days, 220 tokens)" });
+    await createStarsInvoiceLink({ orderId: "o1", kind: "pro", amountStars: 750, label: "ModelSpawn Pro (30 days, 220 tokens)" });
     expect(calls[0]).toMatchObject({ method: "createInvoiceLink", body: { payload: "o1", currency: "XTR", prices: [{ amount: 750 }], subscription_period: SUBSCRIPTION_SECONDS } });
-    await createStarsInvoiceLink({ orderId: "o2", kind: "pack", amountStars: 1900, label: "525 Model Spawn tokens" });
+    await createStarsInvoiceLink({ orderId: "o2", kind: "pack", amountStars: 1900, label: "525 ModelSpawn tokens" });
     expect(calls[1].body.subscription_period).toBeUndefined();
   });
 

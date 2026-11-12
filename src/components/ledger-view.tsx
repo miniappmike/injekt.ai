@@ -262,7 +262,7 @@ export function LedgerView() {
                     <td className="p-2">
                       {jobLabel(e.job)} · {featureLabel(e.feature)}
                       {e.status === "failed" && <span className="ml-2 rounded bg-red-950 px-1.5 py-0.5 text-xs text-red-300">failed</span>}
-                      {e.keySource === "server" && <span className="ml-2 rounded bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-300">covered by Model Spawn</span>}
+                      {e.keySource === "server" && <span className="ml-2 rounded bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-300">covered by ModelSpawn</span>}
                     </td>
                     <td className="hidden max-w-[14rem] break-words p-2 text-xs text-neutral-500 md:table-cell">{e.model ?? ""}</td>
                     <td className="hidden p-2 text-right text-neutral-400 sm:table-cell">{e.inputTokens === null && e.outputTokens === null ? "–" : `${tokens(e.inputTokens)} / ${tokens(e.outputTokens)}`}</td>

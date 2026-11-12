@@ -157,7 +157,7 @@ describe("listGenerations", () => {
     expect(items.map((i) => [i.id, i.costUsd])).toEqual([["paid", 0.045], ["unknown", null], ["busy", null]]);
   });
 
-  it("marks the free image, which Model Spawn pays for", async () => {
+  it("marks the free image, which ModelSpawn pays for", async () => {
     const { supabase } = client([row({ id: "free", params: { free: true } }), row({ id: "mine", params: { free: false } }), row({ id: "none", params: null })]);
     const items = await listGenerations(supabase, user);
     expect(items.map((i) => i.free)).toEqual([true, false, false]);

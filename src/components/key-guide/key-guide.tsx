@@ -39,7 +39,7 @@ function Footer() {
       </div>
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900/60 p-6 text-center">
         <p className="font-display text-2xl font-bold text-neutral-50">That&apos;s it. You&apos;re all set.</p>
-        <p className="max-w-md text-sm text-neutral-400">Image generation is on and every tool in Model Spawn is yours to use.</p>
+        <p className="max-w-md text-sm text-neutral-400">Image generation is on and every tool in ModelSpawn is yours to use.</p>
         <div className="flex flex-wrap justify-center gap-2">
           <Link href="/inject" className="glow-brand inline-flex h-10 items-center rounded-lg bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-400">Start creating</Link>
           <Link href={GENERATION_SETTINGS_PATH} className="inline-flex h-10 items-center rounded-lg border border-neutral-700 px-4 text-sm font-semibold text-neutral-100 hover:border-neutral-500">Open Settings</Link>
