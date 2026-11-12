@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +18,6 @@ type Config = {
   serverImageModel: string;
   serverPrice: { input: number; output: number } | null;
 };
-
-/** How often Admin looks up SpicyAPI's final charges by itself while it is open. */
-const ADMIN_SETTLE_MS = 15 * 60_000;
 
 const usd = (n: number) => (n === 0 ? "$0" : n < 0.01 ? `$${n.toFixed(4)}` : n < 100 ? `$${n.toFixed(2)}` : `$${Math.round(n).toLocaleString()}`);
 const ago = (iso: string | null) => {
@@ -348,14 +345,6 @@ function RealCosts({ only, withAdmins, sweep: initial }: { only: FinanceStats; w
       setSweep(r.sweep);
       router.refresh();
     });
-  // While Admin is open (and visible), it also checks on its own every 15 minutes.
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (document.visibilityState === "visible") check();
-    }, ADMIN_SETTLE_MS);
-    return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   const f = mine ? withAdmins : only;
   return (
     <section className="panel flex flex-col gap-5 p-5" aria-labelledby="real-title">

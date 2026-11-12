@@ -4,6 +4,9 @@ import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
 
 export const metadata: Metadata = { title: "Terms of Service" };
 
+/** Support, takedowns and compliance. */
+const CONTACT_EMAIL = "modelspawn@gmail.com";
+
 /** Last changed. Update this whenever the text below changes. */
 const UPDATED = "November 12, 2026";
 
@@ -25,7 +28,7 @@ export default function TermsPage() {
 
       <h2 className={h2}>1. Who can use Model Spawn</h2>
       <ul className={ul}>
-        <li>You must be at least 18 years old, and old enough to agree to these terms where you live.</li>
+        <li>You must be at least 18 years old.</li>
         <li>You&apos;re responsible for your account and everything done with it. Keep your login details private.</li>
       </ul>
 
@@ -68,29 +71,55 @@ export default function TermsPage() {
         <li>Payments are handled by third-party payment providers, and their terms also apply.</li>
       </ul>
 
-      <h2 className={h2}>5. Your images and data</h2>
+      <h2 className={h2}>5. No refunds</h2>
+      <p className={p}>
+        All sales are final. There are no returns and no refunds. Pro buys {PRO.days} days of access, and payment for tokens goes to the AI and image model
+        providers that do the work, who don&apos;t offer refunds or returns. (A failed image gives its tokens back to your balance; that is not a money refund.)
+      </p>
+
+      <h2 className={h2}>6. Your images and data</h2>
       <ul className={ul}>
         <li>Images and prompts are sent to third-party AI providers (such as SpicyAPI) to be processed.</li>
         <li>Generated images are deleted {GENERATION_RETENTION_HOURS} hours after they&apos;re made. Download any you want to keep.</li>
         <li>Own API keys are stored encrypted, and only their last 4 characters are ever shown.</li>
       </ul>
 
-      <h2 className={h2}>6. How information updates</h2>
+      <h2 className={h2}>7. How information updates</h2>
       <ul className={ul}>
         <li>
-          The <b className="text-neutral-100">Ledger</b> refreshes every 2 minutes while it&apos;s open, so a new call can take up to 2 minutes to appear. Costs shown first
-          may be estimates; the final charge is looked up from the provider when you press Check final charges, and automatically once a day.
+          The <b className="text-neutral-100">Ledger</b> doesn&apos;t update by itself. It loads when you open it, and its Refresh button loads your newest calls and the
+          providers&apos; final charges. Refresh can be used once every 15 minutes. Costs shown first may be estimates until a final charge is looked up (on
+          Refresh, and automatically once a day).
         </li>
         <li>An image being generated is checked every few seconds, so it can appear a few seconds after it&apos;s ready.</li>
         <li>Your token balance updates when an image starts or finishes, and after prompts are written.</li>
       </ul>
 
-      <h2 className={h2}>7. The service</h2>
+      <h2 className={h2}>8. The service</h2>
       <ul className={ul}>
         <li>AI output can be wrong, inconsistent or unexpected. The service is provided &quot;as is&quot;, without guarantees that it will always be available or error-free.</li>
         <li>We may change, add or remove features and prices. Changes to prices don&apos;t affect tokens or Pro time you&apos;ve already bought.</li>
         <li>We may update these terms. The date at the top shows the latest version, and continuing to use the service means you accept it.</li>
       </ul>
+
+      <h2 className={h2}>9. Termination</h2>
+      <p className={p}>
+        Model Spawn reserves the right, at any time and with or without notice, to suspend or disable any account, restrict or remove tokens, restrict or end
+        access to the service or any part of it, and remove any content, including for breaking these terms. Tokens and Pro time on an account suspended or
+        closed for breaking these terms are not refunded. You can stop using the service at any time.
+      </p>
+
+      <h2 className={h2}>10. Your local laws</h2>
+      <p className={p}>
+        You are responsible for following the laws of the place where you live, and of anywhere you use the service from. Don&apos;t use Model Spawn where it,
+        or anything you make with it, is against the law.
+      </p>
+
+      <h2 className={h2}>11. Contact</h2>
+      <p className={p}>
+        Support, takedown requests and compliance questions go to{" "}
+        <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-brand-400 underline-offset-4 hover:text-brand-300 hover:underline">{CONTACT_EMAIL}</a>.
+      </p>
     </article>
   );
 }

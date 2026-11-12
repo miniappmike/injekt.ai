@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { GET_KEY_PATH, REFERRAL_DISCLOSURE } from "@/lib/links";
 
-type FooterLink = { label: string; href?: string; soon?: boolean };
+type FooterLink = { label: string; href?: string };
 
 /** The site map along the bottom of every page: the main tools, the extras that don't need a top tab, and legal. */
 const COLUMNS: { title: string; links: FooterLink[] }[] = [
@@ -38,7 +38,7 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
     title: "Legal",
     links: [
       { label: "Terms of Service", href: "/terms" },
-      { label: "Privacy Policy", soon: true },
+      { label: "Contact", href: "mailto:modelspawn@gmail.com" },
     ],
   },
 ];
@@ -64,7 +64,7 @@ export function AppFooter() {
                       <Link href={l.href} className="text-[13px] text-neutral-300 transition-colors hover:text-white">{l.label}</Link>
                     ) : (
                       <span className="text-[13px] text-neutral-600">
-                        {l.label} {l.soon && <span className="ml-1 rounded-full bg-neutral-800 px-1.5 py-0.5 text-[10px] text-neutral-500">Soon</span>}
+                        {l.label}
                       </span>
                     )}
                   </li>
