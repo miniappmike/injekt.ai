@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
 import { CONTACT_EMAIL } from "@/lib/links";
+import { PRIVACY_UPDATED } from "@/lib/legal";
 
 export const metadata: Metadata = { title: "Privacy Policy" };
 
-/** Last changed. Update this whenever the text below changes. */
-const UPDATED = "November 12, 2026";
+/** Last changed: update PRIVACY_UPDATED (src/lib/legal.ts) whenever the text below changes. */
+const UPDATED = PRIVACY_UPDATED;
 
 const h2 = "mt-8 font-display text-lg font-bold text-neutral-50";
 const h3 = "mt-4 text-sm font-semibold text-neutral-100";
