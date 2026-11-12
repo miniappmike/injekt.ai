@@ -7,8 +7,8 @@ import { checkImageGeneration } from "@/app/(app)/generate/actions";
  * History). Calls for the same job within a few seconds share one server request, and a finished answer is kept, so a
  * job is checked about once every POLL_MS however many places are watching.
  */
-export const POLL_MS = 6000;
-const SHARE_MS = 5000;
+export const POLL_MS = 8000;
+const SHARE_MS = 7000;
 
 type Result = Awaited<ReturnType<typeof checkImageGeneration>>;
 const recent = new Map<string, { at: number; p: Promise<Result> }>();

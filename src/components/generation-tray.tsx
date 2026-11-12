@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { checkGeneration, POLL_MS } from "@/lib/generation-check";
 
-const MAX_POLLS = 100; // about 10 minutes
+const MAX_POLLS = 75; // about 10 minutes
 import { GENERATION_EVENT, openHistory, viewImage, type TrayGeneration } from "@/lib/panel-events";
 import { generationsOnPage } from "@/lib/pending-generations";
 

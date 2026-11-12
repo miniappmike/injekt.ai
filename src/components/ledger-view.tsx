@@ -20,8 +20,10 @@ import {
   type PlatformSpend,
 } from "@/lib/ledger-types";
 
-// New calls show up within half a minute while the tab is open (checking more often costs a server call each time).
-const POLL_MS = 30_000;
+// New calls show up within 2 minutes while the tab is open (checking more often costs a server call each time).
+// Said in the Terms of Service.
+export const LEDGER_REFRESH_MS = 120_000;
+const POLL_MS = LEDGER_REFRESH_MS;
 const PAGE = 50;
 const select = "h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-2 text-sm";
 const tz = () => new Date().getTimezoneOffset();
@@ -154,7 +156,7 @@ export function LedgerView() {
         </select>
         <span className="ml-auto flex items-center gap-2 text-xs text-neutral-500" aria-live="polite">
           <span className={`h-2 w-2 rounded-full ${status === "ready" ? "animate-pulse bg-emerald-400 shadow-[0_0_8px_rgb(52_211_153)]" : "bg-neutral-600"}`} aria-hidden="true" />
-          {status === "ready" && updated ? `Live · updated ${updated.toLocaleTimeString()}` : status === "loading" ? "Loading..." : "Offline"}
+          {status === "ready" && updated ? `Updated ${updated.toLocaleTimeString()} · refreshes every 2 min` : status === "loading" ? "Loading..." : "Offline"}
         </span>
         <Button type="button" size="sm" variant="secondary" disabled={settling} onClick={checkCharges} title="Look up SpicyAPI's final charge for calls still showing an estimate">
           {settling ? "Checking..." : "Check final charges"}

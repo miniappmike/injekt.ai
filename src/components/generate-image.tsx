@@ -28,7 +28,7 @@ interface Result {
   downloadUrl: string;
 }
 
-const MAX_POLLS = 70; // about 7 minutes
+const MAX_POLLS = 53; // about 7 minutes
 const select = "h-8 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-2 text-sm";
 
 /**

@@ -32,7 +32,7 @@ const TABS: { id: HistoryTab; label: string }[] = [
   { id: "prompts", label: "Prompts" },
   { id: "images", label: "Images" },
 ];
-const MAX_POLLS = 50; // about 5 minutes
+const MAX_POLLS = 38; // about 5 minutes
 
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
