@@ -2,6 +2,9 @@ import Link from "next/link";
 import { REVENUE_RANGES, STAR_PAYOUT_USD, type Revenue } from "@/lib/admin-revenue";
 import { cn } from "@/lib/utils";
 
+// The scale only needs short numbers ("$1.5k" once it's big).
+const axis = (n: number) => (n >= 1000 ? `$${(n / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })}k` : `$${n.toLocaleString("en-US", { maximumFractionDigits: n < 10 ? 2 : n < 100 ? 1 : 0 })}`);
+const SHORT: Record<string, string> = { "7d": "7D", "14d": "14D", "30d": "30D", "6m": "6M", all: "All" };
 const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 // The site's own pink and violet (the gradient under every page title).
 const CRYPTO = "bg-gradient-to-b from-[#ff5fa2] to-[#f92776]";
@@ -15,28 +18,29 @@ export function AdminRevenue({ r }: { r: Revenue }) {
   // With many bars, only some get a date underneath.
   const every = Math.ceil(r.buckets.length / 7);
   return (
-    <section className="panel flex flex-col gap-5 p-5" aria-labelledby="revenue-title">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+    <section className="panel flex flex-col gap-4 p-4 sm:gap-5 sm:p-5" aria-labelledby="revenue-title">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h2 id="revenue-title" className="text-sm font-medium text-neutral-400">Verified payments received</h2>
-          <p className="mt-1 font-display text-4xl font-bold tabular-nums text-neutral-50">{money(r.total)}</p>
-          <p className="mt-1 text-sm text-neutral-400">
+          <p className="mt-1 font-display text-3xl font-bold sm:text-4xl tabular-nums text-neutral-50">{money(r.total)}</p>
+          <p className="mt-1 text-xs leading-relaxed text-neutral-400 sm:text-sm">
             {r.orders} paid {r.orders === 1 ? "order" : "orders"} ·{" "}
             <span className="inline-flex items-center gap-1"><span className={cn("h-2 w-2 rounded-sm", CRYPTO)} /> Crypto {money(r.crypto)}</span> ·{" "}
             <span className="inline-flex items-center gap-1"><span className={cn("h-2 w-2 rounded-sm", TELEGRAM)} /> Telegram {money(r.telegram)}</span>{" "}
             <span className="text-neutral-500">(⭐ {r.telegramStars.toLocaleString()})</span>
           </p>
         </div>
-        <nav aria-label="Range" className="flex flex-wrap gap-1 rounded-xl border border-neutral-800 bg-neutral-950/60 p-1">
+        <nav aria-label="Range" className="grid w-full grid-cols-5 gap-1 rounded-xl border border-neutral-800 bg-neutral-950/60 p-1 sm:flex sm:w-auto">
           {REVENUE_RANGES.map((x) => (
             <Link
               key={x.id}
               href={`/admin?tab=orders&range=${x.id}`}
               scroll={false}
               aria-current={x.id === r.range ? "page" : undefined}
-              className={cn("rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors", x.id === r.range ? "bg-neutral-100 text-neutral-950" : "text-neutral-400 hover:text-neutral-100")}
+              className={cn("rounded-lg px-2 py-1.5 text-center text-xs font-semibold transition-colors sm:px-3", x.id === r.range ? "bg-neutral-100 text-neutral-950" : "text-neutral-400 hover:text-neutral-100")}
             >
-              {x.label}
+              <span className="sm:hidden">{SHORT[x.id] ?? x.label}</span>
+              <span className="hidden sm:inline">{x.label}</span>
             </Link>
           ))}
         </nav>
@@ -45,12 +49,12 @@ export function AdminRevenue({ r }: { r: Revenue }) {
       <div>
         <div className="flex gap-2">
           {/* The scale: top, middle and zero. */}
-          <div className="flex h-48 w-14 shrink-0 flex-col justify-between text-right text-[11px] tabular-nums text-neutral-500">
-            <span>{money(top)}</span>
-            <span>{money(top / 2)}</span>
+          <div className="flex h-40 w-10 shrink-0 sm:h-48 sm:w-14 flex-col justify-between text-right text-[11px] tabular-nums text-neutral-500">
+            <span>{axis(top)}</span>
+            <span>{axis(top / 2)}</span>
             <span>$0</span>
           </div>
-          <div className="relative flex h-48 flex-1 items-end gap-[2px] border-b border-l border-neutral-800 pl-1">
+          <div className="relative flex h-40 min-w-0 flex-1 sm:h-48 items-end gap-[2px] border-b border-l border-neutral-800 pl-1">
             <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-neutral-800" />
             <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-neutral-800" />
             {r.buckets.map((b) => {
@@ -75,7 +79,7 @@ export function AdminRevenue({ r }: { r: Revenue }) {
             })}
           </div>
         </div>
-        <div className="ml-16 mt-1 flex gap-[2px] pl-1">
+        <div className="ml-12 mt-1 flex sm:ml-16 gap-[2px] pl-1">
           {r.buckets.map((b, i) => (
             <span key={b.start} className="relative h-4 flex-1">
               {i % every === 0 && <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-neutral-500">{b.label}</span>}
@@ -84,7 +88,7 @@ export function AdminRevenue({ r }: { r: Revenue }) {
         </div>
       </div>
 
-      <p className="text-xs text-neutral-500">
+      <p className="text-[11px] leading-snug text-neutral-500 sm:text-xs">
         One bar {per}. Crypto counts at its dollar price; Telegram at about ${STAR_PAYOUT_USD} per Star, what Telegram pays out.
         {r.manual > 0 && <> Orders marked paid by hand ({money(r.manual)}) aren&apos;t included.</>}
       </p>

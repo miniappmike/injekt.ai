@@ -12,6 +12,7 @@ import { AdminPeople } from "@/components/admin-people";
 import { AdminRevenue } from "@/components/admin-revenue";
 import { parseRange, rangeStart, summarizeRevenue } from "@/lib/admin-revenue";
 import { cn } from "@/lib/utils";
+import { showOrder } from "@/lib/cleanup";
 
 export const metadata = { title: "Admin" };
 export const dynamic = "force-dynamic";
@@ -30,8 +31,10 @@ async function loadOrders(since: Date | null): Promise<AdminOrder[] | null> {
   const db = adminClient();
   let q = db.from("orders").select("id, user_id, kind, pack_id, credits, amount_cents, first_month_bonus, status, created_at, paid_at, provider, provider_status, renews_order_id");
   if (since) q = q.gte("created_at", since.toISOString());
-  const { data, error } = await q.order("created_at", { ascending: false }).limit(100);
+  let { data, error } = await q.order("created_at", { ascending: false }).limit(100);
   if (error) return null;
+  // Cancelled and failed orders drop off after 24 hours (the nightly cleanup then deletes them).
+  data = (data ?? []).filter((o) => showOrder(o as { status: string; created_at: string }));
   const emails = new Map<string, string>();
   await Promise.all(
     [...new Set((data ?? []).map((o) => o.user_id as string | null).filter((x): x is string => !!x))].map(async (id) => {

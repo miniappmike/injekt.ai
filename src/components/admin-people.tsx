@@ -64,18 +64,18 @@ export function AdminPeople({ users, extras, freeRunCap }: { users: UserStats[];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users, extras]);
 
-  const select = "h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm";
+  const select = "h-10 min-w-0 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm";
   return (
-    <section className="panel flex flex-col gap-4 p-5" aria-labelledby="people-title">
+    <section className="panel flex flex-col gap-4 p-4 sm:p-5" aria-labelledby="people-title">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 id="people-title" className="font-display text-lg font-bold text-neutral-50">People</h2>
-          <p className="text-sm text-neutral-400">
-            {totals.people} people · {totals.pro} on Pro · {totals.paying} have paid. Click someone to see their activity and manage their tokens.
+          <p className="text-xs text-neutral-400 sm:text-sm">
+            {totals.people} people · {totals.pro} on Pro · {totals.paying} have paid. Tap someone to see their activity and manage their tokens.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Input placeholder="Search email" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search people" className="w-48" />
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+          <Input placeholder="Search email" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search people" className="col-span-2 sm:w-48" />
           <select value={show} onChange={(e) => setShow(e.target.value as Show)} aria-label="Show" className={select}>
             <option value="all">Everyone</option>
             <option value="free">Free plan</option>
@@ -96,7 +96,30 @@ export function AdminPeople({ users, extras, freeRunCap }: { users: UserStats[];
           </select>
         </div>
       </div>
-      <div className="-mx-5 overflow-x-auto px-5">
+      {/* Phones: one card per person. */}
+      <ul className="-mx-1 flex flex-col divide-y divide-neutral-800/70 sm:hidden">
+        {list.map((u) => {
+          const e = ex(u.id);
+          const proPass = u.proUntil && Date.parse(u.proUntil) > Date.now();
+          return (
+            <li key={u.id} className="flex items-center gap-3 px-1 py-3">
+              <Link href={`/admin/people/${u.id}`} className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="truncate text-sm font-semibold text-neutral-50">{u.email ?? u.id.slice(0, 8)}</span>
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-neutral-400">
+                  <span className="inline-flex items-center gap-1 tabular-nums text-neutral-200"><TokenIcon className="h-3 w-3" />{e.tokens.toLocaleString()}</span>
+                  {e.paidUsd > 0 && <span className="font-semibold tabular-nums text-emerald-300">${e.paidUsd.toFixed(2)} paid</span>}
+                  <span>active {ago(u.lastActive)}</span>
+                  {u.ownKey && <span className="text-emerald-300">Own AI key</span>}
+                  {proPass && <span className="text-[#ff8fc0]">Pro until {day(u.proUntil)}</span>}
+                </span>
+              </Link>
+              <span className="shrink-0"><PlanSwitch user={u} /></span>
+            </li>
+          );
+        })}
+        {!list.length && <li className="py-6 text-center text-sm text-neutral-500">Nobody matches.</li>}
+      </ul>
+      <div className="-mx-5 hidden overflow-x-auto px-5 sm:block">
         <table className="w-full min-w-[880px] text-sm">
           <thead>
             <tr className="border-b border-neutral-800 text-left text-xs text-neutral-400">

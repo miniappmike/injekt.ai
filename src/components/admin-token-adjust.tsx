@@ -37,10 +37,10 @@ export function AdminTokenAdjust({ userId, email }: { userId: string; email: str
         <Input placeholder="Note (optional, e.g. refund, gift)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={120} aria-label="Note" className="min-w-0 flex-1" />
       </div>
       <div className="flex gap-2">
-        <button type="button" disabled={!valid || pending} onClick={() => run(1)} className="rounded-lg bg-emerald-500/15 px-3 py-1.5 text-sm font-semibold text-emerald-300 ring-1 ring-emerald-400/40 hover:bg-emerald-500/25 disabled:opacity-40">
+        <button type="button" disabled={!valid || pending} onClick={() => run(1)} className="flex-1 rounded-lg bg-emerald-500/15 px-3 py-2 text-sm sm:flex-none sm:py-1.5 font-semibold text-emerald-300 ring-1 ring-emerald-400/40 hover:bg-emerald-500/25 disabled:opacity-40">
           + Add tokens
         </button>
-        <button type="button" disabled={!valid || pending} onClick={() => run(-1)} className="rounded-lg bg-red-500/10 px-3 py-1.5 text-sm font-semibold text-red-300 ring-1 ring-red-400/40 hover:bg-red-500/20 disabled:opacity-40">
+        <button type="button" disabled={!valid || pending} onClick={() => run(-1)} className="flex-1 rounded-lg bg-red-500/10 px-3 py-2 text-sm sm:flex-none sm:py-1.5 font-semibold text-red-300 ring-1 ring-red-400/40 hover:bg-red-500/20 disabled:opacity-40">
           − Remove tokens
         </button>
       </div>

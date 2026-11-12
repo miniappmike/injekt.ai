@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { rangeStart, STAR_PAYOUT_USD, summarizeRevenue } from "@/lib/admin-revenue";
 
 vi.mock("server-only", () => ({}));
-import { cleanupStaleOrders } from "@/lib/cleanup";
+import { cleanupCancelledOrders, cleanupStaleOrders, showOrder } from "@/lib/cleanup";
 
 const NOW = Date.parse("2026-11-12T15:00:00Z");
 const at = (daysAgo: number) => new Date(NOW - daysAgo * 86_400_000).toISOString();
@@ -66,5 +66,28 @@ describe("stale orders", () => {
     expect(calls.lt).toEqual(["created_at", new Date(NOW - 3 * 86_400_000).toISOString()]);
     expect(String(calls.or[0])).toContain("provider_status.is.null");
     expect(String(calls.or[0])).not.toContain("partially");
+  });
+});
+
+describe("cancelled orders", () => {
+  it("deletes cancelled and failed orders after 24 hours, keeping crypto payments still moving", async () => {
+    const calls: Record<string, unknown[]> = {};
+    const chain: Record<string, unknown> = {};
+    for (const m of ["delete", "in", "lt", "or"]) chain[m] = (...a: unknown[]) => ((calls[m] = a), chain);
+    chain.select = async () => ({ data: [{ id: "a" }], error: null });
+    expect(await cleanupCancelledOrders({ from: () => chain } as never, NOW)).toBe(1);
+    expect(calls.in).toEqual(["status", ["cancelled", "failed"]]);
+    expect(calls.lt).toEqual(["created_at", new Date(NOW - 86_400_000).toISOString()]);
+    expect(String(calls.or[0])).not.toContain("partially");
+  });
+
+  it("Admin hides them once they're a day old", () => {
+    const old = new Date(NOW - 25 * 3_600_000).toISOString();
+    const fresh = new Date(NOW - 2 * 3_600_000).toISOString();
+    expect(showOrder({ status: "cancelled", created_at: old }, NOW)).toBe(false);
+    expect(showOrder({ status: "failed", created_at: old }, NOW)).toBe(false);
+    expect(showOrder({ status: "cancelled", created_at: fresh }, NOW)).toBe(true);
+    expect(showOrder({ status: "pending", created_at: old }, NOW)).toBe(true);
+    expect(showOrder({ status: "paid", created_at: old }, NOW)).toBe(true);
   });
 });

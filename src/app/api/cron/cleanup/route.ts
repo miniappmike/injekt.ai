@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { env } from "@/env";
 import { adminClient } from "@/lib/supabase/admin";
-import { cleanupExpiredGenerations, cleanupStaleOrders, isAuthorizedCron } from "@/lib/cleanup";
+import { cleanupCancelledOrders, cleanupExpiredGenerations, cleanupStaleOrders, isAuthorizedCron } from "@/lib/cleanup";
 import { repairUncopiedPurchases } from "@/lib/marketplace/purchase";
 import { settlePendingLedger } from "@/lib/ledger-sweep";
 
@@ -22,7 +22,9 @@ export async function GET(req: Request) {
     const ledger = await settlePendingLedger(adminClient(), { budgetMs: 40_000 }).catch(() => null);
     // Orders someone started but never paid, after 3 days. Never fails the cleanup.
     const staleOrders = await cleanupStaleOrders(adminClient()).catch(() => null);
-    return NextResponse.json({ ok: true, ...generations, purchases, ledger, staleOrders });
+    // Cancelled and failed orders, after 24 hours (Admin already hides them then). Never fails the cleanup.
+    const cancelledOrders = await cleanupCancelledOrders(adminClient()).catch(() => null);
+    return NextResponse.json({ ok: true, ...generations, purchases, ledger, staleOrders, cancelledOrders });
   } catch (e) {
     console.error("cleanup failed", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "cleanup failed" }, { status: 500 });
