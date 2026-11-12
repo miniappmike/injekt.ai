@@ -24,7 +24,7 @@ export interface InjectVersion {
   fixed: string[];
   /** Card tags: the pose, new outfit, colours, hairstyle. */
   tags: string[];
-  /** What Generate needs to frame it (the target is added by the browser when "Edit the target photo" is on). */
+  /** What Generate needs to frame it (the target is added by the browser in Edit this photo mode (Recreate is the default)). */
   meta: InjectMeta;
   /** Its History entry, so an image made from it can be found again ("Preview generation"). */
   historyId?: string | null;

@@ -59,7 +59,7 @@ export function injectStandalone(
 
 const inputSchema = z.object({
   characterId: z.string().uuid(),
-  /** The photo the versions were written for; left out when "Edit the target photo" is off. */
+  /** The photo the versions were written for; left out in Recreate (Edit this photo is off). */
   targetPath: z.string().max(400).nullish(),
   /** True when targetPath is the app's cleaned copy. */
   cleaned: z.boolean().optional(),
