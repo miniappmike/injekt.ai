@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { startCheckout } from "@/app/(app)/billing/actions";
 import { ProGem, ProWord } from "@/components/pro-badge";
 import { FREE_CREDITS, PRO, dollars } from "@/lib/plans";
 import { deviceId } from "@/lib/device-id";
 import { cn } from "@/lib/utils";
 import { ProPayButtons } from "@/components/pay-buttons";
+import { TelegramPayDialog } from "@/components/telegram-pay-dialog";
 import type { PayMethod, PayMethods } from "@/lib/payments/methods";
 import { TokenIcon } from "@/components/token-icon";
 
@@ -49,8 +50,16 @@ export function UpgradeView({
   const credits = firstMonth ? PRO.firstMonthCredits : PRO.monthlyCredits;
 
   // Opens the chosen payment page: Telegram (Stars) or NOWPayments (crypto). The order is delivered when they pay.
+  // Telegram first shows a short pop-up (with the guide), whose Continue to payment makes the link.
+  const [telegramOpen, setTelegramOpen] = useState(false);
+  const closeTelegram = useCallback(() => setTelegramOpen(false), []);
+  const telegramLink = async (): Promise<{ url: string } | { error: string }> => {
+    const r = await startCheckout({ kind: "pro" }, deviceId(), "telegram");
+    return r.ok && r.order.checkoutUrl ? { url: r.order.checkoutUrl } : { error: r.ok ? "Couldn't open the payment. Try again." : r.error };
+  };
   function pay(method: PayMethod) {
     setMsg(undefined);
+    if (method === "telegram") return setTelegramOpen(true);
     setBusy(method);
     start(async () => {
       const r = await startCheckout({ kind: "pro" }, deviceId(), method);
@@ -161,7 +170,10 @@ export function UpgradeView({
 
       <div className="mt-8 flex flex-col items-center gap-3">
         {choice === "pro" ? (
-          <ProPayButtons methods={methods} stars={PRO.stars} price={dollars(PRO.priceCents)} busy={busy} onPay={pay} />
+          <>
+            <ProPayButtons methods={methods} stars={PRO.stars} price={dollars(PRO.priceCents)} busy={busy} onPay={pay} />
+            <TelegramPayDialog open={telegramOpen} what="Model Spawn Pro" stars={PRO.stars} onClose={closeTelegram} makeLink={telegramLink} />
+          </>
         ) : (
           <button
             type="button"
