@@ -24,6 +24,8 @@ export interface UserRow {
   plan: "free" | "pro";
   is_admin: boolean;
   ownKey: boolean;
+  /** When their Pro pass ends (null: none, or Pro set by hand). */
+  proUntil?: string | null;
 }
 
 export interface UserStats extends UserRow {

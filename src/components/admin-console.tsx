@@ -79,7 +79,7 @@ function SpendChart({ daily }: { daily: AdminStats["daily"] }) {
   );
 }
 
-function CapsForm({ config }: { config: Config }) {
+export function CapsForm({ config }: { config: Config }) {
   const router = useRouter();
   const [c, setC] = useState(config);
   const [msg, setMsg] = useState<{ text: string; ok: boolean }>();
@@ -165,7 +165,7 @@ function CapsForm({ config }: { config: Config }) {
   );
 }
 
-function PlanSwitch({ user }: { user: UserStats }) {
+export function PlanSwitch({ user }: { user: UserStats }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   if (user.is_admin) return <span className="rounded-full bg-iris-500/15 px-2 py-0.5 text-xs font-semibold text-iris-400 ring-1 ring-iris-500/40">Admin</span>;
@@ -191,86 +191,6 @@ function PlanSwitch({ user }: { user: UserStats }) {
   );
 }
 
-function UsersTable({ users, caps }: { users: UserStats[]; caps: Config["caps"] }) {
-  const [q, setQ] = useState("");
-  const [only, setOnly] = useState<"all" | "today" | "limit">("all");
-  const list = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    return users.filter((u) => {
-      if (s && !(u.email ?? u.id).toLowerCase().includes(s)) return false;
-      if (only === "today") return u.runsToday + u.likenessToday > 0;
-      if (only === "limit") return !u.ownKey && !u.is_admin && u.runsToday >= caps[u.plan].runs;
-      return true;
-    });
-  }, [users, q, only, caps]);
-
-  return (
-    <section className="panel flex flex-col gap-4 p-5" aria-labelledby="users-title">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 id="users-title" className="font-display text-lg font-bold text-neutral-50">People</h2>
-          <p className="text-sm text-neutral-400">Sorted by what they cost your key over 30 days.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Input placeholder="Search email" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search people" className="w-48" />
-          <select value={only} onChange={(e) => setOnly(e.target.value as typeof only)} aria-label="Show" className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
-            <option value="all">Everyone</option>
-            <option value="today">Active today</option>
-            <option value="limit">Hit today&apos;s limit</option>
-          </select>
-        </div>
-      </div>
-      <div className="-mx-5 overflow-x-auto px-5">
-        <table className="w-full min-w-[760px] text-sm">
-          <thead>
-            <tr className="border-b border-neutral-800 text-left text-xs text-neutral-400">
-              <th className="py-2 pr-3 font-medium">Person</th>
-              <th className="py-2 pr-3 font-medium">Plan</th>
-              <th className="py-2 pr-3 text-right font-medium">Prompts today</th>
-              <th className="py-2 pr-3 text-right font-medium">Likeness today</th>
-              <th className="py-2 pr-3 text-right font-medium">Prompts 7d</th>
-              <th className="py-2 pr-3 text-right font-medium">Your cost 7d</th>
-              <th className="py-2 pr-3 text-right font-medium">Your cost 30d</th>
-              <th className="py-2 text-right font-medium">Last active</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((u) => {
-              const cap = u.ownKey || u.is_admin ? null : caps[u.plan];
-              const full = cap && u.runsToday >= cap.runs;
-              return (
-                <tr key={u.id} className="border-b border-neutral-800/60 transition-colors hover:bg-neutral-800/30">
-                  <td className="max-w-[220px] py-2 pr-3">
-                    <span className="block truncate text-neutral-100" title={u.email ?? u.id}>{u.email ?? u.id.slice(0, 8)}</span>
-                    {u.ownKey && <span className="text-[11px] text-emerald-300">Own AI key</span>}
-                  </td>
-                  <td className="py-2 pr-3"><PlanSwitch user={u} /></td>
-                  <td className={cn("py-2 pr-3 text-right tabular-nums", full ? "font-semibold text-amber-300" : "text-neutral-200")}>
-                    {u.runsToday}{cap ? <span className="text-neutral-500"> / {cap.runs}</span> : null}
-                  </td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-neutral-200">
-                    {u.likenessToday}{cap ? <span className="text-neutral-500"> / {cap.likeness}</span> : null}
-                  </td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-neutral-200">{u.runs7}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-neutral-200">{usd(u.server7)}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums font-semibold text-neutral-50">{usd(u.server30)}</td>
-                  <td className="py-2 text-right text-xs text-neutral-400">{ago(u.lastActive)}</td>
-                </tr>
-              );
-            })}
-            {!list.length && (
-              <tr>
-                <td colSpan={8} className="py-6 text-center text-neutral-500">Nobody matches.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-/** "Export as": every number on the page, as a file or copied for pasting into a chat. */
 function ExportMenu({ snapshot }: { snapshot: () => AdminSnapshot }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState<string>();
@@ -524,8 +444,6 @@ export function AdminConsole({
       </div>
       <RealCosts only={finance} withAdmins={financeWithAdmins} sweep={sweep} />
       <SpendChart daily={stats.daily} />
-      <CapsForm config={config} />
-      <UsersTable users={stats.users} caps={config.caps} />
     </div>
   );
 }

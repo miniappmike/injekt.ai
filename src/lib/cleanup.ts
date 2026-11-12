@@ -40,3 +40,28 @@ export async function cleanupExpiredGenerations(
   }
   return { removed };
 }
+
+/** How long an unpaid order is kept before the nightly cleanup deletes it. */
+export const PENDING_ORDER_DAYS = 3;
+
+/**
+ * Deletes orders still pending after PENDING_ORDER_DAYS: someone pressed a pay button and never finished. Orders a
+ * payment provider has started on (confirming, partially paid, underpaid...) are kept for you to review, since money
+ * may be on its way. Returns how many were deleted.
+ */
+export async function cleanupStaleOrders(db: SupabaseClient, now = Date.now()): Promise<number> {
+  const before = new Date(now - PENDING_ORDER_DAYS * 86_400_000).toISOString();
+  const { data, error } = await db
+    .from("orders")
+    .delete()
+    .eq("status", "pending")
+    .lt("created_at", before)
+    .or("provider_status.is.null,provider_status.eq.waiting,provider_status.eq.expired")
+    .select("id");
+  if (error) {
+    // Before migration 0025 there's no provider_status column: fall back to orders with no payment at all.
+    if (/provider_status/.test(error.message)) return 0;
+    throw new Error(`stale orders: ${error.message}`);
+  }
+  return data?.length ?? 0;
+}
