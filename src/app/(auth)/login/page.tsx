@@ -6,7 +6,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <>
       {deleted && (
-        <p role="status" className="mx-auto mb-4 max-w-sm rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-center text-sm text-emerald-200">
+        <p role="status" className="mb-6 rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm text-white backdrop-blur-xl">
           Your account has been deleted.
         </p>
       )}

@@ -340,3 +340,18 @@
     animation-delay: 0s !important;
   }
 }
+
+/* Log in / sign up: the big out-of-focus mark behind the form breathes slowly. */
+@keyframes auth-breathe {
+  from { opacity: 0.68; scale: 1; }
+  to { opacity: 0.85; scale: 1.05; }
+}
+.auth-mark {
+  animation: auth-breathe 9s ease-in-out infinite alternate;
+}
+/* Browser autofill would paint the glass fields pale yellow or blue; keep them dark with white text. */
+main input:-webkit-autofill {
+  -webkit-text-fill-color: #fff;
+  caret-color: #fff;
+  transition: background-color 99999s ease-out;
+}
