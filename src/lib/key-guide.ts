@@ -13,7 +13,7 @@ export interface GuideShot {
 export interface GuideStep {
   /** Short title, an action. */
   title: string;
-  /** One or two sentences. `**bold**` marks button and menu names. */
+  /** One or two sentences. `**bold**` marks button and menu names, `*italics*` adds stress, `[text](/path)` makes a link. */
   body: string;
   /** Extra details as a short list. */
   points?: string[];
@@ -25,7 +25,7 @@ export interface GuideStep {
   cta?: boolean;
   shots?: GuideShot[];
   /** Where the step happens. */
-  where: "spicyapi" | "modelspawn";
+  where: "spicyapi" | "modelspawn" | "telegram";
 }
 
 export interface GuidePhase {
@@ -155,7 +155,17 @@ export const GUIDE_BALANCE_NOTE =
 
 export const GUIDE_UPDATED = "November 10, 2026";
 
-/** Step text with **bold** turned into spans. */
-export function guideRich(text: string): (string | { b: string })[] {
-  return text.split(/\*\*(.+?)\*\*/g).map((part, i) => (i % 2 ? { b: part } : part));
+export type RichPart = string | { b: string } | { i: string } | { href: string; text: string };
+
+/** Step text split into plain text, **bold**, *italics* and [links](/path). */
+export function guideRich(text: string): RichPart[] {
+  return text
+    .split(/(\*\*.+?\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g)
+    .filter(Boolean)
+    .map((part): RichPart => {
+      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) return { b: part.slice(2, -2) };
+      if (part.startsWith("*") && part.endsWith("*") && part.length > 2) return { i: part.slice(1, -1) };
+      const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
+      return link ? { text: link[1], href: link[2] } : part;
+    });
 }

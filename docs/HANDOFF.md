@@ -38,10 +38,9 @@ unpaid orders older than 3 days, cancelled or failed orders older than 24 hours.
 - Staying on Vercel; upgrade to Vercel Pro before relying on sales (Hobby is non-commercial).
 
 **Next, in rough order**
-1. The Telegram payment guide: `/guides/telegram-payments` is a placeholder until the PDF with screenshots arrives.
-2. Marketplace checkout through Telegram or NOWPayments (the Buy button says checkout is being set up).
-3. Owner's to-do: Vercel Pro, a spend cap, and setting the Vercel function region next to the Supabase region.
-4. Optional: a lawyer's read of Terms and Privacy, a report button, a manual Cash App flow.
+1. Marketplace checkout through Telegram or NOWPayments (the Buy button says checkout is being set up).
+2. Owner's to-do: Vercel Pro, a spend cap, and setting the Vercel function region next to the Supabase region.
+3. Optional: a lawyer's read of Terms and Privacy, a report button, a manual Cash App flow.
 
 **Working rules**
 - Secrets only in Vercel env vars, never in chat or the repo.

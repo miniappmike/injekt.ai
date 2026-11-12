@@ -39,6 +39,7 @@ export default async function PublicLayout({ children }: { children: React.React
           </div>
         </header>
         <main className="mx-auto max-w-6xl 2xl:max-w-[88rem] p-4 pb-28 sm:p-6">{children}</main>
+        <ImageViewer />
       </div>
     );
   }
