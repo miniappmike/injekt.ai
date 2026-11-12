@@ -4,10 +4,9 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { checkImageGeneration } from "@/app/(app)/generate/actions";
+import { checkGeneration, POLL_MS } from "@/lib/generation-check";
 
-const POLL_MS = 4000;
-const MAX_POLLS = 150; // about 10 minutes
+const MAX_POLLS = 100; // about 10 minutes
 import { GENERATION_EVENT, openHistory, viewImage, type TrayGeneration } from "@/lib/panel-events";
 import { generationsOnPage } from "@/lib/pending-generations";
 
@@ -60,7 +59,7 @@ export function GenerationTray() {
       await Promise.all(
         watchKey.split(",").map(async (pair) => {
           const [key, id] = pair.split(":");
-          const status = await checkImageGeneration(id).catch(() => null);
+          const status = await checkGeneration(id).catch(() => null);
           if (stopped || !status) return;
           if (!status.ok) return; // A check that errors is tried again on the next tick.
           if (status.state === "complete") update({ key, state: "ready", url: status.url, downloadUrl: status.downloadUrl });

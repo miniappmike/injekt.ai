@@ -6,6 +6,7 @@ import { entitlements } from "@/lib/entitlements";
 import { appConfigSchema, saveAppConfig, type AppConfigInput } from "@/lib/app-config";
 import { adminClient } from "@/lib/supabase/admin";
 import { fulfillOrder } from "@/lib/orders";
+import { settlePendingLedger, type SweepResult } from "@/lib/ledger-sweep";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -69,5 +70,17 @@ export async function cancelOrder(orderId: string): Promise<Result> {
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Couldn't cancel it." };
+  }
+}
+
+/** Looks up SpicyAPI's final charge for calls still showing an estimate (a button on Admin; also run nightly). */
+export async function settleCharges(): Promise<{ ok: true; sweep: SweepResult } | { ok: false; error: string }> {
+  try {
+    await requireAdmin();
+    const sweep = await settlePendingLedger(adminClient(), { limit: 150, budgetMs: 8000 });
+    revalidatePath("/admin");
+    return { ok: true, sweep };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't check with SpicyAPI." };
   }
 }

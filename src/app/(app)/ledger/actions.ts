@@ -2,6 +2,10 @@
 
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/ratelimit";
+import { RateLimitError } from "@/lib/errors";
+import { settlePendingLedger } from "@/lib/ledger-sweep";
+import { adminClient } from "@/lib/supabase/admin";
 import { getLedgerEntries, getLedgerSummary, rangeStart, spendWindows } from "@/lib/ledger";
 import type { LedgerEntry, PlatformSpend } from "@/lib/ledger-types";
 
@@ -46,5 +50,20 @@ export async function getLedger(raw: unknown): Promise<LedgerPage | null> {
   } catch (e) {
     console.error("ledger read failed", e instanceof Error ? e.message : e);
     return null;
+  }
+}
+
+/**
+ * Looks up SpicyAPI's final charge for the person's calls still showing an estimate. Run from a button (and nightly by
+ * the cleanup job), not on every page load, so opening the Ledger costs one quick read.
+ */
+export async function settleMyLedger(): Promise<{ ok: true; settled: number; held: number } | { ok: false; error: string }> {
+  try {
+    const { user } = await requireUser();
+    await enforceRateLimit(user.id, "ledger-settle", 4, 60);
+    const r = await settlePendingLedger(adminClient(), { userId: user.id, limit: 60, budgetMs: 8000 });
+    return { ok: true, settled: r.settled, held: r.held };
+  } catch (e) {
+    return { ok: false, error: e instanceof RateLimitError ? `Try again in ${e.retryAfterSeconds}s.` : "Couldn't check with SpicyAPI. Try again." };
   }
 }
