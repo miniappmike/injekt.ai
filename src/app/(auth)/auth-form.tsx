@@ -25,7 +25,7 @@ export function AuthForm({
       <CardHeader>
         <CardTitle className="text-2xl font-bold">{isLogin ? "Log in" : "Create account"}</CardTitle>
         <CardDescription>
-          {isLogin ? "Welcome back to Model Spawn." : "Bring your own API keys, keep your characters."}
+          {isLogin ? "Welcome back to Model Spawn." : "Create your model once, then put her in any photo."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -46,6 +46,23 @@ export function AuthForm({
               required
             />
           </div>
+          {!isLogin && (
+            <div className="flex flex-col gap-2.5 rounded-lg border border-neutral-800 bg-neutral-950/50 p-3 text-sm text-neutral-300">
+              <label className="flex items-start gap-2.5">
+                <input type="checkbox" name="adult" required className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>I am 18 years of age or older.</span>
+              </label>
+              <label className="flex items-start gap-2.5">
+                <input type="checkbox" name="terms" required className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  I agree to the{" "}
+                  <Link href="/terms" target="_blank" className="font-semibold text-brand-400 underline-offset-4 hover:text-brand-300 hover:underline">Terms of Service</Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" target="_blank" className="font-semibold text-brand-400 underline-offset-4 hover:text-brand-300 hover:underline">Privacy Policy</Link>.
+                </span>
+              </label>
+            </div>
+          )}
           {state.error && <p role="alert" className="text-sm text-red-400">{state.error}</p>}
           {state.message && <p role="status" className="text-sm text-emerald-400">{state.message}</p>}
           <Button type="submit" size="lg" disabled={pending}>

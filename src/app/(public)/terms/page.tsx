@@ -3,11 +3,12 @@ import Link from "next/link";
 import { CREDIT_PACKS, FREE_CREDITS, IMAGE_CREDITS, PRO, PROFILE_BUILD_CREDITS, PROMPT_CREDITS, dollars } from "@/lib/plans";
 import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
 import { CONTACT_EMAIL } from "@/lib/links";
+import { TERMS_UPDATED } from "@/lib/legal";
 
 export const metadata: Metadata = { title: "Terms of Service" };
 
-/** Last changed. Update this whenever the text below changes. */
-const UPDATED = "November 12, 2026";
+/** Last changed: update TERMS_UPDATED (src/lib/legal.ts) whenever the text below changes. */
+const UPDATED = TERMS_UPDATED;
 
 const h2 = "mt-8 font-display text-lg font-bold text-neutral-50";
 const p = "mt-2 text-sm leading-relaxed text-neutral-300";
