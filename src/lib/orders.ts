@@ -104,9 +104,9 @@ export async function createOrder(buyer: Buyer, input: OrderInput, ctx: BuyerCon
   };
 }
 
-/** What an order is, in a few words: "Model Spawn Pro (30 days, 220 tokens)" or "525 Model Spawn tokens". */
+/** What an order is, in a few words: "ModelSpawn Pro (30 days, 220 tokens)" or "525 ModelSpawn tokens". */
 export const orderLabel = (kind: "pro" | "pack", credits: number) =>
-  kind === "pro" ? `Model Spawn Pro (${PRO.days} days, ${credits} tokens)` : `${credits.toLocaleString("en-US")} Model Spawn tokens`;
+  kind === "pro" ? `ModelSpawn Pro (${PRO.days} days, ${credits} tokens)` : `${credits.toLocaleString("en-US")} ModelSpawn tokens`;
 
 export interface StoredOrder {
   id: string;

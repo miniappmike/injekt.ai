@@ -160,7 +160,7 @@ checked on the server) lets them price a persona, write the public profile, pick
   `addPreviewUpload`, `removePreview`, `reorderPreviews`, `publishListing`. They return `{ ok: true }` or
   `{ ok: false, error }` with plain-English errors.
 - `src/lib/marketplace/watermark.ts`: `makePreview(buffer)`. Applies rotation, strips metadata, fits inside 768px (never
-  enlarges), tiles a diagonal "MODEL SPAWN · PREVIEW" watermark over the whole picture plus a "PREVIEW ONLY" corner badge,
+  enlarges), tiles a diagonal "MODELSPAWN · PREVIEW" watermark over the whole picture plus a "PREVIEW ONLY" corner badge,
   JPEG quality 72.
 - `src/lib/marketplace/listing-input.ts`: shared rules (price limits, dollars to cents, public profile schema, "fill from
   her profile", publish blockers). No server code, so the editor uses it too.
@@ -358,7 +358,7 @@ On the Characters page, shown only when image generation is on (and disabled unt
 ## SpicyAPI referral and "Get an API key"
 - The referral link lives in `src/lib/links.ts` (`SPICYAPI_REFERRAL_URL`, overridable with `NEXT_PUBLIC_SPICYAPI_REFERRAL_URL`), along with `GET_KEY_PATH` and the disclosure line shown wherever the link is offered. WaveSpeed is gone. Seedream prompt writing is unchanged.
 - "Copy & open" is gone. Under a finished prompt there's **Copy prompt** and, while image generation is off, a greyed-out **Generate image** (`LockedGenerate` in `copy-open.tsx`). Hovering, focusing or tapping it opens a card: Buy credits (coming soon), Get an API key (`/get-a-key`), and Turn on image generation (`/settings/api-keys#image-generation`). History's prompts get the same locked Generate.
-- `/get-a-key`: the API key guide (`src/components/key-guide/key-guide.tsx`, content in `src/lib/key-guide.ts`, screenshots in `/public/guide`). It shows one step at a time, with Back and "Done, next", a checklist with a progress bar that remembers progress in the browser, "On SpicyAPI" / "On Model Spawn" labels, screenshots that open full size, copyable model IDs, the balance note and the referral disclosure. **Finish ✓** scrolls to the bottom of the page ("You're all set").
+- `/get-a-key`: the API key guide (`src/components/key-guide/key-guide.tsx`, content in `src/lib/key-guide.ts`, screenshots in `/public/guide`). It shows one step at a time, with Back and "Done, next", a checklist with a progress bar that remembers progress in the browser, "On SpicyAPI" / "On ModelSpawn" labels, screenshots that open full size, copyable model IDs, the balance note and the referral disclosure. **Finish ✓** scrolls to the bottom of the page ("You're all set").
 - Links to it: a "Don't have a key yet?" card (`GetKeyCard`) at the top of Settings until an image-capable key is saved, the Image generation panel, a "Get an API key" item in the profile menu, the usage meter card, and the daily-limit message.
 
 ## Art to Real and the site footer (migration 0022)

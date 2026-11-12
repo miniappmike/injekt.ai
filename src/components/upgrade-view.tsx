@@ -88,7 +88,7 @@ export function UpgradeView({
   return (
     <div className="relative mx-auto max-w-3xl">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-lg font-bold text-neutral-200">Upgrade Model Spawn</h1>
+        <h1 className="font-display text-lg font-bold text-neutral-200">Upgrade ModelSpawn</h1>
         <button
           type="button"
           onClick={() => (history.length > 1 ? router.back() : router.push("/characters"))}
@@ -103,7 +103,7 @@ export function UpgradeView({
         {/* Soft pink light behind the title. */}
         <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-16 h-48 w-[28rem] max-w-full -translate-x-1/2 rounded-full bg-[#f92776]/15 blur-3xl" />
         <p className="relative flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-display text-5xl font-bold tracking-tight text-neutral-50 sm:text-6xl">
-          <span>Model Spawn</span>
+          <span>ModelSpawn</span>
           <span className="flex items-center gap-3">
             <ProGem className="h-12 w-12 sm:h-16 sm:w-16" />
             <ProWord className="pr-2 text-5xl sm:text-6xl" />
@@ -179,7 +179,7 @@ export function UpgradeView({
         {choice === "pro" ? (
           <>
             <ProPayButtons methods={methods} stars={PRO.stars} price={dollars(PRO.priceCents)} busy={busy} onPay={pay} />
-            <TelegramPayDialog open={telegramOpen} what="Model Spawn Pro" stars={PRO.stars} onClose={closeTelegram} makeLink={telegramLink} />
+            <TelegramPayDialog open={telegramOpen} what="ModelSpawn Pro" stars={PRO.stars} onClose={closeTelegram} makeLink={telegramLink} />
           </>
         ) : (
           <button

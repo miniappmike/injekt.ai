@@ -25,7 +25,7 @@ describe("admin export", () => {
   });
   it("Markdown reads as a report with tables", () => {
     const md = snapshotMarkdown(snap);
-    expect(md).toContain("# Model Spawn admin report");
+    expect(md).toContain("# ModelSpawn admin report");
     expect(md).toContain("| bytedance/seedream-5.0-pro/edit | 1.5k | 1 | $0.0495 |");
     expect(md).toContain("| Build profile | m | 1 | 3000 | 1200 |");
     expect(md).toContain("2 settled, 1 still held");

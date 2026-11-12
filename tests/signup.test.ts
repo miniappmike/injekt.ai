@@ -23,7 +23,7 @@ beforeEach(() => {
 
 describe("sign up", () => {
   it("needs the 18+ box and the Terms box", async () => {
-    expect(await signup({}, form({ terms: "on" }))).toEqual({ error: "You must be 18 or older to use Model Spawn." });
+    expect(await signup({}, form({ terms: "on" }))).toEqual({ error: "You must be 18 or older to use ModelSpawn." });
     expect(await signup({}, form({ adult: "on" }))).toMatchObject({ error: expect.stringMatching(/Terms of Service/) });
     expect(signUp).not.toHaveBeenCalled();
   });

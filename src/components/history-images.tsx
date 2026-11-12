@@ -19,7 +19,7 @@ const PLACEHOLDER: Record<GenerationItem["state"], string> = {
 
 function costLine(i: GenerationItem) {
   if (i.state === "generating") return null;
-  if (i.free) return "Covered by Model Spawn";
+  if (i.free) return "Covered by ModelSpawn";
   return i.costUsd === null ? null : `Cost ${formatUsd(i.costUsd)}`;
 }
 

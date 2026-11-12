@@ -175,7 +175,7 @@ export async function testAlert(): Promise<{ ok: true } | { ok: false; error: st
     const user = await requireAdmin();
     const s = await alertStatus(user.id);
     if (!s.connected) return { ok: false, error: "Connect your Telegram first." };
-    await alertAdmins("🔔 Test alert from Model Spawn. Alerts are working.");
+    await alertAdmins("🔔 Test alert from ModelSpawn. Alerts are working.");
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Couldn't send it." };

@@ -30,7 +30,7 @@ export async function signup(_: AuthState, formData: FormData): Promise<AuthStat
   const parsed = credentials.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   // Both boxes are required (the form requires them too; this is the check that counts).
-  if (formData.get("adult") !== "on") return { error: "You must be 18 or older to use Model Spawn." };
+  if (formData.get("adult") !== "on") return { error: "You must be 18 or older to use ModelSpawn." };
   if (formData.get("terms") !== "on") return { error: "Please agree to the Terms of Service and Privacy Policy." };
 
   const supabase = await createUserClient();

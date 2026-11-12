@@ -207,7 +207,7 @@ describe("ledgerCsv", () => {
 
   it("leaves the cost blank when it is unknown, and says who paid", () => {
     const row = ledgerCsv([entry({ costKnown: false, costUsd: 0, costSource: null, keySource: "server" })]).split("\n")[1];
-    expect(row).toContain(",,no,,succeeded,Model Spawn");
+    expect(row).toContain(",,no,,succeeded,ModelSpawn");
   });
 
   it("quotes commas and quotes, and defuses spreadsheet formulas", () => {

@@ -49,7 +49,7 @@ unpaid orders older than 3 days, cancelled or failed orders older than 24 hours.
 - Work goes on a branch, then a pull request, then merged to `main` once the Vercel build passes.
 
 ## Product
-Model Spawn: build persistent AI influencer characters, optimize prompts, and inject a character into a target image via image models. BYOK for vision, language and image APIs. Prototype UI described in `docs/ui-reference.md` (tabs: Inject, Variants, Likeness, Reference Sheet, Characters).
+ModelSpawn: build persistent AI influencer characters, optimize prompts, and inject a character into a target image via image models. BYOK for vision, language and image APIs. Prototype UI described in `docs/ui-reference.md` (tabs: Inject, Variants, Likeness, Reference Sheet, Characters).
 
 ## Decisions made
 - Next.js App Router + TS, Supabase (auth, Postgres, Storage, Realtime), Tailwind + shadcn/ui.

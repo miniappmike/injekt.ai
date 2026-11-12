@@ -87,18 +87,18 @@ export const GUIDE_PHASES: GuidePhase[] = [
     ],
   },
   {
-    title: "Connect it to Model Spawn",
+    title: "Connect it to ModelSpawn",
     blurb: "Paste the key in Settings.",
     steps: [
       {
         where: "modelspawn",
         title: "Paste it into Settings",
-        body: "In Model Spawn, open your profile menu, then **Settings**. Paste the key into the **Vision** box. The **Text** box is optional.",
-        shots: [shot("07-paste-key", "Model Spawn Settings with the Vision key box", 1400, 721)],
+        body: "In ModelSpawn, open your profile menu, then **Settings**. Paste the key into the **Vision** box. The **Text** box is optional.",
+        shots: [shot("07-paste-key", "ModelSpawn Settings with the Vision key box", 1400, 721)],
       },
       {
         where: "modelspawn",
-        title: "Model Spawn recognises it",
+        title: "ModelSpawn recognises it",
         body: "You'll see **Detected: SpicyAPI** straight away. Next, choose which models the key can use.",
         shots: [shot("08-detected", "The Vision box showing Detected: SpicyAPI", 925, 787)],
       },
@@ -120,7 +120,7 @@ export const GUIDE_PHASES: GuidePhase[] = [
       },
       {
         where: "modelspawn",
-        title: "Set the models in Model Spawn",
+        title: "Set the models in ModelSpawn",
         body: "Paste your vision model's ID into the **Model** box under Vision, then **Save key**. Scroll to the **Image** box and click **Use it** to use the same key with your image model.",
         shots: [
           shot("10-vision-model", "The Model box under Vision with a model ID", 840, 480),
@@ -151,7 +151,7 @@ export const GUIDE_MODELS = {
 } as const;
 
 export const GUIDE_BALANCE_NOTE =
-  "Bringing your own key means SpicyAPI charges you directly, so add a balance under Billing on SpicyAPI before you generate. Your Model Spawn membership pays for the site itself, so we can keep improving it.";
+  "Bringing your own key means SpicyAPI charges you directly, so add a balance under Billing on SpicyAPI before you generate. Your ModelSpawn membership pays for the site itself, so we can keep improving it.";
 
 export const GUIDE_UPDATED = "November 10, 2026";
 

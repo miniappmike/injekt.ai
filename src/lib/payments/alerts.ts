@@ -38,7 +38,7 @@ export async function connectAlertChat(code: string, chatId: number): Promise<st
   const prefs = (data?.prefs ?? {}) as Record<string, unknown> & AlertPrefs;
   if (!data || !prefs.telegramAlertLink || Date.parse(prefs.telegramAlertLink.expires) < Date.now()) return "That link has expired. Press Connect again in Admin.";
   const { data: profile } = await db.from("profiles").select("is_admin").eq("id", data.user_id).maybeSingle();
-  if (profile?.is_admin !== true) return "Only Model Spawn admins can get alerts.";
+  if (profile?.is_admin !== true) return "Only ModelSpawn admins can get alerts.";
   const { telegramAlertLink: _used, ...rest } = prefs;
   await savePrefs(data.user_id as string, { ...rest, telegramAlert: { chatId, connectedAt: new Date().toISOString() } });
   return "✅ Alerts are on. You'll get a message here when someone pays, when Pro renews, when a crypto payment arrives short, and when someone signs up.";

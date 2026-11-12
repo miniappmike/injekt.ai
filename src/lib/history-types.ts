@@ -36,7 +36,7 @@ export interface GenerationItem {
   expiresAt: string | null;
   /** What it cost, once known. Null while generating, or when the provider didn't say. */
   costUsd: number | null;
-  /** The one free image, paid for by Model Spawn. */
+  /** The one free image, paid for by ModelSpawn. */
   free: boolean;
   previewUrl: string | null;
   downloadUrl: string | null;

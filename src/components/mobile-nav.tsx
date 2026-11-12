@@ -51,7 +51,7 @@ export function MobileTitle() {
           <BackIcon />
         </button>
       ) : (
-        <Link href="/characters" aria-label="Model Spawn home" className="-ml-1 flex h-10 w-9 shrink-0 items-center justify-center">
+        <Link href="/characters" aria-label="ModelSpawn home" className="-ml-1 flex h-10 w-9 shrink-0 items-center justify-center">
           <Logo withName={false} small />
         </Link>
       )}

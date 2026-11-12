@@ -19,7 +19,7 @@ export function TelegramPayDialog({
   makeLink,
 }: {
   open: boolean;
-  /** What they're buying, e.g. "Model Spawn Pro" or "525 tokens". */
+  /** What they're buying, e.g. "ModelSpawn Pro" or "525 tokens". */
   what: string;
   stars: number;
   onClose: () => void;

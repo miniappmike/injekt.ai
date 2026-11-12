@@ -58,7 +58,7 @@ function financeMd(title: string, f: FinanceStats): string {
 export function snapshotMarkdown(s: AdminSnapshot): string {
   const st = s.stats;
   return [
-    `# Model Spawn admin report`,
+    `# ModelSpawn admin report`,
     "",
     `Generated ${s.generatedAt}. Figures cover the last 30 days unless noted.`,
     "",
@@ -128,7 +128,7 @@ export function snapshotCsv(s: AdminSnapshot): string {
     csvBlock(`Measured text prices: ${label}`, ["Model", "Input per 1M (USD)", "Output per 1M (USD)", "From calls"], f.measured.map((m) => [m.model, round(m.input, 4), round(m.output, 4), m.calls])),
   ];
   return [
-    csvBlock("Model Spawn admin report", ["Generated", s.generatedAt], []),
+    csvBlock("ModelSpawn admin report", ["Generated", s.generatedAt], []),
     csvBlock("Platform key", ["Metric", "Value"], [
       ["Spent today (USD)", round(st.serverToday)],
       ["Last 7 days (USD)", round(st.server7)],

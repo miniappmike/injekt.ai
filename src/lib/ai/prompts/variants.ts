@@ -1,5 +1,5 @@
 /**
- * Variants (artifact A11) and the carousel creative director (A20, A20b), word for word. Model Spawn additions, marked
+ * Variants (artifact A11) and the carousel creative director (A20, A20b), word for word. ModelSpawn additions, marked
  * where they are: her sheets can be two images (face and body), the person may add up to 2 extra images for the vibe or
  * outfit, and the carousel's nudity sentence is left out (no app-level screening).
  */
@@ -86,7 +86,7 @@ ${extrasLine(vt ? vt.extras : (o.extraTags ?? []))}${extra ? `- Creative directi
 Reply with only JSON: {"variants": [{"label": "2 to 4 word name, e.g. Low angle laugh", "changes": "pose, angle", "prompt": "the edit prompt"}]}`;
 }
 
-// Model Spawn addition: the person's extra images (vibe, outfit) follow the photo, in this order, in their generator.
+// ModelSpawn addition: the person's extra images (vibe, outfit) follow the photo, in this order, in their generator.
 function extrasLine(tags: string[]) {
   if (!tags.length) return "";
   const them = tags.length > 1 ? "them" : "it";
@@ -100,7 +100,7 @@ export function finishVariant(prompt: string, vt: VariantTags | null, so: string
     t = `Edit ${vt.photo}. Keep the person exactly as she looks in ${vt.ref}: same face, features, skin, hair, body shape and proportions. ` + t;
   if (vt) t = t.replace(/\s*$/, " ") + refOutfitGuard(vt.ref, vt.photo, so) + " " + SKIN_ART_SHORT;
   if (!asksMakeup(extra) && !/MAKEUP STAYS/.test(t)) t = t.replace(/\s*$/, " ") + makeupRule(vt ? vt.photo : "the photo being edited");
-  // Model Spawn's standing rule: every prompt carries the realism line (the artifact relied on "keep the realism").
+  // ModelSpawn's standing rule: every prompt carries the realism line (the artifact relied on "keep the realism").
   if (!/beauty filter/i.test(t)) t = t.replace(/\s*$/, " ") + REALISM_FIX.quality;
   return t;
 }
@@ -123,17 +123,17 @@ export interface CarouselPromptInput {
   hasCharacter: boolean;
   traits: string;
   extra: string;
-  /** Model Spawn addition: how many extra images the person attached after the cover. */
+  /** ModelSpawn addition: how many extra images the person attached after the cover. */
   extraCount: number;
   /**
-   * Model Spawn addition (Write only): the person's creative direction leads the plan instead of being a side note.
+   * ModelSpawn addition (Write only): the person's creative direction leads the plan instead of being a side note.
    * It overrides the default ideas and slide-type descriptions, never the identity, realism or text rules.
    */
   directionFirst?: boolean;
-  /** Model Spawn addition: poses used recently, to avoid, and a fresh handful of ideas, as Inject and Edits get. */
+  /** ModelSpawn addition: poses used recently, to avoid, and a fresh handful of ideas, as Inject and Edits get. */
   recent?: string[];
   inspo?: string[];
-  /** Model Spawn addition: where the set will be posted, which sets its tone and spice. `platformOther` names "other". */
+  /** ModelSpawn addition: where the set will be posted, which sets its tone and spice. `platformOther` names "other". */
   platform?: PlatformId;
   platformOther?: string;
 }
@@ -141,7 +141,7 @@ export interface CarouselPromptInput {
 /** Subscription and bolder platforms: the poses may be flirtatious and teasing (never explicit). */
 const SPICY: ReadonlySet<PlatformId> = new Set(["x", "reddit", "fanvue", "onlyfans"]);
 
-/** Model Spawn addition: what the platform asks of the set. */
+/** ModelSpawn addition: what the platform asks of the set. */
 export function platformBrief(platform: PlatformId | undefined, other = ""): string {
   const teaser = (name: string) =>
     `PLATFORM: ${name}, a subscription platform; these are teaser shots for her subscribers. Make them intimate, flirtatious and sultry, with a personal "just for you" feel: direct eye contact with the camera, bedroom, bathroom, bed and boudoir settings, lingerie, bodysuits, swimwear and revealing outfits, and teasing poses that show off her figure. Suggestive and implied, never explicit: no visible nipples or genitals and no sexual acts.`;
@@ -206,7 +206,7 @@ export interface Slide {
   person: SlidePerson;
   /** With {REF}, {PHOTO} and {EXTRAn} placeholders. */
   prompt: string;
-  /** Model Spawn addition: her pose in a few words, remembered so later sets avoid it. */
+  /** ModelSpawn addition: her pose in a few words, remembered so later sets avoid it. */
   pose?: string;
 }
 
@@ -240,7 +240,7 @@ export function parseCarousel(raw: unknown, n: number): { theme: string; slides:
 
 /**
  * The slide as the person copies it (artifact copyOf): her references first (face sheet @image1, body sheet @image2),
- * then the photo, then any extras. Model Spawn change: the order is the same on every slide, including slides without
+ * then the photo, then any extras. ModelSpawn change: the order is the same on every slide, including slides without
  * her, so the images are attached in one fixed order; the artifact tagged a single reference and dropped it on those.
  */
 export function slideCopyText(s: Pick<Slide, "prompt" | "person">, refCount: number): string {

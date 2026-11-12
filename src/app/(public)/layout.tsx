@@ -25,7 +25,7 @@ export default async function PublicLayout({ children }: { children: React.React
       <div className="min-h-screen">
         <header className="sticky top-0 z-10 border-b border-neutral-800/80 bg-neutral-950/75 backdrop-blur-xl max-sm:border-transparent">
           <div className="mx-auto flex max-w-6xl 2xl:max-w-[88rem] items-center gap-3 px-4 py-2 max-sm:h-14 sm:flex-col sm:gap-1 sm:px-6 sm:pt-2.5 sm:pb-1.5">
-            <Link href="/marketplace" aria-label="Model Spawn marketplace" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60">
+            <Link href="/marketplace" aria-label="ModelSpawn marketplace" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60">
               <Logo />
             </Link>
             <nav aria-label="Account" className="ml-auto flex items-center gap-2 sm:ml-0">

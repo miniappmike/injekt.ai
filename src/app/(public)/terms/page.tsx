@@ -22,18 +22,18 @@ export default function TermsPage() {
       <span aria-hidden="true" className="mt-2 block h-[3px] w-12 rounded-full bg-gradient-to-r from-brand-500 to-iris-500 shadow-[0_0_14px_rgb(232_38_94/0.6)]" />
       <p className="mt-3 text-xs text-neutral-500">Last updated {UPDATED}</p>
       <p className={p}>
-        These terms cover your use of Model Spawn (&quot;the service&quot;). By creating an account or using the service you agree to them. If you don&apos;t agree,
+        These terms cover your use of ModelSpawn (&quot;the service&quot;). By creating an account or using the service you agree to them. If you don&apos;t agree,
         don&apos;t use the service.
       </p>
 
-      <h2 className={h2}>1. Who can use Model Spawn</h2>
+      <h2 className={h2}>1. Who can use ModelSpawn</h2>
       <ul className={ul}>
         <li>You must be at least 18 years old.</li>
         <li>You&apos;re responsible for your account and everything done with it. Keep your login details private.</li>
       </ul>
 
       <h2 className={h2}>2. Fictional personas only</h2>
-      <p className={p}>Model Spawn is for creating and photographing fictional personas. You agree that:</p>
+      <p className={p}>ModelSpawn is for creating and photographing fictional personas. You agree that:</p>
       <ul className={ul}>
         <li>Every character you create is fictional, or is you, or is a person who has given you their explicit consent.</li>
         <li>You won&apos;t create, upload or generate images of real people without their consent, including public figures, celebrities and influencers.</li>
@@ -113,14 +113,14 @@ export default function TermsPage() {
 
       <h2 className={h2}>9. Termination</h2>
       <p className={p}>
-        Model Spawn reserves the right, at any time and with or without notice, to suspend or disable any account, restrict or remove tokens, restrict or end
+        ModelSpawn reserves the right, at any time and with or without notice, to suspend or disable any account, restrict or remove tokens, restrict or end
         access to the service or any part of it, and remove any content, including for breaking these terms. Tokens and Pro time on an account suspended or
         closed for breaking these terms are not refunded. You can stop using the service at any time.
       </p>
 
       <h2 className={h2}>10. Your local laws</h2>
       <p className={p}>
-        You are responsible for following the laws of the place where you live, and of anywhere you use the service from. Don&apos;t use Model Spawn where it,
+        You are responsible for following the laws of the place where you live, and of anywhere you use the service from. Don&apos;t use ModelSpawn where it,
         or anything you make with it, is against the law.
       </p>
 
