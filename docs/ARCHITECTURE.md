@@ -9,7 +9,7 @@ Next.js (App Router, TS) + Supabase (auth, Postgres, Storage, Realtime) + Tailwi
 
 ## Keys
 - BYOK keys are AES-256-GCM encrypted in the app layer (`src/lib/crypto.ts`). The master key is in env, not the DB. Ciphertext has no RLS policy, only the service role reads it (`src/lib/key-store.ts`). The client only sees `last4`.
-- `resolveApiKey`: user key, else server env key for `profiles.is_admin` only, else `ApiKeyRequiredError` which redirects to `/settings/api-keys?provider=...`.
+- Own keys are Pro-only. Without one, calls use the server key (`SPICY_API_KEY`) and are paid in tokens (see Tokens and plans).
 
 ## Master prompt
 `src/lib/ai/master-prompt.ts` is prepended to every vision and language call. Callers only get a `GuardedTextClient` (`guarded-client.ts`), so it cannot be skipped.
@@ -20,5 +20,26 @@ Three adapter shapes live in `src/lib/ai/providers/types.ts`: image, vision, llm
 ## Safety
 SSRF guard on every server-side fetch of user-supplied URLs, signed uploads and EXIF stripping (browser uploads raw to `<uid>/raw/`, the server re-encodes to clean JPEG and deletes the raw file), per-user rate limits, usage ledger, provenance attestation timestamp on characters, content report table. The "clean up overlays" feature is intentionally not part of this build.
 
+## Tokens and plans
+Numbers in `src/lib/plans.ts`. Tokens are lots in `credit_lots`, spent soonest-expiring first by `spend_credits`, given back by `refund_credits`; `credit_balance` reads the total. Pro is `profiles.plan = 'pro'` (set by hand) or `profiles.pro_until` in the future (a paid pass). Own keys are Pro-only (`canUseOwnKeys`); the free plan uses `SPICY_API_KEY` with daily caps from Admin → Limits. See `docs/PRICING.md`.
+
+## Payments
+An order row is created first (`src/lib/orders.ts`), then the buyer is sent to pay:
+- Telegram Stars (`src/lib/payments/telegram.ts`): `createInvoiceLink` in XTR; Pro uses a 30-day subscription. Updates arrive at `/api/webhooks/telegram`, checked by a secret header derived from `WEBHOOK_SECRET` and the bot token. Pre-checkout is answered, a successful payment delivers, a recurring payment renews Pro.
+- NOWPayments (`src/lib/payments/nowpayments.ts`): a USD invoice opened in a new tab. Notices arrive at `/api/webhooks/nowpayments`, checked with HMAC-SHA512. Delivered only when finished, the price matches and enough arrived.
+Delivery is the `fulfill_order` SQL function, safe to call twice. `src/lib/payments/alerts.ts` then messages every admin who connected Telegram (chat id in their `user_settings.prefs`); a failed alert never fails a payment.
+
+## Admin
+`/admin?tab=orders|people|limits|costs` (`src/app/(app)/admin/page.tsx`, tabs in `src/components/admin-tabs.tsx`); each tab is its own async component so only its data loads. One person: `/admin/people/[id]`. Revenue maths: `src/lib/admin-revenue.ts`. Non-admins get a 404.
+
+## Scheduled work
+One Vercel Cron job a night (`vercel.json` → `/api/cron/cleanup`, guarded by `CRON_SECRET`): expired images, marketplace copy repair, ledger settlement, stale and cancelled orders (`src/lib/cleanup.ts`). Nothing else runs on a timer; alerts and payments are driven by webhooks.
+
+## Speed
+- `requireUser` and `loadProfile` are wrapped in React `cache()`, so the layout and the page share one Supabase call each per request.
+- Fonts are self-hosted with `next/font` (`src/app/layout.tsx`), so first paint doesn't wait on Google.
+- `src/app/(app)/loading.tsx` shows a skeleton while a page's data loads.
+- The biggest remaining factor is distance: the Vercel function region should match the Supabase project's region (Vercel → Settings → Functions).
+
 ## Still to build
-image generation for inject, variants/likeness, Inngest or Trigger.dev for multi-step jobs, Sentry with scrubbing, Playwright tests, pgTAP RLS tests.
+Marketplace checkout, the Telegram payment guide, Sentry with scrubbing, Playwright tests, pgTAP RLS tests.

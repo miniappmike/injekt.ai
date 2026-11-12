@@ -65,3 +65,30 @@ export async function cleanupStaleOrders(db: SupabaseClient, now = Date.now()): 
   }
   return data?.length ?? 0;
 }
+
+/** How long a cancelled (or failed) order stays in Admin before it's cleared. */
+export const CANCELLED_ORDER_HOURS = 24;
+
+/** Whether Admin should still show this order: cancelled and failed ones drop off after CANCELLED_ORDER_HOURS. */
+export const showOrder = (o: { status: string; created_at: string }, now = Date.now()) =>
+  !(o.status === "cancelled" || o.status === "failed") || Date.parse(o.created_at) >= now - CANCELLED_ORDER_HOURS * 3_600_000;
+
+/**
+ * Deletes cancelled and failed orders older than CANCELLED_ORDER_HOURS. As with unpaid orders, one a crypto payment is
+ * still moving on (confirming, partially paid...) is kept for you to review. Returns how many were deleted.
+ */
+export async function cleanupCancelledOrders(db: SupabaseClient, now = Date.now()): Promise<number> {
+  const before = new Date(now - CANCELLED_ORDER_HOURS * 3_600_000).toISOString();
+  const { data, error } = await db
+    .from("orders")
+    .delete()
+    .in("status", ["cancelled", "failed"])
+    .lt("created_at", before)
+    .or("provider_status.is.null,provider_status.in.(waiting,expired,failed,refunded)")
+    .select("id");
+  if (error) {
+    if (/provider_status/.test(error.message)) return 0;
+    throw new Error(`cancelled orders: ${error.message}`);
+  }
+  return data?.length ?? 0;
+}

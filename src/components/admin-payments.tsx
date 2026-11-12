@@ -34,7 +34,7 @@ export function AdminPayments() {
       }
       if (tab) tab.location.href = r.url;
       else window.location.href = r.url;
-      setNote({ text: "In Telegram, press Start. Then press Check again here.", ok: true });
+      setNote({ text: "In Telegram, press Start within 15 minutes (that only limits the link). Then press Check again here.", ok: true });
     });
   };
   const alertsTest = () =>
@@ -53,13 +53,13 @@ export function AdminPayments() {
   const t = s?.telegram;
   const c = s?.crypto;
   return (
-    <section className="panel mt-6 flex flex-col gap-4 p-5" aria-labelledby="payments-title">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+    <section className="panel flex flex-col gap-4 p-4 sm:p-5" aria-labelledby="payments-title">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h2 id="payments-title" className="font-display text-lg font-bold text-neutral-50">Payments</h2>
-          <p className="text-sm text-neutral-400">Each way to pay appears on the Pro and Tokens pages once its keys are added in Vercel.</p>
+          <p className="text-xs text-neutral-400 sm:text-sm">Each way to pay appears on the Pro and Tokens pages once its keys are added in Vercel.</p>
         </div>
-        <button type="button" onClick={load} disabled={pending} className="rounded-lg bg-neutral-800 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:bg-neutral-700 disabled:opacity-50">
+        <button type="button" onClick={load} disabled={pending} className="shrink-0 whitespace-nowrap rounded-lg bg-neutral-800 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:bg-neutral-700 disabled:opacity-50">
           {pending ? "Checking..." : "Check again"}
         </button>
       </div>
@@ -106,7 +106,7 @@ export function AdminPayments() {
             <p className="font-semibold text-neutral-100">Telegram alerts for you</p>
             <p className="mt-1 flex gap-2 text-neutral-400">
               <Dot ok={s?.alerts.connected} />
-              {!s ? "Checking..." : s.alerts.connected ? "On: the bot messages you about payments, Pro renewals, short crypto payments and new sign-ups." : "Off. Connect to get a Telegram message whenever someone pays."}
+              {!s ? "Checking..." : s.alerts.connected ? "On, around the clock: the bot messages you the moment someone pays, Pro renews, a crypto payment arrives short, or someone signs up. Stays on until you turn it off." : "Off. Connect to get a Telegram message whenever someone pays or signs up."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

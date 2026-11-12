@@ -1,5 +1,53 @@
 # Project handoff
 
+## Current state (November 2026)
+
+Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
+section is right.
+
+**What's live**
+- Characters, Create Model, Inject (Recreate by default, "Edit this photo" opt-in), Variants, Likeness, Art to Real,
+  group photos, History, the ledger, and the persona marketplace (browse and admin listing; buying isn't wired).
+- **Tokens and plans** (`docs/PRICING.md`): 15 free tokens at sign-up, Pro at $9.99 / 30 days, four token packs.
+  Bring-your-own keys are Pro-only; the free plan uses the platform's SpicyAPI key with daily limits.
+- **Payments**: Telegram Stars (@ModelSpawnBot) and crypto (NOWPayments). Both are set up and connected in production.
+- **Admin** (`/admin`, admins only), four tabs that each load only their own data:
+  - Orders: verified revenue chart (7d / 14d / 30d / 6m / all), the order list (Mark paid, Cancel), payment status,
+    and Telegram alerts.
+  - People: a small CRM (search, filters, sort); each person's page leads with their email and has their tokens (add
+    or remove), token activity, orders and calls on the platform key.
+  - Limits: the free plan's daily caps. Costs: what the platform key is costing.
+  - On phones the tabs stay pinned under the top bar and tables become cards.
+- **Telegram alerts for admins** (`src/lib/payments/alerts.ts`): a message on every payment, Pro renewal, short crypto
+  payment and sign-up. Connected once from Admin; stays on until turned off. Sent in the same request as the event, so
+  nothing polls.
+- **Legal**: Terms and Privacy pages, 18+ and terms boxes at sign-up, account deletion (orders and bonus claims are
+  kept without the person), contact modelspawn@gmail.com.
+- **Home screen icon**: `src/app/apple-icon.png`, `src/app/manifest.ts`, `public/icons/`.
+
+**Database**: migrations 0001 to 0025 are all run in production (0023 tokens, 0024 account deletion, 0025 payment
+providers).
+
+**Nightly job** (`/api/cron/cleanup`, 03:00 UTC): expired images, unfinished marketplace copies, final ledger charges,
+unpaid orders older than 3 days, cancelled or failed orders older than 24 hours.
+
+**Decisions that changed since the notes below**
+- No Lemon Squeezy or Stripe: card processors were ruled out; payments are Telegram Stars and NOWPayments.
+- BYOK is Pro-only (it used to be for everyone).
+- No content rules beyond the model providers' own; no "no nudity" guardrail (decided, don't re-raise).
+- Staying on Vercel; upgrade to Vercel Pro before relying on sales (Hobby is non-commercial).
+
+**Next, in rough order**
+1. The Telegram payment guide: `/guides/telegram-payments` is a placeholder until the PDF with screenshots arrives.
+2. Marketplace checkout through Telegram or NOWPayments (the Buy button says checkout is being set up).
+3. Owner's to-do: Vercel Pro, a spend cap, and setting the Vercel function region next to the Supabase region.
+4. Optional: a lawyer's read of Terms and Privacy, a report button, a manual Cash App flow.
+
+**Working rules**
+- Secrets only in Vercel env vars, never in chat or the repo.
+- Screenshots for review use throwaway pages under `src/app/auth/pv-*`, deleted before committing.
+- Work goes on a branch, then a pull request, then merged to `main` once the Vercel build passes.
+
 ## Product
 Model Spawn: build persistent AI influencer characters, optimize prompts, and inject a character into a target image via image models. BYOK for vision, language and image APIs. Prototype UI described in `docs/ui-reference.md` (tabs: Inject, Variants, Likeness, Reference Sheet, Characters).
 
@@ -47,4 +95,4 @@ Prompt writing rules (`src/lib/ai/tasks/`): every image prompt ends with the rea
 Extra images on Variants (Edits and Carousel): besides the main image (the image to edit, or the cover) a user can add up to 2 more for vibe, outfit or styling. They come after the main image in @image order (character sheets, main image, extras), the model is told what they are for, and every Generate sends them in the same order. History keeps them in `prompt_history.extra_image_paths` (migration `0009_history_extra_images.sql`, at most 2) so generating again from History sends the same images. The column is only written when a batch has extras and history is read with `select("*")`, so the app keeps working before 0009 is run. `removeUnusedImages` checks both columns and deletes nothing if it can't tell what is still in use.
 
 ## Next
-1. Face fix with the character's face close-ups (Likeness currently generates from its edit prompt). 2. Lemon Squeezy: Pro subscription checkout and a webhook that sets `profiles.plan`, then the credits wallet with hold-and-settle (see PRICING.md). 3. Design pass now that Inject works end to end. 4. Storage sweep for abandoned uploads, Sentry, Playwright, pgTAP RLS tests.
+See "Current state" at the top. The older list that was here (Lemon Squeezy, a wallet with hold-and-settle) was replaced by tokens, Telegram Stars and NOWPayments.
