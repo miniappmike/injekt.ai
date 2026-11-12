@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { GET_KEY_PATH, REFERRAL_DISCLOSURE } from "@/lib/links";
+import { CONTACT_EMAIL, GET_KEY_PATH, REFERRAL_DISCLOSURE } from "@/lib/links";
 
 type FooterLink = { label: string; href?: string };
 
@@ -38,7 +38,7 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
     title: "Legal",
     links: [
       { label: "Terms of Service", href: "/terms" },
-      { label: "Contact", href: "mailto:modelspawn@gmail.com" },
+      { label: "Privacy Policy", href: "/privacy" },
     ],
   },
 ];
@@ -51,6 +51,10 @@ export function AppFooter() {
         <div className="flex flex-col gap-2">
           <Logo />
           <p className="max-w-xs text-[13px] text-neutral-500">Create your model once, then put her in any photo.</p>
+          <p className="max-w-xs text-[13px] text-neutral-400">
+            Contact:{" "}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-neutral-200 underline-offset-4 transition-colors hover:text-white hover:underline">{CONTACT_EMAIL}</a>
+          </p>
           <p className="max-w-xs text-[11px] leading-relaxed text-neutral-600">{REFERRAL_DISCLOSURE}</p>
         </div>
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 lg:contents">

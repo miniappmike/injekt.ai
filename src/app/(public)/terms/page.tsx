@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { CREDIT_PACKS, FREE_CREDITS, IMAGE_CREDITS, PRO, PROFILE_BUILD_CREDITS, PROMPT_CREDITS, dollars } from "@/lib/plans";
 import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
+import { CONTACT_EMAIL } from "@/lib/links";
 
 export const metadata: Metadata = { title: "Terms of Service" };
-
-/** Support, takedowns and compliance. */
-const CONTACT_EMAIL = "modelspawn@gmail.com";
 
 /** Last changed. Update this whenever the text below changes. */
 const UPDATED = "November 12, 2026";
@@ -82,6 +81,11 @@ export default function TermsPage() {
         <li>Images and prompts are sent to third-party AI providers (such as SpicyAPI) to be processed.</li>
         <li>Generated images are deleted {GENERATION_RETENTION_HOURS} hours after they&apos;re made. Download any you want to keep.</li>
         <li>Own API keys are stored encrypted, and only their last 4 characters are ever shown.</li>
+        <li>
+          The{" "}
+          <Link href="/privacy" className="font-semibold text-brand-400 underline-offset-4 hover:text-brand-300 hover:underline">Privacy Policy</Link>{" "}
+          explains what we collect and how it&apos;s used.
+        </li>
       </ul>
 
       <h2 className={h2}>7. How information updates</h2>
