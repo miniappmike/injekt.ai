@@ -8,6 +8,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { fulfillOrder } from "@/lib/orders";
 import { connectTelegramBot, telegramEnabled, telegramStatus } from "@/lib/payments/telegram";
 import { nowpaymentsEnabled, nowpaymentsStatus } from "@/lib/payments/nowpayments";
+import { alertAdmins, alertConnectLink, alertStatus, disconnectAlerts } from "@/lib/payments/alerts";
 import { settlePendingLedger, type SweepResult } from "@/lib/ledger-sweep";
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -88,13 +89,16 @@ export async function settleCharges(): Promise<{ ok: true; sweep: SweepResult } 
 }
 
 export type PaymentsStatus = {
+  /** Your own Telegram alerts. */
+  alerts: { connected: boolean; since: string | null };
   telegram: { configured: boolean; username?: string; connected?: boolean; lastError?: string | null; error?: string };
   crypto: { configured: boolean; ok?: boolean; sandbox?: boolean; error?: string };
 };
 
 /** Whether each way to pay is set up and working, for Admin → Payments. */
 export async function getPaymentsStatus(): Promise<PaymentsStatus> {
-  await requireAdmin();
+  const user = await requireAdmin();
+  const alerts = await alertStatus(user.id).catch(() => ({ connected: false, since: null }));
   const telegram: PaymentsStatus["telegram"] = { configured: telegramEnabled() };
   const crypto: PaymentsStatus["crypto"] = { configured: nowpaymentsEnabled() };
   await Promise.all([
@@ -109,7 +113,7 @@ export async function getPaymentsStatus(): Promise<PaymentsStatus> {
         (e) => (crypto.error = e instanceof Error ? e.message : "Couldn't reach NOWPayments."),
       ),
   ]);
-  return { telegram, crypto };
+  return { alerts, telegram, crypto };
 }
 
 /** Points the Telegram bot at this site (its webhook and commands). Safe to press again. */
@@ -150,5 +154,41 @@ export async function adjustTokens(input: { userId: string; delta: number; note?
     return { ok: true, balance: await balance() };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Couldn't change the tokens." };
+  }
+}
+
+/** Starts connecting your Telegram for alerts: returns the link that opens the bot (press Start there). */
+export async function connectAlerts(): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  try {
+    const user = await requireAdmin();
+    if (!telegramEnabled()) return { ok: false, error: "Set up the Telegram bot first (add TELEGRAM_BOT_TOKEN in Vercel)." };
+    const { username } = await telegramStatus();
+    return { ok: true, url: await alertConnectLink(user.id, username) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't start connecting." };
+  }
+}
+
+/** Sends a test alert to your Telegram. */
+export async function testAlert(): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const user = await requireAdmin();
+    const s = await alertStatus(user.id);
+    if (!s.connected) return { ok: false, error: "Connect your Telegram first." };
+    await alertAdmins("🔔 Test alert from Model Spawn. Alerts are working.");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't send it." };
+  }
+}
+
+/** Turns your Telegram alerts off. */
+export async function stopAlerts(): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const user = await requireAdmin();
+    await disconnectAlerts(user.id);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't turn them off." };
   }
 }

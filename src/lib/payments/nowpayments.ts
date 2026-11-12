@@ -2,6 +2,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/env";
 import { fulfillOrder, getOrder, setOrderStatus } from "@/lib/orders";
+import { alertPaid, alertUnderpaid } from "@/lib/payments/alerts";
 
 /**
  * Crypto payments through NOWPayments.
@@ -92,6 +93,7 @@ export interface IpnBody {
   /** What the buyer was asked to send, and what actually arrived, in the coin they paid with. */
   pay_amount?: number | string;
   actually_paid?: number | string;
+  pay_currency?: string;
 }
 
 /**
@@ -136,8 +138,10 @@ export async function handleIpn(body: IpnBody): Promise<string> {
   if (!paidEnough(body)) {
     await setOrderStatus(order.id, "underpaid");
     console.error("[nowpayments] finished but not enough arrived", order.id, body.actually_paid, body.pay_amount);
+    await alertUnderpaid(order, `${body.actually_paid ?? 0} ${body.pay_currency ?? ""}`.trim(), `${body.pay_amount ?? "?"} ${body.pay_currency ?? ""}`.trim());
     return "underpaid";
   }
   const delivered = await fulfillOrder(order.id, "nowpayments", body.payment_id ? String(body.payment_id) : null);
+  if (delivered) await alertPaid(order, "crypto");
   return delivered ? "delivered" : "already delivered";
 }
