@@ -60,7 +60,6 @@ function GenerateImageInner({
   compareTo,
   checkLikeness = true,
   historyId,
-  autoLabel = "match the photo",
 }: {
   prompt: string;
   characterId?: string | null;
@@ -80,7 +79,7 @@ function GenerateImageInner({
   runSignal?: number;
   /** Inject: what the server needs to frame the prompt for the image model. */
   meta?: InjectMeta;
-  /** What "match the photo" means when the first image sent isn't the photo (the ratio closest to the target). */
+  /** The shape to start on (the ratio closest to the target photo). */
   autoAspectRatio?: ImageAspectRatio;
   /** Start as soon as it appears (a fix the person just asked for). */
   autoStart?: boolean;
@@ -90,15 +89,13 @@ function GenerateImageInner({
   checkLikeness?: boolean;
   /** The History prompt this runs, so History can open the image from it. */
   historyId?: string | null;
-  /** What the "auto" shape is called (a group photo has no photo to match). */
-  autoLabel?: string;
 }) {
   const router = useRouter();
   const free = freeImagesLeft !== null;
   const { billing = "credits" } = useApp();
   const [resolution, setResolution] = useState<ImageResolution>(defaultResolution);
-  const [chosenAspectRatio, setAspectRatio] = useState<ImageAspectRatio>("auto");
-  const aspectRatio = lockedAspectRatio ?? (chosenAspectRatio === "auto" && autoAspectRatio ? autoAspectRatio : chosenAspectRatio);
+  const [chosenAspectRatio, setAspectRatio] = useState<ImageAspectRatio>(autoAspectRatio ?? "3:4");
+  const aspectRatio = lockedAspectRatio ?? chosenAspectRatio;
   const [outputFormat, setOutputFormat] = useState<ImageOutputFormat>("jpeg");
   const [price, setPrice] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -269,7 +266,7 @@ function GenerateImageInner({
           <label className="flex items-center gap-1.5 text-neutral-400">
             Shape
             <select className={select} value={chosenAspectRatio} disabled={busy} onChange={(e) => setAspectRatio(e.target.value as ImageAspectRatio)}>
-              {IMAGE_ASPECT_RATIOS.map((r) => <option key={r} value={r}>{r === "auto" ? autoLabel : r}</option>)}
+              {IMAGE_ASPECT_RATIOS.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </label>
         )}

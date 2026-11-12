@@ -31,7 +31,7 @@ export type ImageJobStatus = "pending" | "processing" | "complete" | "failed";
 
 export type ImageResolution = "1k" | "1.5k" | "2k";
 export const IMAGE_RESOLUTIONS: readonly ImageResolution[] = ["1k", "1.5k", "2k"];
-export const IMAGE_ASPECT_RATIOS = ["auto", "1:1", "4:5", "3:4", "2:3", "9:16", "16:9", "3:2"] as const;
+export const IMAGE_ASPECT_RATIOS = ["1:1", "4:3", "3:4", "3:2", "2:3", "16:9", "9:16", "21:9"] as const;
 export type ImageAspectRatio = (typeof IMAGE_ASPECT_RATIOS)[number];
 export type ImageOutputFormat = "jpeg" | "png";
 

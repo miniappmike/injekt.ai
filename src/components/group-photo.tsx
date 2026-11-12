@@ -270,7 +270,6 @@ function Composer({ chosen, onRemove, onBack, onClose }: { chosen: CharacterCard
           meta={{ group: chosen.map((c) => c.id) }}
           actionLabel="Create group photo"
           autoAspectRatio="3:2"
-          autoLabel="wide (3:2)"
           defaultResolution="1.5k"
         />
       </section>

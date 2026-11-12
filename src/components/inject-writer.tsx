@@ -62,7 +62,7 @@ interface Target {
   file: File;
   preview: string;
   path?: string;
-  /** The model ratio closest to this photo, for "match the photo" when it isn't the first image sent. */
+  /** The model ratio closest to this photo; the shape the page starts on. */
   ratio?: ImageAspectRatio;
   status?: string;
   state?: "queued" | "busy" | "done" | "error";

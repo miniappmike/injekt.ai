@@ -7,7 +7,6 @@ export function closestAspectRatio(width: number, height: number): ImageAspectRa
   let best: ImageAspectRatio | undefined;
   let d = Infinity;
   for (const a of IMAGE_ASPECT_RATIOS) {
-    if (a === "auto") continue;
     const [w, h] = a.split(":").map(Number);
     const e = Math.abs(Math.log(r / (w / h)));
     if (e < d) {
