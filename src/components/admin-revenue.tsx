@@ -3,8 +3,9 @@ import { REVENUE_RANGES, STAR_PAYOUT_USD, type Revenue } from "@/lib/admin-reven
 import { cn } from "@/lib/utils";
 
 const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const CRYPTO = "bg-[#f7b23b]";
-const TELEGRAM = "bg-[#2aabee]";
+// The site's own pink and violet (the gradient under every page title).
+const CRYPTO = "bg-gradient-to-b from-[#ff5fa2] to-[#f92776]";
+const TELEGRAM = "bg-gradient-to-b from-iris-400 to-iris-500";
 
 /** Admin → Orders: verified payments received over a chosen range, with a bar for each day, week or month. */
 export function AdminRevenue({ r }: { r: Revenue }) {

@@ -4,6 +4,7 @@ import { env } from "@/env";
 import { PRO } from "@/lib/plans";
 import { CONTACT_EMAIL } from "@/lib/links";
 import { fulfillOrder, getOrder, renewProOrder, type StoredOrder } from "@/lib/orders";
+import { alertPaid, connectAlertChat } from "@/lib/payments/alerts";
 
 /**
  * Telegram Stars payments through the Model Spawn bot.
@@ -108,6 +109,7 @@ export async function handleTelegramUpdate(update: Update): Promise<void> {
     const renewal = order.status === "paid" && order.kind === "pro" && paid.is_recurring && !paid.is_first_recurring;
     const delivered = renewal ? await renewProOrder(order, "telegram", paid.telegram_payment_charge_id) : await fulfillOrder(order.id, "telegram", paid.telegram_payment_charge_id);
     if (delivered) {
+      await alertPaid(order, "telegram", renewal);
       await say(
         msg.chat.id,
         order.kind === "pro"
@@ -119,8 +121,11 @@ export async function handleTelegramUpdate(update: Update): Promise<void> {
   }
 
   // Commands. Telegram asks bots that take payments to offer terms and support.
-  const text = msg?.text?.trim().split(/\s+/)[0]?.toLowerCase();
+  const words = msg?.text?.trim().split(/\s+/) ?? [];
+  const text = words[0]?.toLowerCase();
   if (!msg || !text) return;
+  // An admin connecting alerts: "/start alerts_<code>" from the link in Admin.
+  if (text === "/start" && words[1]?.startsWith("alerts_")) return void (await say(msg.chat.id, await connectAlertChat(words[1].slice(7), msg.chat.id)));
   if (text === "/terms") return void (await say(msg.chat.id, `Terms of Service: ${SITE()}/terms\nPrivacy Policy: ${SITE()}/privacy`));
   if (text === "/support" || text === "/paysupport")
     return void (await say(msg.chat.id, `For help with a payment, email ${CONTACT_EMAIL} with your Telegram payment receipt. All sales are final (see /terms).`));

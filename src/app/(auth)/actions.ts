@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { createUserClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/auth";
@@ -43,6 +44,12 @@ export async function signup(_: AuthState, formData: FormData): Promise<AuthStat
     },
   });
   if (error) return { error: error.message };
+  // Admins with Telegram alerts on get a "new sign-up" message (after the answer goes out; never blocks sign-up).
+  try {
+    after(async () => (await import("@/lib/payments/alerts")).alertSignup(parsed.data.email).catch(() => {}));
+  } catch {
+    // Outside a request (tests): skip it.
+  }
 
   // With email confirmation on, there is no session yet.
   if (!data.session) return { message: "Check your email to confirm your account, then log in." };

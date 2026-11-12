@@ -14,10 +14,14 @@ const h = vi.hoisted(() => ({
   fulfillOrder: vi.fn(),
   renewProOrder: vi.fn(),
   setOrderStatus: vi.fn(),
+  alertPaid: vi.fn(async () => {}),
+  alertUnderpaid: vi.fn(async () => {}),
+  connectAlertChat: vi.fn(async () => "✅ Alerts are on."),
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/env", () => ({ env: h.env }));
 vi.mock("@/lib/orders", () => ({ getOrder: h.getOrder, fulfillOrder: h.fulfillOrder, renewProOrder: h.renewProOrder, setOrderStatus: h.setOrderStatus }));
+vi.mock("@/lib/payments/alerts", () => ({ alertPaid: h.alertPaid, alertUnderpaid: h.alertUnderpaid, connectAlertChat: h.connectAlertChat }));
 
 import { createCryptoInvoice, handleIpn, validIpnSignature } from "@/lib/payments/nowpayments";
 import { createStarsInvoiceLink, handleTelegramUpdate, precheckProblem, SUBSCRIPTION_SECONDS } from "@/lib/payments/telegram";
@@ -79,6 +83,7 @@ describe("NOWPayments", () => {
     h.getOrder.mockResolvedValue(order({ provider: "nowpayments" }));
     expect(await handleIpn({ payment_status: "finished", order_id: "o1", price_amount: "25", price_currency: "usd", payment_id: 77, pay_amount: "25.1", actually_paid: "25.1" })).toBe("delivered");
     expect(h.fulfillOrder).toHaveBeenCalledWith(order().id, "nowpayments", "77");
+    expect(h.alertPaid).toHaveBeenCalledWith(expect.objectContaining({ credits: 525 }), "crypto");
     h.fulfillOrder.mockResolvedValue(false);
     expect(await handleIpn({ payment_status: "finished", order_id: "o1", price_amount: 25, price_currency: "USD", payment_id: 77, pay_amount: 25.1, actually_paid: 25.1 })).toBe("already delivered");
   });
@@ -87,6 +92,7 @@ describe("NOWPayments", () => {
     h.getOrder.mockResolvedValue(order({ provider: "nowpayments" }));
     const base = { payment_status: "finished", order_id: "o1", price_amount: 25, price_currency: "usd", payment_id: 78, pay_amount: 0.0004 };
     expect(await handleIpn({ ...base, actually_paid: 0.00001 })).toBe("underpaid");
+    expect(h.alertUnderpaid).toHaveBeenCalled();
     expect(h.setOrderStatus).toHaveBeenLastCalledWith(order().id, "underpaid");
     expect(await handleIpn({ ...base, actually_paid: undefined })).toBe("underpaid");
     expect(h.fulfillOrder).not.toHaveBeenCalled();
@@ -135,6 +141,7 @@ describe("Telegram Stars", () => {
     h.getOrder.mockResolvedValue(order());
     await handleTelegramUpdate(paid());
     expect(h.fulfillOrder).toHaveBeenCalledWith(order().id, "telegram", "ch1");
+    expect(h.alertPaid).toHaveBeenCalledWith(expect.objectContaining({ credits: 525 }), "telegram", false);
     expect(calls.at(-1)).toMatchObject({ method: "sendMessage", body: { chat_id: 9 } });
     expect(String(calls.at(-1)?.body.text)).toMatch(/525 tokens were added/);
   });
@@ -155,6 +162,12 @@ describe("Telegram Stars", () => {
     await handleTelegramUpdate(paid({ total_amount: 5 }));
     expect(h.fulfillOrder).not.toHaveBeenCalled();
     expect(String(calls.at(-1)?.body.text)).toMatch(/couldn't match it/);
+  });
+
+  it("connects an admin's alerts from the link's Start", async () => {
+    await handleTelegramUpdate({ update_id: 5, message: { chat: { id: 42 }, text: "/start alerts_0123456789abcdef01234567" } });
+    expect(h.connectAlertChat).toHaveBeenCalledWith("0123456789abcdef01234567", 42);
+    expect(String(calls.at(-1)?.body.text)).toMatch(/Alerts are on/);
   });
 
   it("answers /terms and /support", async () => {
