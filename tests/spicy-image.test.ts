@@ -9,7 +9,7 @@ const input: ImageJobInput = {
   prompt: "Replace the person in @image3 with the person in @image1 to @image2. Keep @IMAGE3 lighting.",
   imageUrls: ["https://x.test/a.jpg", "https://x.test/b.jpg", "https://x.test/c.jpg"],
   resolution: "1.5k",
-  aspectRatio: "4:5",
+  aspectRatio: "3:4",
   outputFormat: "png",
 };
 
@@ -47,7 +47,7 @@ describe("prompt and input mapping", () => {
   it("builds only documented fields", () => {
     const out = buildSpicyInput(input);
     expect(Object.keys(out).sort()).toEqual(["aspect_ratio", "background", "image_urls", "output_format", "prompt", "resolution"]);
-    expect(out).toMatchObject({ resolution: "1.5k", aspect_ratio: "4:5", output_format: "png", background: "opaque" });
+    expect(out).toMatchObject({ resolution: "1.5k", aspect_ratio: "3:4", output_format: "png", background: "opaque" });
     expect(out.prompt).toBe("Replace the person in Image 3 with the person in Image 1 to Image 2. Keep Image 3 lighting.");
     expect(out.image_urls).toEqual(input.imageUrls);
   });

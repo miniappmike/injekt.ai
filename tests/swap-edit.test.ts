@@ -82,7 +82,7 @@ describe("buildJob for swap and edit", () => {
   beforeEach(() => h.ensureSheetPack.mockResolvedValue(pack));
 
   it("a direct swap with a target is written on the server; the browser's prompt is only a label", async () => {
-    const req = parseGenerationRequest({ kind: "direct_swap", characterId: "3f2b8c1e-4d5a-4e6f-8a7b-9c0d1e2f3a4b", extraPaths: [], prompt: "", resolution: "1k", aspectRatio: "auto", outputFormat: "jpeg", meta: { target: `${U}/t.jpg` } });
+    const req = parseGenerationRequest({ kind: "direct_swap", characterId: "3f2b8c1e-4d5a-4e6f-8a7b-9c0d1e2f3a4b", extraPaths: [], prompt: "", resolution: "1k", aspectRatio: "3:4", outputFormat: "jpeg", meta: { target: `${U}/t.jpg` } });
     expect(req.prompt).toBe("Fix");
     const job = await buildJob(client, U, req, { model: "x", max: 10 });
     expect(job.paths[0]).toBe(`${U}/t.jpg`);

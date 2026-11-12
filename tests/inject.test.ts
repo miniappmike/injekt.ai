@@ -138,7 +138,7 @@ describe("pools and options", () => {
 
   it("picks the closest offered aspect ratio", () => {
     expect(closestAspectRatio(1080, 1920)).toBe("9:16");
-    expect(closestAspectRatio(1080, 1350)).toBe("4:5");
+    expect(closestAspectRatio(1080, 1350)).toBe("3:4");
     expect(closestAspectRatio(1000, 1000)).toBe("1:1");
     expect(closestAspectRatio(0, 10)).toBeUndefined();
   });

@@ -120,7 +120,7 @@ const request = (over: Record<string, unknown> = {}) => ({
   extraPaths: [`${U}/targets/t.jpg`],
   prompt: "Replace the person in @image3 with the person in @image1.",
   resolution: "2k",
-  aspectRatio: "auto",
+  aspectRatio: "3:4",
   outputFormat: "jpeg",
   ...over,
 });
