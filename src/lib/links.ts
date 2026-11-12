@@ -11,3 +11,6 @@ export const GENERATION_SETTINGS_PATH = "/settings/api-keys#image-generation";
 
 /** Said wherever the referral link is offered. */
 export const REFERRAL_DISCLOSURE = "Model Spawn earns a small referral commission if you sign up to SpicyAPI through our link. It costs you nothing extra.";
+
+/** Support, takedown requests and compliance questions. */
+export const CONTACT_EMAIL = "modelspawn@gmail.com";

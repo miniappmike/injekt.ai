@@ -105,4 +105,34 @@ describe("orders", () => {
     expect(await balance(b)).toBe(200);
     expect(await balance(c)).toBe(200);
   });
+
+  it("deleting an account keeps its orders and bonus claim, without the person, and the bonus can't be claimed again", async () => {
+    const u = await t.newUser("leaver@x.com");
+    await t.db.exec("reset role");
+    const id = await order(u, "pro", 220, true, "leaver@gmail.com", "dev-leaver");
+    await fulfill(id);
+    await q("delete from auth.users where id = $1", [u]);
+    expect((await q<{ user_id: string | null; status: string }>("select user_id, status from public.orders where id = $1", [id])).rows[0]).toEqual({ user_id: null, status: "paid" });
+    expect((await q("select 1 from public.credit_lots where user_id = $1", [u])).rows).toHaveLength(0);
+    expect((await q<{ user_id: string | null }>("select user_id from public.bonus_claims where email_key = 'leaver@gmail.com'")).rows[0].user_id).toBeNull();
+    // Signing up again with the same inbox, or from the same device: the normal month only.
+    const again = await t.newUser("leaver2@x.com");
+    await t.db.exec("reset role");
+    await fulfill(await order(again, "pro", 220, true, "leaver@gmail.com", "dev-other"));
+    expect(await balance(again)).toBe(200);
+    const third = await t.newUser("leaver3@x.com");
+    await t.db.exec("reset role");
+    await fulfill(await order(third, "pro", 220, true, "new@x.com", "dev-leaver"));
+    expect(await balance(third)).toBe(200);
+  });
+
+  it("an order whose account is gone is recorded as paid and delivers nothing", async () => {
+    const u = await t.newUser("gone@x.com");
+    await t.db.exec("reset role");
+    const id = await order(u, "pack", 200);
+    await q("delete from auth.users where id = $1", [u]);
+    expect(await fulfill(id)).toBe(true);
+    expect((await q<{ status: string }>("select status from public.orders where id = $1", [id])).rows[0].status).toBe("paid");
+  });
 });
+

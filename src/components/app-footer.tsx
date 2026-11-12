@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { GET_KEY_PATH, REFERRAL_DISCLOSURE } from "@/lib/links";
+import { CONTACT_EMAIL, GET_KEY_PATH, REFERRAL_DISCLOSURE } from "@/lib/links";
 
-type FooterLink = { label: string; href?: string; soon?: boolean };
+type FooterLink = { label: string; href?: string };
 
 /** The site map along the bottom of every page: the main tools, the extras that don't need a top tab, and legal. */
 const COLUMNS: { title: string; links: FooterLink[] }[] = [
@@ -37,8 +37,8 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
   {
     title: "Legal",
     links: [
-      { label: "Terms of Service", soon: true },
-      { label: "Privacy Policy", soon: true },
+      { label: "Terms of Service", href: "/terms" },
+      { label: "Privacy Policy", href: "/privacy" },
     ],
   },
 ];
@@ -51,6 +51,10 @@ export function AppFooter() {
         <div className="flex flex-col gap-2">
           <Logo />
           <p className="max-w-xs text-[13px] text-neutral-500">Create your model once, then put her in any photo.</p>
+          <p className="max-w-xs text-[13px] text-neutral-400">
+            Contact:{" "}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-neutral-200 underline-offset-4 transition-colors hover:text-white hover:underline">{CONTACT_EMAIL}</a>
+          </p>
           <p className="max-w-xs text-[11px] leading-relaxed text-neutral-600">{REFERRAL_DISCLOSURE}</p>
         </div>
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 lg:contents">
@@ -64,7 +68,7 @@ export function AppFooter() {
                       <Link href={l.href} className="text-[13px] text-neutral-300 transition-colors hover:text-white">{l.label}</Link>
                     ) : (
                       <span className="text-[13px] text-neutral-600">
-                        {l.label} {l.soon && <span className="ml-1 rounded-full bg-neutral-800 px-1.5 py-0.5 text-[10px] text-neutral-500">Soon</span>}
+                        {l.label}
                       </span>
                     )}
                   </li>

@@ -6,7 +6,7 @@ export default async function LedgerPage() {
   return (
     <div className="max-w-5xl">
       <h1 className="page-title">Ledger</h1>
-      <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">Every AI call you make with your own keys, what it cost, and what you&apos;ve spent on each API platform. Updates live.</p>
+      <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">Every AI call you make with your own keys, what it cost, and what you&apos;ve spent on each API platform. Press Refresh for your newest calls and final charges (once every 15 minutes).</p>
       <LedgerView />
     </div>
   );

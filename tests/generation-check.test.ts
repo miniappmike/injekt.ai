@@ -16,7 +16,7 @@ describe("checkGeneration (one check shared by the Generate panel, the tray and 
     check.mockResolvedValue({ ok: true, state: "processing" });
     await Promise.all([checkGeneration("g1"), checkGeneration("g1"), checkGeneration("g1")]);
     expect(check).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(6000);
+    vi.advanceTimersByTime(8000);
     await checkGeneration("g1");
     expect(check).toHaveBeenCalledTimes(2);
     await checkGeneration("g2");

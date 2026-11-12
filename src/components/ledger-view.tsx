@@ -20,8 +20,19 @@ import {
   type PlatformSpend,
 } from "@/lib/ledger-types";
 
-// New calls show up within half a minute while the tab is open (checking more often costs a server call each time).
-const POLL_MS = 30_000;
+/**
+ * The Ledger never checks by itself: it loads when opened (or the filters change), and the Refresh button looks up
+ * final charges and reloads it, then waits 15 minutes before it can be pressed again (said in the Terms of Service).
+ */
+export const LEDGER_REFRESH_COOLDOWN_MS = 15 * 60_000;
+const REFRESHED_KEY = "ms.ledgerRefreshedAt";
+const lastRefresh = () => {
+  try {
+    return Number(localStorage.getItem(REFRESHED_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+};
 const PAGE = 50;
 const select = "h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-2 text-sm";
 const tz = () => new Date().getTimezoneOffset();
@@ -77,34 +88,36 @@ export function LedgerView() {
     });
   }, [base, reloads]);
 
-  // Calls still showing an estimate get SpicyAPI's final charge, then the list reloads.
-  async function checkCharges() {
+  // Refresh: calls still showing an estimate get SpicyAPI's final charge, then the list reloads. Once every 15 minutes
+  // (remembered in this browser, and limited on the server too).
+  const [now, setNow] = useState(() => Date.now());
+  const [refreshedAt, setRefreshedAt] = useState(0);
+  useEffect(() => setRefreshedAt(lastRefresh()), []);
+  const waitMs = Math.max(0, refreshedAt + LEDGER_REFRESH_COOLDOWN_MS - now);
+  // Only the button's countdown ticks; nothing is fetched.
+  useEffect(() => {
+    if (!waitMs) return;
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, [waitMs]);
+  async function refresh() {
+    if (waitMs || settling) return;
     setSettling(true);
     setSettleNote(undefined);
     const r = await settleMyLedger();
     setSettling(false);
+    const at = Date.now();
+    try {
+      localStorage.setItem(REFRESHED_KEY, String(at));
+    } catch {
+      // Private window: the server's limit still applies.
+    }
+    setRefreshedAt(at);
+    setNow(at);
     if (!r.ok) return setSettleNote(r.error);
     setSettleNote(r.settled ? `${r.settled} updated with the final charge${r.held ? `, ${r.held} still pending` : ""}.` : r.held ? `${r.held} still pending at SpicyAPI.` : "Everything is up to date.");
     setReloads((n) => n + 1);
   }
-
-  // Pick up anything newer, and fresh totals, every few seconds while the tab is visible.
-  useEffect(() => {
-    if (status !== "ready") return;
-    const timer = setInterval(async () => {
-      if (document.visibilityState !== "visible") return;
-      const mine = version.current;
-      const page = await getLedger({ ...base(), limit: 100, ...(newestId.current ? { afterId: newestId.current } : {}) });
-      if (!page || mine !== version.current) return;
-      setSummary(page.summary);
-      setUpdated(new Date());
-      if (page.entries.length) {
-        newestId.current = page.entries[0].id;
-        setEntries((prev) => [...page.entries, ...prev.filter((p) => !page.entries.some((n) => n.id === p.id))]);
-      }
-    }, POLL_MS);
-    return () => clearInterval(timer);
-  }, [status, base]);
 
   async function loadMore() {
     const oldest = entries[entries.length - 1]?.id;
@@ -153,11 +166,18 @@ export function LedgerView() {
           {LEDGER_RANGES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
         </select>
         <span className="ml-auto flex items-center gap-2 text-xs text-neutral-500" aria-live="polite">
-          <span className={`h-2 w-2 rounded-full ${status === "ready" ? "animate-pulse bg-emerald-400 shadow-[0_0_8px_rgb(52_211_153)]" : "bg-neutral-600"}`} aria-hidden="true" />
-          {status === "ready" && updated ? `Live · updated ${updated.toLocaleTimeString()}` : status === "loading" ? "Loading..." : "Offline"}
+          <span className={`h-2 w-2 rounded-full ${status === "ready" ? "bg-emerald-400" : "bg-neutral-600"}`} aria-hidden="true" />
+          {status === "ready" && updated ? `Updated ${updated.toLocaleTimeString()}` : status === "loading" ? "Loading..." : "Offline"}
         </span>
-        <Button type="button" size="sm" variant="secondary" disabled={settling} onClick={checkCharges} title="Look up SpicyAPI's final charge for calls still showing an estimate">
-          {settling ? "Checking..." : "Check final charges"}
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          disabled={settling || waitMs > 0}
+          onClick={refresh}
+          title="Loads your newest calls and SpicyAPI's final charges. Once every 15 minutes."
+        >
+          {settling ? "Refreshing..." : waitMs > 0 ? `Refresh in ${Math.ceil(waitMs / 60_000)} min` : "Refresh"}
         </Button>
         <Button type="button" size="sm" variant="secondary" disabled={!entries.length} onClick={exportCsv}>Export CSV</Button>
         {settleNote && <span role="status" className="basis-full text-right text-xs text-neutral-400">{settleNote}</span>}

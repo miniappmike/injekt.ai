@@ -54,16 +54,16 @@ export async function getLedger(raw: unknown): Promise<LedgerPage | null> {
 }
 
 /**
- * Looks up SpicyAPI's final charge for the person's calls still showing an estimate. Run from a button (and nightly by
- * the cleanup job), not on every page load, so opening the Ledger costs one quick read.
+ * The Ledger's Refresh button: looks up SpicyAPI's final charge for the person's calls still showing an estimate (the
+ * page then reloads the list). Once every 15 minutes per person; the nightly cleanup job does it for everyone too.
  */
 export async function settleMyLedger(): Promise<{ ok: true; settled: number; held: number } | { ok: false; error: string }> {
   try {
     const { user } = await requireUser();
-    await enforceRateLimit(user.id, "ledger-settle", 4, 60);
+    await enforceRateLimit(user.id, "ledger-refresh", 1, 15 * 60);
     const r = await settlePendingLedger(adminClient(), { userId: user.id, limit: 60, budgetMs: 8000 });
     return { ok: true, settled: r.settled, held: r.held };
   } catch (e) {
-    return { ok: false, error: e instanceof RateLimitError ? `Try again in ${e.retryAfterSeconds}s.` : "Couldn't check with SpicyAPI. Try again." };
+    return { ok: false, error: e instanceof RateLimitError ? `You can refresh again in ${Math.ceil(e.retryAfterSeconds / 60)} min.` : "Couldn't check with SpicyAPI. Try again." };
   }
 }
