@@ -129,7 +129,7 @@ describe("pools and options", () => {
     expect(injectOptionsSchema.safeParse({ poseMode: "wild" }).success).toBe(false);
   });
 
-  it("sends the target with a saved prompt only when Edit the target photo is on", () => {
+  it("sends the target with a saved prompt only in Edit this photo mode (Recreate is the default)", () => {
     const meta = { edit: "x", frame: "face", target: "old" };
     expect(metaForRun(meta, "u/t.jpg", true)).toEqual({ edit: "x", frame: "face", target: "u/t.jpg" });
     expect(metaForRun(meta, "u/t.jpg", false)).toEqual({ edit: "x", frame: "face" });

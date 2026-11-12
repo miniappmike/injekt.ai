@@ -11,7 +11,7 @@ export const MAX_VERSIONS = 4;
  * job is a photo edit: the target photo plus her references, and only the short EDIT line as the change.
  */
 export const injectMetaSchema = z.object({
-  /** The target photo, when it may be sent to the image model ("Edit the target photo" on). */
+  /** The target photo, when it may be sent to the image model (Inject's opt-in "Edit this photo" mode). */
   target: z.string().max(300).optional(),
   edit: z.string().max(600).optional(),
   frame: z.string().max(200).optional(),
@@ -75,13 +75,17 @@ export const injectOptionsSchema = z.object({
 export type InjectOptionsInput = z.input<typeof injectOptionsSchema>;
 export const INJECT_DEFAULTS = injectOptionsSchema.parse({});
 
-/** The "Edit the target photo" setting (artifact ws.base), kept in the browser and on by default. */
-export const EDIT_TARGET_KEY = "ms.editTarget";
+/**
+ * Recreate or Edit, kept in the browser. Recreate (the default) never sends the target photo to the image model: it only
+ * guides the prompt writer, and the image is made new from her references. Edit is opt-in, for photos the person has the
+ * rights to. A new key, so everyone starts on Recreate (the old setting defaulted to Edit).
+ */
+export const EDIT_TARGET_KEY = "ms.editTarget.v2";
 export function readEditTarget(): boolean {
   try {
-    return localStorage.getItem(EDIT_TARGET_KEY) !== "0";
+    return localStorage.getItem(EDIT_TARGET_KEY) === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 export function writeEditTarget(on: boolean) {
@@ -92,7 +96,7 @@ export function writeEditTarget(on: boolean) {
   }
 }
 
-/** The meta a saved Inject prompt runs with: the target is sent only when "Edit the target photo" is on. */
+/** The meta a saved Inject prompt runs with: the target is sent only in Edit this photo mode (Recreate is the default). */
 export const metaForRun = (meta: InjectMeta, target: string | null, editTarget: boolean): InjectMeta => {
   const { target: _t, ...rest } = meta;
   return editTarget && target ? { ...rest, target } : rest;

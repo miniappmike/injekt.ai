@@ -385,7 +385,7 @@ export function HistoryPanel() {
                                     {framed
                                       ? readEditTarget() && i.imagePath
                                         ? `Edits the photo this prompt was written for, swapping in ${i.characterName} from her current references.`
-                                        : `Uses ${i.characterName}'s current references and the written prompt ("Edit the target photo" is off on the Inject page).`
+                                        : `Uses ${i.characterName}'s current references and the written prompt (Inject is set to Recreate).`
                                       : `Uses ${i.characterId ? `${i.characterName}'s current reference images, then ` : ""}the photo this prompt was written for${i.extraPaths.length ? ` and its ${i.extraPaths.length} extra image${i.extraPaths.length === 1 ? "" : "s"}` : ""}.`}
                                   </p>
                                 </div>

@@ -95,7 +95,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
   const [characterId, setCharacterId] = useState(initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id);
   const [targets, setTargets] = useState<Target[]>([]);
   const [o, setO] = useState<Options>({ ...INJECT_DEFAULTS });
-  const [editTarget, setEditTarget] = useState(true);
+  const [editTarget, setEditTarget] = useState(false);
   const generation = useGeneration();
   const [writeOnlyChoice, setWriteOnly] = useState(false);
   // Without image generation turned on, every prompt is written to paste into a generator.
@@ -383,11 +383,31 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
               ))}
             </div>
             )}
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={editTarget} onChange={(e) => { setEditTarget(e.target.checked); writeEditTarget(e.target.checked); }} />
-              Edit the target photo
-              <InfoTip label="About editing the target photo">Sends the target photo with her references so the model swaps her into the real photo, which holds her body much closer to the sheet. Off: the written prompt is generated from her references alone. In Write only it decides whether the prompt is an edit of the target photo (attached after her sheets) or a new photo from her sheets. You can change both after writing; the prompts update without writing again.</InfoTip>
-            </label>
+            {/* Recreate is the default: the target only guides the prompt. Edit (sending the photo itself) is opt-in. */}
+            <div className="flex items-center gap-2">
+              <div role="radiogroup" aria-label="How to use the target photo" className={segTrack}>
+                {([false, true] as const).map((on) => (
+                  <button
+                    key={String(on)}
+                    type="button"
+                    role="radio"
+                    aria-checked={editTarget === on}
+                    onClick={() => {
+                      if (on === editTarget) return;
+                      if (on && !window.confirm("Edit this photo sends the target photo itself to the image model and changes it. Only use photos you took or have the rights to, never a real person without their consent. Continue?")) return;
+                      setEditTarget(on);
+                      writeEditTarget(on);
+                    }}
+                    className={segItem(editTarget === on)}
+                  >
+                    {on ? "Edit this photo" : "Recreate"}
+                  </button>
+                ))}
+              </div>
+              <InfoTip label="Recreate or edit">
+                Recreate (the default): the target photo only guides the prompt writer, and a new image of her is made from her references in a similar scene, pose and style. Nothing from the photo itself is used. Edit this photo: the photo is sent with her references and she replaces the person in it, which keeps the scene exactly. Only for photos you have the rights to. You can switch after writing; the prompts update without writing again.
+              </InfoTip>
+            </div>
           </div>
         </fieldset>
   );
