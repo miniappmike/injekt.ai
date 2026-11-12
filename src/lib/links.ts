@@ -14,3 +14,6 @@ export const REFERRAL_DISCLOSURE = "Model Spawn earns a small referral commissio
 
 /** Support, takedown requests and compliance questions. */
 export const CONTACT_EMAIL = "modelspawn@gmail.com";
+
+/** The how-to-pay-with-Telegram guide (a placeholder until the guide with screenshots is ready). */
+export const TELEGRAM_GUIDE_PATH = "/guides/telegram-payments";

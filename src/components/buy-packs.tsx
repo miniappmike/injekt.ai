@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { startCheckout } from "@/app/(app)/billing/actions";
 import { bonusPercent, dollars, perCredit, type CreditPack } from "@/lib/plans";
 import { deviceId } from "@/lib/device-id";
 import { TokenIcon } from "@/components/token-icon";
 import { cn } from "@/lib/utils";
 import { PackPayButtons } from "@/components/pay-buttons";
+import { TelegramPayDialog } from "@/components/telegram-pay-dialog";
 import type { PayMethod, PayMethods } from "@/lib/payments/methods";
 
 /** The four token packs, each with its ways to pay (Telegram Stars, crypto). Paying opens the provider's page. */
@@ -15,7 +16,17 @@ export function BuyPacks({ packs, methods }: { packs: CreditPack[]; methods: Pay
   const [msg, setMsg] = useState<{ text: string; ok: boolean }>();
   const [, start] = useTransition();
 
+  // Telegram first shows a short pop-up (with the guide), whose Continue to payment makes the link.
+  const [telegramPack, setTelegramPack] = useState<CreditPack | null>(null);
+  const closeTelegram = useCallback(() => setTelegramPack(null), []);
+  const telegramLink = async (): Promise<{ url: string } | { error: string }> => {
+    if (!telegramPack) return { error: "Choose a pack first." };
+    const r = await startCheckout({ kind: "pack", packId: telegramPack.id }, deviceId(), "telegram");
+    return r.ok && r.order.checkoutUrl ? { url: r.order.checkoutUrl } : { error: r.ok ? "Couldn't open the payment. Try again." : r.error };
+  };
+
   function pay(p: CreditPack, method: PayMethod) {
+    if (method === "telegram") return setTelegramPack(p);
     setBusy({ pack: p.id, method });
     setMsg(undefined);
     start(async () => {
@@ -67,6 +78,13 @@ export function BuyPacks({ packs, methods }: { packs: CreditPack[]; methods: Pay
         })}
       </div>
       {msg && <p role="status" className={cn("text-sm", msg.ok ? "text-emerald-300" : "text-red-400")}>{msg.text}</p>}
+      <TelegramPayDialog
+        open={!!telegramPack}
+        what={telegramPack ? `${telegramPack.credits.toLocaleString()} tokens` : ""}
+        stars={telegramPack?.stars ?? 0}
+        onClose={closeTelegram}
+        makeLink={telegramLink}
+      />
     </div>
   );
 }
