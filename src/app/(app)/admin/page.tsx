@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { entitlements } from "@/lib/entitlements";
@@ -10,21 +9,13 @@ import { AdminOrders, type AdminOrder } from "@/components/admin-orders";
 import { AdminPayments } from "@/components/admin-payments";
 import { AdminPeople } from "@/components/admin-people";
 import { AdminRevenue } from "@/components/admin-revenue";
+import { AdminTabs, parseTab } from "@/components/admin-tabs";
 import { parseRange, rangeStart, summarizeRevenue } from "@/lib/admin-revenue";
-import { cn } from "@/lib/utils";
 import { showOrder } from "@/lib/cleanup";
 
 export const metadata = { title: "Admin" };
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
-
-const TABS = [
-  { id: "orders", label: "Orders" },
-  { id: "people", label: "People" },
-  { id: "limits", label: "Limits" },
-  { id: "costs", label: "Costs" },
-] as const;
-type Tab = (typeof TABS)[number]["id"];
 
 // Orders in the range with the buyer's email, newest first. Null before migration 0023.
 async function loadOrders(since: Date | null): Promise<AdminOrder[] | null> {
@@ -50,29 +41,15 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   // Anyone else sees a plain 404, so the page's existence isn't advertised.
   if ((await entitlements.planOf(user.id)) !== "admin") notFound();
   const sp = await searchParams;
-  const tab: Tab = TABS.some((t) => t.id === sp.tab) ? (sp.tab as Tab) : "orders";
+  const tab = parseTab(sp.tab);
   const range = parseRange(sp.range);
 
   return (
     <div>
       <h1 className="page-title">Admin</h1>
       {/* Each tab loads only what it shows. */}
-      <nav aria-label="Admin sections" className="mt-4 flex gap-1 overflow-x-auto border-b border-neutral-800">
-        {TABS.map((t) => (
-          <Link
-            key={t.id}
-            href={`/admin?tab=${t.id}`}
-            aria-current={t.id === tab ? "page" : undefined}
-            className={cn(
-              "-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors",
-              t.id === tab ? "border-brand-500 text-neutral-50" : "border-transparent text-neutral-400 hover:text-neutral-100",
-            )}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </nav>
-      <div className="mt-6 flex flex-col gap-6">
+      <AdminTabs tab={tab} />
+      <div className="mt-4 flex flex-col gap-4 sm:mt-6 sm:gap-6">
         {tab === "orders" && <OrdersTab range={range} />}
         {tab === "people" && <PeopleTab />}
         {tab === "limits" && <LimitsTab />}

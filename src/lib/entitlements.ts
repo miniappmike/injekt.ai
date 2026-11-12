@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { adminClient } from "./supabase/admin";
 import { createEntitlements } from "./entitlements-core";
 import type { AllowanceKey } from "./limits";
@@ -8,8 +9,9 @@ export { isEmailVerified } from "./entitlements-core";
 /**
  * The account's plan row. Pro is either set by hand on the admin page (`plan`) or a paid 30-day pass (`pro_until`).
  * Before migration 0023 there is no pro_until column, so that read falls back to the old columns.
+ * Cached for one request, so the layout and the page share one read.
  */
-export async function loadProfile(userId: string): Promise<{ is_admin: boolean; pro: boolean; manualPro: boolean; proUntil: string | null } | null> {
+export const loadProfile = cache(async function loadProfile(userId: string): Promise<{ is_admin: boolean; pro: boolean; manualPro: boolean; proUntil: string | null } | null> {
   const db = adminClient();
   let { data, error } = await db.from("profiles").select("plan, is_admin, pro_until").eq("id", userId).maybeSingle();
   if (error && /pro_until/.test(error.message)) ({ data, error } = await db.from("profiles").select("plan, is_admin").eq("id", userId).maybeSingle());
@@ -18,7 +20,7 @@ export async function loadProfile(userId: string): Promise<{ is_admin: boolean; 
   const proUntil = row.pro_until ?? null;
   const manualPro = row.plan === "pro";
   return { is_admin: row.is_admin === true, manualPro, proUntil, pro: manualPro || (!!proUntil && new Date(proUntil).getTime() > Date.now()) };
-}
+});
 
 // Counters and plans are only writable with the service role, so this is the one place that touches them.
 export const entitlements = createEntitlements({

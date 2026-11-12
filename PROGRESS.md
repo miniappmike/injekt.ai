@@ -315,7 +315,7 @@ Migrations: `0018_listing_views_rank.sql` (views table, `record_listing_view`, `
   Marketplace panel, where the price, public profile and previews are set).
 - **Look and feel**: new logo and favicon, floating History button, profile menu with the Image generation switch, generation
   tray tile fix.
-- **Still on hold**: Phase 6 (Stripe), 7 (compliance), 8 (tests), 9 (crypto, design only).
+- **Still on hold**: marketplace checkout (Stripe was dropped; it would go through Telegram Stars or NOWPayments, see below), Phase 8 (tests).
 
 ## Manual setup so far
 
@@ -384,3 +384,23 @@ On the Characters page, shown only when image generation is on (and disabled unt
 - Long calls a phone can cut off are wrapped in `awaitOrRecover` (`src/lib/recoverable.ts`). If the call fails, or hasn't answered after the page came back or after a while, it asks the server whether the work got done anyway.
   - **Inject's Write prompts:** `recoverInjectPrompts` rebuilds the result from the History rows saved for that photo and character since the write started, including the tags in the label.
   - **Starting an image:** every press sends a `clientRef`, stored in `generations.params.client_ref`, and `findGenerationByRef` finds the job if the answer to "start" was lost. It's then followed like any other job.
+
+## Tokens, Pro and payments (migrations 0023 to 0025)
+- **Tokens** replaced the old credits idea: 15 free at sign-up, 1 per prompt, 2 per profile build, 2 / 3 / 4 per image by size. Pro ($9.99 / 30 days) gives 220 tokens the first month then 200, own API keys and no daily limits. Four packs ($10 to $100). Numbers in `src/lib/plans.ts`, details in `docs/PRICING.md`.
+- **Pages**: `/upgrade` (Pro), `/tokens` (balance and packs), the token count in the header, a renew banner when Pro is about to end.
+- **Telegram Stars** and **NOWPayments** checkouts with their webhooks (`src/lib/payments/`), an underpaid-crypto check, and a pop-up before Telegram with a link to the (placeholder) guide.
+- **Account deletion** in Settings (0024): the person is removed; orders, purchases and bonus claims stay without them.
+- **Legal**: Terms, Privacy, sign-up boxes, footer contact.
+- Run in Supabase, in order: `0023_credits.sql`, `0024_account_deletion.sql`, `0025_payment_providers.sql` (all run in production).
+
+## Admin rebuilt
+- Tabs: Orders (revenue chart in the site's pink and violet, order list, payment status, alerts), People (CRM), Limits, Costs. Each tab loads only its own data.
+- A person's page: email as the header with Email and Copy buttons, tokens with add and remove, token activity, orders, calls on the platform key.
+- Telegram alerts for admins: payments, renewals, short crypto payments, sign-ups.
+- Phones: the tab bar stays pinned under the top bar, and orders, people and a person's history show as cards.
+- Cleanup: unpaid orders after 3 days, cancelled or failed after 24 hours (hidden in Admin at 24 hours, deleted by the nightly job).
+
+## Speed and the home screen icon
+- One Supabase auth call and one profile read per page instead of two or three (`cache()` on `requireUser` and `loadProfile`).
+- Fonts moved from a Google stylesheet to `next/font`.
+- Home screen icon and manifest use the logo (`src/app/apple-icon.png`, `src/app/manifest.ts`, `public/icons/`).

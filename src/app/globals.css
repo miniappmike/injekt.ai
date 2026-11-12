@@ -5,9 +5,9 @@
  * The neutral scale is redefined here, so every neutral-* class in the app picks up the theme.
  */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-poster: "Bebas Neue", "Oswald", "Arial Narrow", Impact, sans-serif;
-  --font-display: "Exo 2", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-poster: var(--font-bebas), "Bebas Neue", "Oswald", "Arial Narrow", Impact, sans-serif;
+  --font-display: var(--font-exo), "Exo 2", var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
 
   --color-neutral-50: #fafafc;
   --color-neutral-100: #f3f3f6;
