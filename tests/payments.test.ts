@@ -77,10 +77,20 @@ describe("NOWPayments", () => {
 
   it("delivers a finished payment for the right amount, once", async () => {
     h.getOrder.mockResolvedValue(order({ provider: "nowpayments" }));
-    expect(await handleIpn({ payment_status: "finished", order_id: "o1", price_amount: "25", price_currency: "usd", payment_id: 77 })).toBe("delivered");
+    expect(await handleIpn({ payment_status: "finished", order_id: "o1", price_amount: "25", price_currency: "usd", payment_id: 77, pay_amount: "25.1", actually_paid: "25.1" })).toBe("delivered");
     expect(h.fulfillOrder).toHaveBeenCalledWith(order().id, "nowpayments", "77");
     h.fulfillOrder.mockResolvedValue(false);
-    expect(await handleIpn({ payment_status: "finished", order_id: "o1", price_amount: 25, price_currency: "USD", payment_id: 77 })).toBe("already delivered");
+    expect(await handleIpn({ payment_status: "finished", order_id: "o1", price_amount: 25, price_currency: "USD", payment_id: 77, pay_amount: 25.1, actually_paid: 25.1 })).toBe("already delivered");
+  });
+
+  it("a payment marked finished still needs enough to have arrived (within the 1% covering)", async () => {
+    h.getOrder.mockResolvedValue(order({ provider: "nowpayments" }));
+    const base = { payment_status: "finished", order_id: "o1", price_amount: 25, price_currency: "usd", payment_id: 78, pay_amount: 0.0004 };
+    expect(await handleIpn({ ...base, actually_paid: 0.00001 })).toBe("underpaid");
+    expect(h.setOrderStatus).toHaveBeenLastCalledWith(order().id, "underpaid");
+    expect(await handleIpn({ ...base, actually_paid: undefined })).toBe("underpaid");
+    expect(h.fulfillOrder).not.toHaveBeenCalled();
+    expect(await handleIpn({ ...base, actually_paid: 0.000397 })).toBe("delivered"); // 0.75% short: covered
   });
 
   it("never delivers the wrong amount, an unfinished or a failed payment, or another provider's order", async () => {
