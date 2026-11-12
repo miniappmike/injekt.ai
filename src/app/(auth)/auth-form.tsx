@@ -64,9 +64,9 @@ export function AuthForm({
               <input type="checkbox" name="terms" required className="mt-0.5 h-4 w-4 shrink-0" />
               <span>
                 I agree to the{" "}
-                <Link href="/terms" target="_blank" className={TEXT_LINK}>Terms of Service</Link>{" "}
+                <Link href="/terms?from=signup" target="_blank" className={TEXT_LINK}>Terms of Service</Link>{" "}
                 and{" "}
-                <Link href="/privacy" target="_blank" className={TEXT_LINK}>Privacy Policy</Link>.
+                <Link href="/privacy?from=signup" target="_blank" className={TEXT_LINK}>Privacy Policy</Link>.
               </span>
             </label>
           </div>
