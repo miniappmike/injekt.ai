@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { env } from "@/env";
 import { adminClient } from "@/lib/supabase/admin";
-import { cleanupExpiredGenerations, isAuthorizedCron } from "@/lib/cleanup";
+import { cleanupExpiredGenerations, cleanupStaleOrders, isAuthorizedCron } from "@/lib/cleanup";
 import { repairUncopiedPurchases } from "@/lib/marketplace/purchase";
 import { settlePendingLedger } from "@/lib/ledger-sweep";
 
@@ -20,7 +20,9 @@ export async function GET(req: Request) {
     const purchases = await repairUncopiedPurchases().catch(() => ({ repaired: 0, failed: 0 }));
     // Ledger rows still showing an estimate get SpicyAPI's final charge. Never fails the cleanup.
     const ledger = await settlePendingLedger(adminClient(), { budgetMs: 40_000 }).catch(() => null);
-    return NextResponse.json({ ok: true, ...generations, purchases, ledger });
+    // Orders someone started but never paid, after 3 days. Never fails the cleanup.
+    const staleOrders = await cleanupStaleOrders(adminClient()).catch(() => null);
+    return NextResponse.json({ ok: true, ...generations, purchases, ledger, staleOrders });
   } catch (e) {
     console.error("cleanup failed", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "cleanup failed" }, { status: 500 });

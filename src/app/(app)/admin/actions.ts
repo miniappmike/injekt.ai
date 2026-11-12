@@ -122,3 +122,33 @@ export async function connectTelegram(): Promise<{ ok: true; username: string } 
     return { ok: false, error: e instanceof Error ? e.message : "Couldn't connect the bot." };
   }
 }
+
+/**
+ * Adds tokens to someone (including yourself), or removes them. Added tokens never expire; removing takes from the
+ * tokens that expire soonest first, and never more than they have. Recorded in their token activity.
+ */
+export async function adjustTokens(input: { userId: string; delta: number; note?: string }): Promise<{ ok: true; balance: number } | { ok: false; error: string }> {
+  try {
+    await requireAdmin();
+    const userId = String(input?.userId ?? "");
+    const delta = Math.trunc(Number(input?.delta));
+    const note = String(input?.note ?? "").trim().slice(0, 120) || null;
+    if (!/^[0-9a-f-]{36}$/i.test(userId)) return { ok: false, error: "That person couldn't be found." };
+    if (!Number.isFinite(delta) || delta === 0 || Math.abs(delta) > 1_000_000) return { ok: false, error: "Enter a whole number of tokens (not 0)." };
+    const db = adminClient();
+    const balance = async () => Number((await db.rpc("credit_balance", { p_user: userId })).data ?? 0);
+    if (delta > 0) {
+      const { error } = await db.from("credit_lots").insert({ user_id: userId, source: "admin", amount: delta, remaining: delta, note });
+      if (error) return { ok: false, error: "Couldn't add the tokens." };
+    } else {
+      const take = Math.min(-delta, await balance());
+      if (take <= 0) return { ok: false, error: "They have no tokens to remove." };
+      const { error } = await db.rpc("spend_credits", { p_user: userId, p_amount: take, p_reason: note ? `admin: ${note}` : "admin", p_ref: null });
+      if (error) return { ok: false, error: "Couldn't remove the tokens." };
+    }
+    revalidatePath("/admin");
+    return { ok: true, balance: await balance() };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't change the tokens." };
+  }
+}

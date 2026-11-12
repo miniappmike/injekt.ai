@@ -7,6 +7,7 @@ import { deviceId } from "@/lib/device-id";
 import { TokenIcon } from "@/components/token-icon";
 import { cn } from "@/lib/utils";
 import { PackPayButtons } from "@/components/pay-buttons";
+import { closeTab, openPayment, reserveTab } from "@/lib/payment-tab";
 import { TelegramPayDialog } from "@/components/telegram-pay-dialog";
 import type { PayMethod, PayMethods } from "@/lib/payments/methods";
 
@@ -29,13 +30,19 @@ export function BuyPacks({ packs, methods }: { packs: CreditPack[]; methods: Pay
     if (method === "telegram") return setTelegramPack(p);
     setBusy({ pack: p.id, method });
     setMsg(undefined);
+    // Crypto opens in a new tab, so the site stays open here.
+    const tab = reserveTab();
     start(async () => {
       const r = await startCheckout({ kind: "pack", packId: p.id }, deviceId(), method);
       if (!r.ok || !r.order.checkoutUrl) {
+        closeTab(tab);
         setBusy(null);
         return setMsg({ text: r.ok ? "Couldn't open the payment. Try again." : r.error, ok: false });
       }
-      window.location.href = r.order.checkoutUrl;
+      if (openPayment(tab, r.order.checkoutUrl) === "tab") {
+        setBusy(null);
+        setMsg({ text: `The payment opened in a new tab. Your ${p.credits.toLocaleString()} tokens are added as soon as it confirms (usually a few minutes): refresh this page to see them.`, ok: true });
+      }
     });
   }
 
