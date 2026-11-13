@@ -13,6 +13,8 @@ export const MAX_VERSIONS = 4;
 export const injectMetaSchema = z.object({
   /** Director: the prompt text is the person's own direction; the server writes the real prompt and never shows it. */
   direct: z.boolean().optional(),
+  /** Director: Inject realism (real skin, light, depth). Off leaves fantastical elements as written. On when left out. */
+  real: z.boolean().optional(),
   /** The target photo, when it may be sent to the image model (Inject's opt-in "Edit this photo" mode). */
   target: z.string().max(300).optional(),
   edit: z.string().max(600).optional(),

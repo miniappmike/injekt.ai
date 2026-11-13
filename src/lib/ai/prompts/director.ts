@@ -11,13 +11,17 @@ import { PROMPT_CHARS, type InjectCharacter } from "./inject";
 export const MAX_DIRECTION = 1500;
 
 /** The writer's task: one finished scene for her, following the direction, in the Inject output format. */
-export function buildDirectorPrompt(c: InjectCharacter, sheet: string, direction: string): string {
-  return `TASK: Write one prompt for an AI image model that makes a real photo of the CHARACTER below, following the user's DIRECTION. The image model also receives her face reference sheet and her full-body reference sheet, so she is the same woman; your prompt sets the scene.
+export function buildDirectorPrompt(c: InjectCharacter, sheet: string, direction: string, realism = true): string {
+  const look = realism
+    ? `- REALISM (Inject realism is on), required: it looks like a real, unretouched photo, with real light, depth and shadows. Keep everything the direction asks for, fantastical or not, and render it as if it were photographed for real. One skin sentence (matte skin with visible pores, fine peach fuzz, uneven tone, small imperfections, a few flyaway hairs), the real texture of fabrics and surfaces, and a camera sentence (smartphone main camera, focus falloff away from the face, sensor noise in the shadows, mild compression, slightly imperfect white balance), saying it is not retouched or CGI. Never use flawless, glossy, glowing, radiant, dewy, porcelain, airbrushed, perfect, photorealistic, 8k or similar words.
+- Light: name the source and direction; never just "natural lighting".`
+    : `- STYLE (Inject realism is off): carry out the direction exactly as imagined, including anything fantastical, magical or impossible (creatures, flight, spells, armour, costumes, other worlds). Never ground, explain away, shrink or tone down those elements, and never turn them into a costume, set or prop unless the direction says so. Do not add a phone-photo look, skin-texture lines or camera imperfections; describe the light, colour, atmosphere and camera framing that best suit the scene. Her face, hair and body still match her exactly.`;
+  return `TASK: Write one prompt for an AI image model that makes ${realism ? "a real photo" : "an image"} of the CHARACTER below, following the user's DIRECTION. The image model also receives her face reference sheet and her full-body reference sheet, so she is the same woman; your prompt sets the scene.
 
 CHARACTER PROFILE (locked; use these exact traits and never contradict them)
 ${profileBlock(c)}${sheet}
 
-DIRECTION FROM THE USER (the creative focus: carry out every part of it closely; where it leaves something open, such as the place, outfit, pose, light or camera, choose what best fits it so the photo is complete and believable)
+DIRECTION FROM THE USER (the creative focus: carry out every part of it closely; where it leaves something open, such as the place, outfit, pose, light or camera, choose what best fits it so the image is complete)
 <<<${fence(direction)}>>>
 
 RULES
@@ -29,8 +33,7 @@ RULES
 - Her reference sheets show her in a plain placeholder outfit. Never describe or reuse it: dress her as the direction asks, or in an outfit that suits the scene. Name every garment with its type, colour, fabric and fit, and shoes if the feet are in frame.
 - REVEALING CLOTHING IS FINE: bikinis, lingerie, bodysuits, mini skirts and similar are described plainly by garment type, colour, fabric and fit. Suggestive is fine; never explicit or sexual language.
 - Describe the pose limb by limb with left and right, the expression and gaze, and the camera position and framing.
-- Light: name the source and direction; never just "natural lighting".
-- REALISM, required: a real, unretouched phone photo a creator would post. One skin sentence (matte skin with visible pores, fine peach fuzz, uneven tone, small imperfections, a few flyaway hairs), the real texture of fabrics and surfaces, and a camera sentence (smartphone main camera, focus falloff away from the face, sensor noise in the shadows, mild compression, slightly imperfect white balance), saying it is not retouched or CGI. Never use flawless, glossy, glowing, radiant, dewy, porcelain, airbrushed, perfect, photorealistic, 8k or similar words.
+${look}
 - Any visible text is short, quoted and legible. End with one line of exclusions: no text overlays or captions, no watermark, no added logos, no garbled or made-up lettering.
 - FORMAT: the identity paragraph, then labelled sections in this order: SCENE, WARDROBE, BACKGROUND, LIGHT, CAMERA AND LOOK, then the exclusions line. Short flowing prose, no bullet points, no aspect ratio. Say each detail once.
 - LENGTH: under ${PROMPT_CHARS} characters. If something must be shorter, shorten the background and light first, never her body.

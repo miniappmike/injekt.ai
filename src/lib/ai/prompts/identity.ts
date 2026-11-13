@@ -390,7 +390,7 @@ export function framePrompt(
   text: string,
   R: RefSet,
   frame: string | undefined,
-  ox: { outfit?: string; clean?: boolean } = {},
+  ox: { outfit?: string; clean?: boolean; realism?: boolean } = {},
 ): string {
   const n = R.roles.length;
   const tags = tagList(n);
@@ -407,8 +407,8 @@ export function framePrompt(
   const tail =
     ` OUTFIT LOCK: she wears only ${outfit || "the outfit described in this prompt"}, never the clothing in the references${so ? ` (${so})` : ""}.` +
     (ox.clean ? " " + OVERLAY_RULE : "") +
-    " " + QUALITY_SHADING_MATCH +
-    (hasQualityLine(t) ? "" : " " + REALISM_FIX.quality) +
+    // Realism off (Director): the scene's own look stands, with no photo-quality lines added.
+    (ox.realism === false ? " Keep the look, light and style described above." : " " + QUALITY_SHADING_MATCH + (hasQualityLine(t) ? "" : " " + REALISM_FIX.quality)) +
     (/gibberish|garbled/i.test(t) ? "" : " " + TEXT_SHORT) +
     " " + MODS_SHORT;
   const lock = bodyLockTop(bodyTag);

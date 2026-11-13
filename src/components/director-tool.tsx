@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { InfoTip } from "@/components/info-tip";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CharacterPicker } from "@/components/character-picker";
 import { GenerateImage } from "@/components/generate-image";
 import { useGeneration } from "@/components/app-context";
 import { MAX_DIRECTION } from "@/lib/ai/prompts/director";
+
+const REALISM_KEY = "ms.directorRealism";
 
 interface DirectorCharacter {
   id: string;
@@ -25,6 +28,23 @@ export function DirectorTool({ characters }: { characters: DirectorCharacter[] }
   const generation = useGeneration();
   const [characterId, setCharacterId] = useState(characters.find((c) => c.ready)?.id ?? characters[0].id);
   const [direction, setDirection] = useState("");
+  // Inject realism: on unless turned off, and remembered in this browser.
+  const [realism, setRealism] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(REALISM_KEY) === "0") setRealism(false);
+    } catch {
+      // Stays on in a private window.
+    }
+  }, []);
+  const toggleRealism = (on: boolean) => {
+    setRealism(on);
+    try {
+      localStorage.setItem(REALISM_KEY, on ? "1" : "0");
+    } catch {
+      // Not remembered in a private window.
+    }
+  };
   const character = characters.find((c) => c.id === characterId)!;
 
   return (
@@ -56,9 +76,15 @@ export function DirectorTool({ characters }: { characters: DirectorCharacter[] }
           placeholder="Describe the shot in your own words: where she is, what she's wearing and doing, the mood, the time of day…"
         />
         <p className="text-xs text-neutral-500">Anything you leave out (the place, outfit, pose, light) is chosen to fit. Each press makes a fresh take.</p>
+        <label className="flex w-fit cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 text-sm transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15">
+          <input type="checkbox" checked={realism} onChange={(e) => toggleRealism(e.target.checked)} /> Inject realism
+          <InfoTip label="About Inject realism">
+            On: the prompt adds real skin texture, natural light, depth and shadows, so it looks like a real photo. Off: nothing is added, and fantastical things you ask for (a dragon, magic, another world) are left exactly as you imagine them.
+          </InfoTip>
+        </label>
         {generation ? (
           character.ready && (
-            <GenerateImage key={characterId} prompt={direction} characterId={characterId} extraPaths={[]} kind="inject" meta={{ direct: true }} actionLabel="Generate" />
+            <GenerateImage key={characterId} prompt={direction} characterId={characterId} extraPaths={[]} kind="inject" meta={{ direct: true, real: realism }} actionLabel="Generate" />
           )
         ) : (
           <p className="text-sm text-amber-400">

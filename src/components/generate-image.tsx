@@ -94,20 +94,31 @@ function GenerateImageInner({
   const free = freeImagesLeft !== null;
   const { billing = "credits" } = useApp();
   const [resolution, setResolution] = useState<ImageResolution>(defaultResolution);
-  const [chosenAspectRatio, setAspectRatio] = useState<ImageAspectRatio>(autoAspectRatio ?? "3:4");
+  const [chosenAspectRatio, setAspectRatio] = useState<ImageAspectRatio>(autoAspectRatio ?? DEFAULT_ASPECT_RATIO);
   const aspectRatio = lockedAspectRatio ?? chosenAspectRatio;
   const [outputFormat, setOutputFormat] = useState<ImageOutputFormat>("jpeg");
-  // The size, shape and format of the last image made on this page come back on the next card, so a second image is
-  // made the same way without choosing again. Read after mounting, so the server render matches.
+  // The size, shape and format last chosen anywhere on the site come back on every card, so images are made the same
+  // way without choosing again. A sheet (fixed shape) keeps its own. Read after mounting, so the server render matches.
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    const last = readLastSettings();
-    if (last) {
+    const apply = () => {
+      const last = lockedAspectRatio ? null : readLastSettings();
+      if (!last) return;
       if (last.resolution && (IMAGE_RESOLUTIONS as readonly string[]).includes(last.resolution)) setResolution(last.resolution);
       if (last.aspectRatio && (IMAGE_ASPECT_RATIOS as readonly string[]).includes(last.aspectRatio)) setAspectRatio(last.aspectRatio);
       if (last.outputFormat === "jpeg" || last.outputFormat === "png") setOutputFormat(last.outputFormat);
-    }
+    };
+    apply();
     setLoaded(true);
+    // A choice made on another card (or in another tab) applies to this one too.
+    const onStorage = (e: StorageEvent) => e.key === LAST_SETTINGS_KEY && apply();
+    window.addEventListener(SETTINGS_EVENT, apply);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(SETTINGS_EVENT, apply);
+      window.removeEventListener("storage", onStorage);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [price, setPrice] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -153,7 +164,6 @@ function GenerateImageInner({
   }, [requestKey, free, billing, prompt, hasImages]);
 
   async function generate() {
-    writeLastSettings({ resolution, outputFormat, ...(lockedAspectRatio ? {} : { aspectRatio: chosenAspectRatio }) });
     setPhase("starting");
     setMessage(undefined);
     setResult(null);
@@ -272,21 +282,33 @@ function GenerateImageInner({
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <label className="flex items-center gap-1.5 text-neutral-400">
           Size
-          <select className={select} value={free ? "1k" : resolution} disabled={free || busy} onChange={(e) => setResolution(e.target.value as ImageResolution)}>
+          <select className={select} value={free ? "1k" : resolution} disabled={free || busy} onChange={(e) => {
+            const v = e.target.value as ImageResolution;
+            setResolution(v);
+            if (!lockedAspectRatio) writeLastSettings({ resolution: v });
+          }}>
             {IMAGE_RESOLUTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         </label>
         {!lockedAspectRatio && (
           <label className="flex items-center gap-1.5 text-neutral-400">
             Shape
-            <select className={select} value={chosenAspectRatio} disabled={busy} onChange={(e) => setAspectRatio(e.target.value as ImageAspectRatio)}>
+            <select className={select} value={chosenAspectRatio} disabled={busy} onChange={(e) => {
+              const v = e.target.value as ImageAspectRatio;
+              setAspectRatio(v);
+              writeLastSettings({ aspectRatio: v });
+            }}>
               {IMAGE_ASPECT_RATIOS.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </label>
         )}
         <label className="flex items-center gap-1.5 text-neutral-400">
           Format
-          <select className={select} value={outputFormat} disabled={busy} onChange={(e) => setOutputFormat(e.target.value as ImageOutputFormat)}>
+          <select className={select} value={outputFormat} disabled={busy} onChange={(e) => {
+            const v = e.target.value as ImageOutputFormat;
+            setOutputFormat(v);
+            if (!lockedAspectRatio) writeLastSettings({ outputFormat: v });
+          }}>
             <option value="jpeg">JPEG</option>
             <option value="png">PNG</option>
           </select>
@@ -339,19 +361,22 @@ interface LastSettings {
   aspectRatio?: ImageAspectRatio;
   outputFormat?: ImageOutputFormat;
 }
-/** Per page and per tab: the settings of the last image started on this page. */
-const lastSettingsKey = () => "ms.genSettings:" + location.pathname;
+/** The shape a card starts on when nothing was chosen before (and the target photo gives none). */
+const DEFAULT_ASPECT_RATIO: ImageAspectRatio = "2:3";
+/** The size, shape and format last chosen, for every page, kept in this browser. */
+const LAST_SETTINGS_KEY = "ms.genSettings";
+const SETTINGS_EVENT = "modelspawn:gen-settings";
 function readLastSettings(): LastSettings | null {
   try {
-    return JSON.parse(sessionStorage.getItem(lastSettingsKey()) || "null");
+    return JSON.parse(localStorage.getItem(LAST_SETTINGS_KEY) || "null");
   } catch {
     return null;
   }
 }
 function writeLastSettings(v: LastSettings) {
   try {
-    // A locked shape (a sheet) isn't saved, so it keeps the shape chosen elsewhere on the page.
-    sessionStorage.setItem(lastSettingsKey(), JSON.stringify({ ...readLastSettings(), ...v }));
+    localStorage.setItem(LAST_SETTINGS_KEY, JSON.stringify({ ...readLastSettings(), ...v }));
+    window.dispatchEvent(new Event(SETTINGS_EVENT));
   } catch {
     // Private windows can refuse storage; each card then starts on the defaults.
   }
