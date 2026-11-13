@@ -330,7 +330,7 @@ function GenerateImageInner({
         <div className="flex flex-col gap-2">
           <button
             type="button"
-            onClick={() => viewImage({ url: result.url, downloadUrl: result.downloadUrl, prompt, title: featureLabel(`image:${kind}`), generated: true })}
+            onClick={() => viewImage({ url: result.url, downloadUrl: result.downloadUrl, prompt, title: featureLabel(`image:${kind}`), generated: true, generationId: result.generationId })}
             className="self-start rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
             aria-label="View full size"
           >

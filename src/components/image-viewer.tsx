@@ -59,9 +59,9 @@ export function ImageViewer() {
   }
 
   // Opens Variants with this picture in its "Generated image" slot.
-  function sendToVariants(url: string) {
+  function sendToVariants(img: ViewableImage) {
     try {
-      sessionStorage.setItem(SEND_TO_VARIANTS_KEY, url);
+      sessionStorage.setItem(SEND_TO_VARIANTS_KEY, JSON.stringify({ generationId: img.generationId ?? null, url: img.downloadUrl ?? img.url }));
     } catch {
       return show("Couldn't open Variants in this window.");
     }
@@ -293,7 +293,7 @@ export function ImageViewer() {
           </Button>
         )}
         {image.generated && (
-          <Button type="button" size="sm" onClick={() => sendToVariants(image.downloadUrl ?? image.url)}>
+          <Button type="button" size="sm" onClick={() => sendToVariants(image)}>
             Variants
           </Button>
         )}

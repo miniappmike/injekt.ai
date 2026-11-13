@@ -19,7 +19,7 @@ import { AttachStrip, TaggedPrompt, type AttachTile } from "@/components/attach-
 import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
-import { planCarousel, writeVariantEdits } from "@/app/(app)/variants/actions";
+import { importGeneratedImage, planCarousel, writeVariantEdits } from "@/app/(app)/variants/actions";
 import {
   CAROUSEL_TYPES,
   carouselTypeLabel,
@@ -45,7 +45,8 @@ import { CharacterPicker } from "@/components/character-picker";
 /** Write only: the creative director writes variations as finished prompts for another generator, with no Generate. */
 type Mode = "edits" | "carousel" | "write";
 const MODE_LABEL: Record<Mode, string> = { edits: "Edits", carousel: "Carousel", write: "Write only" };
-type Picked = { file: File; preview: string; path?: string };
+/** A picked image: a file to upload, or (from the viewer's Variants button) one already copied to `path`. */
+type Picked = { file?: File; preview: string; path?: string };
 interface Item {
   title: string;
   /** Under the title: what the edit changes, or the slide's type and who is in it. */
@@ -120,26 +121,37 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   // The viewer's Variants button: its image lands in the "Generated image" slot, on Edits.
   useEffect(() => {
     const take = async () => {
-      let url: string | null = null;
+      let sent: { generationId?: string | null; url?: string } | null = null;
       try {
-        url = sessionStorage.getItem(SEND_TO_VARIANTS_KEY);
+        const raw = sessionStorage.getItem(SEND_TO_VARIANTS_KEY);
         sessionStorage.removeItem(SEND_TO_VARIANTS_KEY);
+        sent = raw ? (raw.startsWith("{") ? JSON.parse(raw) : { url: raw }) : null;
       } catch {
         return;
       }
-      if (!url) return;
+      if (!sent?.generationId && !sent?.url) return;
+      setStatus({ text: "Adding the image…", good: true });
       try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error();
-        const blob = await res.blob();
-        const file = new File([blob], `generated.${blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg"}`, { type: blob.type || "image/jpeg" });
-        setImage({ file, preview: URL.createObjectURL(file) });
+        // A site image is copied on the server by its id (its link can be the provider's, which the browser can't read).
+        let picked: Picked;
+        if (sent.generationId) {
+          const r = await importGeneratedImage(sent.generationId);
+          if (!r.ok) throw new Error(r.error);
+          picked = { path: r.path, preview: r.preview };
+        } else {
+          const res = await fetch(sent.url as string);
+          if (!res.ok) throw new Error();
+          const blob = await res.blob();
+          const file = new File([blob], `generated.${blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg"}`, { type: blob.type || "image/jpeg" });
+          picked = { file, preview: URL.createObjectURL(file) };
+        }
+        setImage(picked);
         setResult(null);
         setStatus(undefined);
         if (generation) setMode("edits");
         show("Image added. Pick what to change, then press Write prompts.");
-      } catch {
-        show("Couldn't load that image. Download it and add it here instead.");
+      } catch (e) {
+        setStatus({ text: (e instanceof Error && e.message) || "Couldn't load that image. Download it and add it here instead.", good: false });
       }
     };
     void take();
@@ -170,10 +182,10 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
     setResult(null);
     setStatus({ text: mode === "edits" ? "Reading the image and planning variants…" : mode === "write" ? "Reading the image and writing variations…" : "Reading the image and planning the carousel…", good: true });
     try {
-      const path = image.path ?? (await uploadImage(image.file, "target"));
+      const path = image.path ?? (await uploadImage(image.file as File, "target"));
       setImage({ ...image, path });
       // Extra images are uploaded once and reused on the next run.
-      const uploaded = await Promise.all(extras.map(async (x) => (x ? { ...x, path: x.path ?? (await uploadImage(x.file, "target")) } : null)));
+      const uploaded = await Promise.all(extras.map(async (x) => (x ? { ...x, path: x.path ?? (await uploadImage(x.file as File, "target")) } : null)));
       setExtras(uploaded);
       const extraPaths = uploaded.filter((x): x is Picked & { path: string } => !!x?.path).map((x) => x.path);
       const common = { characterId: characterId || null, note, extraPaths };

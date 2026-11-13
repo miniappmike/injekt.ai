@@ -109,7 +109,7 @@ export function HistoryPanel() {
       setItems((list) => list?.map((x) => (x.id === i.id ? { ...x, generationId: null } : x)) ?? list);
       return show("That image has expired (images are kept for 72 hours).");
     }
-    viewImage({ url: p.url, downloadUrl: p.downloadUrl, prompt: p.prompt, title: i.label, generated: true });
+    viewImage({ url: p.url, downloadUrl: p.downloadUrl, prompt: p.prompt, title: i.label, generated: true, generationId: i.generationId });
   }
 
   // Images load when you look at them, and again each time you come back to the tab. Loading also finishes any job that completed while you were away.

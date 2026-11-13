@@ -52,7 +52,7 @@ export function HistoryImages({
               {i.previewUrl ? (
                 <button
                   type="button"
-                  onClick={() => viewImage({ url: i.previewUrl as string, downloadUrl: i.downloadUrl, prompt: i.prompt, title: i.kindLabel, generated: true })}
+                  onClick={() => viewImage({ url: i.previewUrl as string, downloadUrl: i.downloadUrl, prompt: i.prompt, title: i.kindLabel, generated: true, generationId: i.id })}
                   aria-label={`View ${i.kindLabel} image`}
                   className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
                 >

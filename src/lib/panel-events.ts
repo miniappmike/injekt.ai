@@ -14,9 +14,11 @@ export interface ViewableImage {
   title?: string;
   /** An image made on the site, so the viewer offers "Variants" for it. */
   generated?: boolean;
+  /** Its generation, so Variants can copy the image on the server. */
+  generationId?: string | null;
 }
 
-/** The image the viewer's Variants button hands to the Variants page (a URL, kept for this tab only). */
+/** The image the viewer's Variants button hands to the Variants page ({ generationId, url } as JSON, this tab only). */
 export const SEND_TO_VARIANTS_KEY = "ms.sendToVariants";
 export const SEND_TO_VARIANTS_EVENT = "modelspawn:send-to-variants";
 
