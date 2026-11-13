@@ -145,15 +145,15 @@ export const GUIDE_MODELS = {
     { name: "Kimi K3.1 Pro", id: "moonshot/kimi-k3.1-pro/chat", note: "Cheaper but slower than Sonnet" },
   ],
   image: [
-    { name: "Seedream 5 Pro", id: "bytedance/seedream-5.0-pro/edit", note: "Recommended" },
-    { name: "Seedream 5.5", id: "bytedance/seedream-5.5/edit", note: "Newer" },
+    { name: "Seedream 5.5", id: "bytedance/seedream-5.5/edit", note: "Recommended" },
+    { name: "Seedream 5 Pro", id: "bytedance/seedream-5.0-pro/edit", note: "Previous version" },
   ],
 } as const;
 
 export const GUIDE_BALANCE_NOTE =
   "Bringing your own key means SpicyAPI charges you directly, so add a balance under Billing on SpicyAPI before you generate. Your ModelSpawn membership pays for the site itself, so we can keep improving it.";
 
-export const GUIDE_UPDATED = "November 10, 2026";
+export const GUIDE_UPDATED = "November 13, 2026";
 
 /** Step text with **bold** turned into spans. */
 export function guideRich(text: string): (string | { b: string })[] {
