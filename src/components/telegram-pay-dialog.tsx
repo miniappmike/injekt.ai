@@ -5,10 +5,12 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PlaneIcon } from "@/components/pay-buttons";
 import { TELEGRAM_GUIDE_PATH } from "@/lib/links";
+import { closeTab, openPayment, reserveTab } from "@/lib/payment-tab";
 
 /**
  * The step before paying with Telegram: what they're buying, a short note, a Continue to payment button (which makes
- * the Telegram payment link and opens it), where to get Stars, and a link to the how-to guide.
+ * the Telegram payment link and opens it in a new tab, so the site stays open here), where to get Stars, and a link
+ * to the how-to guide.
  * Drawn on the page body, so a card around the button can't trap or clip it (as happened on phones).
  */
 export function TelegramPayDialog({
@@ -28,6 +30,7 @@ export function TelegramPayDialog({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [opened, setOpened] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
 
   // Fresh each time it opens; Escape closes it.
@@ -35,6 +38,7 @@ export function TelegramPayDialog({
     if (!open) return;
     setBusy(false);
     setError(undefined);
+    setOpened(false);
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", esc);
     return () => document.removeEventListener("keydown", esc);
@@ -45,12 +49,20 @@ export function TelegramPayDialog({
   async function go() {
     setBusy(true);
     setError(undefined);
+    setOpened(false);
+    // The tab is reserved during the click itself (a browser blocks one opened after the wait below).
+    const tab = reserveTab();
     const r = await makeLink();
     if ("error" in r) {
+      closeTab(tab);
       setBusy(false);
       return setError(r.error);
     }
-    window.location.href = r.url;
+    // With no tab (a pop-up blocker), this page goes to Telegram instead.
+    if (openPayment(tab, r.url) === "tab") {
+      setBusy(false);
+      setOpened(true);
+    }
   }
 
   return createPortal(
@@ -75,7 +87,12 @@ export function TelegramPayDialog({
         <p className="mt-1 text-sm text-neutral-400">
           {what} · <b className="tabular-nums text-neutral-100">⭐ {stars.toLocaleString()}</b>
         </p>
-        <p className="mt-3 text-sm leading-relaxed text-neutral-300">Clicking the button will take you to an invoice within the Telegram app.</p>
+        <p className="mt-3 text-sm leading-relaxed text-neutral-300">The button opens your invoice in Telegram, in a new tab.</p>
+        {opened && (
+          <p role="status" className="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] p-3 text-sm leading-relaxed text-emerald-100">
+            Telegram opened in a new tab. Once you&apos;ve paid, come back here and refresh to see your purchase.
+          </p>
+        )}
         {error && <p role="alert" className="mt-3 text-sm text-red-400">{error}</p>}
         <button
           type="button"
@@ -83,24 +100,25 @@ export function TelegramPayDialog({
           disabled={busy}
           className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#37aee2] to-[#1e96c8] px-5 py-3 font-semibold text-white shadow-[0_10px_24px_-10px_rgb(42_171_238/0.8)] transition hover:brightness-110 disabled:opacity-60"
         >
-          <PlaneIcon className="h-4 w-4" /> {busy ? "Opening Telegram..." : "Continue to payment"}
+          <PlaneIcon className="h-4 w-4" /> {busy ? "Opening Telegram..." : opened ? "Open Telegram again" : "Continue to payment"}
         </button>
         <div className="mt-4 rounded-xl border border-neutral-800 bg-neutral-950/60 p-3 text-left">
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Short on Stars? ⭐</p>
           <ul className="mt-2 flex flex-col gap-2 text-sm text-neutral-300">
             <li className="flex items-start gap-2">
-              <span aria-hidden="true">📱</span>
-              <span><b className="text-neutral-100">Phone:</b> Settings → My Stars</span>
-            </li>
-            <li className="flex items-start gap-2">
               <span aria-hidden="true">💻</span>
               <span>
-                <b className="text-neutral-100">Web:</b> message{" "}
+                <b className="text-neutral-100">Web or desktop (best price):</b> message{" "}
                 <a href="https://t.me/PremiumBot" target="_blank" rel="noreferrer" className="font-semibold text-[#7cc9f0] underline-offset-4 hover:underline">@PremiumBot</a>{" "}
                 and send <code className="rounded bg-neutral-800 px-1 py-0.5 text-xs text-neutral-100">/stars</code>
               </span>
             </li>
+            <li className="flex items-start gap-2">
+              <span aria-hidden="true">📱</span>
+              <span><b className="text-neutral-100">Phone app:</b> Settings → My Stars</span>
+            </li>
           </ul>
+          <p className="mt-2 text-xs leading-relaxed text-neutral-400">The iPhone and Android apps add app store fees, so Stars cost less on web or desktop.</p>
         </div>
         <Link href={TELEGRAM_GUIDE_PATH} target="_blank" className="mt-3 inline-block text-sm font-semibold text-[#7cc9f0] underline-offset-4 hover:underline">
           How to pay with Telegram (guide)

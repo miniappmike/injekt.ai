@@ -68,7 +68,6 @@ doesn't refund. Failed generations return their tokens automatically. Support: m
 
 - Buying a marketplace persona (the Buy button says checkout is being set up).
 - A card processor.
-- The Telegram payment guide with screenshots (`/guides/telegram-payments` is a placeholder).
 
 ## Costs to keep in mind
 

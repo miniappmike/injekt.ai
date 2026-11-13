@@ -1,40 +1,57 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { viewImage } from "@/lib/panel-events";
 import { GUIDE_MODELS, guideRich, type GuideShot, type GuideStep } from "@/lib/key-guide";
 import { REFERRAL_DISCLOSURE, SPICYAPI_REFERRAL_URL } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
-/** Text with **bold** button names. */
+const LINK = "font-semibold text-brand-300 underline decoration-brand-500/50 underline-offset-4 transition-colors hover:text-brand-200 hover:decoration-brand-300";
+
+/** Text with **bold** button names, *italics* and [links](/path). Links open in a new tab, so the guide stays open. */
 export function Rich({ text }: { text: string }) {
   return (
     <>
-      {guideRich(text).map((p, i) =>
-        typeof p === "string" ? <span key={i}>{p}</span> : <b key={i} className="font-semibold text-neutral-50">{p.b}</b>,
-      )}
+      {guideRich(text).map((p, i) => {
+        if (typeof p === "string") return <span key={i}>{p}</span>;
+        if ("b" in p) return <b key={i} className="font-semibold text-neutral-50">{p.b}</b>;
+        if ("i" in p) return <em key={i} className="text-neutral-100">{p.i}</em>;
+        return p.href.startsWith("/") ? (
+          <Link key={i} href={p.href} target="_blank" className={LINK}>{p.text}</Link>
+        ) : (
+          <a key={i} href={p.href} target="_blank" rel="noreferrer" className={LINK}>{p.text}</a>
+        );
+      })}
     </>
   );
 }
 
-/** Where a step happens: SpicyAPI (gold, like their buttons) or ModelSpawn (crimson). */
+const WHERE = {
+  spicyapi: { label: "On SpicyAPI", pill: "bg-amber-400/10 text-amber-300 ring-amber-400/30", dot: "bg-amber-300" },
+  modelspawn: { label: "On ModelSpawn", pill: "bg-brand-500/10 text-brand-300 ring-brand-500/30", dot: "bg-brand-400" },
+  telegram: { label: "In Telegram", pill: "bg-[#2aabee]/10 text-[#7cc9f0] ring-[#2aabee]/30", dot: "bg-[#2aabee]" },
+} as const;
+
+/** Where a step happens: SpicyAPI (gold, like their buttons), ModelSpawn (crimson) or Telegram (its blue). */
 export function Where({ where, className }: { where: GuideStep["where"]; className?: string }) {
-  const spicy = where === "spicyapi";
+  const w = WHERE[where];
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1",
-        spicy ? "bg-amber-400/10 text-amber-300 ring-amber-400/30" : "bg-brand-500/10 text-brand-300 ring-brand-500/30",
-        className,
-      )}
-    >
-      <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", spicy ? "bg-amber-300" : "bg-brand-400")} />
-      {spicy ? "On SpicyAPI" : "On ModelSpawn"}
+    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1", w.pill, className)}>
+      <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", w.dot)} />
+      {w.label}
     </span>
   );
 }
 
-/** A screenshot in a window frame. Click for full size. */
+/** The label on a screenshot's frame, so phone and computer screenshots are easy to tell apart. */
+const DEVICE = {
+  phone: { label: "📱 Phone app", color: "text-amber-300" },
+  web: { label: "💻 Web or desktop", color: "text-[#7cc9f0]" },
+  site: { label: "ModelSpawn", color: "text-brand-300" },
+} as const;
+
+/** A screenshot in a window frame, labelled with where it was taken. Click for full size. */
 export function Shot({ shot, className, chrome = true }: { shot: GuideShot; className?: string; chrome?: boolean }) {
   return (
     <button
@@ -51,11 +68,13 @@ export function Shot({ shot, className, chrome = true }: { shot: GuideShot; clas
           <span className="h-2.5 w-2.5 rounded-full bg-neutral-700" />
           <span className="h-2.5 w-2.5 rounded-full bg-neutral-700" />
           <span className="h-2.5 w-2.5 rounded-full bg-neutral-700" />
+          {shot.device && <span className={cn("ml-1.5 text-[10px] font-semibold uppercase tracking-wide", DEVICE[shot.device].color)}>{DEVICE[shot.device].label}</span>}
           <span className="ml-auto text-[10px] text-neutral-500 opacity-0 transition-opacity group-hover/shot:opacity-100">Click to enlarge</span>
         </span>
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={shot.src} alt={shot.alt} width={shot.width} height={shot.height} loading="lazy" className="block h-auto w-full" />
+      {shot.caption && <span className="block border-t border-white/5 bg-neutral-900 px-3 py-2 text-[13px] leading-snug text-neutral-300"><Rich text={shot.caption} /></span>}
     </button>
   );
 }
@@ -169,7 +188,7 @@ export function StepBody({ step }: { step: GuideStep }) {
     <div className="flex flex-col gap-3">
       <p className="text-[15px] leading-relaxed text-neutral-300"><Rich text={step.body} /></p>
       {step.points && <Points points={step.points} />}
-      {step.note && <Note {...step.note} />}
+      {[step.note ?? []].flat().map((n) => <Note key={n.text} {...n} />)}
       {step.models && <ModelPicks />}
       {step.cta && <SpicyCta size="md" />}
     </div>

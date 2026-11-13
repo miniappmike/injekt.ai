@@ -8,24 +8,33 @@ export interface GuideShot {
   alt: string;
   width: number;
   height: number;
+  /** Where the screenshot was taken, shown as a label on its frame. */
+  device?: "phone" | "web" | "site";
+  /** A short line under the screenshot. */
+  caption?: string;
+}
+
+export interface GuideNote {
+  tone: "warn" | "tip";
+  text: string;
 }
 
 export interface GuideStep {
   /** Short title, an action. */
   title: string;
-  /** One or two sentences. `**bold**` marks button and menu names. */
+  /** One or two sentences. `**bold**` marks button and menu names, `*italics*` adds stress, `[text](/path)` makes a link. */
   body: string;
   /** Extra details as a short list. */
   points?: string[];
-  /** A callout under the text. */
-  note?: { tone: "warn" | "tip"; text: string };
+  /** A callout under the text, or several. */
+  note?: GuideNote | GuideNote[];
   /** Show the model picks here. */
   models?: boolean;
   /** The referral button here. */
   cta?: boolean;
   shots?: GuideShot[];
   /** Where the step happens. */
-  where: "spicyapi" | "modelspawn";
+  where: "spicyapi" | "modelspawn" | "telegram";
 }
 
 export interface GuidePhase {
@@ -155,7 +164,17 @@ export const GUIDE_BALANCE_NOTE =
 
 export const GUIDE_UPDATED = "November 10, 2026";
 
-/** Step text with **bold** turned into spans. */
-export function guideRich(text: string): (string | { b: string })[] {
-  return text.split(/\*\*(.+?)\*\*/g).map((part, i) => (i % 2 ? { b: part } : part));
+export type RichPart = string | { b: string } | { i: string } | { href: string; text: string };
+
+/** Step text split into plain text, **bold**, *italics* and [links](/path). */
+export function guideRich(text: string): RichPart[] {
+  return text
+    .split(/(\*\*.+?\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g)
+    .filter(Boolean)
+    .map((part): RichPart => {
+      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) return { b: part.slice(2, -2) };
+      if (part.startsWith("*") && part.endsWith("*") && part.length > 2) return { i: part.slice(1, -1) };
+      const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
+      return link ? { text: link[1], href: link[2] } : part;
+    });
 }
