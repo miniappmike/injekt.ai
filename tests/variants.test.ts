@@ -230,6 +230,28 @@ describe("runVariants", () => {
     expect((writes[0].prefs as { recentPoses: string[] }).recentPoses).toEqual(["old pose", "Low angle laugh"]);
   });
 
+  it("without an outfit or colour change, every prompt carries the same outfit, word for word", async () => {
+    h.run.mockResolvedValue(
+      '{"outfit":"a black vinyl mini skirt, red patent opera gloves, red platform ankle boots","variants":[{"label":"Lying laugh","prompt":"Edit @image2. Keep her as in @image1. She laughs."},{"label":"Kneeling","prompt":"Edit @image2. Keep her as in @image1. She kneels."}]}',
+    );
+    const { client } = db();
+    const r = await runVariants(client, U, { imagePath: `${U}/t.jpg`, characterId: "c1", dims: ["pose", "angle"], count: 2 });
+    expect(h.run.mock.calls[0][0].prompt).toContain("- OUTFIT LOCK: no edit changes the clothing.");
+    expect(h.run.mock.calls[0][0].prompt).toContain('{"outfit": ');
+    const line = "SAME OUTFIT: she wears exactly the outfit from @image2: a black vinyl mini skirt, red patent opera gloves, red platform ankle boots.";
+    expect(r.variants.map((v) => v.prompt.includes(line))).toEqual([true, true]);
+  });
+
+  it("a different outfit or new colours leave the outfit free", async () => {
+    h.run.mockResolvedValue('{"outfit":"a red dress","variants":[{"label":"New look","prompt":"Edit @image2. Keep her as in @image1. A blue suit."}]}');
+    const { client } = db();
+    for (const dim of ["outfit", "colours"] as const) {
+      const r = await runVariants(client, U, { imagePath: `${U}/t.jpg`, characterId: "c1", dims: ["pose", dim], count: 1 });
+      expect(r.variants[0].prompt).not.toContain("SAME OUTFIT");
+    }
+    expect(h.run.mock.calls[0][0].prompt).not.toContain("OUTFIT LOCK: no edit");
+  });
+
   it("refuses nothing to change, someone else's images, and too many extras", async () => {
     const { client } = db();
     await expect(runVariants(client, U, { imagePath: `${U}/t.jpg`, dims: [] })).rejects.toThrow(/at least one thing/);

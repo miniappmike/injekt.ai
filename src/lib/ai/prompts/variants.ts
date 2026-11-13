@@ -57,7 +57,12 @@ export interface VariantPromptInput {
   extra: string;
   /** Without a character: the tags of the extra images (they follow the photo, @image2 onwards). */
   extraTags?: string[];
+  /** No outfit or colour change is on: the writer describes the outfit once and every edit carries it word for word. */
+  lockOutfit?: boolean;
 }
+
+/** Variants keep the photo's outfit unless a different outfit or new colours are asked for. */
+export const locksOutfit = (dims: string[]) => !dims.includes("outfit") && !dims.includes("colours");
 
 /** Artifact writeVariants prompt. */
 export function variantPrompt(o: VariantPromptInput): string {
@@ -82,8 +87,8 @@ ${two ? `- ${vt.ref} shows her in a plain placeholder outfit${o.so ? ` (${o.so})
 - Tattoos are skin, never clothing: a tattoo shows only where its spot is bare skin. If an edit's outfit covers it, it stays hidden under the fabric and is never printed or drawn on the clothes.
 - Each edit is 2 to 4 sentences, plain prose. Always describe the person as an adult. Never use "photorealistic", "8k" or similar filler.
 ${o.recent.length ? `- Avoid these recently used poses: ${o.recent.join("; ")}.\n` : ""}- For pose inspiration only, never copy: ${o.inspo.join("; ")}.
-${extrasLine(vt ? vt.extras : (o.extraTags ?? []))}${extra ? `- Creative direction from the user, only as it applies to the image: <<<${fence(extra)}>>>\n` : ""}
-Reply with only JSON: {"variants": [{"label": "2 to 4 word name, e.g. Low angle laugh", "changes": "pose, angle", "prompt": "the edit prompt"}]}`;
+${o.lockOutfit ? `- OUTFIT LOCK: no edit changes the clothing. In "outfit", describe the outfit in the image once, garment by garment, in at most 60 words: every garment, shoe and accessory with its type, colour, fabric, finish and fit (for example "a glossy black vinyl high-waisted mini skirt, long red patent leather opera gloves above the elbow, red patent platform lace-up ankle boots with stiletto heels"). Name only what is visible. The app adds this exact description to every edit, so the edits themselves do not describe the outfit.\n` : ""}${extrasLine(vt ? vt.extras : (o.extraTags ?? []))}${extra ? `- Creative direction from the user, only as it applies to the image: <<<${fence(extra)}>>>\n` : ""}
+Reply with only JSON: {${o.lockOutfit ? '"outfit": "the outfit in the image, garment by garment", ' : ""}"variants": [{"label": "2 to 4 word name, e.g. Low angle laugh", "changes": "pose, angle", "prompt": "the edit prompt"}]}`;
 }
 
 // ModelSpawn addition: the person's extra images (vibe, outfit) follow the photo, in this order, in their generator.
@@ -94,15 +99,23 @@ function extrasLine(tags: string[]) {
 }
 
 /** Artifact post-processing of each variant: harness, the opener, the reference outfit guard and the makeup rule. */
-export function finishVariant(prompt: string, vt: VariantTags | null, so: string, extra: string): string {
+export function finishVariant(prompt: string, vt: VariantTags | null, so: string, extra: string, outfit = ""): string {
   let t = harness(prompt, { realism: false }).text;
   if (vt && !(t.includes(vt.ref) && t.includes(vt.photo)))
     t = `Edit ${vt.photo}. Keep the person exactly as she looks in ${vt.ref}: same face, features, skin, hair, body shape and proportions. ` + t;
+  // The same outfit, word for word, in every edit of the set.
+  if (outfit) t = t.replace(/\s*$/, " ") + outfitKeep(outfit, vt ? vt.photo : "the photo being edited");
   if (vt) t = t.replace(/\s*$/, " ") + refOutfitGuard(vt.ref, vt.photo, so) + " " + SKIN_ART_SHORT;
   if (!asksMakeup(extra) && !/MAKEUP STAYS/.test(t)) t = t.replace(/\s*$/, " ") + makeupRule(vt ? vt.photo : "the photo being edited");
   // ModelSpawn's standing rule: every prompt carries the realism line (the artifact relied on "keep the realism").
   if (!hasQualityLine(t)) t = t.replace(/\s*$/, " ") + REALISM_FIX.quality;
   return t;
+}
+
+/** The outfit line every variant of a set carries when no edit changes the clothes. */
+export function outfitKeep(outfit: string, photo: string): string {
+  const o = fence(String(outfit)).replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 400);
+  return `SAME OUTFIT: she wears exactly the outfit from ${photo}: ${o}. Every garment, shoe and accessory stays the same, with the same colours, fabrics, finish and fit; nothing is added, removed, swapped or recoloured.`;
 }
 
 // ---------- carousel ----------
