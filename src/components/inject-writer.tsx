@@ -38,6 +38,18 @@ const OPTIONS_KEY = "ms.injectOptions";
 const WRITE_ONLY_KEY = "ms.injectWriteOnly";
 const select = "h-10 w-full rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm";
 
+/** The one Outfit menu: each choice sets the three outfit options together, so they can't contradict each other. */
+const OUTFIT_CHOICES = {
+  match: { label: "Same as the photo", set: { ward: "match", newOutfit: false, recolor: false } },
+  recolor: { label: "Same outfit, new colours", set: { ward: "match", newOutfit: false, recolor: true } },
+  new: { label: "A new outfit", set: { ward: "match", newOutfit: true, recolor: false } },
+  signature: { label: "Her signature style", set: { ward: "signature", newOutfit: false, recolor: false } },
+  extracted: { label: "An outfit I choose", set: { ward: "extracted", newOutfit: false, recolor: false } },
+} as const;
+type OutfitChoice = keyof typeof OUTFIT_CHOICES;
+const outfitChoice = (o: { ward: string; newOutfit: boolean; recolor: boolean }): OutfitChoice =>
+  o.newOutfit ? "new" : o.ward === "match" ? (o.recolor ? "recolor" : "match") : (o.ward as OutfitChoice);
+
 export interface InjectCharacter {
   id: string;
   name: string;
@@ -91,7 +103,9 @@ type Options = Required<Omit<InjectOptionsInput, "count">> & { count: number };
 function loadOptions(): Options {
   try {
     const saved = JSON.parse(localStorage.getItem(OPTIONS_KEY) || "{}");
-    return { ...INJECT_DEFAULTS, ...saved, who: "", extra: saved.extra ?? "" };
+    const o: Options = { ...INJECT_DEFAULTS, ...saved, who: "", extra: saved.extra ?? "" };
+    // Combinations saved before the single Outfit menu (say, signature style with recolour) settle on one choice.
+    return { ...o, ...OUTFIT_CHOICES[outfitChoice(o)].set };
   } catch {
     return { ...INJECT_DEFAULTS };
   }
@@ -329,7 +343,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
       if ("redirectTo" in res && res.redirectTo) return router.push(res.redirectTo);
       return show(res.error);
     }
-    setO((x) => ({ ...x, exText: res.text, ward: "extracted" }));
+    setO((x) => ({ ...x, exText: res.text, ...OUTFIT_CHOICES.extracted.set }));
     show("Outfit extracted. The prompts will use it.");
   }
 
@@ -556,11 +570,9 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
             </select>
           </label>
           <label className="flex flex-col gap-1.5 text-sm">
-            Wardrobe
-            <select className={select} value={o.ward} onChange={(e) => set("ward", e.target.value as Options["ward"])}>
-              <option value="match">Match the target</option>
-              <option value="signature">Her signature style</option>
-              <option value="extracted">Extracted outfit</option>
+            Outfit
+            <select className={select} value={outfitChoice(o)} onChange={(e) => setO((x) => ({ ...x, ...OUTFIT_CHOICES[e.target.value as OutfitChoice].set }))}>
+              {(Object.keys(OUTFIT_CHOICES) as OutfitChoice[]).map((k) => <option key={k} value={k}>{OUTFIT_CHOICES[k].label}</option>)}
             </select>
           </label>
           <label className="flex flex-col gap-1.5 text-sm">
@@ -575,10 +587,10 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
           </label>
         </div>
 
-        {o.ward === "extracted" && (
+        {outfitChoice(o) === "extracted" && (
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <Label htmlFor="outfit">Outfit</Label>
+              <Label htmlFor="outfit">The outfit she wears</Label>
               <Button type="button" size="sm" variant="secondary" onClick={extract} disabled={extracting || running || !targets.length}>
                 {extracting ? "Reading the outfit…" : "Extract from the first target"}
               </Button>
@@ -606,7 +618,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
               <div className="flex flex-wrap gap-1.5" aria-label="Saved outfits">
                 {outfits.map((x) => (
                   <span key={x.id} className={`flex items-center gap-1 rounded-full border pl-2.5 pr-1 text-xs transition-colors ${o.exText === x.text ? "border-brand-500/70 bg-brand-500/15" : "border-neutral-700 hover:border-neutral-500"}`}>
-                    <button type="button" className="py-1" title={x.text} onClick={() => setO((v) => ({ ...v, exText: x.text, ward: "extracted" }))}>{x.name}</button>
+                    <button type="button" className="py-1" title={x.text} onClick={() => setO((v) => ({ ...v, exText: x.text, ...OUTFIT_CHOICES.extracted.set }))}>{x.name}</button>
                     <button
                       type="button"
                       aria-label={`Delete outfit ${x.name}`}
@@ -627,12 +639,6 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
         )}
 
         <div className="flex flex-wrap gap-2 text-sm">
-          <label className="flex cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15">
-            <input type="checkbox" checked={o.newOutfit} onChange={(e) => set("newOutfit", e.target.checked)} /> Change outfit
-          </label>
-          <label className={`flex cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15 ${o.newOutfit ? "opacity-50" : ""}`}>
-            <input type="checkbox" checked={o.recolor && !o.newOutfit} disabled={o.newOutfit} onChange={(e) => set("recolor", e.target.checked)} /> Recolour clothes
-          </label>
           <label className="flex cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15">
             <input type="checkbox" checked={o.hair} onChange={(e) => set("hair", e.target.checked)} /> Hairstyle variant
           </label>
