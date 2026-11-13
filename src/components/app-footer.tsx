@@ -10,8 +10,8 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
     title: "Create",
     links: [
       { label: "Inject", href: "/inject" },
+      { label: "Director", href: "/director" },
       { label: "Variants", href: "/variants" },
-      { label: "Likeness", href: "/likeness" },
       { label: "Create Model", href: "/reference-sheet" },
     ],
   },
@@ -21,6 +21,7 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
       { label: "Marketplace", href: "/marketplace" },
       { label: "Art to Real", href: "/art-to-real" },
       { label: "Group photo", href: "/characters" },
+      { label: "Likeness check", href: "/likeness" },
     ],
   },
   {
