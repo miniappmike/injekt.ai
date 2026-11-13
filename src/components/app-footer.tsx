@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { CONTACT_EMAIL, GET_KEY_PATH, REFERRAL_DISCLOSURE } from "@/lib/links";
+import { CONTACT_EMAIL, GET_KEY_PATH, REFERRAL_DISCLOSURE, SPICYAPI_REFERRAL_URL } from "@/lib/links";
 
 type FooterLink = { label: string; href?: string };
 
@@ -56,7 +56,21 @@ export function AppFooter() {
             Contact:{" "}
             <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-neutral-200 underline-offset-4 transition-colors hover:text-white hover:underline">{CONTACT_EMAIL}</a>
           </p>
-          <p className="max-w-xs text-[11px] leading-relaxed text-neutral-600">{REFERRAL_DISCLOSURE}</p>
+          <p className="max-w-xs text-[11px] leading-relaxed text-neutral-600">
+            {/* "SpicyAPI" in the disclosure is the referral link itself. */}
+            {REFERRAL_DISCLOSURE.split("SpicyAPI").map((part, i) =>
+              i === 0 ? (
+                part
+              ) : (
+                <span key={i}>
+                  <a href={SPICYAPI_REFERRAL_URL} target="_blank" rel="noopener noreferrer sponsored" className="font-medium text-neutral-400 underline underline-offset-2 transition-colors hover:text-white">
+                    SpicyAPI
+                  </a>
+                  {part}
+                </span>
+              ),
+            )}
+          </p>
         </div>
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 lg:contents">
           {COLUMNS.map((col) => (
