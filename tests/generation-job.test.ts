@@ -107,6 +107,33 @@ describe("buildJob", () => {
   });
 });
 
+describe("Director", () => {
+  const ask = (opts: { forQuote?: boolean } = {}, row: Partial<JobCharacter> = c) =>
+    buildJob(userClient(row), U, { kind: "inject", characterId: "c1", extraPaths: [], prompt: "Her on a balcony at sunset in a red dress.", meta: { direct: true } } as never, { model: SEEDREAM, max: 10, ...opts });
+
+  it("writes the scene from the direction, then sends her face sheet as @image1 and body sheet as @image2 under the BODY LOCK", async () => {
+    h.ensureSheetPack.mockResolvedValue(pack);
+    h.run.mockResolvedValue("===VERSION 1===\nIN FRAME: face, hair, waist, hips, legs\nOUTFIT: a red satin slip dress\nPhoto of a woman on a balcony at sunset in a red satin slip dress.");
+    const job = await ask();
+    expect(h.getUserTextClient).toHaveBeenCalledWith(expect.anything(), U, "llm", "prompt");
+    expect(h.run.mock.calls[0][0].prompt).toContain("<<<Her on a balcony at sunset in a red dress.>>>");
+    expect(job.paths).toEqual([`${U}/face.jpg`, `${U}/body.jpg`]);
+    expect(job.prompt).toContain("@image1 is her face reference sheet");
+    expect(job.prompt).toContain("@image2 is her full-body reference sheet");
+    expect(job.prompt).toContain("BODY LOCK (top priority): her body matches @image2 exactly");
+    expect(job.prompt).toContain("Photo of a woman on a balcony at sunset in a red satin slip dress.");
+    expect(job.prompt).toContain("OUTFIT LOCK: she wears only a red satin slip dress");
+    expect(job.prompt).not.toContain("IN FRAME");
+  });
+
+  it("needs both sheets, and a price check never writes the prompt", async () => {
+    await expect(ask({}, { ...c, body_sheet_path: null })).rejects.toThrow(/face sheet and body sheet/);
+    const quote = await ask({ forQuote: true });
+    expect(h.run).not.toHaveBeenCalled();
+    expect(quote.paths).toEqual([`${U}/face.jpg`, `${U}/body.jpg`]);
+  });
+});
+
 describe("buildJob for Inject", () => {
   it("shortens only the scene when the framed prompt is too long, keeping both sheets and the BODY LOCK whole", async () => {
     h.ensureSheetPack.mockResolvedValue(pack);

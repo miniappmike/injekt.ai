@@ -129,7 +129,7 @@ export function GenerationTray() {
                 {i.state === "ready" && i.url ? (
                   <button
                     type="button"
-                    onClick={() => viewImage({ url: i.url as string, downloadUrl: i.downloadUrl, prompt: i.prompt, title: i.label })}
+                    onClick={() => viewImage({ url: i.url as string, downloadUrl: i.downloadUrl, prompt: i.prompt, title: i.label, generated: true })}
                     className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
                     aria-label={`View ${i.label} image`}
                     title={i.label}

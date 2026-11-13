@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
-import { VIEW_IMAGE_EVENT, type ViewableImage } from "@/lib/panel-events";
+import { SEND_TO_VARIANTS_EVENT, SEND_TO_VARIANTS_KEY, VIEW_IMAGE_EVENT, type ViewableImage } from "@/lib/panel-events";
 
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 8;
@@ -32,6 +33,42 @@ export function ImageViewer() {
   const returnFocus = useRef<HTMLElement | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const { toast, show } = useToast(2000);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Copies the picture itself. Clipboards take PNG, so a JPEG is redrawn as one (from the file, so nothing is tainted).
+  async function copyImage(url: string) {
+    try {
+      const png = fetch(url)
+        .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("load"))))
+        .then(async (blob) => {
+          if (blob.type === "image/png") return blob;
+          const bmp = await createImageBitmap(blob);
+          const canvas = document.createElement("canvas");
+          canvas.width = bmp.width;
+          canvas.height = bmp.height;
+          canvas.getContext("2d")!.drawImage(bmp, 0, 0);
+          return new Promise<Blob>((ok, no) => canvas.toBlob((b) => (b ? ok(b) : no(new Error("png"))), "image/png"));
+        });
+      // The promise goes straight into the ClipboardItem, so the copy still counts as part of the click.
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
+      show("Image copied");
+    } catch {
+      show("Couldn't copy the image. Use Download instead.");
+    }
+  }
+
+  // Opens Variants with this picture in its "Generated image" slot.
+  function sendToVariants(url: string) {
+    try {
+      sessionStorage.setItem(SEND_TO_VARIANTS_KEY, url);
+    } catch {
+      return show("Couldn't open Variants in this window.");
+    }
+    close();
+    if (pathname.startsWith("/variants")) window.dispatchEvent(new Event(SEND_TO_VARIANTS_EVENT));
+    else router.push("/variants");
+  }
 
   useEffect(() => {
     const onView = (e: Event) => {
@@ -239,6 +276,9 @@ export function ImageViewer() {
             <a href={image.downloadUrl}>Download</a>
           </Button>
         )}
+        <Button type="button" size="sm" variant="secondary" onClick={() => void copyImage(image.downloadUrl ?? image.url)}>
+          Copy image
+        </Button>
         {image.prompt && (
           <Button
             type="button"
@@ -250,6 +290,11 @@ export function ImageViewer() {
             }}
           >
             Copy prompt
+          </Button>
+        )}
+        {image.generated && (
+          <Button type="button" size="sm" onClick={() => sendToVariants(image.downloadUrl ?? image.url)}>
+            Variants
           </Button>
         )}
       </div>

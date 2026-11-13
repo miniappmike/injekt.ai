@@ -1,6 +1,6 @@
 "use client";
 
-import { usageChanged } from "@/lib/panel-events";
+import { SEND_TO_VARIANTS_EVENT, SEND_TO_VARIANTS_KEY, usageChanged } from "@/lib/panel-events";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -73,6 +73,8 @@ interface Result {
   extraPreviews: string[];
   characterId: string | null;
   mode: Mode;
+  /** One per press of Write prompts: new cards start empty, and the images already made stay in the tray. */
+  runId: string;
 }
 
 const chip = chipItem;
@@ -115,6 +117,37 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   const [runAll, setRunAll] = useState(0);
   const { toast, show } = useToast(2000);
 
+  // The viewer's Variants button: its image lands in the "Generated image" slot, on Edits.
+  useEffect(() => {
+    const take = async () => {
+      let url: string | null = null;
+      try {
+        url = sessionStorage.getItem(SEND_TO_VARIANTS_KEY);
+        sessionStorage.removeItem(SEND_TO_VARIANTS_KEY);
+      } catch {
+        return;
+      }
+      if (!url) return;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error();
+        const blob = await res.blob();
+        const file = new File([blob], `generated.${blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg"}`, { type: blob.type || "image/jpeg" });
+        setImage({ file, preview: URL.createObjectURL(file) });
+        setResult(null);
+        setStatus(undefined);
+        if (generation) setMode("edits");
+        show("Image added. Pick what to change, then press Write prompts.");
+      } catch {
+        show("Couldn't load that image. Download it and add it here instead.");
+      }
+    };
+    void take();
+    window.addEventListener(SEND_TO_VARIANTS_EVENT, take);
+    return () => window.removeEventListener(SEND_TO_VARIANTS_EVENT, take);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const character = characters.find((c) => c.id === characterId);
   const noRefs = !!character && !character.ready;
 
@@ -133,6 +166,8 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   async function run() {
     if (!image) return;
     setBusy(true);
+    // The old cards go; the images made from them stay in the tray at the bottom of the page.
+    setResult(null);
     setStatus({ text: mode === "edits" ? "Reading the image and planning variants…" : mode === "write" ? "Reading the image and writing variations…" : "Reading the image and planning the carousel…", good: true });
     try {
       const path = image.path ?? (await uploadImage(image.file, "target"));
@@ -144,7 +179,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       const common = { characterId: characterId || null, note, extraPaths };
       const where = { platform, platformOther: platform === "other" ? platformOther.trim() : "" };
       const extraPreviews = uploaded.filter((x): x is Picked & { path: string } => !!x?.path).map((x) => x.preview);
-      const base = { path, preview: image.preview, extraPaths, extraPreviews, characterId: characterId || null, mode };
+      const base = { path, preview: image.preview, extraPaths, extraPreviews, characterId: characterId || null, mode, runId: crypto.randomUUID() };
       const who = (p: SlidePerson, type: string) => (p === "none" ? " · no person" : p === "partial" ? " · partly her" : type === "pose" ? "" : " · with her");
       if (mode === "edits") {
         const res = await writeVariantEdits({ imagePath: path, dims: [...dims], count, ...common });
@@ -472,7 +507,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
             </Card>
           )}
           {result.items.map((item, i) => (
-            <Card key={i}>
+            <Card key={`${result.runId}-${i}`}>
               <CardContent className="flex flex-col gap-2 pt-5 text-sm">
                 <div className="flex items-start justify-between gap-2">
                   <div>
