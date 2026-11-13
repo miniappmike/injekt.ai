@@ -159,7 +159,8 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
         status: "pending",
         provider: "spicyapi",
         model: access.model,
-        prompt: prepared.prompt,
+        // Director's prompt is written here and never shown: the row keeps the person's own direction instead.
+        prompt: request.meta?.direct ? request.prompt : prepared.prompt,
         params: {
           resolution,
           aspect_ratio: request.aspectRatio,

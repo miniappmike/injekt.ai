@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { href: "/inject", label: "Inject" },
+  { href: "/director", label: "Director" },
   { href: "/variants", label: "Variants" },
-  { href: "/likeness", label: "Likeness" },
   { href: "/reference-sheet", label: "Create Model" },
   { href: "/characters", label: "Characters" },
   { href: "/marketplace", label: "Marketplace" },

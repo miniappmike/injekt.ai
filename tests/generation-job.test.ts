@@ -6,7 +6,8 @@ vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: h.getUserTextClient 
 vi.mock("@/lib/sheet-pack", async (orig) => ({ ...(await orig<typeof import("@/lib/sheet-pack")>()), ensureSheetPack: h.ensureSheetPack }));
 
 import { buildJob, fitPrompt, injectJob, PROMPT_LIMIT, type JobCharacter } from "@/lib/generation-job";
-import { PACK_V, type SheetPack } from "@/lib/ai/prompts/identity";
+import { PACK_V, QUALITY_SHADING_MATCH, type SheetPack } from "@/lib/ai/prompts/identity";
+import { REALISM_FIX } from "@/lib/ai/prompts/rules";
 import { UserFacingError } from "@/lib/errors";
 
 const U = "u1";
@@ -104,6 +105,59 @@ describe("buildJob", () => {
     await expect(buildJob(userClient(), U, { kind: "inject", characterId: "c1", extraPaths: [], prompt: "p", meta: { target: "other/t.jpg" } }, { model: SEEDREAM, max: 10 })).rejects.toThrow(/couldn't be used/);
     await expect(buildJob(userClient(), U, { kind: "edit", extraPaths: ["../u1/x.jpg"], prompt: "p" }, { model: SEEDREAM, max: 10 })).rejects.toThrow(/couldn't be used/);
     await expect(buildJob(userClient(null), U, { kind: "edit", characterId: "c1", extraPaths: [], prompt: "p" }, { model: SEEDREAM, max: 10 })).rejects.toThrow(/Character not found/);
+  });
+});
+
+describe("Director", () => {
+  const ask = (opts: { forQuote?: boolean } = {}, row: Partial<JobCharacter> = c) =>
+    buildJob(userClient(row), U, { kind: "inject", characterId: "c1", extraPaths: [], prompt: "Her on a balcony at sunset in a red dress.", meta: { direct: true } } as never, { model: SEEDREAM, max: 10, ...opts });
+
+  it("writes the scene from the direction, then sends her face sheet as @image1 and body sheet as @image2 under the BODY LOCK", async () => {
+    h.ensureSheetPack.mockResolvedValue(pack);
+    h.run.mockResolvedValue("===VERSION 1===\nIN FRAME: face, hair, waist, hips, legs\nOUTFIT: a red satin slip dress\nPhoto of a woman on a balcony at sunset in a red satin slip dress.");
+    const job = await ask();
+    expect(h.getUserTextClient).toHaveBeenCalledWith(expect.anything(), U, "llm", "prompt");
+    expect(h.run.mock.calls[0][0].prompt).toContain("<<<Her on a balcony at sunset in a red dress.>>>");
+    expect(job.paths).toEqual([`${U}/face.jpg`, `${U}/body.jpg`]);
+    expect(job.prompt).toContain("@image1 is her face reference sheet");
+    expect(job.prompt).toContain("@image2 is her full-body reference sheet");
+    expect(job.prompt).toContain("BODY LOCK (top priority): her body matches @image2 exactly");
+    expect(job.prompt).toContain("Photo of a woman on a balcony at sunset in a red satin slip dress.");
+    expect(job.prompt).toContain("OUTFIT LOCK: she wears only a red satin slip dress");
+    expect(job.prompt).not.toContain("IN FRAME");
+  });
+
+  it("realism off leaves a fantastical scene as written, with no photo-realism lines added", async () => {
+    h.ensureSheetPack.mockResolvedValue(pack);
+    h.run.mockResolvedValue("===VERSION 1===\nIN FRAME: face, hair, arms\nOUTFIT: a flowing violet wizard robe\nShe flies on a red dragon above the clouds in a flowing violet wizard robe, no garbled lettering.");
+    const job = await buildJob(userClient(), U, { kind: "inject", characterId: "c1", extraPaths: [], prompt: "Her flying on a dragon in a wizard robe", meta: { direct: true, real: false } } as never, { model: SEEDREAM, max: 10 });
+    const task = h.run.mock.calls[0][0].prompt;
+    expect(task).toContain("STYLE (Inject realism is off)");
+    expect(task).not.toContain("REALISM (Inject realism is on)");
+    expect(job.prompt).toContain("She flies on a red dragon above the clouds");
+    expect(job.prompt).not.toContain(REALISM_FIX.quality);
+    expect(job.prompt).not.toContain(REALISM_FIX.skin);
+    expect(job.prompt).not.toContain(QUALITY_SHADING_MATCH);
+    expect(job.prompt).toContain("BODY LOCK (top priority)");
+    expect(job.prompt).toContain("@image2 is her full-body reference sheet");
+  });
+
+  it("realism on (the default) asks for real skin, light and depth, and keeps what was asked for", async () => {
+    h.ensureSheetPack.mockResolvedValue(pack);
+    h.run.mockResolvedValue("===VERSION 1===\nIN FRAME: face\nOUTFIT: a robe\nShe rides a dragon.");
+    const job = await ask();
+    const task = h.run.mock.calls[0][0].prompt;
+    expect(task).toContain("REALISM (Inject realism is on)");
+    expect(task).toContain("Keep everything the direction asks for, fantastical or not");
+    expect(job.prompt).toContain(QUALITY_SHADING_MATCH);
+    expect(job.prompt).toContain(REALISM_FIX.quality);
+  });
+
+  it("needs both sheets, and a price check never writes the prompt", async () => {
+    await expect(ask({}, { ...c, body_sheet_path: null })).rejects.toThrow(/face sheet and body sheet/);
+    const quote = await ask({ forQuote: true });
+    expect(h.run).not.toHaveBeenCalled();
+    expect(quote.paths).toEqual([`${U}/face.jpg`, `${U}/body.jpg`]);
   });
 });
 

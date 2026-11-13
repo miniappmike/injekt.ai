@@ -6,12 +6,16 @@ import { isOwnPath } from "@/lib/uploads";
 import { referencesFor } from "@/lib/character-images";
 import { currentPack, ensureSheetPack, selectCharacter } from "@/lib/sheet-pack";
 import { getUserTextClient } from "@/lib/ai/text-client";
-import { basePrompt, clampTags, condenseTask, framePrompt, sceneCondenseTask, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
+import { basePrompt, clampTags, condenseTask, framePrompt, sceneCondenseTask, sheetLines, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
 import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
 import { faceFixPrompt, likenessFixPrompt, type FixRefs } from "@/lib/ai/prompts/likeness";
 import { carouselSlidePrompt } from "@/lib/ai/prompts/variants";
 import { swapPrompt } from "@/lib/ai/prompts/swap";
 import { sheetPrompts } from "@/lib/ai/prompts/sheets";
+import { buildDirectorPrompt, MAX_DIRECTION } from "@/lib/ai/prompts/director";
+import { parseVersions } from "@/lib/ai/prompts/inject";
+import { harness } from "@/lib/ai/prompts/harness";
+import type { CharacterProfile } from "@/lib/characters";
 import { MAX_BODY_PHOTOS } from "@/lib/sheet-options";
 import { asksMakeup, makeupRule } from "@/lib/ai/prompts/rules";
 import { artToRealPrompt } from "@/lib/ai/prompts/art-to-real";
@@ -71,7 +75,7 @@ export function injectJob(c: JobCharacter, pack: SheetPack | null, text: string,
   }
   const s = sheetRefs(c, pack, max, 3);
   if (!s.paths.length) throw new UserFacingError("This character needs a reference sheet or photo first.");
-  if (s.isSheet) return { prompt: framePrompt(modelFamily(model), text, s.R, meta.frame, { outfit: meta.outfit, clean: meta.clean }), paths: s.paths, photoEdit: false };
+  if (s.isSheet) return { prompt: framePrompt(modelFamily(model), text, s.R, meta.frame, { outfit: meta.outfit, clean: meta.clean, realism: meta.real !== false }), paths: s.paths, photoEdit: false };
   const n = s.paths.length;
   const ol = outfitLock(n > 1 ? "the reference images" : "@image1", meta.outfit, "", "prompt") + (meta.clean ? " " + OVERLAY_RULE : "");
   return { prompt: lockRefs(text, n, false, ol), paths: s.paths, photoEdit: false };
@@ -257,6 +261,8 @@ export async function buildJob(
     return artToRealJob(c, c ? await packOf(c) : null, artwork, request.meta?.extra, opts.max);
   }
 
+  if (request.kind === "inject" && request.meta?.direct && c) return directorJob(supabase, userId, c, await packOf(c), request.prompt, request.meta.real !== false, opts);
+
   if (request.kind === "inject" && request.meta && c) {
     const pack = await packOf(c);
     const job = injectJob(c, pack, request.prompt, request.meta, opts.model, opts.max);
@@ -319,6 +325,41 @@ async function generationSource(supabase: SupabaseClient, generationId: string):
 }
 
 /** Points tags at images that are sent and keeps the prompt within the provider's limit (artifact wsGenerate). */
+/**
+ * Director: her face sheet and body sheet are always sent (@image1 and @image2), and the scene is written here from the
+ * person's direction, then framed with her identity and BODY LOCK. A price check skips the writing (only the images count).
+ */
+async function directorJob(
+  supabase: SupabaseClient,
+  userId: string,
+  c: JobCharacter,
+  pack: SheetPack | null,
+  direction: string,
+  realism: boolean,
+  opts: { model: string; max: number; forQuote?: boolean },
+): Promise<BuiltJob> {
+  if (!c.face_sheet_path || !c.body_sheet_path) throw new UserFacingError("Director needs her face sheet and body sheet. Make them on her character page first.");
+  const dir = direction.trim().slice(0, MAX_DIRECTION);
+  if (!dir) throw new UserFacingError("Describe what you want to see first.");
+  if (opts.forQuote) return injectJob(c, pack, dir, { real: realism }, opts.model, opts.max);
+  const row = await selectCharacter<{ profile: CharacterProfile | null; always_keep: string | null; height: string | null; weight: string | null }>(
+    supabase,
+    c.id,
+    "profile, always_keep, height, weight",
+  );
+  const { client } = await getUserTextClient(supabase, userId, "llm", "prompt");
+  const reply = String(await client.run({ prompt: buildDirectorPrompt({ ...row, profile: row?.profile ?? {} }, sheetLines(pack), dir, realism) }));
+  const v = parseVersions(reply)[0];
+  if (!v?.text) throw new UserFacingError("Couldn't plan that shot. Try again, or describe it a little differently.");
+  const meta = { frame: v.frame, outfit: v.outfit, real: realism };
+  // Realism off adds no skin, texture or camera lines; the scene keeps its own look.
+  const scene = harness(v.text, { stripAR: true, realism }).text;
+  const job = injectJob(c, pack, scene, meta, opts.model, opts.max);
+  if (job.prompt.length <= PROMPT_LIMIT) return job;
+  const shorter = await shortenScene(supabase, userId, scene, scene.length - (job.prompt.length - PROMPT_LIMIT) - 120);
+  return shorter ? injectJob(c, pack, shorter, meta, opts.model, opts.max) : job;
+}
+
 /** The scene text shortened to `max` characters by the person's text model, or null when it can't be. */
 async function shortenScene(supabase: SupabaseClient, userId: string, text: string, max: number): Promise<string | null> {
   if (max < 800) return null;

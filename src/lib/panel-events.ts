@@ -12,7 +12,15 @@ export interface ViewableImage {
   downloadUrl?: string | null;
   prompt?: string | null;
   title?: string;
+  /** An image made on the site, so the viewer offers "Variants" for it. */
+  generated?: boolean;
+  /** Its generation, so Variants can copy the image on the server. */
+  generationId?: string | null;
 }
+
+/** The image the viewer's Variants button hands to the Variants page ({ generationId, url } as JSON, this tab only). */
+export const SEND_TO_VARIANTS_KEY = "ms.sendToVariants";
+export const SEND_TO_VARIANTS_EVENT = "modelspawn:send-to-variants";
 
 /** Opens the full-screen image viewer from anywhere in the app. */
 export function viewImage(image: ViewableImage) {

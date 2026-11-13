@@ -1,6 +1,6 @@
 "use client";
 
-import { usageChanged } from "@/lib/panel-events";
+import { SEND_TO_VARIANTS_EVENT, SEND_TO_VARIANTS_KEY, usageChanged } from "@/lib/panel-events";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -19,13 +19,12 @@ import { AttachStrip, TaggedPrompt, type AttachTile } from "@/components/attach-
 import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
-import { planCarousel, writeVariantEdits } from "@/app/(app)/variants/actions";
+import { importGeneratedImage, planCarousel, writeVariantEdits } from "@/app/(app)/variants/actions";
 import {
   CAROUSEL_TYPES,
   carouselTypeLabel,
   DEFAULT_NEW_SLIDES,
   DEFAULT_VARIANT_COUNT,
-  DEFAULT_WRITE_ONLY,
   MAX_EXTRA_IMAGES,
   MAX_NEW_SLIDES,
   MAX_VARIANT_COUNT,
@@ -33,7 +32,6 @@ import {
   PLATFORM_OTHER_MAX,
   PLATFORMS,
   VARIANT_DIMS,
-  WRITE_ONLY_TYPES,
   type CarouselTypeId,
   type PlatformId,
   type SlidePerson,
@@ -42,10 +40,20 @@ import {
 import { chipItem, segItem, segTrack } from "@/components/ui/segmented";
 import { CharacterPicker } from "@/components/character-picker";
 
-/** Write only: the creative director writes variations as finished prompts for another generator, with no Generate. */
+/**
+ * The two tabs: Photoshoot ("edits": this same scene and setting, new takes) and Moments ("carousel": shots from
+ * throughout her day). "write" is Moments made elsewhere: finished prompts for another generator, with what to attach.
+ */
 type Mode = "edits" | "carousel" | "write";
-const MODE_LABEL: Record<Mode, string> = { edits: "Edits", carousel: "Carousel", write: "Write only" };
-type Picked = { file: File; preview: string; path?: string };
+type Tab = "edits" | "carousel";
+const TABS: { id: Tab; label: string; about: string }[] = [
+  { id: "edits", label: "Photoshoot", about: "The same scene and setting, new takes: change the pose, camera angle, expression, hair, outfit or light of this shot." },
+  { id: "carousel", label: "Moments", about: "Shots from throughout her day, built from this one: new spots, outfit close-ups, the place, food and drink. For a carousel or a photo dump." },
+];
+/** Here or elsewhere, remembered in this browser. */
+const ELSEWHERE_KEY = "ms.variantsElsewhere";
+/** A picked image: a file to upload, or (from the viewer's Variants button) one already copied to `path`. */
+type Picked = { file?: File; preview: string; path?: string };
 interface Item {
   title: string;
   /** Under the title: what the edit changes, or the slide's type and who is in it. */
@@ -73,6 +81,10 @@ interface Result {
   extraPreviews: string[];
   characterId: string | null;
   mode: Mode;
+  /** One per press of Write prompts: new cards start empty, and the images already made stay in the tray. */
+  runId: string;
+  /** Made elsewhere: copy-and-paste prompts with no Generate buttons. */
+  elsewhere: boolean;
 }
 
 const chip = chipItem;
@@ -80,10 +92,19 @@ const chip = chipItem;
 export function VariantsTool({ characters }: { characters: { id: string; name: string; ready: boolean; hasSheet?: boolean; photo?: string | null }[] }) {
   const router = useRouter();
   const generation = useGeneration();
-  // Without image generation, finished prompts to paste lead.
-  const [mode, setMode] = useState<Mode>(generation ? "edits" : "write");
-  const modes: Mode[] = generation ? ["edits", "carousel", "write"] : ["write", "edits", "carousel"];
-  const modeLabel = (m: Mode) => (generation ? MODE_LABEL[m] : m === "write" ? "Variations" : m === "edits" ? "Edit prompts" : "Carousel");
+  const [tab, setTab] = useState<Tab>("edits");
+  // Here (Generate buttons) or elsewhere (finished prompts to paste). Without image generation, always elsewhere.
+  const [elsewhereChoice, setElsewhere] = useState(false);
+  const elsewhere = !generation || elsewhereChoice;
+  useEffect(() => {
+    try {
+      setElsewhere(localStorage.getItem(ELSEWHERE_KEY) === "1");
+    } catch {
+      // Starts on Here in a private window.
+    }
+  }, []);
+  // What a run makes: Moments made elsewhere are the finished-prompt kind.
+  const mode: Mode = tab === "carousel" && elsewhere ? "write" : tab;
   const [characterId, setCharacterId] = useState("");
   // Phones: the choices live in a bottom sheet, so the image, her face and the button fit on one screen.
   const [sheet, setSheet] = useState(false);
@@ -101,8 +122,6 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   const [dims, setDims] = useState<Set<VariantDimId>>(new Set(["pose", "angle"]));
   const [types, setTypes] = useState<Set<CarouselTypeId>>(new Set(CAROUSEL_TYPES.map((t) => t.id)));
   const [slides, setSlides] = useState(DEFAULT_NEW_SLIDES);
-  const [writeTypes, setWriteTypes] = useState<Set<CarouselTypeId>>(new Set(WRITE_ONLY_TYPES));
-  const [writeCount, setWriteCount] = useState(DEFAULT_WRITE_ONLY);
   // Where the set is going (Carousel and Write only): sets the tone and how spicy it is. None picked means no steer.
   const [platform, setPlatform] = useState<PlatformId | null>(null);
   const [platformOther, setPlatformOther] = useState("");
@@ -114,6 +133,48 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   // Goes up by one each time "Generate all" is pressed; every slide or variant that hasn't run yet starts.
   const [runAll, setRunAll] = useState(0);
   const { toast, show } = useToast(2000);
+
+  // The viewer's Variants button: its image lands in the "Generated image" slot, on Edits.
+  useEffect(() => {
+    const take = async () => {
+      let sent: { generationId?: string | null; url?: string } | null = null;
+      try {
+        const raw = sessionStorage.getItem(SEND_TO_VARIANTS_KEY);
+        sessionStorage.removeItem(SEND_TO_VARIANTS_KEY);
+        sent = raw ? (raw.startsWith("{") ? JSON.parse(raw) : { url: raw }) : null;
+      } catch {
+        return;
+      }
+      if (!sent?.generationId && !sent?.url) return;
+      setStatus({ text: "Adding the image…", good: true });
+      try {
+        // A site image is copied on the server by its id (its link can be the provider's, which the browser can't read).
+        let picked: Picked;
+        if (sent.generationId) {
+          const r = await importGeneratedImage(sent.generationId);
+          if (!r.ok) throw new Error(r.error);
+          picked = { path: r.path, preview: r.preview };
+        } else {
+          const res = await fetch(sent.url as string);
+          if (!res.ok) throw new Error();
+          const blob = await res.blob();
+          const file = new File([blob], `generated.${blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg"}`, { type: blob.type || "image/jpeg" });
+          picked = { file, preview: URL.createObjectURL(file) };
+        }
+        setImage(picked);
+        setResult(null);
+        setStatus(undefined);
+        setTab("edits");
+        show("Image added. Pick what to change, then press Write prompts.");
+      } catch (e) {
+        setStatus({ text: (e instanceof Error && e.message) || "Couldn't load that image. Download it and add it here instead.", good: false });
+      }
+    };
+    void take();
+    window.addEventListener(SEND_TO_VARIANTS_EVENT, take);
+    return () => window.removeEventListener(SEND_TO_VARIANTS_EVENT, take);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const character = characters.find((c) => c.id === characterId);
   const noRefs = !!character && !character.ready;
@@ -133,18 +194,20 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   async function run() {
     if (!image) return;
     setBusy(true);
-    setStatus({ text: mode === "edits" ? "Reading the image and planning variants…" : mode === "write" ? "Reading the image and writing variations…" : "Reading the image and planning the carousel…", good: true });
+    // The old cards go; the images made from them stay in the tray at the bottom of the page.
+    setResult(null);
+    setStatus({ text: mode === "edits" ? "Reading the image and planning the shoot…" : "Reading the image and planning her day…", good: true });
     try {
-      const path = image.path ?? (await uploadImage(image.file, "target"));
+      const path = image.path ?? (await uploadImage(image.file as File, "target"));
       setImage({ ...image, path });
       // Extra images are uploaded once and reused on the next run.
-      const uploaded = await Promise.all(extras.map(async (x) => (x ? { ...x, path: x.path ?? (await uploadImage(x.file, "target")) } : null)));
+      const uploaded = await Promise.all(extras.map(async (x) => (x ? { ...x, path: x.path ?? (await uploadImage(x.file as File, "target")) } : null)));
       setExtras(uploaded);
       const extraPaths = uploaded.filter((x): x is Picked & { path: string } => !!x?.path).map((x) => x.path);
       const common = { characterId: characterId || null, note, extraPaths };
       const where = { platform, platformOther: platform === "other" ? platformOther.trim() : "" };
       const extraPreviews = uploaded.filter((x): x is Picked & { path: string } => !!x?.path).map((x) => x.preview);
-      const base = { path, preview: image.preview, extraPaths, extraPreviews, characterId: characterId || null, mode };
+      const base = { path, preview: image.preview, extraPaths, extraPreviews, characterId: characterId || null, mode, runId: crypto.randomUUID(), elsewhere };
       const who = (p: SlidePerson, type: string) => (p === "none" ? " · no person" : p === "partial" ? " · partly her" : type === "pose" ? "" : " · with her");
       if (mode === "edits") {
         const res = await writeVariantEdits({ imagePath: path, dims: [...dims], count, ...common });
@@ -154,9 +217,9 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
           return setStatus({ text: res.error, good: false });
         }
         setResult({ ...base, theme: "", attach: res.attach, items: res.variants.map((v) => ({ title: v.label, hint: v.changes, copy: v.prompt, historyId: v.historyId })) });
-        setStatus({ text: `${res.variants.length} edit prompts ready. Copy one and paste it into your generator's edit mode, or generate it here.`, good: true });
+        setStatus({ text: elsewhere ? `${res.variants.length} prompts ready. Paste one into your generator's edit mode with the images listed, in that order.` : `${res.variants.length} takes ready. Generate them one by one or press Generate all.`, good: true });
       } else if (mode === "write") {
-        const res = await planCarousel({ coverPath: path, types: [...writeTypes], count: writeCount, writeOnly: true, ...where, ...common });
+        const res = await planCarousel({ coverPath: path, types: [...types], count: Math.min(slides, MAX_WRITE_ONLY), writeOnly: true, ...where, ...common });
         usageChanged();
         if (!res.ok) {
           if (res.redirectTo) return router.push(res.redirectTo);
@@ -170,7 +233,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         });
         setStatus({ text: `${res.slides.length} prompt${res.slides.length > 1 ? "s" : ""} ready to paste into another generator. Attach the images listed on each one, in that order.`, good: true });
       } else {
-        const res = await planCarousel({ coverPath: path, types: [...types], count: slides, ...where, ...common });
+        const res = await planCarousel({ coverPath: path, types: [...types], count: Math.min(slides, MAX_NEW_SLIDES), ...where, ...common });
         usageChanged();
         if (!res.ok) {
           if (res.redirectTo) return router.push(res.redirectTo);
@@ -193,35 +256,26 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
 
   const hint = !character
     ? "Picking one restates the character's key traits in every edit, so the face doesn't drift."
-    : mode === "write"
+    : mode === "write" || (mode === "edits" && elsewhere)
       ? `Prompts with her name ${character.name}'s ${character.hasSheet ? "reference sheets" : "first reference photo"} as the first images to attach, and spell out her look, so another generator keeps her face and body.`
-      : mode === "edits" && generation
-      ? `Generate sends ${character.name}'s ${character.hasSheet ? "reference sheets" : "first reference photo"} first and your image after them, so the face stays locked to the ${character.hasSheet ? "sheet" : "reference"}.`
       : mode === "edits"
-      ? `Each edit restates ${character.name}'s key traits so the face doesn't drift. Attach her ${character.hasSheet ? "reference sheets" : "reference photo"} and your image with it.`
+      ? `Generate sends ${character.name}'s ${character.hasSheet ? "reference sheets" : "first reference photo"} first and your image after them, so the face stays locked to the ${character.hasSheet ? "sheet" : "reference"}.`
       : `Slides with her get ${character.name}'s face and body references; slides without her use only your cover.`;
 
   const countField = (
           <div className="flex flex-col gap-1.5">
             {mode === "edits" ? (
               <>
-                <Label htmlFor="variant-count">How many edits</Label>
+                <Label htmlFor="variant-count">How many takes</Label>
                 <select id="variant-count" value={count} onChange={(e) => setCount(Number(e.target.value))} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
                   {Array.from({ length: MAX_VARIANT_COUNT }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
               </>
-            ) : mode === "write" ? (
-              <>
-                <Label htmlFor="write-count">How many prompts</Label>
-                <select id="write-count" value={writeCount} onChange={(e) => setWriteCount(Number(e.target.value))} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
-                  {Array.from({ length: MAX_WRITE_ONLY }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </>
             ) : (
               <>
-                <Label htmlFor="slides">New slides after the cover</Label>
-                <select id="slides" value={slides} onChange={(e) => setSlides(Number(e.target.value))} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
-                  {Array.from({ length: MAX_NEW_SLIDES }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
+                <Label htmlFor="slides">{elsewhere ? "How many moments" : "New moments after yours"}</Label>
+                <select id="slides" value={Math.min(slides, elsewhere ? MAX_WRITE_ONLY : MAX_NEW_SLIDES)} onChange={(e) => setSlides(Number(e.target.value))} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
+                  {Array.from({ length: elsewhere ? MAX_WRITE_ONLY : MAX_NEW_SLIDES }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
               </>
             )}
@@ -231,22 +285,56 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   return (
     <div className="mt-6 flex flex-col gap-6 max-sm:mt-4 max-sm:gap-4">
       {toast}
-      <div className={segTrack} role="tablist">
-        {modes.map((m) => (
-          <button
-            key={m}
-            role="tab"
-            aria-selected={mode === m}
-            onClick={() => {
-              setMode(m);
-              setResult(null);
-              setStatus(undefined);
-            }}
-            className={segItem(mode === m)}
-          >
-            {modeLabel(m)}
-          </button>
-        ))}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
+          <div className={segTrack} role="tablist" aria-label="What to make">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.id}
+                onClick={() => {
+                  setTab(t.id);
+                  setResult(null);
+                  setStatus(undefined);
+                }}
+                className={segItem(tab === t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {generation && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-neutral-400">Make the images</span>
+              <div role="radiogroup" aria-label="Make the images" className={segTrack}>
+                {([false, true] as const).map((w) => (
+                  <button
+                    key={String(w)}
+                    type="button"
+                    role="radio"
+                    aria-checked={elsewhere === w}
+                    onClick={() => {
+                      setElsewhere(w);
+                      setResult(null);
+                      setStatus(undefined);
+                      try {
+                        localStorage.setItem(ELSEWHERE_KEY, w ? "1" : "0");
+                      } catch {
+                        // Not remembered in a private window.
+                      }
+                    }}
+                    className={segItem(elsewhere === w)}
+                  >
+                    {w ? "Elsewhere (copy prompts)" : "Here"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <p className="text-sm text-neutral-400">{TABS.find((t) => t.id === tab)!.about}</p>
       </div>
 
       <section className="panel flex flex-col gap-3 p-4">
@@ -254,7 +342,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         <div className="grid grid-cols-3 gap-2 sm:gap-3 [&>*]:min-w-0">
           <ImageDrop
             layout="tile"
-            title={mode === "edits" ? "Generated image" : mode === "write" ? "Image to vary" : "Cover image"}
+            title="Your image"
             hint="Required. Click, drop or paste."
             preview={image?.preview}
             disabled={busy}
@@ -295,12 +383,12 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
           ))}
         </div>
         <p id="extras-title" className="text-xs text-neutral-500 max-sm:hidden">
-          <span className="font-medium text-neutral-400">More images</span> are optional, up to {MAX_EXTRA_IMAGES}: show the AI the vibe, an outfit or anything else you want carried into the {mode === "carousel" ? "slides" : "variants"}, and say how to use them in the {mode === "carousel" ? "theme" : "creative direction"}.
+          <span className="font-medium text-neutral-400">More images</span> are optional, up to {MAX_EXTRA_IMAGES}: show the AI the vibe, an outfit or anything else you want carried into the {tab === "carousel" ? "moments" : "takes"}, and say how to use them in the creative direction.
         </p>
       </section>
 
       <section className="panel flex flex-col gap-4 p-4">
-        <Step n={2} title={mode === "carousel" ? "Plan the carousel" : mode === "write" ? "Choose the variations" : "Choose what changes"} />
+        <Step n={2} title={tab === "carousel" ? "Plan her day" : "Choose what changes"} />
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label htmlFor="character">Character <span className="text-xs font-normal text-neutral-500">optional</span></Label>
@@ -335,26 +423,11 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                 </label>
               ))}
             </div>
-            <p className="text-xs text-neutral-500">Each edit changes one or two of these, and together the edits cover them. Everything else stays the same.</p>
-          </fieldset>
-        ) : mode === "write" ? (
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1.5 text-sm font-medium">Kinds of variation</legend>
-            <div className="flex flex-wrap gap-2">
-              {CAROUSEL_TYPES.map((t) => (
-                <label key={t.id} className={chip(writeTypes.has(t.id))}>
-                  <input type="checkbox" className="sr-only" checked={writeTypes.has(t.id)} onChange={() => toggle(setWriteTypes, t.id)} />
-                  {t.label}
-                </label>
-              ))}
-            </div>
-            <p className="text-xs text-neutral-500">
-              New shots from the same shoot: a new pose and camera angle, or her somewhere nearby, by default. Each prompt is complete (her look, the realism and the rules are written in), so it can be pasted into any generator.
-            </p>
+            <p className="text-xs text-neutral-500">Each take changes one or two of these, and together the takes cover them. Everything else stays the same.</p>
           </fieldset>
         ) : (
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1.5 text-sm font-medium">Slide types</legend>
+            <legend className="mb-1.5 text-sm font-medium">Kinds of moment</legend>
             <div className="flex flex-wrap gap-2">
               {CAROUSEL_TYPES.map((t) => (
                 <label key={t.id} className={chip(types.has(t.id))}>
@@ -400,17 +473,17 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         )}
 
         <section className="flex flex-col gap-2">
-          <Label htmlFor="note">{mode === "carousel" ? "Theme" : "Creative direction"} <span className="text-xs font-normal text-neutral-500">optional</span></Label>
+          <Label htmlFor="note">Creative direction <span className="text-xs font-normal text-neutral-500">optional</span></Label>
           <Textarea
             id="note"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={1000}
-            placeholder={mode === "write" ? "e.g. same outfit, but now she's getting ready at a hotel vanity at night, flash photos, playful and moody" : undefined}
-            aria-describedby={mode === "write" ? "note-hint" : undefined}
+            placeholder={tab === "carousel" ? "e.g. same outfit, but now she's getting ready at a hotel vanity at night, flash photos, playful and moody" : undefined}
+            aria-describedby={tab === "carousel" ? "note-hint" : undefined}
             rows={2}
           />
-          {mode === "write" && (
+          {tab === "carousel" && (
             <p id="note-hint" className="text-xs text-neutral-500">
               The creative director builds every prompt around this: the place, poses, outfit, mood and story you describe win over its own ideas. Her face and body always stay hers.
             </p>
@@ -423,8 +496,8 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         <button type="button" onClick={() => setSheet(true)} className="flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-neutral-700 bg-neutral-800/60 px-4 text-sm font-semibold text-neutral-100 transition-transform active:scale-95 sm:hidden">
           <SlidersIcon className="h-[18px] w-[18px]" /> Options
         </button>
-        <Button type="button" onClick={run} className="max-sm:h-12 max-sm:flex-1 max-sm:rounded-2xl" disabled={busy || !image || noRefs || (mode === "edits" ? dims.size === 0 : mode === "write" ? writeTypes.size === 0 : types.size === 0)}>
-          {busy ? "Writing..." : mode === "edits" ? "Write variant edits" : mode === "write" ? "Write variations" : "Plan carousel"}
+        <Button type="button" onClick={run} className="max-sm:h-12 max-sm:flex-1 max-sm:rounded-2xl" disabled={busy || !image || noRefs || (mode === "edits" ? dims.size === 0 : types.size === 0)}>
+          {busy ? "Writing..." : "Write prompts"}
         </Button>
         {status && !phone && <p role="status" className={`text-sm ${status.good ? "text-neutral-300" : "text-red-400"}`}>{status.text}</p>}
       </div>
@@ -433,15 +506,15 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       {result && (
         <section className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-medium">{result.mode === "edits" ? "Variant edits" : result.mode === "write" ? "Variation prompts" : "Carousel plan"}</h2>
+            <h2 className="font-medium">{result.mode === "edits" ? "Photoshoot" : "Moments"}</h2>
             <div className="flex gap-2">
-              {generation && result.mode !== "write" && (
+              {!result.elsewhere && (
                 <Button
                   type="button"
                   size="sm"
                   onClick={() => {
                     const n = result.items.length;
-                    if (window.confirm(`Generate all ${n} ${result.mode === "edits" ? "variants" : "slides"}? This starts ${n} images on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
+                    if (window.confirm(`Generate all ${n} ${result.mode === "edits" ? "takes" : "moments"}? This starts ${n} images on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
                   }}
                 >
                   Generate all
@@ -465,23 +538,23 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={result.preview} alt="Cover" className="h-14 w-14 rounded object-cover" />
                 <div>
-                  <span className="font-medium">1 · Cover</span>
-                  <p className="text-xs text-neutral-500">Your image, posted as is</p>
+                  <span className="font-medium">1 · Your image</span>
+                  <p className="text-xs text-neutral-500">The first moment, posted as is</p>
                 </div>
               </CardContent>
             </Card>
           )}
           {result.items.map((item, i) => (
-            <Card key={i}>
+            <Card key={`${result.runId}-${i}`}>
               <CardContent className="flex flex-col gap-2 pt-5 text-sm">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <span className="font-medium">{result.mode === "carousel" ? `${i + 2} · ` : result.mode === "write" ? `${i + 1} · ` : ""}{item.title}</span>
                     {item.hint && <p className="text-xs text-neutral-500">{item.hint}</p>}
                   </div>
-                  {generation && result.mode !== "write" && <Button type="button" size="sm" variant="ghost" onClick={() => copy(item.copy)}>Copy</Button>}
+                  {!result.elsewhere && <Button type="button" size="sm" variant="ghost" onClick={() => copy(item.copy)}>Copy</Button>}
                 </div>
-                {(!generation || result.mode === "write") && <CopyOpen text={item.copy} />}
+                {result.elsewhere && <CopyOpen text={item.copy} />}
                 {result.mode === "write" && item.attachItems?.length ? (
                   <>
                     <AttachStrip items={item.attachItems} photo={result.preview} extras={result.extraPreviews} />
@@ -490,7 +563,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                 ) : (
                   <p className="whitespace-pre-wrap break-words">{item.copy}</p>
                 )}
-                {result.mode === "write" ? null : result.mode === "edits" ? (
+                {result.elsewhere ? null : result.mode === "edits" ? (
                   <GenerateImage prompt={item.copy} characterId={result.characterId} extraPaths={[result.path, ...result.extraPaths]} kind="variant" runSignal={runAll} historyId={item.historyId} />
                 ) : (
                   <GenerateImage

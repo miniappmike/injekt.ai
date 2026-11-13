@@ -5,12 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
-import { BackIcon, CharactersIcon, InjectIcon, LikenessIcon, SheetIcon, StoreIcon, VariantsIcon } from "@/components/icons";
+import { BackIcon, CharactersIcon, InjectIcon, SheetIcon, SparkIcon, StoreIcon, VariantsIcon } from "@/components/icons";
 
 const DOCK = [
   { href: "/inject", label: "Inject", Icon: InjectIcon },
+  { href: "/director", label: "Director", Icon: SparkIcon },
   { href: "/variants", label: "Variants", Icon: VariantsIcon },
-  { href: "/likeness", label: "Likeness", Icon: LikenessIcon },
   { href: "/reference-sheet", label: "Sheets", Icon: SheetIcon },
   { href: "/characters", label: "Characters", Icon: CharactersIcon },
   { href: "/marketplace", label: "Marketplace", Icon: StoreIcon },
@@ -22,6 +22,7 @@ const TITLES: [RegExp, string][] = [
   [/^\/characters\/./, "Character"],
   [/^\/characters/, "Characters"],
   [/^\/inject/, "Inject"],
+  [/^\/director/, "Director"],
   [/^\/variants/, "Variants"],
   [/^\/likeness/, "Likeness"],
   [/^\/reference-sheet/, "Create Model"],
@@ -97,7 +98,7 @@ export function MobileDock() {
               aria-current={on ? "page" : undefined}
               className={cn(
                 "flex h-10 items-center justify-center gap-1.5 rounded-full text-neutral-400 transition-all duration-300 active:scale-95",
-                on ? "glow-brand bg-brand-500 px-3.5 text-white" : "w-10 hover:bg-neutral-800 hover:text-neutral-100",
+                on ? "glow-brand bg-brand-500 px-3.5 text-white" : "w-10 hover:bg-neutral-800 hover:text-neutral-100 max-[389px]:w-9",
               )}
             >
               <Icon className="h-[22px] w-[22px] shrink-0" />
