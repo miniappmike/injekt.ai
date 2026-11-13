@@ -9,12 +9,13 @@ import { saveHistory } from "@/lib/history";
 import { recentPoses, rememberPoses, RECENT_SEND } from "@/lib/recent-poses";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { askJson } from "@/lib/ai/json";
-import { HAIRSTYLES, POSE_HINTS, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
+import { HAIRSTYLES, PALETTES, POSE_HINTS, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
 import {
   carouselPrompt,
   carouselSlidePrompt,
   dimText,
   finishVariant,
+  locksOutfit,
   parseCarousel,
   slideCopyText,
   unusedRefsNote,
@@ -105,9 +106,13 @@ export async function runVariants(
 
   const { client, imageMaxEdge } = await getUserTextClient(supabase, userId, "vision", "variants");
   const recent = (await recentPoses(supabase, userId)).poses.slice(-RECENT_SEND);
+  // One outfit for the whole set; with "Outfit colours" on, its palette is picked here, once, before anything is written.
+  const lockOutfit = locksOutfit(dims);
+  const palette = lockOutfit && dims.includes("colours") ? shuffleArr(PALETTES, random)[0] : "";
   const prompt = variantPrompt({
     n,
-    dims: dimText(dims),
+    // The set's recolour is applied to the locked outfit, so it isn't one of the per-edit changes.
+    dims: dimText(palette ? dims.filter((d) => d !== "colours") : dims),
     vt,
     traits: traitsOf(c),
     so,
@@ -116,18 +121,22 @@ export async function runVariants(
     hairExamples: shuffleArr(HAIRSTYLES, random).slice(0, 5),
     extra,
     extraTags: extraPaths.map((_, i) => "@image" + (i + 2)),
+    lockOutfit,
+    palette,
   });
   const images = await loadForVision(
     supabase,
     [input.imagePath, ...extraPaths].map((path) => ({ label: "image", path })),
     Math.min(EDGE, imageMaxEdge ?? EDGE),
   );
-  const raw = (await askJson(client, { prompt, images: images.map((x) => x.dataUri) })) as { variants?: unknown };
+  const raw = (await askJson(client, { prompt, images: images.map((x) => x.dataUri) })) as { variants?: unknown; outfit?: unknown };
+  // Without an outfit or colour change, every prompt carries the same outfit description, word for word.
+  const outfit = lockOutfit && typeof raw?.outfit === "string" ? raw.outfit.trim() : "";
   const list = (Array.isArray(raw?.variants) ? raw.variants : [])
     .filter((v): v is Record<string, unknown> => !!v && typeof v === "object" && typeof v.prompt === "string" && !!v.prompt.trim())
     .slice(0, n);
   if (!list.length) throw new UserFacingError("The model did not write any variants. Try again.");
-  const variants = list.map((v) => ({ label: String(v.label || "Variant").slice(0, 40), changes: String(v.changes || "").slice(0, 80), prompt: finishVariant(String(v.prompt), vt, so, extra) }));
+  const variants = list.map((v) => ({ label: String(v.label || "Variant").slice(0, 40), changes: String(v.changes || "").slice(0, 80), prompt: finishVariant(String(v.prompt), vt, so, extra, outfit, !!palette) }));
 
   const variantIds = await saveHistory(
     supabase,

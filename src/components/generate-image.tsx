@@ -97,6 +97,18 @@ function GenerateImageInner({
   const [chosenAspectRatio, setAspectRatio] = useState<ImageAspectRatio>(autoAspectRatio ?? "3:4");
   const aspectRatio = lockedAspectRatio ?? chosenAspectRatio;
   const [outputFormat, setOutputFormat] = useState<ImageOutputFormat>("jpeg");
+  // The size, shape and format of the last image made on this page come back on the next card, so a second image is
+  // made the same way without choosing again. Read after mounting, so the server render matches.
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    const last = readLastSettings();
+    if (last) {
+      if (last.resolution && (IMAGE_RESOLUTIONS as readonly string[]).includes(last.resolution)) setResolution(last.resolution);
+      if (last.aspectRatio && (IMAGE_ASPECT_RATIOS as readonly string[]).includes(last.aspectRatio)) setAspectRatio(last.aspectRatio);
+      if (last.outputFormat === "jpeg" || last.outputFormat === "png") setOutputFormat(last.outputFormat);
+    }
+    setLoaded(true);
+  }, []);
   const [price, setPrice] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [message, setMessage] = useState<string>();
@@ -141,6 +153,7 @@ function GenerateImageInner({
   }, [requestKey, free, billing, prompt, hasImages]);
 
   async function generate() {
+    writeLastSettings({ resolution, outputFormat, ...(lockedAspectRatio ? {} : { aspectRatio: chosenAspectRatio }) });
     setPhase("starting");
     setMessage(undefined);
     setResult(null);
@@ -218,7 +231,8 @@ function GenerateImageInner({
   // it back up and show the image.
   const resumed = useRef(false);
   useEffect(() => {
-    if (resumed.current) return;
+    // Waits for the remembered settings, so the request matches the one that was started.
+    if (resumed.current || !loaded) return;
     resumed.current = true;
     const p = latestForRequest(requestHash(requestKey));
     if (!p) return;
@@ -226,7 +240,7 @@ function GenerateImageInner({
     reportGeneration({ ...tray, state: "generating", generationId: p.generationId });
     void follow(p.generationId, tray);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loaded]);
 
   const busy = phase === "starting" || phase === "running";
   const ready = !!prompt.trim() && hasImages;
@@ -242,11 +256,11 @@ function GenerateImageInner({
   // A fix starts straight away: the person already chose it.
   const started = useRef(false);
   useEffect(() => {
-    if (!autoStart || started.current || !ready) return;
+    if (!autoStart || started.current || !ready || !loaded) return;
     started.current = true;
     void generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart, ready]);
+  }, [autoStart, ready, loaded]);
   // Tokens have a set price per size; an own key (Pro) shows the provider's quote instead.
   // On the pink button the token is drawn in the page's background colour, so it reads as a cut-out.
   const cost =
@@ -318,4 +332,27 @@ function GenerateImageInner({
       )}
     </div>
   );
+}
+
+interface LastSettings {
+  resolution?: ImageResolution;
+  aspectRatio?: ImageAspectRatio;
+  outputFormat?: ImageOutputFormat;
+}
+/** Per page and per tab: the settings of the last image started on this page. */
+const lastSettingsKey = () => "ms.genSettings:" + location.pathname;
+function readLastSettings(): LastSettings | null {
+  try {
+    return JSON.parse(sessionStorage.getItem(lastSettingsKey()) || "null");
+  } catch {
+    return null;
+  }
+}
+function writeLastSettings(v: LastSettings) {
+  try {
+    // A locked shape (a sheet) isn't saved, so it keeps the shape chosen elsewhere on the page.
+    sessionStorage.setItem(lastSettingsKey(), JSON.stringify({ ...readLastSettings(), ...v }));
+  } catch {
+    // Private windows can refuse storage; each card then starts on the defaults.
+  }
 }

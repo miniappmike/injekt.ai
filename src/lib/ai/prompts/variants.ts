@@ -3,7 +3,7 @@
  * where they are: her sheets can be two images (face and body), the person may add up to 2 extra images for the vibe or
  * outfit, and the carousel's nudity sentence is left out (no app-level screening).
  */
-import { asksMakeup, BODY_LOCK, fence, joinTags, makeupRule, MODS_RULE, REALISM_FIX, SKIN_ART_SHORT, TEXT_RULE } from "./rules";
+import { asksMakeup, hasQualityLine, BODY_LOCK, fence, joinTags, makeupRule, MODS_RULE, REALISM_FIX, SKIN_ART_SHORT, TEXT_RULE } from "./rules";
 import { harness } from "./harness";
 import { pickAnchors, refOutfitGuard, type Anchors } from "./identity";
 import type { CarouselTypeId, PlatformId, SlidePerson, VariantDimId } from "@/lib/variants-meta";
@@ -57,7 +57,18 @@ export interface VariantPromptInput {
   extra: string;
   /** Without a character: the tags of the extra images (they follow the photo, @image2 onwards). */
   extraTags?: string[];
+  /** No outfit or colour change is on: the writer describes the outfit once and every edit carries it word for word. */
+  lockOutfit?: boolean;
+  /** With the outfit locked and "Outfit colours" on: the one palette every edit's outfit is recoloured with. */
+  palette?: string;
 }
+
+/**
+ * Variants keep one outfit across the whole set unless a different outfit is asked for. With "Outfit colours" on, the
+ * outfit is recoloured once (one palette for the set) and that recoloured outfit is the one every edit keeps. Colours
+ * alone would make every edit the same, so then each edit recolours on its own as before.
+ */
+export const locksOutfit = (dims: string[]) => !dims.includes("outfit") && dims.some((d) => d !== "colours");
 
 /** Artifact writeVariants prompt. */
 export function variantPrompt(o: VariantPromptInput): string {
@@ -82,8 +93,8 @@ ${two ? `- ${vt.ref} shows her in a plain placeholder outfit${o.so ? ` (${o.so})
 - Tattoos are skin, never clothing: a tattoo shows only where its spot is bare skin. If an edit's outfit covers it, it stays hidden under the fabric and is never printed or drawn on the clothes.
 - Each edit is 2 to 4 sentences, plain prose. Always describe the person as an adult. Never use "photorealistic", "8k" or similar filler.
 ${o.recent.length ? `- Avoid these recently used poses: ${o.recent.join("; ")}.\n` : ""}- For pose inspiration only, never copy: ${o.inspo.join("; ")}.
-${extrasLine(vt ? vt.extras : (o.extraTags ?? []))}${extra ? `- Creative direction from the user, only as it applies to the image: <<<${fence(extra)}>>>\n` : ""}
-Reply with only JSON: {"variants": [{"label": "2 to 4 word name, e.g. Low angle laugh", "changes": "pose, angle", "prompt": "the edit prompt"}]}`;
+${o.lockOutfit ? `- OUTFIT LOCK: no edit changes the clothing${o.palette ? `, and no edit changes its colours on its own` : ""}. In "outfit", describe the outfit in the image once, garment by garment, in at most 60 words: every garment, shoe and accessory with its type, colour, fabric, finish and fit (for example "a glossy black vinyl high-waisted mini skirt, long red patent leather opera gloves above the elbow, red patent platform lace-up ankle boots with stiletto heels"). Name only what is visible.${o.palette ? ` Recolour it with this palette first: ${o.palette}. Keep every garment's type, cut, fabric, finish and fit, give each one a colour from the palette, and write the new colours into the description (the original colours never appear in it).` : ""} The app adds this exact description to every edit, so the edits themselves do not describe the outfit.\n` : ""}${extrasLine(vt ? vt.extras : (o.extraTags ?? []))}${extra ? `- Creative direction from the user, only as it applies to the image: <<<${fence(extra)}>>>\n` : ""}
+Reply with only JSON: {${o.lockOutfit ? '"outfit": "the outfit in the image, garment by garment", ' : ""}"variants": [{"label": "2 to 4 word name, e.g. Low angle laugh", "changes": "pose, angle", "prompt": "the edit prompt"}]}`;
 }
 
 // ModelSpawn addition: the person's extra images (vibe, outfit) follow the photo, in this order, in their generator.
@@ -94,15 +105,25 @@ function extrasLine(tags: string[]) {
 }
 
 /** Artifact post-processing of each variant: harness, the opener, the reference outfit guard and the makeup rule. */
-export function finishVariant(prompt: string, vt: VariantTags | null, so: string, extra: string): string {
+export function finishVariant(prompt: string, vt: VariantTags | null, so: string, extra: string, outfit = "", recoloured = false): string {
   let t = harness(prompt, { realism: false }).text;
   if (vt && !(t.includes(vt.ref) && t.includes(vt.photo)))
     t = `Edit ${vt.photo}. Keep the person exactly as she looks in ${vt.ref}: same face, features, skin, hair, body shape and proportions. ` + t;
+  // The same outfit, word for word, in every edit of the set.
+  if (outfit) t = t.replace(/\s*$/, " ") + outfitKeep(outfit, vt ? vt.photo : "the photo being edited", recoloured);
   if (vt) t = t.replace(/\s*$/, " ") + refOutfitGuard(vt.ref, vt.photo, so) + " " + SKIN_ART_SHORT;
   if (!asksMakeup(extra) && !/MAKEUP STAYS/.test(t)) t = t.replace(/\s*$/, " ") + makeupRule(vt ? vt.photo : "the photo being edited");
   // ModelSpawn's standing rule: every prompt carries the realism line (the artifact relied on "keep the realism").
-  if (!/beauty filter/i.test(t)) t = t.replace(/\s*$/, " ") + REALISM_FIX.quality;
+  if (!hasQualityLine(t)) t = t.replace(/\s*$/, " ") + REALISM_FIX.quality;
   return t;
+}
+
+/** The outfit line every variant of a set carries when no edit changes the clothes. */
+export function outfitKeep(outfit: string, photo: string, recoloured = false): string {
+  const o = fence(String(outfit)).replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 400);
+  return recoloured
+    ? `SAME OUTFIT, NEW COLOURS: she wears the outfit from ${photo} recoloured exactly like this: ${o}. Every garment, shoe and accessory keeps its type, cut, fabric, finish and fit from ${photo} and takes exactly these colours, which replace its colours in ${photo}; nothing is added, removed or swapped.`
+    : `SAME OUTFIT: she wears exactly the outfit from ${photo}: ${o}. Every garment, shoe and accessory stays the same, with the same colours, fabrics, finish and fit; nothing is added, removed, swapped or recoloured.`;
 }
 
 // ---------- carousel ----------

@@ -3,7 +3,7 @@
  * face and body into every image prompt. Ported word for word; only the plumbing differs (crops are stored files, not
  * data URLs). Pure functions, so the server and the tests share them.
  */
-import { BODY_LOCK, fence, joinTags, MODS_RULE, OVERLAY_RULE, REALISM_FIX, SKIN_ART_SHORT, skinNote, tagList, TEXT_RULE, TEXT_SHORT } from "./rules";
+import { BODY_LOCK, hasQualityLine, fence, joinTags, MODS_RULE, OVERLAY_RULE, REALISM_FIX, SKIN_ART_SHORT, skinNote, tagList, TEXT_RULE, TEXT_SHORT } from "./rules";
 
 /** Bump to make every saved sheet pack rebuild. */
 export const PACK_V = 3;
@@ -288,9 +288,16 @@ export function pickAnchors(a: Anchors | null | undefined, frame?: string) {
 }
 
 /** Cleans an LLM scene prompt for n reference images: drops its own identity opener and points every tag at them. */
+/**
+ * The written prompt's own opener ("Use @image1 as the strict identity reference.", or with both sheets "Use @image1
+ * (her face sheet) and @image2 (her body sheet) as ..."), which the framing replaces with its own.
+ */
+const OPENER =
+  /^\s*(?:Use|Using)\s+(?:@[\w-]+|the\s+(?:uploaded\s+)?(?:character\s+)?(?:reference\s+)?(?:sheet|image|photo)s?)(?:\s*\([^)]*\))?(?:\s*(?:,|and)\s*@[\w-]+(?:\s*\([^)]*\))?)*\s+as\s+the\s+(?:strict\s+)?identity\s+reference\.?\s*/i;
+
 export function sceneText(text: string, n: number): string {
   let t = String(text || "").trim();
-  t = t.replace(/^\s*(?:Use|Using)\s+(?:@[\w-]+|the\s+(?:uploaded\s+)?(?:character\s+)?(?:reference\s+)?(?:sheet|image|photo)s?)(?:\s*\([^)]*\))?\s+as\s+the\s+(?:strict\s+)?identity\s+reference\.?\s*/i, "");
+  t = t.replace(OPENER, "");
   t = t.replace(/\bthe\s+uploaded\s+(?:character\s+)?(?:reference\s+)?sheet\b/gi, "@image1").replace(/\bthe\s+(?:character|reference)\s+sheet\b/gi, "@image1");
   t = t.replace(/@image(\d+)\b/gi, (_m, d) => (+d >= 1 && +d <= n ? "@image" + d : "@image1"));
   return t.replace(/@(?!image\d)[A-Za-z][\w-]*\b/g, "@image1");
@@ -319,7 +326,7 @@ export function refOutfitGuard(refs: string, photo: string, so?: string): string
 export function lockRefs(text: string, n: number, isSheet: boolean, ol: string): string {
   n = Math.max(1, Math.min(n || 1, 3));
   let t = String(text || "").trim();
-  t = t.replace(/^\s*(?:Use|Using)\s+(?:@[\w-]+|the\s+(?:uploaded\s+)?(?:character\s+)?(?:reference\s+)?(?:sheet|image|photo)s?)(?:\s*\([^)]*\))?\s+as\s+the\s+(?:strict\s+)?identity\s+reference\.?\s*/i, "");
+  t = t.replace(OPENER, "");
   t = t.replace(/\bthe\s+uploaded\s+(?:character\s+)?(?:reference\s+)?sheet\b/gi, "@image1").replace(/\bthe\s+(?:character|reference)\s+sheet\b/gi, "@image1");
   t = t.replace(/@image(\d+)\b/gi, (_m, d) => (+d >= 1 && +d <= n ? "@image" + d : "@image1"));
   t = t.replace(/@(?!image\d)[A-Za-z][\w-]*\b/g, "@image1");
@@ -329,7 +336,7 @@ export function lockRefs(text: string, n: number, isSheet: boolean, ol: string):
     : `Use ${all} as the strict identity reference. ${n > 1 ? "They are reference photos of one and the same person" : "@image1 is a reference photo of the person"}: take the person's exact face, bone structure, eyes, brows, nose, lips, skin tone, freckles, moles and marks, hair colour, length and texture, and her exact body shape and proportions from ${all}. ${BODY_LOCK} Take only the person from ${n > 1 ? "them" : "@image1"}, never ${n > 1 ? "their" : "its"} background, outfit, pose or lighting.`;
   const tail =
     (ol || "") +
-    (/beauty filter/i.test(t) ? "" : " " + REALISM_FIX.quality) +
+    (hasQualityLine(t) ? "" : " " + REALISM_FIX.quality) +
     (/gibberish|garbled/i.test(t) ? "" : " " + TEXT_RULE) +
     " " +
     MODS_RULE +
@@ -362,7 +369,17 @@ export interface RefSet {
  * lit by the scene, never by the reference sheets' flat studio light.
  */
 export const QUALITY_SHADING_MATCH =
-  "Match the image quality and shading described above: the same sharpness, noise or grain, compression and colour grade, and the same light direction, contrast, shadow depth and softness on her face, body and clothes as on the rest of the scene. Light her with the scene's light, never the flat even light of the reference images, and never make the image cleaner or sharper than described.";
+  "Keep the image quality and shading described above, and light her with the scene's light, never the references' flat studio light or a cleaner, sharper look.";
+
+/**
+ * Inject's BODY LOCK, short enough that the whole framed prompt fits the image model's 5,000 characters with room for
+ * the scene. It leads the identity framing: her body is the first thing the model is told to keep.
+ */
+export const bodyLockTop = (tag: string) =>
+  `BODY LOCK (top priority): her body matches ${tag} exactly: the same height impression, frame, shoulder width, bust, waist, hips, glutes, thighs, leg length, arm thickness and muscle tone. Never slim, enlarge, tone, idealise or normalise her toward a typical body, never adapt her figure to the pose, outfit or the original person, and keep extreme proportions at the same scale.`;
+
+/** The body-modification rule in one line, for Inject's framing. */
+export const MODS_SHORT = "Her tattoos, piercings, scars and moles come only from her references and profile: add none she lacks and copy none from the scene. " + SKIN_ART_SHORT;
 
 /** Edit: the edited photo keeps @image1's own image quality and shading, and she is lit by its light. */
 export const QUALITY_SHADING_KEEP =
@@ -384,28 +401,35 @@ export function framePrompt(
   const an = pickAnchors(R.anchors, frame);
   const avoid = (an.avoid || []).map((x) => x.replace(/^not\s+/i, ""));
   const body = [an.upper, an.mid, an.legs].filter(Boolean).join("; ");
-  const quality =
-    outfitLock(all, ox.outfit, R.anchors?.sheetOutfit, "prompt") +
+  const outfit = String(ox.outfit || "").replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 300);
+  const so = String(R.anchors?.sheetOutfit || "").replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 140);
+  // Every rule once, in as few words as hold it: the scene the writer made keeps most of the 5,000 characters.
+  const tail =
+    ` OUTFIT LOCK: she wears only ${outfit || "the outfit described in this prompt"}, never the clothing in the references${so ? ` (${so})` : ""}.` +
     (ox.clean ? " " + OVERLAY_RULE : "") +
     " " + QUALITY_SHADING_MATCH +
-    (/beauty filter/i.test(t) ? "" : " " + REALISM_FIX.quality) +
-    (/gibberish|garbled/i.test(t) ? "" : " " + TEXT_RULE);
+    (hasQualityLine(t) ? "" : " " + REALISM_FIX.quality) +
+    (/gibberish|garbled/i.test(t) ? "" : " " + TEXT_SHORT) +
+    " " + MODS_SHORT;
+  const lock = bodyLockTop(bodyTag);
+  const notThe = "Take only the person from the references, never their grid, panels, plain background, studio light or placeholder outfit.";
   if (mk === "nb") {
     const imgs = R.roles.map((role, i) => `Image ${i + 1} (${tags[i]}) shows ${role}.`).join(" ");
-    const head = `The woman in this photo is the woman in the reference images. ${imgs} They all show the same woman. Copy her face exactly from the reference images.${an.face ? ` Her face: ${an.face}.` : ""}${an.hair ? ` Copy her hair exactly: ${an.hair}.` : ""}${an.skin ? ` Her skin: ${an.skin}.` : ""}${body ? ` Copy her body exactly from ${bodyTag}: ${body}.` : ""} ${BODY_LOCK}${avoid.length ? ` Do not give her: ${avoid.join("; ")}.` : ""} Do not copy the backgrounds, grid, panels, studio light or plain outfit of the reference images.`;
-    return head + "\n\n" + t + quality + " " + MODS_RULE + " She must look exactly like the woman in the reference images: the same face, hair, skin, body shape and proportions.";
+    const head = `The woman in this photo is the woman in the reference images. ${imgs} They all show the same woman. ${lock}${body ? ` Her body: ${body}.` : ""} Copy her face exactly from the reference images.${an.face ? ` Her face: ${an.face}.` : ""}${an.hair ? ` Copy her hair exactly: ${an.hair}.` : ""}${an.skin ? ` Her skin: ${an.skin}.` : ""}${avoid.length ? ` Do not give her: ${avoid.join("; ")}.` : ""} ${notThe}`;
+    return head + "\n\n" + t + tail + " She must look exactly like the woman in the reference images: the same face, hair, skin, body shape and proportions.";
   }
-  const head = `Use ${all} as the strict identity reference. They show one and the same woman: ${roles}. Take her exact face, bone structure, eyes, brows, nose, lips, skin tone, freckles, moles and marks, and her hair colour, length and texture from them, and her exact body shape and proportions from ${bodyTag}. ${BODY_LOCK} Take only the person from these images, never their grid layout, panels, plain backgrounds, studio light or plain outfit.`;
-  const tail = `${quality} ${MODS_RULE} Final identity check: the person in this image is the exact same woman as in ${all}, with an identical face, features, skin, hair, body shape and proportions.`;
+  const head = `Use ${all} as the strict identity reference. They show one and the same woman: ${roles}. ${lock} Take her exact face, bone structure, eyes, brows, nose, lips, skin tone, freckles, moles and marks, and her hair colour, length and texture from ${all}. ${notThe}`;
+  const end = `${tail} Final identity check: the exact same woman as in ${all}, with an identical face, hair, skin, body shape and proportions.`;
   if (mk === "pro") {
-    const words = [an.hair && `hair: ${an.hair}`, an.face && `face: ${an.face}`, an.skin && `skin: ${an.skin}`, body && `body: ${body}`].filter(Boolean).join(". ");
+    // Her body leads the IDENTITY words, so the first thing the model reads is her build.
+    const words = [body && `body: ${body}`, an.hair && `hair: ${an.hair}`, an.face && `face: ${an.face}`, an.skin && `skin: ${an.skin}`].filter(Boolean).join(". ");
     const first = words ? `IDENTITY (follow exactly; where any description below differs, follow this and the reference images): ${words}.${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""}\n\n` : "";
-    const key = [an.hair, an.mid || an.upper].filter(Boolean);
-    const again = key.length ? ` Identity again: ${key.join("; ")}.${avoid.length ? ` Not: ${avoid.slice(0, 3).join("; ")}.` : ""}` : "";
-    return first + head + "\n\n" + t + again + tail;
+    const key = [an.mid || an.upper, an.hair].filter(Boolean);
+    const again = key.length ? ` Identity again: ${key.join("; ")}.` : "";
+    return first + head + "\n\n" + t + again + end;
   }
-  const look = [an.hair && `hair: ${an.hair}`, body && `body: ${body}`].filter(Boolean).join("; ");
-  return head + "\n\n" + t + (look ? ` Her look from the reference: ${look}.${avoid.length ? ` Not: ${avoid.slice(0, 3).join("; ")}.` : ""}` : "") + tail;
+  const look = [body && `body: ${body}`, an.hair && `hair: ${an.hair}`].filter(Boolean).join("; ");
+  return head + "\n\n" + t + (look ? ` Her look from the reference: ${look}.${avoid.length ? ` Not: ${avoid.slice(0, 3).join("; ")}.` : ""}` : "") + end;
 }
 
 /** What a photo edit may change; everything else in the target is kept. */
@@ -448,6 +472,13 @@ export function basePrompt(R: RefSet, edit: string | undefined, frame: string | 
 
 /** Points every @imageN in a prompt at an image that is actually sent (out-of-range tags become @image1). */
 export const clampTags = (prompt: string, n: number) => String(prompt).replace(/@image(\d+)\b/gi, (_m, d) => (+d >= 1 && +d <= Math.max(1, n) ? "@image" + d : "@image1"));
+
+/**
+ * Shortens only the written scene of an Inject prompt, so the identity framing and BODY LOCK around it are sent whole.
+ * Her body comes first in what must survive, then everything the scene shows.
+ */
+export const sceneCondenseTask = (t: string, max: number) =>
+  `Shorten this image prompt's scene description to at most ${max} characters. Say every detail once and drop repetition and filler, but keep, in this order of priority: (1) her body, build and proportions exactly as written, with every proportion word; (2) her face, hair and marks; (3) the pose limb by limb with left and right, expression and gaze; (4) every garment, shoe and accessory with its colour, fabric and fit; (5) the setting and props; (6) the light source, direction and shadows; (7) the camera, image quality and skin realism; (8) the exclusions and negatives. Keep every @imageN tag and every quoted word exactly. Output only the shortened text.\n<<<${fence(t)}>>>`;
 
 /** Artifact condensePrompt request, for image models with a short prompt limit. */
 export const condenseTask = (t: string, max: number) =>

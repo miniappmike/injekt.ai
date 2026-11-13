@@ -9,6 +9,15 @@ import type { CharacterProfile } from "@/lib/characters";
 import type { POSE_MODES, PROMPT_STYLES, WARDROBES } from "@/lib/inject-meta";
 
 
+/**
+ * How long each written prompt may be. The image model takes 5,000 characters; Generate here adds her identity framing
+ * and body lock (about 2,000), so the written scene gets the rest, and a longer one has its scene shortened.
+ */
+export const PROMPT_CHARS = 2600;
+
+/** The written prompt's opener when both of her sheets go to the generator. */
+export const TWO_SHEET_OPENER = "Use @image1 (her face sheet) and @image2 (her body sheet) as the strict identity reference.";
+
 export interface InjectOptions {
   /** ref: the generator gets her sheet as the tag; text: identity written out in full. */
   mode: "ref" | "text";
@@ -20,6 +29,8 @@ export interface InjectOptions {
   extra: string;
   /** What the prompt calls her sheet in the generator. */
   tag: string;
+  /** She has both sheets and the tag is the default: the prompt names @image1 (face sheet) and @image2 (body sheet). */
+  twoSheets?: boolean;
   /** Extracted or saved outfit text, for ward "extracted". */
   exText: string;
   poseMode: (typeof POSE_MODES)[number];
@@ -48,10 +59,13 @@ export function buildInjectPrompt(c: InjectCharacter, sheet: string, o: InjectOp
   const n = plans.length;
   const lead =
     o.mode === "ref"
-      ? (o.tag
+      ? (o.twoSheets
+          ? `Open with exactly: "${TWO_SHEET_OPENER}" (@image1 is her face sheet and @image2 her full-body sheet, both loaded in the generator), then`
+          : o.tag
           ? `Open with exactly: "Use ${o.tag} as the strict identity reference." (${o.tag} is the character sheet loaded in the user's generator), then`
           : 'Open with: "Use the uploaded character sheet as the strict identity reference." followed by') +
-        " the specific identity features to preserve that are visible in the target's framing (face, eyes, freckles or marks, lips, hair, signature accessories), written from the profile."
+        " the specific identity features to preserve that are visible in the target's framing (face, eyes, freckles or marks, lips, hair, signature accessories), written from the profile." +
+        (o.twoSheets ? " When you state her body and build, say it must match @image2 exactly." : "")
       : "There is no reference image in this workflow, so open with an identity paragraph built from the profile (face, eyes, skin marks, hair, build, accessories), limited to what is visible in the target's framing, so the model can reproduce the same person from text alone.";
   const wardLine = o.newOutfit
     ? `WARDROBE (new outfit): do not reuse the target's clothing. Design a completely different outfit that keeps the target's vibe and aesthetic (style, colour story, level of dressiness, season) and makes sense for this exact scene and activity. Name every garment with its type, fabric, fit and colour, plus footwear if the feet are in frame and accessories; real brands are fine where they fit the aesthetic. Keep the character's signature accessories if they suit it.${n > 1 ? " Every version gets a different outfit." : ""}`
@@ -62,10 +76,10 @@ export function buildInjectPrompt(c: InjectCharacter, sheet: string, o: InjectOp
         : "WARDROBE: dress the character in an outfit consistent with the profile's signature style and accessories instead of the target's clothing, keeping the target's mood and season.";
   const format =
     o.len === "narrative"
-      ? 'FORMAT: each prompt is one long flowing narrative paragraph of roughly 300 to 450 words, written like a vivid scene description, with no section labels or bullet points. Order: who is there, what they are doing and the mood; expression and gaze; hair; the pose limb by limb using left and right and what each hand holds or touches; the outfit; the character\'s face and skin from the profile; the setting and everything visible in the room or reflection; the light with its source and direction; the capture device and image quality; the colour palette; the overall vibe in one sentence; the aspect ratio. Use concrete everyday phrases such as "messy low bun" or "foot flat on the floor" instead of abstract adjectives. Finish with the exclusions (no text overlays, no watermark, no added logos beyond the brands named in the prompt, no garbled or made-up lettering).'
+      ? 'FORMAT: each prompt is one long flowing narrative paragraph of roughly 300 to 420 words, written like a vivid scene description, with no section labels or bullet points. Order: who is there, what they are doing and the mood; expression and gaze; hair; the pose limb by limb using left and right and what each hand holds or touches; the outfit; the character\'s face and skin from the profile; the setting and everything visible in the room or reflection; the light with its source and direction; the capture device and image quality; the colour palette; the overall vibe in one sentence; the aspect ratio. Use concrete everyday phrases such as "messy low bun" or "foot flat on the floor" instead of abstract adjectives. Finish with the exclusions (no text overlays, no watermark, no added logos beyond the brands named in the prompt, no garbled or made-up lettering).'
       : o.len === "short"
         ? 'FORMAT: each prompt is one tight paragraph that begins "Photo of ...", then the identity, action, setting, light and camera look in that order, then one closing line for aspect ratio and exclusions.'
-        : "FORMAT: each prompt has an identity paragraph first, then labelled sections in this order: SCENE, WARDROBE, BACKGROUND, LIGHT, CAMERA AND LOOK, and ends with one line of exclusions (no text overlays or captions, no watermark, no added logos beyond the brands named in the prompt, no garbled or made-up lettering). Do not mention aspect ratio anywhere. Section bodies are short flowing prose, no bullet points.";
+        : "FORMAT: each prompt has an identity paragraph first, then labelled sections in this order: SCENE, WARDROBE, BACKGROUND, LIGHT, CAMERA AND LOOK, and ends with one line of exclusions (no text overlays or captions, no watermark, no added logos beyond the brands named in the prompt, no garbled or made-up lettering). Do not mention aspect ratio anywhere. Section bodies are short flowing prose, no bullet points. Each section adds only what is not already said: the opening sentence names the scene and outfit in brief, and SCENE, WARDROBE and the rest give the details without repeating it; the skin and camera realism goes once, in CAMERA AND LOOK.";
   const safeRule =
     '- REVEALING CLOTHING IS FINE: bikinis, lingerie, bodysuits, crop tops, mini skirts, micro shorts, low necklines and similar outfits are kept as worn. Describe them plainly and briefly by garment type, colour, fabric and fit (for example "a black lace bralette and matching high-cut briefs"), without dwelling on the body. Do not swap these for other clothing.\n';
   const keepLine = o.pose
@@ -129,6 +143,7 @@ OUTPUT CONTRACT
 ${o.pose ? "- Directly under that marker write one line that starts with POSE: followed by that version's pose in at most 12 words.\n" : ""}- Then one line that starts with IN FRAME: followed by the parts of the person that will be visible in this version, chosen from: face, back of head, hair, shoulders, bust, arms, waist, hips, glutes, thighs, legs, feet.
 - Then one line that starts with OUTFIT: followed by the outfit she wears in this version in at most 30 words, garment by garment with colours, exactly as the prompt dresses her (after any recolour or new outfit).
 - Then one line that starts with EDIT: followed by a short instruction, at most 60 words, for a photo editor that already has the target photo and her reference images, naming only what this version changes in the target photo: the new pose, the new outfit or colours, the hairstyle, a new background when the target's is empty, turning a drawing or render into a real photo, the exact replacement wording for unreadable or gibberish text, and removing any tattoo, piercing or mark of the target person that the character does not have (for example "remove the navel piercing"). Never describe her face, skin, hair colour or body, and never describe the scene, in it. Write EDIT: none when nothing changes.
+- LENGTH: keep each finished prompt under ${PROMPT_CHARS} characters (about ${Math.round(PROMPT_CHARS / 6.5)} words); the image model takes 5,000 characters and the app adds her identity and body lock around it. Describe everything that matters, but say each detail once: no repeated outfit, pose or realism wording, no filler. If something must be shorter, shorten the background and light first, never her body and build.
 - Then the finished prompt. Nothing before the first marker and nothing after the last prompt.`;
 }
 

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BackButton } from "@/components/back-button";
 import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
 import { CONTACT_EMAIL } from "@/lib/links";
 import { PRIVACY_UPDATED } from "@/lib/legal";
@@ -9,10 +10,10 @@ export const metadata: Metadata = { title: "Privacy Policy" };
 /** Last changed: update PRIVACY_UPDATED (src/lib/legal.ts) whenever the text below changes. */
 const UPDATED = PRIVACY_UPDATED;
 
-const h2 = "mt-8 font-display text-lg font-bold text-neutral-50";
+const h2 = "mt-9 scroll-mt-24 font-display text-lg font-bold text-neutral-50";
 const h3 = "mt-4 text-sm font-semibold text-neutral-100";
-const p = "mt-2 text-sm leading-relaxed text-neutral-300";
-const ul = "mt-2 flex list-disc flex-col gap-1.5 pl-5 text-sm leading-relaxed text-neutral-300";
+const p = "mt-2 text-[15px] leading-relaxed sm:text-sm text-neutral-300";
+const ul = "mt-2 flex list-disc flex-col gap-2 pl-5 text-[15px] leading-relaxed sm:gap-1.5 sm:text-sm text-neutral-300";
 const b = "text-neutral-100";
 
 const Email = () => (
@@ -21,9 +22,14 @@ const Email = () => (
   </a>
 );
 
-export default function PrivacyPage() {
+export default async function PrivacyPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
+  const { from } = await searchParams;
   return (
     <article className="mx-auto max-w-3xl pb-10">
+      {/* Signed-out visitors arrive from the login or sign-up form and need a way back to it. */}
+      <div className="mb-5 sm:mb-7">
+        <BackButton fallback={from === "signup" ? "/signup" : "/login"} />
+      </div>
       {/* Its own heading (not .page-title, which phones hide in favour of the app's top bar): signed-out visitors read this too. */}
       <h1 className="font-display text-[1.75rem] font-extrabold leading-tight tracking-tight text-neutral-50 sm:text-[2.05rem]">Privacy Policy</h1>
       <span aria-hidden="true" className="mt-2 block h-[3px] w-12 rounded-full bg-gradient-to-r from-brand-500 to-iris-500 shadow-[0_0_14px_rgb(232_38_94/0.6)]" />

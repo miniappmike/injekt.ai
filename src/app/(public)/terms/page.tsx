@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BackButton } from "@/components/back-button";
 import { CREDIT_PACKS, FREE_CREDITS, IMAGE_CREDITS, PRO, PROFILE_BUILD_CREDITS, PROMPT_CREDITS, dollars } from "@/lib/plans";
 import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
 import { CONTACT_EMAIL } from "@/lib/links";
@@ -10,13 +11,18 @@ export const metadata: Metadata = { title: "Terms of Service" };
 /** Last changed: update TERMS_UPDATED (src/lib/legal.ts) whenever the text below changes. */
 const UPDATED = TERMS_UPDATED;
 
-const h2 = "mt-8 font-display text-lg font-bold text-neutral-50";
-const p = "mt-2 text-sm leading-relaxed text-neutral-300";
-const ul = "mt-2 flex list-disc flex-col gap-1.5 pl-5 text-sm leading-relaxed text-neutral-300";
+const h2 = "mt-9 scroll-mt-24 font-display text-lg font-bold text-neutral-50";
+const p = "mt-2 text-[15px] leading-relaxed sm:text-sm text-neutral-300";
+const ul = "mt-2 flex list-disc flex-col gap-2 pl-5 text-[15px] leading-relaxed sm:gap-1.5 sm:text-sm text-neutral-300";
 
-export default function TermsPage() {
+export default async function TermsPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
+  const { from } = await searchParams;
   return (
     <article className="mx-auto max-w-3xl pb-10">
+      {/* Signed-out visitors arrive from the login or sign-up form and need a way back to it. */}
+      <div className="mb-5 sm:mb-7">
+        <BackButton fallback={from === "signup" ? "/signup" : "/login"} />
+      </div>
       {/* Its own heading (not .page-title, which phones hide in favour of the app's top bar): signed-out visitors read this too. */}
       <h1 className="font-display text-[1.75rem] font-extrabold leading-tight tracking-tight text-neutral-50 sm:text-[2.05rem]">Terms of Service</h1>
       <span aria-hidden="true" className="mt-2 block h-[3px] w-12 rounded-full bg-gradient-to-r from-brand-500 to-iris-500 shadow-[0_0_14px_rgb(232_38_94/0.6)]" />

@@ -75,7 +75,7 @@ describe("buildInjectPrompt", () => {
   it("matches the style: Sectioned never mentions ratio; Narrative and Short state it", () => {
     expect(build()).toContain("- Do not mention aspect ratio or image dimensions.");
     expect(build()).toContain("FORMAT: each prompt has an identity paragraph first, then labelled sections");
-    expect(build({ len: "narrative" })).toContain("FORMAT: each prompt is one long flowing narrative paragraph of roughly 300 to 450 words");
+    expect(build({ len: "narrative" })).toContain("FORMAT: each prompt is one long flowing narrative paragraph of roughly 300 to 420 words");
     expect(build({ len: "short" })).toContain('- State the aspect ratio you believe the target has.');
   });
 
