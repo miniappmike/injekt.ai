@@ -152,7 +152,7 @@ export const GUIDE_MODELS = {
   vision: [
     { name: "Claude Haiku 5.5", id: "anthropic/claude-haiku-5.5/chat", note: "Latest Iteration" },
     { name: "Claude Sonnet 5.5", id: "anthropic/claude-sonnet-5.5/chat", note: "Original setup" },
-    { name: "Kimi K3.1 Pro", id: "moonshot/kimi-k3.1-pro/chat", note: "Cheaper but slower than Sonnet" },
+    { name: "Kimi K3.1 Pro", id: "moonshot/kimi-k3.1-pro/chat", note: "Tested" },
   ],
   image: [
     { name: "Seedream 5.5", id: "bytedance/seedream-5.5/edit", note: "Latest Iteration" },

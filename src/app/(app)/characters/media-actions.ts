@@ -42,7 +42,7 @@ export async function removeCharacterImage(
     removed = c[COLUMN[slot]];
     await supabase.from("characters").update({ [COLUMN[slot]]: null }).eq("id", characterId);
   }
-  // A pinned image stays in storage until the account is deleted; it is only taken off her references here.
+  // A pinned image stays in storage until she or the account is deleted; it is only taken off her references here.
   if (removed && isOwnPath(user.id, removed) && !isPinnedPath(removed)) await supabase.storage.from(MEDIA_BUCKET).remove([removed]);
   revalidatePath(`/characters/${characterId}`);
 }

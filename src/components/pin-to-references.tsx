@@ -7,7 +7,7 @@ import { pinToReferences } from "@/app/(app)/characters/pin-actions";
 import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
 
 /**
- * "Pin to her references" under a generated image of a character. At the limit, a pop-up asks before the new image
+ * "Pin It" under a generated image of a character. At the limit, a pop-up asks before the new image
  * replaces her last reference photo, and it only goes ahead once the box is ticked.
  */
 export function PinToReferences({ generationId, characterId }: { generationId: string; characterId: string }) {
@@ -38,7 +38,7 @@ export function PinToReferences({ generationId, characterId }: { generationId: s
     <div className="flex flex-col gap-2 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" size="sm" variant="secondary" disabled={state.busy || !!state.done} onClick={() => void pin()}>
-          {state.busy ? "Checking and pinning…" : state.done ? "Pinned" : "Pin to her references"}
+          {state.busy ? "Checking…" : state.done ? "Pinned" : "Pin It"}
         </Button>
         {state.done && <span role="status" className="text-emerald-300">{state.done}</span>}
         {state.error && <span role="alert" className="text-red-400">{state.error}</span>}

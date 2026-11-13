@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parsePinCheck, PIN_CHECK_PROMPT } from "@/lib/ai/prompts/pin";
-import { deletable, isPinnedPath, MAX_REFERENCE_PHOTOS, pinnedFolder } from "@/lib/uploads";
+import { isPinnedPath, MAX_REFERENCE_PHOTOS, pinnedFolder } from "@/lib/uploads";
 
 describe("pinning generated images to a character", () => {
   it("allows up to 5 reference photos", () => {
@@ -17,10 +17,9 @@ describe("pinning generated images to a character", () => {
     expect(PIN_CHECK_PROMPT).toContain("Swimwear, lingerie, underwear");
   });
 
-  it("pinned files are never deleted by a removal, only with the account", () => {
+  it("pinned files are kept when taken off her references", () => {
     const pinned = `u1/${pinnedFolder("c1")}/a.jpg`;
     expect(isPinnedPath(pinned)).toBe(true);
     expect(isPinnedPath("u1/characters/c1/b.jpg")).toBe(false);
-    expect(deletable([pinned, "u1/characters/c1/b.jpg"])).toEqual(["u1/characters/c1/b.jpg"]);
   });
 });

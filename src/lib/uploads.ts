@@ -10,11 +10,9 @@ export const isOwnRawPath = (userId: string, path: string) =>
   path.startsWith(`${userId}/raw/`) && !path.includes("..") && path.split("/").length === 3;
 export const isOwnPath = (userId: string, path: string) =>
   path.startsWith(`${userId}/`) && !path.includes("..");
-/** Generated images pinned to a character live here. They are only ever deleted with the account. */
+/** Generated images pinned to a character live here. They are deleted with the character or the account, never otherwise. */
 export const pinnedFolder = (characterId: string) => `pinned/${characterId}`;
 export const isPinnedPath = (path: string) => /^[^/]+\/pinned\//.test(path);
-/** The files a removal may delete: never a pinned image (account deletion clears those). */
-export const deletable = (paths: string[]) => paths.filter((p) => !isPinnedPath(p));
 
 /** Images uploaded on the new-character page, before the character row exists. */
 export const PENDING_FOLDER = "characters/pending";

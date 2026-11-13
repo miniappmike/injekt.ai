@@ -16,7 +16,7 @@ export type PinResult = { ok: true; count: number; replaced: boolean } | { ok: f
  * Pins a generated image to a character's reference photos (up to MAX_REFERENCE_PHOTOS). When she already has the
  * maximum, nothing happens unless `replaceLast` is set, which swaps out her last reference photo. A vision check on the
  * person's own key (or the platform's) refuses images with nudity first. Pinned copies live under "<user>/pinned/" and
- * are never deleted except with the account, even when they are replaced or the character is deleted.
+ * stay in storage when replaced or taken off her references; deleting the character or the account removes them.
  */
 export async function pinToReferences(input: { generationId: string; characterId: string; replaceLast?: boolean }): Promise<PinResult> {
   try {
@@ -48,7 +48,7 @@ export async function pinToReferences(input: { generationId: string; characterId
     const path = finalPath(user.id, pinnedFolder(input.characterId));
     const up = await supabase.storage.from(MEDIA_BUCKET).upload(path, await stripAndNormalize(original), { contentType: "image/jpeg" });
     if (up.error) return { ok: false, error: "Couldn't save the image. Try again." };
-    // Full: the new image takes the last one's place. The replaced file stays in storage (see above).
+    // Full: the new image takes the last one's place. The replaced file stays in storage until she is deleted.
     const next = full ? [...refs.slice(0, MAX_REFERENCE_PHOTOS - 1), path] : [...refs, path];
     const { error: saveError } = await supabase.from("characters").update({ reference_paths: next, updated_at: new Date().toISOString() }).eq("id", input.characterId);
     if (saveError) {

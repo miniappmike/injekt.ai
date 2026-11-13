@@ -125,7 +125,7 @@ export default async function EditCharacterPage({
             <p className="rounded-xl border border-brand-500/30 bg-brand-500/5 p-3 text-sm text-neutral-300">
               <b className="text-neutral-50">No reference photos yet?</b> Generate some:{" "}
               <Link href={`/inject?character=${c.id}`} className="font-semibold text-brand-300 underline underline-offset-2 hover:text-brand-200">put {c.name} into a photo on Inject</Link>, then press
-              Pin to her references under the result.
+              Pin It under the result.
             </p>
           )}
         </section>
