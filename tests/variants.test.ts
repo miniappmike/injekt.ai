@@ -226,7 +226,7 @@ describe("runVariants", () => {
     expect(r.variants[0]).toMatchObject({ label: "Low angle laugh", changes: "pose, angle" });
     expect(r.variants[0].prompt).toContain("Never dress her in the reference outfit (white shorts).");
     expect(r.attach).toEqual(["@image1: face sheet (identity reference)", "@image2: the image to edit", "@image3: extra image"]);
-    expect(h.saveHistory.mock.calls[0][2][0]).toMatchObject({ kind: "variant", label: "Variant · Low angle laugh", imagePath: `${U}/t.jpg`, extraPaths: [`${U}/x.jpg`] });
+    expect(h.saveHistory.mock.calls[0][2][0]).toMatchObject({ kind: "variant", label: "Photoshoot · Low angle laugh", imagePath: `${U}/t.jpg`, extraPaths: [`${U}/x.jpg`] });
     expect((writes[0].prefs as { recentPoses: string[] }).recentPoses).toEqual(["old pose", "Low angle laugh"]);
   });
 
@@ -284,7 +284,7 @@ describe("runCarousel", () => {
     expect(r.theme).toBe("Café");
     expect(r.slides[0]).toMatchObject({ person: "full", copy: "Same woman as @image1, cover @image2." });
     expect(r.slides[1].copy).toBe("No people in the frame. Latte from @image2.");
-    expect(h.saveHistory.mock.calls[0][2][1]).toMatchObject({ kind: "carousel", label: "Carousel · slide 3 · Latte", meta: { person: "none", slidePrompt: "No people in the frame. Latte from {PHOTO}.", type: "food" } });
+    expect(h.saveHistory.mock.calls[0][2][1]).toMatchObject({ kind: "carousel", label: "Moments · 3 · Latte", meta: { person: "none", slidePrompt: "No people in the frame. Latte from {PHOTO}.", type: "food" } });
   });
 
   it("Write only: finished prompts with her sheets as the references and what to attach, up to 8", async () => {
@@ -306,7 +306,7 @@ describe("runCarousel", () => {
     expect(room.attach).toEqual(["@image1: Holly's face sheet", "@image2: Holly's body sheet", "@image3: your photo", "@image4: extra image 1"]);
     expect(room.copy.startsWith("@image1 and @image2 are her reference sheets, attached only to keep the image order; this shot has no people in it, so ignore them. @image3 is the source photo from the same shoot.")).toBe(true);
     expect(room.copy).not.toMatch(/strict identity reference/);
-    expect(h.saveHistory.mock.calls[0][2][0]).toMatchObject({ kind: "carousel", label: "Write only · 1 · Low angle", prompt: her.copy });
+    expect(h.saveHistory.mock.calls[0][2][0]).toMatchObject({ kind: "carousel", label: "Moments · 1 · Low angle", prompt: her.copy });
     // Each image to attach, with links to her sheets for the page (never the storage path).
     expect(her.attachItems?.map((x) => [x.tag, x.source, x.label])).toEqual([
       ["@image1", "ref", "Holly's face sheet"],
@@ -318,7 +318,7 @@ describe("runCarousel", () => {
     expect(JSON.stringify(her.attachItems)).not.toContain('"path"');
   });
 
-  it("Write only puts the creative direction first, as the brief every slide is built around", async () => {
+  it("Moments put the creative direction first, made here or elsewhere, as the brief every slide is built around", async () => {
     h.run.mockResolvedValue('{"theme":"Hotel night","slides":[{"type":"pose","label":"Vanity","person":"full","prompt":"Same woman as {REF} at a hotel vanity."}]}');
     const { client } = db();
     await runCarousel(client, U, { coverPath: `${U}/c.jpg`, characterId: "c1", types: ["pose"], count: 1, writeOnly: true, note: "hotel vanity at night, flash" });
@@ -327,10 +327,9 @@ describe("runCarousel", () => {
     expect(p.indexOf("COMES FIRST")).toBeLessThan(p.indexOf("SLIDES\n"));
     expect(p).toContain("rewrite any slide that does not clearly carry it out");
     expect(p).not.toContain("Creative direction from the user, only as it applies");
-    // The Carousel tab keeps the artifact's wording.
+    // Made here, the direction leads the same way.
     await runCarousel(client, U, { coverPath: `${U}/c.jpg`, characterId: "c1", types: ["pose"], count: 1, note: "hotel vanity" });
-    expect(h.run.mock.calls[1][0].prompt).toContain("- Creative direction from the user, only as it applies to the image: <<<hotel vanity>>>");
-    expect(h.run.mock.calls[1][0].prompt).not.toContain("COMES FIRST");
+    expect(h.run.mock.calls[1][0].prompt).toContain("THE USER'S CREATIVE DIRECTION COMES FIRST. This is the brief for the whole set: <<<hotel vanity>>>");
   });
 
   it("varies poses: recent ones to avoid, fresh ideas, a variety rule, and her new poses remembered", async () => {

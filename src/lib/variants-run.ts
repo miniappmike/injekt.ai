@@ -141,7 +141,7 @@ export async function runVariants(
   const variantIds = await saveHistory(
     supabase,
     userId,
-    variants.map((v) => ({ characterId: c?.id ?? null, kind: "variant" as const, label: `Variant · ${v.label}`, prompt: v.prompt, imagePath: input.imagePath, extraPaths })),
+    variants.map((v) => ({ characterId: c?.id ?? null, kind: "variant" as const, label: `Photoshoot · ${v.label}`, prompt: v.prompt, imagePath: input.imagePath, extraPaths })),
   );
   variants.forEach((v, i) => Object.assign(v, { historyId: variantIds[i] ?? null }));
   await rememberPoses(supabase, userId, variants.map((v) => v.label));
@@ -218,7 +218,8 @@ export async function runCarousel(
     traits: traitsOf(c),
     extra: String(input.note ?? "").trim().slice(0, 2000),
     extraCount: extraPaths.length,
-    directionFirst: !!input.writeOnly,
+    // The creative direction leads either way: what the person describes wins over the planner's own ideas.
+    directionFirst: true,
   });
   const images = await loadForVision(
     supabase,
@@ -240,7 +241,7 @@ export async function runCarousel(
     slides.map((s, i) => ({
       characterId: c?.id ?? null,
       kind: "carousel" as const,
-      label: input.writeOnly ? `Write only · ${i + 1} · ${s.label}` : `Carousel · slide ${i + 2} · ${s.label}`,
+      label: input.writeOnly ? `Moments · ${i + 1} · ${s.label}` : `Moments · ${i + 2} · ${s.label}`,
       prompt: s.copy,
       imagePath: input.coverPath,
       extraPaths,

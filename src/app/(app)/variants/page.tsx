@@ -26,7 +26,7 @@ export default async function VariantsPage() {
     <div>
       <h1 className="page-title">Variants</h1>
       <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
-        Got an image you love? Get prompts for more like it: new poses, outfits and scenes of the same moment, or a whole carousel planned from one cover.
+        Got an image you love? Photoshoot makes new takes of the same scene, and Moments plans shots from throughout her day, built from this one.
       </p>
       {characters.length ? <VariantsTool characters={characters} /> : <CreateCharacterFirst />}
     </div>
