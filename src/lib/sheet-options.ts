@@ -16,6 +16,7 @@ export const GLUTE_SIZES = [
   { id: "slarger", label: "Slightly larger" },
   { id: "larger", label: "Larger" },
   { id: "xlarger", label: "Much larger" },
+  { id: "xxlarger", label: "Extreme" },
 ] as const;
 export const GLUTE_SHAPES = [
   { id: "match", label: "As in the photos" },
@@ -25,4 +26,4 @@ export const GLUTE_SHAPES = [
   { id: "athletic", label: "Athletic" },
   { id: "soft", label: "Soft" },
 ] as const;
-export const CUPS = ["match", "A", "B", "C", "D", "DD", "E", "F"] as const;
+export const CUPS = ["match", "A", "B", "C", "D", "DD", "E", "F", "G", "H", "I", "J"] as const;

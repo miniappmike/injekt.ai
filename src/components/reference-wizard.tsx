@@ -241,7 +241,7 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
   // Sheets saved or made during this visit.
   const [saved, setSaved] = useState<Record<string, { face?: SheetImage; body?: SheetImage }>>({});
   const [madeFace, setMadeFace] = useState<{ id: string; url: string } | null>(null);
-  const [opts, setOpts] = useState({ outfit: "covered" as "covered" | "bikini", gluteSize: "match", gluteShape: "match", cup: "match" });
+  const [opts, setOpts] = useState({ outfit: "covered" as "covered" | "bikini", gluteSize: "match", gluteShape: "match", cup: "match", blend: false });
 
   const character = list.find((c) => c.id === characterId) ?? null;
   const isNew = !character;
@@ -272,6 +272,7 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
     ...(opts.gluteSize !== "match" ? { gluteSize: opts.gluteSize } : {}),
     ...(opts.gluteShape !== "match" ? { gluteShape: opts.gluteShape } : {}),
     ...(opts.cup !== "match" ? { cup: opts.cup } : {}),
+    ...(opts.blend && bodies.length > 1 ? { blend: true } : {}),
   };
 
   // Step 1 -> 2: a new persona is created now (just her name), so sheets can be made for her and saved.
@@ -406,13 +407,26 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
       )}
 
       {step === 3 && character && (
-        <StepCard n={3} title="Add her body" intro={`Add one, two or three full-body photos (front, back or side) of the body you want ${character.name} to have. More angles hold her shape better.`}>
+        <StepCard n={3} title="Add her body" intro={`Add one, two or three full-body photos of the body you want ${character.name} to have: the same body from other angles, or different bodies to blend into one.`}>
           <div className="grid grid-cols-3 gap-2 sm:gap-3 [&>*]:min-w-0">
-            <PhotoDrop layout="tile" title="Body photo 1" hint="Front, back or side." photo={body1} onPick={(f) => void pickBody1(f)} />
-            <PhotoDrop layout="tile" title="Body photo 2" hint="Optional: another angle." photo={body2} onPick={(f) => void pickBody2(f)} />
-            <PhotoDrop layout="tile" title="Body photo 3" hint="Optional: another angle." photo={body3} onPick={(f) => void pickBody3(f)} />
+            <PhotoDrop layout="tile" title="Body photo 1" hint="Full body, any angle." photo={body1} onPick={(f) => void pickBody1(f)} />
+            <PhotoDrop layout="tile" title="Body photo 2" hint="Optional." photo={body2} onPick={(f) => void pickBody2(f)} />
+            <PhotoDrop layout="tile" title="Body photo 3" hint="Optional." photo={body3} onPick={(f) => void pickBody3(f)} />
           </div>
           <p className="-mt-1 text-xs text-neutral-500">Up to {MAX_BODY_PHOTOS} photos. Her face comes from {face?.isSheet ? "her face sheet" : "her face photo"}.</p>
+          {bodies.length > 1 && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">These photos are</span>
+              <div role="radiogroup" aria-label="These photos are" className={segTrack}>
+                {([false, true] as const).map((b) => (
+                  <button key={String(b)} type="button" role="radio" aria-checked={opts.blend === b} onClick={() => setOpts((o) => ({ ...o, blend: b }))} className={segItem(opts.blend === b)}>
+                    {b ? "Different bodies, blend them" : "One body, other angles"}
+                  </button>
+                ))}
+              </div>
+              {opts.blend && <p className="text-xs text-neutral-500">Her body combines them, keeping the boldest curves from each photo rather than averaging them out.</p>}
+            </div>
+          )}
 
           <details className="group rounded-2xl border border-neutral-800 bg-neutral-950/40 p-3">
             <summary className="cursor-pointer select-none text-sm font-semibold text-neutral-200">Fine-tune the sheet <span className="font-normal text-neutral-500">(body, optional)</span></summary>

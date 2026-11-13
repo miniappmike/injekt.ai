@@ -64,9 +64,26 @@ describe("reference sheet prompts (A13b)", () => {
     expect(sheetPrompts(true, false, { outfit: "default" }).body).toContain(covered); // older saved runs
     expect(sheetPrompts(true, false, { outfit: "bikini" }).body).toContain("Outfit in all four views: a plain black bikini, a fitted triangle top and a matching bikini bottom, with bare feet.");
     const tuned = sheetPrompts(true, false, { gluteSize: "larger", gluteShape: "heart", cup: "D" }).body;
-    expect(tuned).toContain(" Body adjustments, applied the same way in every view: noticeably fuller, larger glutes than in the body photos; a heart-shaped glute shape, fuller at the lower curve; a natural bust proportionate to a D cup. Everything else about her body");
+    expect(tuned).toContain(" Body adjustments, applied the same way in every view: noticeably fuller, larger glutes than in the body photos; a heart-shaped glute shape, fuller at the lower curve; a bust the full size of a D cup, never reduced. Everything else about her body");
     expect(tuned).toContain("Apart from the listed body adjustments, do not beautify, slim, shrink, age or change her.");
     expect(tuneLine({ gluteSize: "match", cup: "Z" })).toBe("");
+  });
+
+  it("different bodies blend into one, keeping the boldest curves instead of averaging", () => {
+    const blended = sheetPrompts(true, 3, { blend: true }).body;
+    expect(blended).toContain("@image2, @image3 and @image4 (body references of three different women; only their bodies are used, never their faces, hair or skin)");
+    expect(blended).toContain("her body is one composite of all three body references");
+    expect(blended).toContain("take the more pronounced feature from whichever photo has it");
+    expect(blended).not.toContain("different angles");
+    expect(sheetPrompts(true, 2, { blend: true }).body).toContain("@image2 and @image3 (body references of two different women");
+    // One photo has nothing to blend.
+    expect(sheetPrompts(true, 1, { blend: true }).body).toBe(sheetPrompts(true, 1).body);
+    // The fine-tune never pulls the figure back toward natural or average.
+    const big = tuneLine({ gluteSize: "xxlarger", cup: "H", blend: true });
+    expect(big).toContain("extremely large, exaggerated glutes");
+    expect(big).toContain("an H cup, never reduced");
+    expect(big).toContain("stays as in the composite body above");
+    expect(big).not.toMatch(/natural|in proportion/);
   });
 
   it("makes each sheet in a shape the image model accepts", () => {
