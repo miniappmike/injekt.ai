@@ -24,9 +24,29 @@ section is right.
 - **Legal**: Terms and Privacy pages, 18+ and terms boxes at sign-up, account deletion (orders and bonus claims are
   kept without the person), contact modelspawn@gmail.com.
 - **Home screen icon**: `src/app/apple-icon.png`, `src/app/manifest.ts`, `public/icons/`.
+- **Calmer menus** (November 2026 pass): Variants' Moments has four "Include" chips and one "Posting to" menu grouped
+  by tone; Inject's options are one row (Pose, Outfit, Versions, Which person) with prompt format under More options;
+  helper paragraphs and "optional" tags are gone across Variants, Inject and the character pages.
+- **Inject Outfit menu**: one menu (same as the photo, same outfit in new colours, a new outfit, her signature style,
+  an outfit I choose) sets `ward`, `newOutfit` and `recolor` together so they can't contradict. "An outfit I choose"
+  takes an outfit photo, read into words once (`extractOutfit`), editable and saveable.
+- **Create Model body blend**: with 2 or 3 body photos, "These photos are" can be "Different bodies, blend them"
+  (`blend` in the sheet meta): one composite body keeping the boldest feature from each photo. The bust and glute
+  fine-tune no longer says "natural"; cups go to J and glute size has Extreme.
+- **Likeness fix keeps the outfit**: it rebuilds only face, hair, skin tone and body proportions under `OUTFIT_LOCK`
+  (`src/lib/ai/prompts/likeness.ts`), and clothing fixes are dropped. It sends the image to fix, then her face sheet,
+  then her body sheet.
+- **Pin It**: any generated image of a character can be pinned to her reference photos (up to 5 per character,
+  `MAX_REFERENCE_PHOTOS` in `src/lib/reference-limits.ts`). A vision check (`src/lib/ai/prompts/pin.ts`, ledger
+  feature "Pin check") refuses visible nudity first. At 5, a pop-up with a confirmation box replaces her last photo.
+  Pinned files live in `<user>/pinned/<character>/`: kept when replaced or removed from her references, deleted with
+  the character or the account. A character page with no reference photos links to Inject to make some.
+- **API key guide**: notes that setup was tested with Claude Sonnet 5.5 and Seedream 5 and that the developer now uses
+  Claude Haiku 5.5 with Seedream 5.5 ("Latest Iteration"); Kimi K3.1 Pro is marked "Tested". The Haiku 5.5 SpicyAPI ID
+  (`anthropic/claude-haiku-5.5/chat`) follows the Sonnet ID's pattern; confirm it against SpicyAPI's model list.
 
 **Database**: migrations 0001 to 0025 are all run in production (0023 tokens, 0024 account deletion, 0025 payment
-providers).
+providers). **0026 (five reference photos) must be run** before a 4th or 5th reference photo can be saved.
 
 **Nightly job** (`/api/cron/cleanup`, 03:00 UTC): expired images, unfinished marketplace copies, final ledger charges,
 unpaid orders older than 3 days, cancelled or failed orders older than 24 hours.
@@ -34,7 +54,8 @@ unpaid orders older than 3 days, cancelled or failed orders older than 24 hours.
 **Decisions that changed since the notes below**
 - No Lemon Squeezy or Stripe: card processors were ruled out; payments are Telegram Stars and NOWPayments.
 - BYOK is Pro-only (it used to be for everyone).
-- No content rules beyond the model providers' own; no "no nudity" guardrail (decided, don't re-raise).
+- No content rules on generation beyond the model providers' own (decided, don't re-raise). The one exception, asked
+  for by the owner: images pinned to a character's reference photos must not show nudity (the Pin It check).
 - Staying on Vercel; upgrade to Vercel Pro before relying on sales (Hobby is non-commercial).
 
 **Next, in rough order**

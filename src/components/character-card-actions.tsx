@@ -26,7 +26,7 @@ export function DeleteCharacterButton({ id, name, icon = false }: { id: string; 
           <TrashIcon className="h-[18px] w-[18px]" />
         </button>
       ) : (
-        <Button type="submit" size="sm" variant="destructive">Delete</Button>
+        <Button type="submit" size="sm" variant="ghost" className="text-red-400 hover:bg-red-500/10 hover:text-red-300">Delete</Button>
       )}
     </form>
   );

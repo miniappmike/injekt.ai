@@ -50,6 +50,7 @@ export const injectMetaSchema = z.object({
       gluteSize: z.string().max(20).optional(),
       gluteShape: z.string().max(20).optional(),
       cup: z.string().max(4).optional(),
+      blend: z.boolean().optional(),
     })
     .optional(),
 });

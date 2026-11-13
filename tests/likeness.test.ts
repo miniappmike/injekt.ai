@@ -8,6 +8,7 @@ import {
   parseQuickLikeness,
   quickLikenessPrompt,
   MAKEUP_SCORE_RULE,
+  OUTFIT_LOCK,
   DISTANCE_SCORE_RULE,
 } from "@/lib/ai/prompts/likeness";
 import { BODY_LOCK, MODS_RULE, REALISM_FIX, TEXT_SHORT } from "@/lib/ai/prompts/rules";
@@ -122,9 +123,21 @@ describe("likeness fix (A18)", () => {
   it("other models get no IDENTITY line; without a pack there are no anchors", () => {
     expect(likenessFixPrompt(pack, [], "", "nb").startsWith("Replace the woman in @image1")).toBe(true);
     const sheet = likenessFixPrompt({ roles: ["her character reference sheet"], kinds: [], anchors: null, usePack: false }, [], "", "pro");
-    expect(sheet.startsWith("Replace the woman in @image1 with the woman from @image2. @image2 is her character reference sheet. Repaint")).toBe(true);
+    expect(sheet.startsWith("Replace the woman in @image1 with the woman from @image2. @image2 is her character reference sheet. Rebuild only who she is")).toBe(true);
     expect(sheet).not.toContain("In particular");
     expect(sheet).not.toContain("Never dress her");
+  });
+
+  it("never changes the outfit: an outfit lock, and clothing fixes are dropped", () => {
+    const p = likenessFixPrompt(pack, ["fuller rounded glutes", "black shorts instead of jeans", "voluminous curly hair"], "", "nb");
+    expect(p).toContain(OUTFIT_LOCK);
+    expect(p).toContain("Full-length trousers stay full-length");
+    expect(p).toContain("In particular: fuller rounded glutes; voluminous curly hair.");
+    expect(p).not.toContain("jeans");
+    expect(p).not.toContain("Repaint the person completely");
+    expect(likenessFixPrompt(pack, ["a red sweater"], "", "nb")).not.toContain("In particular");
+    const q = parseQuickLikeness({ face_shape: 7, fixes: ["wider hips", "denim jeans, not shorts"] }, false);
+    expect(q.fixes).toEqual(["wider hips"]);
   });
 });
 

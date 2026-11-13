@@ -14,6 +14,7 @@ import { CopyOpen } from "@/components/copy-open";
 import { useGeneration } from "@/components/app-context";
 import { InfoTip } from "@/components/info-tip";
 import { uploadImage } from "@/components/image-slot";
+import { ImageDrop } from "@/components/image-drop";
 import { useToast } from "@/components/toast";
 import { clipboardImages, usePasteTarget } from "@/components/paste-router";
 import { cleanOverlays, deleteOutfit, extractOutfit, recoverInjectPrompts, saveOutfit, warmSheetPack, writeInjectStandalone } from "@/app/(app)/inject/actions";
@@ -37,6 +38,18 @@ const OPTIONS_KEY = "ms.injectOptions";
 /** Write only: prompts to paste into another generator instead of Generate buttons. Remembered per browser. */
 const WRITE_ONLY_KEY = "ms.injectWriteOnly";
 const select = "h-10 w-full rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm";
+
+/** The one Outfit menu: each choice sets the three outfit options together, so they can't contradict each other. */
+const OUTFIT_CHOICES = {
+  match: { label: "Same as the photo", set: { ward: "match", newOutfit: false, recolor: false } },
+  recolor: { label: "Same outfit, new colours", set: { ward: "match", newOutfit: false, recolor: true } },
+  new: { label: "A new outfit", set: { ward: "match", newOutfit: true, recolor: false } },
+  signature: { label: "Her signature style", set: { ward: "signature", newOutfit: false, recolor: false } },
+  extracted: { label: "An outfit I choose", set: { ward: "extracted", newOutfit: false, recolor: false } },
+} as const;
+type OutfitChoice = keyof typeof OUTFIT_CHOICES;
+const outfitChoice = (o: { ward: string; newOutfit: boolean; recolor: boolean }): OutfitChoice =>
+  o.newOutfit ? "new" : o.ward === "match" ? (o.recolor ? "recolor" : "match") : (o.ward as OutfitChoice);
 
 export interface InjectCharacter {
   id: string;
@@ -91,7 +104,9 @@ type Options = Required<Omit<InjectOptionsInput, "count">> & { count: number };
 function loadOptions(): Options {
   try {
     const saved = JSON.parse(localStorage.getItem(OPTIONS_KEY) || "{}");
-    return { ...INJECT_DEFAULTS, ...saved, who: "", extra: saved.extra ?? "" };
+    const o: Options = { ...INJECT_DEFAULTS, ...saved, who: "", extra: saved.extra ?? "" };
+    // Combinations saved before the single Outfit menu (say, signature style with recolour) settle on one choice.
+    return { ...o, ...OUTFIT_CHOICES[outfitChoice(o)].set };
   } catch {
     return { ...INJECT_DEFAULTS };
   }
@@ -116,6 +131,9 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
   const [extracting, setExtracting] = useState(false);
   const [outfits, setOutfits] = useState<SavedOutfit[]>(initialOutfits);
   const [outfitName, setOutfitName] = useState("");
+  const [outfitPhoto, setOutfitPhoto] = useState<string>();
+  // The outfit's words show once there are some, or when the person chooses to type them.
+  const [describeOutfit, setDescribeOutfit] = useState(false);
   // Phones: the options live in a bottom sheet.
   const [sheet, setSheet] = useState(false);
   // Which layout is showing, so the prompt controls render once: in the sheet on a phone, beside the button otherwise.
@@ -318,19 +336,25 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running]);
 
-  async function extract() {
-    const first = targets[0];
-    if (!first) return;
+  /** An outfit photo is read into words once, and those words go into every prompt as the outfit she wears. */
+  async function readOutfit(file: File) {
+    setOutfitPhoto(URL.createObjectURL(file));
     setExtracting(true);
-    const path = await ensureUploaded(first);
-    const res = path ? await extractOutfit({ imagePath: path, who: o.who }) : { ok: false as const, error: "Upload failed" };
+    let res: Awaited<ReturnType<typeof extractOutfit>>;
+    try {
+      res = await extractOutfit({ imagePath: await uploadImage(file, "target") });
+    } catch (e) {
+      res = { ok: false, error: e instanceof Error ? e.message : "Upload failed" };
+    }
     setExtracting(false);
     if (!res.ok) {
+      setOutfitPhoto(undefined);
       if ("redirectTo" in res && res.redirectTo) return router.push(res.redirectTo);
       return show(res.error);
     }
-    setO((x) => ({ ...x, exText: res.text, ward: "extracted" }));
-    show("Outfit extracted. The prompts will use it.");
+    usageChanged();
+    setO((x) => ({ ...x, exText: res.text, ...OUTFIT_CHOICES.extracted.set }));
+    show("Outfit read. Every prompt will dress her in it.");
   }
 
   const results = targets.filter((t) => t.state);
@@ -546,22 +570,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
 
       <MobileSheet open={sheet} onClose={() => setSheet(false)} title="Options" className="panel flex flex-col gap-4 p-4">
         <h2 className="font-semibold max-sm:hidden">2. Options</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="flex items-center gap-1.5">Prompt for <InfoTip label="About Prompt for">With character sheet: the prompt opens with your reference tag, for generators that get her sheet. Text only: her identity is written out in full.</InfoTip></span>
-            <select className={select} value={o.mode} onChange={(e) => set("mode", e.target.value as Options["mode"])}>
-              <option value="ref">With character sheet</option>
-              <option value="text">Text only</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            Style
-            <select className={select} value={o.len} onChange={(e) => set("len", e.target.value as Options["len"])}>
-              <option value="full">Sectioned</option>
-              <option value="narrative">Narrative</option>
-              <option value="short">Short</option>
-            </select>
-          </label>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="flex flex-col gap-1.5 text-sm">
             Pose
             <select className={select} value={o.poseMode} onChange={(e) => set("poseMode", e.target.value as Options["poseMode"])}>
@@ -571,57 +580,77 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
             </select>
           </label>
           <label className="flex flex-col gap-1.5 text-sm">
+            Outfit
+            <select className={select} value={outfitChoice(o)} onChange={(e) => setO((x) => ({ ...x, ...OUTFIT_CHOICES[e.target.value as OutfitChoice].set }))}>
+              {(Object.keys(OUTFIT_CHOICES) as OutfitChoice[]).map((k) => <option key={k} value={k}>{OUTFIT_CHOICES[k].label}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
             Versions per target
             <select className={select} value={o.count} onChange={(e) => set("count", Number(e.target.value))}>
               {Array.from({ length: MAX_VERSIONS }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </label>
           <label className="flex flex-col gap-1.5 text-sm">
-            Wardrobe
-            <select className={select} value={o.ward} onChange={(e) => set("ward", e.target.value as Options["ward"])}>
-              <option value="match">Match the target</option>
-              <option value="signature">Her signature style</option>
-              <option value="extracted">Extracted outfit</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="flex items-center gap-1.5">Which person <span className="text-xs text-neutral-500">optional</span></span>
+            Which person
             <Input value={o.who} maxLength={200} onChange={(e) => set("who", e.target.value)} placeholder='e.g. "the woman on the left"' />
           </label>
         </div>
 
-        {o.ward === "extracted" && (
+        {outfitChoice(o) === "extracted" && (
           <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Label htmlFor="outfit">Outfit</Label>
-              <Button type="button" size="sm" variant="secondary" onClick={extract} disabled={extracting || running || !targets.length}>
-                {extracting ? "Reading the outfit…" : "Extract from the first target"}
-              </Button>
-            </div>
-            <Textarea id="outfit" value={o.exText} maxLength={2000} onChange={(e) => set("exText", e.target.value)} placeholder="Describe the outfit, or extract it from a target photo." />
-            <div className="flex flex-wrap items-center gap-2">
-              <Input value={outfitName} maxLength={60} onChange={(e) => setOutfitName(e.target.value)} placeholder="Name, e.g. Black gym set" aria-label="Outfit name" className="max-w-56" />
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                disabled={!outfitName.trim() || !o.exText.trim()}
-                onClick={async () => {
-                  const r = await saveOutfit({ name: outfitName, text: o.exText });
-                  if (!r.ok) return show(r.error);
-                  setOutfits((list) => [r.outfit, ...list]);
-                  setOutfitName("");
-                  show("Outfit saved.");
-                }}
-              >
-                Save outfit
-              </Button>
-            </div>
+            <ImageDrop
+              title="Outfit photo"
+              hint={extracting ? "Reading the outfit…" : "A photo of the outfit to put her in. Click, drop or paste."}
+              preview={outfitPhoto}
+              disabled={extracting || running}
+              onPick={(file) => void readOutfit(file)}
+            />
+            {describeOutfit || o.exText ? (
+              <>
+                <Label htmlFor="outfit">{outfitPhoto ? "What the AI saw (edit anything)" : "The outfit in words"}</Label>
+                <Textarea
+                  id="outfit"
+                  value={o.exText}
+                  maxLength={2000}
+                  onChange={(e) => {
+                    setDescribeOutfit(true);
+                    set("exText", e.target.value);
+                  }}
+                  placeholder="e.g. a black satin slip dress, gold hoop earrings and white trainers"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input value={outfitName} maxLength={60} onChange={(e) => setOutfitName(e.target.value)} placeholder="Name, e.g. Black gym set" aria-label="Outfit name" className="max-w-64" />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={!outfitName.trim() || !o.exText.trim()}
+                    onClick={async () => {
+                      const r = await saveOutfit({ name: outfitName, text: o.exText });
+                      if (!r.ok) return show(r.error);
+                      setOutfits((list) => [r.outfit, ...list]);
+                      setOutfitName("");
+                      show("Outfit saved.");
+                    }}
+                  >
+                    Save outfit
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <button type="button" onClick={() => setDescribeOutfit(true)} className="self-start text-sm text-neutral-400 underline-offset-2 hover:text-neutral-200 hover:underline">
+                Or describe it in words
+              </button>
+            )}
             {outfits.length > 0 && (
               <div className="flex flex-wrap gap-1.5" aria-label="Saved outfits">
                 {outfits.map((x) => (
                   <span key={x.id} className={`flex items-center gap-1 rounded-full border pl-2.5 pr-1 text-xs transition-colors ${o.exText === x.text ? "border-brand-500/70 bg-brand-500/15" : "border-neutral-700 hover:border-neutral-500"}`}>
-                    <button type="button" className="py-1" title={x.text} onClick={() => setO((v) => ({ ...v, exText: x.text, ward: "extracted" }))}>{x.name}</button>
+                    <button type="button" className="py-1" title={x.text} onClick={() => {
+                      setOutfitPhoto(undefined);
+                      setO((v) => ({ ...v, exText: x.text, ...OUTFIT_CHOICES.extracted.set }));
+                    }}>{x.name}</button>
                     <button
                       type="button"
                       aria-label={`Delete outfit ${x.name}`}
@@ -643,12 +672,6 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
 
         <div className="flex flex-wrap gap-2 text-sm">
           <label className="flex cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15">
-            <input type="checkbox" checked={o.newOutfit} onChange={(e) => set("newOutfit", e.target.checked)} /> Change outfit
-          </label>
-          <label className={`flex cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15 ${o.newOutfit ? "opacity-50" : ""}`}>
-            <input type="checkbox" checked={o.recolor && !o.newOutfit} disabled={o.newOutfit} onChange={(e) => set("recolor", e.target.checked)} /> Recolour clothes
-          </label>
-          <label className="flex cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15">
             <input type="checkbox" checked={o.hair} onChange={(e) => set("hair", e.target.checked)} /> Hairstyle variant
           </label>
           <label className="flex cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15">
@@ -658,13 +681,31 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
         </div>
 
         <label className="flex flex-col gap-1.5 text-sm">
-          <span>Extra direction <span className="text-xs text-neutral-500">optional</span></span>
-          <Textarea value={o.extra} maxLength={2000} onChange={(e) => set("extra", e.target.value)} placeholder="Anything else for every prompt, e.g. golden hour light" />
+          Extra direction
+          <Textarea value={o.extra} maxLength={2000} onChange={(e) => set("extra", e.target.value)} placeholder="Optional. Anything else for every prompt, e.g. golden hour light" />
         </label>
 
         <details className="text-sm">
           <summary className="cursor-pointer text-neutral-400">More options</summary>
           <div className="mt-3 flex flex-col gap-3">
+            {/* How the prompt is written: rarely changed, so kept out of the main choices. */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="flex items-center gap-1.5">Prompt for <InfoTip label="About Prompt for">With character sheet: the prompt opens with your reference tag, for generators that get her sheet. Text only: her identity is written out in full.</InfoTip></span>
+              <select className={select} value={o.mode} onChange={(e) => set("mode", e.target.value as Options["mode"])}>
+                <option value="ref">With character sheet</option>
+                <option value="text">Text only</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm">
+              Style
+              <select className={select} value={o.len} onChange={(e) => set("len", e.target.value as Options["len"])}>
+                <option value="full">Sectioned</option>
+                <option value="narrative">Narrative</option>
+                <option value="short">Short</option>
+              </select>
+            </label>
+            </div>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={o.withRefs} onChange={(e) => set("withRefs", e.target.checked)} /> Also send her reference photos to the prompt writer
               <InfoTip label="About sending reference photos">The writer always gets her profile and her sheet's words. Sending her photos too can help with marks and details, and costs more.</InfoTip>

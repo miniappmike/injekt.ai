@@ -15,10 +15,15 @@ Next.js (App Router, TS) + Supabase (auth, Postgres, Storage, Realtime) + Tailwi
 `src/lib/ai/master-prompt.ts` is prepended to every vision and language call. Callers only get a `GuardedTextClient` (`guarded-client.ts`), so it cannot be skipped.
 
 ## Providers
-Three adapter shapes live in `src/lib/ai/providers/types.ts`: image, vision, llm. SpicyAPI is an `ImageProvider` shell awaiting the provider docs.
+Three adapter shapes live in `src/lib/ai/providers/types.ts`: image, vision, llm. Image generation runs on SpicyAPI (`src/lib/ai/providers/spicyapi.ts`), polled rather than webhook-driven; text and vision calls go through the provider detected from the key.
 
 ## Safety
-SSRF guard on every server-side fetch of user-supplied URLs, signed uploads and EXIF stripping (browser uploads raw to `<uid>/raw/`, the server re-encodes to clean JPEG and deletes the raw file), per-user rate limits, usage ledger, provenance attestation timestamp on characters, content report table. The "clean up overlays" feature is intentionally not part of this build.
+SSRF guard on every server-side fetch of user-supplied URLs, signed uploads and EXIF stripping (browser uploads raw to `<uid>/raw/`, the server re-encodes to clean JPEG and deletes the raw file), per-user rate limits, usage ledger, provenance attestation timestamp on characters, content report table. Inject's "Clean up overlays" removes app UI, watermarks and stickers from a target before the prompt is written (`src/lib/overlay-cleanup.ts`), keeping the original.
+
+## Characters and reference images
+A character has a profile photo (display only), a face sheet, a body sheet and up to 5 reference photos (`MAX_REFERENCE_PHOTOS`, `src/lib/reference-limits.ts`; database check from migration 0026). Uploads land in `<uid>/raw/` and are re-encoded into her folder. Generated images are pinned with Pin It (`src/app/(app)/characters/pin-actions.ts`): a vision check refuses nudity, then a clean copy goes to `<uid>/pinned/<character id>/`. Pinned files stay in storage when replaced or removed from her references, and are deleted with the character (the whole pinned folder) or the account (`src/lib/account-deletion.ts` clears every user folder).
+
+Sheets are made in Create Model (`src/lib/ai/prompts/sheets.ts`); several body photos are either one body from other angles or, with `blend`, different bodies combined keeping the boldest features. Image jobs send her sheets after the target (`src/lib/generation-job.ts`); a likeness fix sends the image, her face sheet and her body sheet, and changes only who she is, never the outfit (`OUTFIT_LOCK`).
 
 ## Tokens and plans
 Numbers in `src/lib/plans.ts`. Tokens are lots in `credit_lots`, spent soonest-expiring first by `spend_credits`, given back by `refund_credits`; `credit_balance` reads the total. Pro is `profiles.plan = 'pro'` (set by hand) or `profiles.pro_until` in the future (a paid pass). Own keys are Pro-only (`canUseOwnKeys`); the free plan uses `SPICY_API_KEY` with daily caps from Admin → Limits. See `docs/PRICING.md`.
@@ -42,4 +47,4 @@ One Vercel Cron job a night (`vercel.json` → `/api/cron/cleanup`, guarded by `
 - The biggest remaining factor is distance: the Vercel function region should match the Supabase project's region (Vercel → Settings → Functions).
 
 ## Still to build
-Marketplace checkout, the Telegram payment guide, Sentry with scrubbing, Playwright tests, pgTAP RLS tests.
+Marketplace checkout, the Telegram payment guide, Sentry with scrubbing, Playwright tests, pgTAP RLS tests, a sweep for abandoned `targets/` and `pending/` uploads.

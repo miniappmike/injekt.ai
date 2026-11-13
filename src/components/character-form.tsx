@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
 import { ImageSlot, type SlotImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { PROFILE_FIELDS, type CharacterProfile } from "@/lib/characters";
@@ -130,7 +131,7 @@ export function CharacterForm({
           <Input id="height" name="height" defaultValue={initial.height ?? ""} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="weight">Weight (optional)</Label>
+          <Label htmlFor="weight">Weight</Label>
           <Input id="weight" name="weight" defaultValue={initial.weight ?? ""} />
         </div>
       </div>
@@ -142,14 +143,11 @@ export function CharacterForm({
       {!characterId && (
         <fieldset className="panel flex flex-col gap-3 p-5">
           <legend className="rounded-full border border-neutral-700 bg-neutral-900 px-3 py-0.5 text-sm font-semibold">Images <span className="font-normal text-neutral-500">optional</span></legend>
-          <p className="text-sm text-neutral-400">
-            Add them now or later. Click to upload, drop a file, or paste with Ctrl+V while a box is focused. Photo metadata (location,
-            device) is stripped on upload. The profile photo is only for display and is never sent to an AI model.
-          </p>
-          <ImageSlot label="Profile photo" slot="profile_photo" draft={{ images: draft.profile_photo, onChange: (v) => setDraft((d) => ({ ...d, profile_photo: v })) }} />
+          <p className="text-sm text-neutral-400">Add them now or later: upload, drop or paste. Photo metadata (location, device) is stripped on upload.</p>
+          <ImageSlot label="Profile photo" slot="profile_photo" hint="For display only, never sent to an AI model." draft={{ images: draft.profile_photo, onChange: (v) => setDraft((d) => ({ ...d, profile_photo: v })) }} />
           <ImageSlot label="Face sheet" slot="face_sheet" hint="A sheet of the face from several angles, or one clear face photo." draft={{ images: draft.face_sheet, onChange: (v) => setDraft((d) => ({ ...d, face_sheet: v })) }} />
           <ImageSlot label="Body sheet" slot="body_sheet" hint="Front, back and side of the body." draft={{ images: draft.body_sheet, onChange: (v) => setDraft((d) => ({ ...d, body_sheet: v })) }} />
-          <ImageSlot label="Reference images (up to 3)" slot="reference" max={3} draft={{ images: draft.reference, onChange: (v) => setDraft((d) => ({ ...d, reference: v })) }} />
+          <ImageSlot label={`Reference images (up to ${MAX_REFERENCE_PHOTOS})`} slot="reference" max={MAX_REFERENCE_PHOTOS} draft={{ images: draft.reference, onChange: (v) => setDraft((d) => ({ ...d, reference: v })) }} />
           {draft.profile_photo.map((i) => <input key={i.path} type="hidden" name="image_profile_photo" value={i.path} />)}
           {draft.face_sheet.map((i) => <input key={i.path} type="hidden" name="image_face_sheet" value={i.path} />)}
           {draft.body_sheet.map((i) => <input key={i.path} type="hidden" name="image_body_sheet" value={i.path} />)}
@@ -160,10 +158,9 @@ export function CharacterForm({
       <fieldset className="panel flex flex-col gap-4 p-5">
         <legend className="rounded-full border border-neutral-700 bg-neutral-900 px-3 py-0.5 text-sm font-semibold">Profile</legend>
         <p className="text-sm text-neutral-400">
-          The saved profile is the sole source of the character description.
           {characterId
-            ? " Upload images above, then build a profile from them and edit it."
-            : " Save the character, then open it to build the profile from the images with one click, or write it by hand."}
+            ? "Every prompt describes her from this profile. Build it from her images (it is saved straight away), then edit anything."
+            : "Every prompt describes her from this profile. It is built from her images when you press Save and build profile."}
         </p>
         {characterId && (
           <div className="flex flex-col gap-2">
@@ -184,21 +181,26 @@ export function CharacterForm({
               </p>
             )}
             {buildError && <p role="alert" className="text-sm text-red-400">{buildError}</p>}
-            <p className="text-xs text-neutral-500">A generated profile is saved automatically. You can edit it below and click Save character.</p>
           </div>
         )}
-        {PROFILE_FIELDS.map(({ key, label, rows }) => (
-          <div key={key} className="flex flex-col gap-1.5">
-            <Label htmlFor={`profile_${key}`}>{label}</Label>
-            <Textarea
-              id={`profile_${key}`}
-              name={`profile_${key}`}
-              rows={rows}
-              value={profile[key] ?? ""}
-              onChange={(e) => setProfile((p) => ({ ...p, [key]: e.target.value }))}
-            />
+        {/* A new character's profile is normally built from her images, so writing it by hand is tucked away. */}
+        <details open={!!characterId} className="group">
+          <summary className={characterId ? "hidden" : "cursor-pointer text-sm text-neutral-400 hover:text-neutral-200"}>Write it by hand instead</summary>
+          <div className="flex flex-col gap-4 group-open:mt-3">
+          {PROFILE_FIELDS.map(({ key, label, rows }) => (
+            <div key={key} className="flex flex-col gap-1.5">
+              <Label htmlFor={`profile_${key}`}>{label}</Label>
+              <Textarea
+                id={`profile_${key}`}
+                name={`profile_${key}`}
+                rows={rows}
+                value={profile[key] ?? ""}
+                onChange={(e) => setProfile((p) => ({ ...p, [key]: e.target.value }))}
+              />
+            </div>
+          ))}
           </div>
-        ))}
+        </details>
       </fieldset>
 
       <label className="flex items-start gap-2 text-sm text-neutral-300">

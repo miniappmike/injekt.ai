@@ -6,7 +6,7 @@ import { packFiles, selectCharacter } from "@/lib/sheet-pack";
 import { requireUser } from "@/lib/auth";
 import { limitMessage } from "@/lib/limits";
 import { runProfileBuild } from "@/lib/ai/build-profile";
-import { isOwnPath, readDraftImages } from "@/lib/uploads";
+import { isOwnPath, pinnedFolder, readDraftImages } from "@/lib/uploads";
 import { MEDIA_BUCKET } from "@/lib/images";
 import { characterInput, parseProfile } from "@/lib/characters";
 
@@ -84,7 +84,14 @@ export async function deleteCharacter(id: string) {
     (p): p is string => !!p && isOwnPath(user.id, p),
   );
   files.push(...packFiles(user.id, c?.sheet_pack));
-  if (files.length) await supabase.storage.from(MEDIA_BUCKET).remove(files);
+  // Every image ever pinned to her goes too, including ones that were replaced or taken off her references.
+  if (c) {
+    const folder = `${user.id}/${pinnedFolder(id)}`;
+    const { data: pinned } = await supabase.storage.from(MEDIA_BUCKET).list(folder, { limit: 1000 });
+    files.push(...(pinned ?? []).filter((f) => f.id).map((f) => `${folder}/${f.name}`));
+  }
+  const remove = [...new Set(files)];
+  if (remove.length) await supabase.storage.from(MEDIA_BUCKET).remove(remove);
   revalidatePath("/characters");
   redirect("/characters");
 }
