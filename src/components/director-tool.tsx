@@ -17,12 +17,6 @@ interface DirectorCharacter {
   photo?: string | null;
 }
 
-const IDEAS = [
-  "Mirror selfie in a tidy bathroom, oversized grey hoodie and bike shorts, morning light",
-  "Sitting on a café terrace in Paris at golden hour, white linen dress, laughing at someone off camera",
-  "Gym floor, black sports bra and leggings, mid-squat, side angle from hip height",
-];
-
 /**
  * Director: she is picked, the shot is described in plain words, and Generate does the rest. The prompt is written on
  * the server and never shown; her face sheet and body sheet always go with it as @image1 and @image2.
@@ -61,13 +55,6 @@ export function DirectorTool({ characters }: { characters: DirectorCharacter[] }
           onChange={(e) => setDirection(e.target.value)}
           placeholder="Describe the shot in your own words: where she is, what she's wearing and doing, the mood, the time of day…"
         />
-        <div className="flex flex-wrap gap-1.5" aria-label="Ideas">
-          {IDEAS.map((idea) => (
-            <button key={idea} type="button" onClick={() => setDirection(idea)} className="rounded-full border border-neutral-700 px-2.5 py-1 text-left text-xs text-neutral-300 transition-colors hover:border-brand-500/60 hover:text-white">
-              {idea}
-            </button>
-          ))}
-        </div>
         <p className="text-xs text-neutral-500">Anything you leave out (the place, outfit, pose, light) is chosen to fit. Each press makes a fresh take.</p>
         {generation ? (
           character.ready && (
