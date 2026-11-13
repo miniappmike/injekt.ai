@@ -29,7 +29,9 @@ import {
   MAX_NEW_SLIDES,
   MAX_VARIANT_COUNT,
   MAX_WRITE_ONLY,
+  MOMENT_GROUPS,
   PLATFORM_OTHER_MAX,
+  PLATFORM_TONES,
   PLATFORMS,
   VARIANT_DIMS,
   type CarouselTypeId,
@@ -88,6 +90,8 @@ interface Result {
 }
 
 const chip = chipItem;
+const selectClass = "h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm";
+const platformLabel = (id: PlatformId) => PLATFORMS.find((p) => p.id === id)!.label;
 
 export function VariantsTool({ characters }: { characters: { id: string; name: string; ready: boolean; hasSheet?: boolean; photo?: string | null }[] }) {
   const router = useRouter();
@@ -255,7 +259,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   }
 
   const hint = !character
-    ? "Picking one restates the character's key traits in every edit, so the face doesn't drift."
+    ? null
     : mode === "write" || (mode === "edits" && elsewhere)
       ? `Prompts with her name ${character.name}'s ${character.hasSheet ? "reference sheets" : "first reference photo"} as the first images to attach, and spell out her look, so another generator keeps her face and body.`
       : mode === "edits"
@@ -266,20 +270,45 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
           <div className="flex flex-col gap-1.5">
             {mode === "edits" ? (
               <>
-                <Label htmlFor="variant-count">How many takes</Label>
-                <select id="variant-count" value={count} onChange={(e) => setCount(Number(e.target.value))} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
+                <Label htmlFor="variant-count">Takes</Label>
+                <select id="variant-count" value={count} onChange={(e) => setCount(Number(e.target.value))} className={selectClass}>
                   {Array.from({ length: MAX_VARIANT_COUNT }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
               </>
             ) : (
               <>
-                <Label htmlFor="slides">{elsewhere ? "How many moments" : "New moments after yours"}</Label>
-                <select id="slides" value={Math.min(slides, elsewhere ? MAX_WRITE_ONLY : MAX_NEW_SLIDES)} onChange={(e) => setSlides(Number(e.target.value))} className="h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm">
+                <Label htmlFor="slides">New moments</Label>
+                <select id="slides" value={Math.min(slides, elsewhere ? MAX_WRITE_ONLY : MAX_NEW_SLIDES)} onChange={(e) => setSlides(Number(e.target.value))} className={selectClass}>
                   {Array.from({ length: elsewhere ? MAX_WRITE_ONLY : MAX_NEW_SLIDES }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
               </>
             )}
           </div>
+  );
+
+  // Where the set is going: one menu, grouped by the tone each platform sets, so it needs no explaining.
+  const platformField = mode !== "edits" && (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor="platform">Posting to</Label>
+      <select id="platform" value={platform ?? ""} onChange={(e) => setPlatform((e.target.value || null) as PlatformId | null)} className={selectClass}>
+        <option value="">Anywhere</option>
+        {PLATFORM_TONES.map((tone) => (
+          <optgroup key={tone.label} label={tone.label}>
+            {tone.ids.map((id) => <option key={id} value={id}>{platformLabel(id)}</option>)}
+          </optgroup>
+        ))}
+        <option value="other">Somewhere else…</option>
+      </select>
+      {platform === "other" && (
+        <Input
+          value={platformOther}
+          onChange={(e) => setPlatformOther(e.target.value)}
+          maxLength={PLATFORM_OTHER_MAX}
+          placeholder="e.g. Threads, Patreon"
+          aria-label="Where it will be posted"
+        />
+      )}
+    </div>
   );
 
   return (
@@ -389,9 +418,9 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
 
       <section className="panel flex flex-col gap-4 p-4">
         <Step n={2} title={tab === "carousel" ? "Plan her day" : "Choose what changes"} />
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className={`grid gap-3 ${mode === "edits" ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
           <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <Label htmlFor="character">Character <span className="text-xs font-normal text-neutral-500">optional</span></Label>
+            <Label htmlFor="character">Character</Label>
             <CharacterPicker
               id="character"
               value={characterId}
@@ -400,18 +429,20 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
               characters={characters.map((c) => ({ id: c.id, name: c.name, photo: c.photo, note: c.ready ? undefined : "No images yet" }))}
             />
           </div>
+          {!phone && platformField}
           {!phone && countField}
           {noRefs ? (
-            <p className="text-sm text-amber-400 sm:col-span-3">
+            <p className="text-sm text-amber-400 sm:col-span-full">
               Add reference images on <Link href={`/characters/${character!.id}`} className="underline">the character page</Link> first, or pick no character.
             </p>
           ) : (
-            <p className="-mt-1 text-xs text-neutral-500 sm:col-span-3 max-sm:line-clamp-2">{hint}</p>
+            hint && <p className="-mt-1 text-xs text-neutral-500 sm:col-span-full max-sm:line-clamp-2">{hint}</p>
           )}
         </div>
 
         <MobileSheet open={sheet} onClose={() => setSheet(false)} title="Options" className="flex flex-col gap-4 max-sm:p-4">
           {phone && countField}
+          {phone && platformField}
         {mode === "edits" ? (
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-1.5 text-sm font-medium">What may change</legend>
@@ -427,67 +458,42 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
           </fieldset>
         ) : (
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1.5 text-sm font-medium">Kinds of moment</legend>
+            <legend className="mb-1.5 text-sm font-medium">Include</legend>
             <div className="flex flex-wrap gap-2">
-              {CAROUSEL_TYPES.map((t) => (
-                <label key={t.id} className={chip(types.has(t.id))}>
-                  <input type="checkbox" className="sr-only" checked={types.has(t.id)} onChange={() => toggle(setTypes, t.id)} />
-                  {t.label}
-                </label>
-              ))}
+              {MOMENT_GROUPS.map((g) => {
+                const on = g.types.every((t) => types.has(t));
+                return (
+                  <label key={g.id} className={chip(on)}>
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={on}
+                      onChange={() =>
+                        setTypes((s) => {
+                          const next = new Set(s);
+                          for (const t of g.types) if (on) next.delete(t); else next.add(t);
+                          return next;
+                        })
+                      }
+                    />
+                    {g.label}
+                  </label>
+                );
+              })}
             </div>
-          </fieldset>
-        )}
-
-        {mode !== "edits" && (
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-medium">Posting to <span className="text-xs font-normal text-neutral-500">optional</span></legend>
-            <div className="flex flex-wrap gap-2">
-              {PLATFORMS.map((x) => (
-                <label key={x.id} className={chip(platform === x.id)}>
-                  <input
-                    type="radio"
-                    name="platform"
-                    className="sr-only"
-                    checked={platform === x.id}
-                    onChange={() => setPlatform(x.id)}
-                    onClick={() => platform === x.id && setPlatform(null)}
-                  />
-                  {x.label}
-                </label>
-              ))}
-            </div>
-            {platform === "other" && (
-              <Input
-                value={platformOther}
-                onChange={(e) => setPlatformOther(e.target.value)}
-                maxLength={PLATFORM_OTHER_MAX}
-                placeholder="Where is it going? e.g. Threads, a Telegram channel, Patreon"
-                aria-label="Where it will be posted"
-              />
-            )}
-            <p className="text-xs text-neutral-500">
-              Sets the tone and how spicy the shots are: social-safe for Instagram and TikTok, bolder for X and Reddit, teasing subscriber shots for Fanvue and OnlyFans. Click a platform again to clear it.
-            </p>
           </fieldset>
         )}
 
         <section className="flex flex-col gap-2">
-          <Label htmlFor="note">Creative direction <span className="text-xs font-normal text-neutral-500">optional</span></Label>
+          <Label htmlFor="note">Creative direction</Label>
           <Textarea
             id="note"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={1000}
-            placeholder={tab === "carousel" ? "e.g. same outfit, but now she's getting ready at a hotel vanity at night, flash photos, playful and moody" : undefined}
-            aria-describedby={tab === "carousel" ? "note-hint" : undefined}
+            placeholder={tab === "carousel" ? "Optional. Describe the place, outfit, mood or story and every moment is built around it, e.g. getting ready at a hotel vanity at night, flash photos, playful and moody" : "Optional. Anything specific you want in the takes"}
             rows={2}
           />
-          {tab === "carousel" && (
-            <p id="note-hint" className="text-xs text-neutral-500">
-              The creative director builds every prompt around this: the place, poses, outfit, mood and story you describe win over its own ideas. Her face and body always stay hers.
-            </p>
-          )}
         </section>
         </MobileSheet>
       </section>

@@ -25,6 +25,19 @@ export const CAROUSEL_TYPES = [
   { id: "ambient", label: "Artsy shot" },
 ] as const;
 export type CarouselTypeId = (typeof CAROUSEL_TYPES)[number]["id"];
+/** The choices shown for a set of moments: each one switches a few related slide types on or off together. */
+export const MOMENT_GROUPS = [
+  { id: "her", label: "More of her", types: ["pose", "model_alt"] },
+  { id: "outfit", label: "Outfit & details", types: ["detail", "flatlay", "object"] },
+  { id: "place", label: "The place", types: ["environment", "ambient"] },
+  { id: "food", label: "Food & drink", types: ["food"] },
+] as const satisfies readonly { id: string; label: string; types: readonly CarouselTypeId[] }[];
+/** Platforms grouped by the tone they set, for the "Posting to" menu. "other" is listed on its own. */
+export const PLATFORM_TONES = [
+  { label: "Social-safe", ids: ["instagram", "tiktok"] },
+  { label: "Bolder", ids: ["x", "reddit"] },
+  { label: "Subscriber teasers", ids: ["fanvue", "onlyfans"] },
+] as const;
 export const carouselTypeLabel = (id: string) => CAROUSEL_TYPES.find((t) => t.id === id)?.label ?? id;
 
 export const MAX_VARIANT_COUNT = 5;
