@@ -14,6 +14,7 @@ import { CopyOpen } from "@/components/copy-open";
 import { useGeneration } from "@/components/app-context";
 import { InfoTip } from "@/components/info-tip";
 import { uploadImage } from "@/components/image-slot";
+import { ImageDrop } from "@/components/image-drop";
 import { useToast } from "@/components/toast";
 import { clipboardImages, usePasteTarget } from "@/components/paste-router";
 import { cleanOverlays, deleteOutfit, extractOutfit, recoverInjectPrompts, saveOutfit, warmSheetPack, writeInjectStandalone } from "@/app/(app)/inject/actions";
@@ -130,6 +131,9 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
   const [extracting, setExtracting] = useState(false);
   const [outfits, setOutfits] = useState<SavedOutfit[]>(initialOutfits);
   const [outfitName, setOutfitName] = useState("");
+  const [outfitPhoto, setOutfitPhoto] = useState<string>();
+  // The outfit's words show once there are some, or when the person chooses to type them.
+  const [describeOutfit, setDescribeOutfit] = useState(false);
   // Phones: the options live in a bottom sheet.
   const [sheet, setSheet] = useState(false);
   // Which layout is showing, so the prompt controls render once: in the sheet on a phone, beside the button otherwise.
@@ -332,19 +336,25 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running]);
 
-  async function extract() {
-    const first = targets[0];
-    if (!first) return;
+  /** An outfit photo is read into words once, and those words go into every prompt as the outfit she wears. */
+  async function readOutfit(file: File) {
+    setOutfitPhoto(URL.createObjectURL(file));
     setExtracting(true);
-    const path = await ensureUploaded(first);
-    const res = path ? await extractOutfit({ imagePath: path, who: o.who }) : { ok: false as const, error: "Upload failed" };
+    let res: Awaited<ReturnType<typeof extractOutfit>>;
+    try {
+      res = await extractOutfit({ imagePath: await uploadImage(file, "target") });
+    } catch (e) {
+      res = { ok: false, error: e instanceof Error ? e.message : "Upload failed" };
+    }
     setExtracting(false);
     if (!res.ok) {
+      setOutfitPhoto(undefined);
       if ("redirectTo" in res && res.redirectTo) return router.push(res.redirectTo);
       return show(res.error);
     }
+    usageChanged();
     setO((x) => ({ ...x, exText: res.text, ...OUTFIT_CHOICES.extracted.set }));
-    show("Outfit extracted. The prompts will use it.");
+    show("Outfit read. Every prompt will dress her in it.");
   }
 
   const results = targets.filter((t) => t.state);
@@ -589,36 +599,58 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
 
         {outfitChoice(o) === "extracted" && (
           <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Label htmlFor="outfit">The outfit she wears</Label>
-              <Button type="button" size="sm" variant="secondary" onClick={extract} disabled={extracting || running || !targets.length}>
-                {extracting ? "Reading the outfit…" : "Extract from the first target"}
-              </Button>
-            </div>
-            <Textarea id="outfit" value={o.exText} maxLength={2000} onChange={(e) => set("exText", e.target.value)} placeholder="Describe the outfit, or extract it from a target photo." />
-            <div className="flex flex-wrap items-center gap-2">
-              <Input value={outfitName} maxLength={60} onChange={(e) => setOutfitName(e.target.value)} placeholder="Name, e.g. Black gym set" aria-label="Outfit name" className="max-w-56" />
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                disabled={!outfitName.trim() || !o.exText.trim()}
-                onClick={async () => {
-                  const r = await saveOutfit({ name: outfitName, text: o.exText });
-                  if (!r.ok) return show(r.error);
-                  setOutfits((list) => [r.outfit, ...list]);
-                  setOutfitName("");
-                  show("Outfit saved.");
-                }}
-              >
-                Save outfit
-              </Button>
-            </div>
+            <ImageDrop
+              title="Outfit photo"
+              hint={extracting ? "Reading the outfit…" : "A photo of the outfit to put her in. Click, drop or paste."}
+              preview={outfitPhoto}
+              disabled={extracting || running}
+              onPick={(file) => void readOutfit(file)}
+            />
+            {describeOutfit || o.exText ? (
+              <>
+                <Label htmlFor="outfit">{outfitPhoto ? "What the AI saw (edit anything)" : "The outfit in words"}</Label>
+                <Textarea
+                  id="outfit"
+                  value={o.exText}
+                  maxLength={2000}
+                  onChange={(e) => {
+                    setDescribeOutfit(true);
+                    set("exText", e.target.value);
+                  }}
+                  placeholder="e.g. a black satin slip dress, gold hoop earrings and white trainers"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input value={outfitName} maxLength={60} onChange={(e) => setOutfitName(e.target.value)} placeholder="Name, e.g. Black gym set" aria-label="Outfit name" className="max-w-64" />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={!outfitName.trim() || !o.exText.trim()}
+                    onClick={async () => {
+                      const r = await saveOutfit({ name: outfitName, text: o.exText });
+                      if (!r.ok) return show(r.error);
+                      setOutfits((list) => [r.outfit, ...list]);
+                      setOutfitName("");
+                      show("Outfit saved.");
+                    }}
+                  >
+                    Save outfit
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <button type="button" onClick={() => setDescribeOutfit(true)} className="self-start text-sm text-neutral-400 underline-offset-2 hover:text-neutral-200 hover:underline">
+                Or describe it in words
+              </button>
+            )}
             {outfits.length > 0 && (
               <div className="flex flex-wrap gap-1.5" aria-label="Saved outfits">
                 {outfits.map((x) => (
                   <span key={x.id} className={`flex items-center gap-1 rounded-full border pl-2.5 pr-1 text-xs transition-colors ${o.exText === x.text ? "border-brand-500/70 bg-brand-500/15" : "border-neutral-700 hover:border-neutral-500"}`}>
-                    <button type="button" className="py-1" title={x.text} onClick={() => setO((v) => ({ ...v, exText: x.text, ...OUTFIT_CHOICES.extracted.set }))}>{x.name}</button>
+                    <button type="button" className="py-1" title={x.text} onClick={() => {
+                      setOutfitPhoto(undefined);
+                      setO((v) => ({ ...v, exText: x.text, ...OUTFIT_CHOICES.extracted.set }));
+                    }}>{x.name}</button>
                     <button
                       type="button"
                       aria-label={`Delete outfit ${x.name}`}
