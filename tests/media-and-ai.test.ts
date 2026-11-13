@@ -459,9 +459,11 @@ describe("draft images on the new-character form", () => {
     });
   });
 
-  it("rejects other people's paths, other folders and more than 3 references", () => {
+  it("rejects other people's paths, other folders and more than 5 references", () => {
     expect(readDraftImages(form([["image_face_sheet", "u2/characters/pending/x.jpg"]]), "u1").ok).toBe(false);
     expect(readDraftImages(form([["image_body_sheet", "u1/targets/x.jpg"]]), "u1").ok).toBe(false);
-    expect(readDraftImages(form([["image_reference", p("a")], ["image_reference", p("b")], ["image_reference", p("c")], ["image_reference", p("d")]]), "u1").ok).toBe(false);
+    const refs = (n: number) => form(Array.from({ length: n }, (_, i) => ["image_reference", p(String(i))] as [string, string]));
+    expect(readDraftImages(refs(5), "u1").ok).toBe(true);
+    expect(readDraftImages(refs(6), "u1").ok).toBe(false);
   });
 });

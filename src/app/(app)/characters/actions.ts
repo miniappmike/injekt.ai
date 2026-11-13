@@ -6,7 +6,7 @@ import { packFiles, selectCharacter } from "@/lib/sheet-pack";
 import { requireUser } from "@/lib/auth";
 import { limitMessage } from "@/lib/limits";
 import { runProfileBuild } from "@/lib/ai/build-profile";
-import { isOwnPath, readDraftImages } from "@/lib/uploads";
+import { isOwnPath, readDraftImages, deletable } from "@/lib/uploads";
 import { MEDIA_BUCKET } from "@/lib/images";
 import { characterInput, parseProfile } from "@/lib/characters";
 
@@ -84,7 +84,9 @@ export async function deleteCharacter(id: string) {
     (p): p is string => !!p && isOwnPath(user.id, p),
   );
   files.push(...packFiles(user.id, c?.sheet_pack));
-  if (files.length) await supabase.storage.from(MEDIA_BUCKET).remove(files);
+  // Pinned images are kept until the account is deleted.
+  const remove = deletable(files);
+  if (remove.length) await supabase.storage.from(MEDIA_BUCKET).remove(remove);
   revalidatePath("/characters");
   redirect("/characters");
 }

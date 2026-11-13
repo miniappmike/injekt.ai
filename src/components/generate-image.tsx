@@ -17,6 +17,7 @@ import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageAspectRatio, type ImageOutputFormat, type ImageResolution } from "@/lib/ai/providers/types";
 import type { InjectMeta } from "@/lib/inject-meta";
 import { LikenessPanel, type ImageRef } from "@/components/likeness-panel";
+import { PinToReferences } from "@/components/pin-to-references";
 import { reportModelRefused, usePageModelForRequest } from "@/lib/page-model";
 import { checkGeneration, POLL_MS } from "@/lib/generation-check";
 import { forgetGeneration, latestForRequest, rememberGeneration, requestHash, waitOrWake } from "@/lib/pending-generations";
@@ -346,6 +347,8 @@ function GenerateImageInner({
             </span>
           </div>
           {renderActions?.(result)}
+          {/* Any generated image of a character can be pinned to her reference photos (sheets have their own Save). */}
+          {characterId && kind !== "reference_sheet" && <PinToReferences generationId={result.generationId} characterId={characterId} />}
           {/* A "Check likeness" button under every generated image of a character; it runs only when pressed (it spends their key). */}
           {!free && checkLikeness && characterId && kind !== "reference_sheet" && (
             <LikenessPanel characterId={characterId} image={{ generationId: result.generationId }} original={compareTo} frame={meta?.frame} />

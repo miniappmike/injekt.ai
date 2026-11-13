@@ -4,7 +4,7 @@ import { createUserClient } from "@/lib/supabase/server";
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { RateLimitError } from "@/lib/errors";
 import { MEDIA_BUCKET, stripAndNormalize, UPLOAD_SLOTS } from "@/lib/images";
-import { finalPath, isOwnRawPath, PENDING_FOLDER } from "@/lib/uploads";
+import { finalPath, isOwnRawPath, MAX_REFERENCE_PHOTOS, PENDING_FOLDER } from "@/lib/uploads";
 
 export const maxDuration = 60;
 
@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
         .eq("id", characterId)
         .maybeSingle();
       if (!data) return NextResponse.json({ error: "Character not found" }, { status: 404 });
-      if (slot === "reference" && data.reference_paths.length >= 3) {
-        return NextResponse.json({ error: "A character can have up to 3 reference images" }, { status: 400 });
+      if (slot === "reference" && data.reference_paths.length >= MAX_REFERENCE_PHOTOS) {
+        return NextResponse.json({ error: `A character can have up to ${MAX_REFERENCE_PHOTOS} reference images` }, { status: 400 });
       }
       character = data;
     }

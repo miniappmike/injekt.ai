@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { viewImage } from "@/lib/panel-events";
-import { GUIDE_MODELS, guideRich, type GuideShot, type GuideStep } from "@/lib/key-guide";
+import { GUIDE_MODELS, GUIDE_MODELS_NOTE, guideRich, LATEST_TIP, type GuideShot, type GuideStep } from "@/lib/key-guide";
+import { InfoTip } from "@/components/info-tip";
 import { REFERRAL_DISCLOSURE, SPICYAPI_REFERRAL_URL } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
@@ -164,7 +165,8 @@ export function ModelPicks() {
         <div key={m.id} className="flex flex-col gap-1">
           <p className="flex items-center gap-2 text-sm text-neutral-200">
             {m.name}
-            <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-semibold", m.note === "Recommended" ? "bg-brand-500/15 text-brand-300" : "bg-neutral-800 text-neutral-400")}>{m.note}</span>
+            <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-semibold", m.note === "Latest Iteration" ? "bg-brand-500/15 text-brand-300" : "bg-neutral-800 text-neutral-400")}>{m.note}</span>
+            {m.note === "Latest Iteration" && <InfoTip label="About Latest Iteration">{LATEST_TIP}</InfoTip>}
           </p>
           <CopyId id={m.id} />
         </div>
@@ -173,6 +175,7 @@ export function ModelPicks() {
   );
   return (
     <div className="flex flex-col gap-2">
+      <Note tone="tip" text={GUIDE_MODELS_NOTE} />
       <div className="grid gap-3 sm:grid-cols-2">
         {group("Vision models", "Write prompts, read images and build profiles.", GUIDE_MODELS.vision)}
         {group("Image models", "Make the images. Seedream gives the most freedom.", GUIDE_MODELS.image)}

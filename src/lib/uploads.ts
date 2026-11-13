@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
+
+export { MAX_REFERENCE_PHOTOS };
 
 // All media paths start with the owner's id so storage RLS can match on the first folder.
 export const rawPath = (userId: string) => `${userId}/raw/${randomUUID()}`;
@@ -7,6 +10,11 @@ export const isOwnRawPath = (userId: string, path: string) =>
   path.startsWith(`${userId}/raw/`) && !path.includes("..") && path.split("/").length === 3;
 export const isOwnPath = (userId: string, path: string) =>
   path.startsWith(`${userId}/`) && !path.includes("..");
+/** Generated images pinned to a character live here. They are only ever deleted with the account. */
+export const pinnedFolder = (characterId: string) => `pinned/${characterId}`;
+export const isPinnedPath = (path: string) => /^[^/]+\/pinned\//.test(path);
+/** The files a removal may delete: never a pinned image (account deletion clears those). */
+export const deletable = (paths: string[]) => paths.filter((p) => !isPinnedPath(p));
 
 /** Images uploaded on the new-character page, before the character row exists. */
 export const PENDING_FOLDER = "characters/pending";
@@ -29,6 +37,6 @@ export function readDraftImages(formData: FormData, userId: string): { ok: true;
   const refs = [...new Set(formData.getAll("image_reference").map((v) => String(v).trim()).filter(Boolean))];
   const single = [one("image_profile_photo"), one("image_face_sheet"), one("image_body_sheet")];
   if ([...single, ...refs].some((p) => p && !isPendingPath(userId, p))) return { ok: false, error: "An uploaded image could not be used. Remove it and upload it again." };
-  if (refs.length > 3) return { ok: false, error: "A character can have up to 3 reference images" };
+  if (refs.length > MAX_REFERENCE_PHOTOS) return { ok: false, error: `A character can have up to ${MAX_REFERENCE_PHOTOS} reference images` };
   return { ok: true, images: { profile_photo_path: single[0], face_sheet_path: single[1], body_sheet_path: single[2], reference_paths: refs } };
 }

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
 import { ImageSlot, type SlotImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { PROFILE_FIELDS, type CharacterProfile } from "@/lib/characters";
@@ -146,7 +147,7 @@ export function CharacterForm({
           <ImageSlot label="Profile photo" slot="profile_photo" hint="For display only, never sent to an AI model." draft={{ images: draft.profile_photo, onChange: (v) => setDraft((d) => ({ ...d, profile_photo: v })) }} />
           <ImageSlot label="Face sheet" slot="face_sheet" hint="A sheet of the face from several angles, or one clear face photo." draft={{ images: draft.face_sheet, onChange: (v) => setDraft((d) => ({ ...d, face_sheet: v })) }} />
           <ImageSlot label="Body sheet" slot="body_sheet" hint="Front, back and side of the body." draft={{ images: draft.body_sheet, onChange: (v) => setDraft((d) => ({ ...d, body_sheet: v })) }} />
-          <ImageSlot label="Reference images (up to 3)" slot="reference" max={3} draft={{ images: draft.reference, onChange: (v) => setDraft((d) => ({ ...d, reference: v })) }} />
+          <ImageSlot label={`Reference images (up to ${MAX_REFERENCE_PHOTOS})`} slot="reference" max={MAX_REFERENCE_PHOTOS} draft={{ images: draft.reference, onChange: (v) => setDraft((d) => ({ ...d, reference: v })) }} />
           {draft.profile_photo.map((i) => <input key={i.path} type="hidden" name="image_profile_photo" value={i.path} />)}
           {draft.face_sheet.map((i) => <input key={i.path} type="hidden" name="image_face_sheet" value={i.path} />)}
           {draft.body_sheet.map((i) => <input key={i.path} type="hidden" name="image_body_sheet" value={i.path} />)}

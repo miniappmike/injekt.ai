@@ -150,14 +150,20 @@ export const GUIDE_PHASES: GuidePhase[] = [
 /** Model IDs to copy, with what each is for. */
 export const GUIDE_MODELS = {
   vision: [
-    { name: "Claude Sonnet 5.5", id: "anthropic/claude-sonnet-5.5/chat", note: "Recommended" },
+    { name: "Claude Haiku 5.5", id: "anthropic/claude-haiku-5.5/chat", note: "Latest Iteration" },
+    { name: "Claude Sonnet 5.5", id: "anthropic/claude-sonnet-5.5/chat", note: "Original setup" },
     { name: "Kimi K3.1 Pro", id: "moonshot/kimi-k3.1-pro/chat", note: "Cheaper but slower than Sonnet" },
   ],
   image: [
-    { name: "Seedream 5 Pro", id: "bytedance/seedream-5.0-pro/edit", note: "Recommended" },
-    { name: "Seedream 5.5", id: "bytedance/seedream-5.5/edit", note: "Newer" },
+    { name: "Seedream 5.5", id: "bytedance/seedream-5.5/edit", note: "Latest Iteration" },
+    { name: "Seedream 5 Pro", id: "bytedance/seedream-5.0-pro/edit", note: "Original setup" },
   ],
 } as const;
+
+/** Which models the guide was made with, and what the developer uses now. */
+export const GUIDE_MODELS_NOTE =
+  "All testing and site setup was done with **Claude Sonnet 5.5** and **Seedream 5**. Since then the developer has switched to **Claude Haiku 5.5** with **Seedream 5.5**, which saves a lot on text tokens. Those two are marked **Latest Iteration**.";
+export const LATEST_TIP = "What the developer has been testing with lately.";
 
 export const GUIDE_BALANCE_NOTE =
   "Bringing your own key means SpicyAPI charges you directly, so add a balance under Billing on SpicyAPI before you generate. Your ModelSpawn membership pays for the site itself, so we can keep improving it.";

@@ -11,7 +11,7 @@ import { GenerateImage } from "@/components/generate-image";
 import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
-import { addToReferences, swapPromptFor, writeSwapStandalone } from "@/app/(app)/inject/actions";
+import { swapPromptFor, writeSwapStandalone } from "@/app/(app)/inject/actions";
 import { useGeneration } from "@/components/app-context";
 import { CopyOpen } from "@/components/copy-open";
 import { AttachStrip, TaggedPrompt } from "@/components/attach-strip";
@@ -281,7 +281,6 @@ export function QuickGenerate({ mode, characters }: { mode: "direct_swap" | "edi
           extraPaths={[]}
           kind="direct_swap"
           meta={photo?.path && refCount ? { target: photo.path, who: who.trim() || undefined, extra: extra.trim() || undefined } : undefined}
-          renderActions={(r) => (characterId ? <AddToReferences generationId={r.generationId} characterId={characterId} /> : null)}
         />
       ) : (
         <GenerateImage
@@ -292,30 +291,6 @@ export function QuickGenerate({ mode, characters }: { mode: "direct_swap" | "edi
           meta={{ ...(photo?.path ? { target: photo.path } : {}), refs: characterId ? [...picked] : [] }}
         />
       )}
-    </div>
-  );
-}
-
-function AddToReferences({ generationId, characterId }: { generationId: string; characterId: string }) {
-  const router = useRouter();
-  const [state, setState] = useState<{ busy?: boolean; done?: boolean; error?: string }>({});
-  return (
-    <div className="flex flex-wrap items-center gap-2 text-sm">
-      <Button
-        type="button"
-        size="sm"
-        variant="secondary"
-        disabled={state.busy || state.done}
-        onClick={async () => {
-          setState({ busy: true });
-          const r = await addToReferences({ generationId, characterId });
-          setState(r.ok ? { done: true } : { error: r.error });
-          if (r.ok) router.refresh();
-        }}
-      >
-        {state.done ? "Added to her reference photos" : state.busy ? "Adding..." : "Add to reference photos"}
-      </Button>
-      {state.error && <span role="alert" className="text-red-400">{state.error}</span>}
     </div>
   );
 }

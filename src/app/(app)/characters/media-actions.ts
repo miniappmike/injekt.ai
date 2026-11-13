@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { MEDIA_BUCKET } from "@/lib/images";
-import { isOwnPath, isPendingPath, rawPath } from "@/lib/uploads";
+import { isOwnPath, isPendingPath, isPinnedPath, rawPath } from "@/lib/uploads";
 
 // Step 1 of an upload: hand the browser a one-time signed URL for a raw file in the user's folder.
 export async function requestUpload(): Promise<{ path: string; token: string } | { error: string }> {
@@ -42,7 +42,8 @@ export async function removeCharacterImage(
     removed = c[COLUMN[slot]];
     await supabase.from("characters").update({ [COLUMN[slot]]: null }).eq("id", characterId);
   }
-  if (removed && isOwnPath(user.id, removed)) await supabase.storage.from(MEDIA_BUCKET).remove([removed]);
+  // A pinned image stays in storage until the account is deleted; it is only taken off her references here.
+  if (removed && isOwnPath(user.id, removed) && !isPinnedPath(removed)) await supabase.storage.from(MEDIA_BUCKET).remove([removed]);
   revalidatePath(`/characters/${characterId}`);
 }
 
