@@ -15,6 +15,9 @@ import type { POSE_MODES, PROMPT_STYLES, WARDROBES } from "@/lib/inject-meta";
  */
 export const PROMPT_CHARS = 2600;
 
+/** The written prompt's opener when both of her sheets go to the generator. */
+export const TWO_SHEET_OPENER = "Use @image1 (her face sheet) and @image2 (her body sheet) as the strict identity reference.";
+
 export interface InjectOptions {
   /** ref: the generator gets her sheet as the tag; text: identity written out in full. */
   mode: "ref" | "text";
@@ -26,6 +29,8 @@ export interface InjectOptions {
   extra: string;
   /** What the prompt calls her sheet in the generator. */
   tag: string;
+  /** She has both sheets and the tag is the default: the prompt names @image1 (face sheet) and @image2 (body sheet). */
+  twoSheets?: boolean;
   /** Extracted or saved outfit text, for ward "extracted". */
   exText: string;
   poseMode: (typeof POSE_MODES)[number];
@@ -54,10 +59,13 @@ export function buildInjectPrompt(c: InjectCharacter, sheet: string, o: InjectOp
   const n = plans.length;
   const lead =
     o.mode === "ref"
-      ? (o.tag
+      ? (o.twoSheets
+          ? `Open with exactly: "${TWO_SHEET_OPENER}" (@image1 is her face sheet and @image2 her full-body sheet, both loaded in the generator), then`
+          : o.tag
           ? `Open with exactly: "Use ${o.tag} as the strict identity reference." (${o.tag} is the character sheet loaded in the user's generator), then`
           : 'Open with: "Use the uploaded character sheet as the strict identity reference." followed by') +
-        " the specific identity features to preserve that are visible in the target's framing (face, eyes, freckles or marks, lips, hair, signature accessories), written from the profile."
+        " the specific identity features to preserve that are visible in the target's framing (face, eyes, freckles or marks, lips, hair, signature accessories), written from the profile." +
+        (o.twoSheets ? " When you state her body and build, say it must match @image2 exactly." : "")
       : "There is no reference image in this workflow, so open with an identity paragraph built from the profile (face, eyes, skin marks, hair, build, accessories), limited to what is visible in the target's framing, so the model can reproduce the same person from text alone.";
   const wardLine = o.newOutfit
     ? `WARDROBE (new outfit): do not reuse the target's clothing. Design a completely different outfit that keeps the target's vibe and aesthetic (style, colour story, level of dressiness, season) and makes sense for this exact scene and activity. Name every garment with its type, fabric, fit and colour, plus footwear if the feet are in frame and accessories; real brands are fine where they fit the aesthetic. Keep the character's signature accessories if they suit it.${n > 1 ? " Every version gets a different outfit." : ""}`

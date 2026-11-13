@@ -43,7 +43,8 @@ export const REALISM_FIX = {
  * Adding the line again on top of that only repeats it and pushes the prompt over the image model's length limit.
  */
 export const hasQualityLine = (t: string) =>
-  /beauty filter/i.test(t) || (/\bpores?\b/i.test(t) && /\b(?:noise|grain|compression)\b/i.test(t) && /\b(?:retouch\w*|unretouched|CGI|render)\b/i.test(t));
+  /beauty filter/i.test(t) ||
+  (/\bpores?\b/i.test(t) && /\b(?:noise|grain|compression)\b/i.test(t) && /\b(?:retouch\w*|unretouched|CGI|render|matte|peach fuzz)\b/i.test(t));
 
 export const OVERLAY_RULE =
   "Leave out anything that was overlaid on the original photo: no app interface elements, floating buttons, icons, watermarks, stickers or caption overlays.";

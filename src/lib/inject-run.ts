@@ -9,7 +9,7 @@ import { recentPoses, rememberPoses, RECENT_SEND } from "@/lib/recent-poses";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { harness } from "@/lib/ai/prompts/harness";
 import { sheetLines } from "@/lib/ai/prompts/identity";
-import { buildInjectPrompt, parseVersions, type InjectOptions, type VersionPlan } from "@/lib/ai/prompts/inject";
+import { buildInjectPrompt, parseVersions, TWO_SHEET_OPENER, type InjectOptions, type VersionPlan } from "@/lib/ai/prompts/inject";
 import { HAIRSTYLES, PALETTES, POSE_HINTS, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
 import { injectOptionsSchema, type InjectMeta, type InjectOptionsInput } from "@/lib/inject-meta";
 import type { CharacterProfile } from "@/lib/characters";
@@ -76,6 +76,8 @@ export async function runInject(
     who: opt.who,
     extra: opt.extra,
     tag: opt.tag || "@image1",
+    // The default tag with both sheets: the prompt names both, as Generate here and Write only send them.
+    twoSheets: opt.mode === "ref" && (opt.tag || "@image1") === "@image1" && !!c.face_sheet_path && !!c.body_sheet_path,
     exText: opt.exText,
     poseMode: opt.poseMode,
     pose: opt.poseMode !== "keep",
@@ -110,7 +112,7 @@ export async function runInject(
   const versions = plans.map((plan, i): InjectVersion | null => {
     const v = parsedVersions[i];
     if (!v || !v.text) return null;
-    const h = harness(v.text, { tag: o.mode === "ref" ? o.tag : "", stripAR: o.len === "full" });
+    const h = harness(o.twoSheets ? withBothSheets(v.text) : v.text, { tag: o.mode === "ref" ? o.tag : "", stripAR: o.len === "full" });
     const tags = [v.pose ? "Pose: " + v.pose : o.pose && "New pose", o.newOutfit && "New outfit", o.recolor && "Colours: " + plan.palette, o.hair && "Hair: " + plan.hair].filter(
       (x): x is string => !!x,
     );
@@ -139,4 +141,15 @@ export async function runInject(
   for (const v of versions) if (v) v.historyId = historyIds[k++] ?? null;
   await rememberPoses(supabase, userId, parsedVersions.map((v) => v.pose).filter(Boolean));
   return { versions, truncated: reply.truncated, characterName: c.name };
+}
+
+/** A prompt that still opens on @image1 alone gets the two-sheet opener, and its body line points at @image2. */
+export function withBothSheets(text: string): string {
+  let t = text.trim();
+  if (!t.includes("@image2")) {
+    const single = /^\s*(?:Use|Using)\s+@image1(?:\s*\([^)]*\))?\s+as\s+the\s+(?:strict\s+)?identity\s+reference\.?\s*/i;
+    t = single.test(t) ? t.replace(single, TWO_SHEET_OPENER + " ") : TWO_SHEET_OPENER + " " + t;
+    t = t.replace(/\b(body must match) the reference exactly\b/i, "$1 @image2 exactly");
+  }
+  return t;
 }

@@ -78,7 +78,7 @@ export function harness(raw: string, opt: HarnessOptions = {}): HarnessResult {
     // Read before the realism sentences go in: only the writer's own camera-and-look passage stands in for the line.
     const hasQuality = hasQualityLine(t);
     if (!/\bpores?\b/i.test(t)) add.push(REALISM_FIX.skin);
-    if (!/(texture|weave|knit|grain|crease|wrinkl|fray)/i.test(t)) add.push(REALISM_FIX.texture);
+    if (!/(texture|weave|woven|knit|grain|crease|wrinkl|fray|sheen|patent|vinyl|leather|denim|satin|lace|fleece)/i.test(t)) add.push(REALISM_FIX.texture);
     if (!/(camera|lens|iphone|smartphone|phone photo|film|sensor|\d+\s?mm\b)/i.test(t)) add.push(REALISM_FIX.camera);
     if (add.length) {
       t = t.replace(/\s+$/, "") + "\n\n" + add.join(" ");

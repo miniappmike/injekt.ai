@@ -288,9 +288,16 @@ export function pickAnchors(a: Anchors | null | undefined, frame?: string) {
 }
 
 /** Cleans an LLM scene prompt for n reference images: drops its own identity opener and points every tag at them. */
+/**
+ * The written prompt's own opener ("Use @image1 as the strict identity reference.", or with both sheets "Use @image1
+ * (her face sheet) and @image2 (her body sheet) as ..."), which the framing replaces with its own.
+ */
+const OPENER =
+  /^\s*(?:Use|Using)\s+(?:@[\w-]+|the\s+(?:uploaded\s+)?(?:character\s+)?(?:reference\s+)?(?:sheet|image|photo)s?)(?:\s*\([^)]*\))?(?:\s*(?:,|and)\s*@[\w-]+(?:\s*\([^)]*\))?)*\s+as\s+the\s+(?:strict\s+)?identity\s+reference\.?\s*/i;
+
 export function sceneText(text: string, n: number): string {
   let t = String(text || "").trim();
-  t = t.replace(/^\s*(?:Use|Using)\s+(?:@[\w-]+|the\s+(?:uploaded\s+)?(?:character\s+)?(?:reference\s+)?(?:sheet|image|photo)s?)(?:\s*\([^)]*\))?\s+as\s+the\s+(?:strict\s+)?identity\s+reference\.?\s*/i, "");
+  t = t.replace(OPENER, "");
   t = t.replace(/\bthe\s+uploaded\s+(?:character\s+)?(?:reference\s+)?sheet\b/gi, "@image1").replace(/\bthe\s+(?:character|reference)\s+sheet\b/gi, "@image1");
   t = t.replace(/@image(\d+)\b/gi, (_m, d) => (+d >= 1 && +d <= n ? "@image" + d : "@image1"));
   return t.replace(/@(?!image\d)[A-Za-z][\w-]*\b/g, "@image1");
@@ -319,7 +326,7 @@ export function refOutfitGuard(refs: string, photo: string, so?: string): string
 export function lockRefs(text: string, n: number, isSheet: boolean, ol: string): string {
   n = Math.max(1, Math.min(n || 1, 3));
   let t = String(text || "").trim();
-  t = t.replace(/^\s*(?:Use|Using)\s+(?:@[\w-]+|the\s+(?:uploaded\s+)?(?:character\s+)?(?:reference\s+)?(?:sheet|image|photo)s?)(?:\s*\([^)]*\))?\s+as\s+the\s+(?:strict\s+)?identity\s+reference\.?\s*/i, "");
+  t = t.replace(OPENER, "");
   t = t.replace(/\bthe\s+uploaded\s+(?:character\s+)?(?:reference\s+)?sheet\b/gi, "@image1").replace(/\bthe\s+(?:character|reference)\s+sheet\b/gi, "@image1");
   t = t.replace(/@image(\d+)\b/gi, (_m, d) => (+d >= 1 && +d <= n ? "@image" + d : "@image1"));
   t = t.replace(/@(?!image\d)[A-Za-z][\w-]*\b/g, "@image1");
