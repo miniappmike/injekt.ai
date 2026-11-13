@@ -22,6 +22,8 @@ Admins (`profiles.is_admin`) are unlimited. Pro is either set by hand in Admin (
 - A prompt: 1 token (free when using an own vision key on Pro).
 - A profile build: 2 tokens.
 - An image: 2 tokens at 1k, 3 at 1.5k, 4 at 2k.
+- Free: likeness checks, copying prompts, and the nudity check before Pin It (one small vision call, shown on the
+  ledger as "Pin check").
 
 ## Token packs (bought tokens never expire)
 

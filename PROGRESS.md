@@ -404,3 +404,27 @@ On the Characters page, shown only when image generation is on (and disabled unt
 - One Supabase auth call and one profile read per page instead of two or three (`cache()` on `requireUser` and `loadProfile`).
 - Fonts moved from a Google stylesheet to `next/font`.
 - Home screen icon and manifest use the logo (`src/app/apple-icon.png`, `src/app/manifest.ts`, `public/icons/`).
+
+## Calmer menus, outfits, body blend, likeness fix and Pin It (migration 0026)
+- **Menus**: Variants' Moments has four "Include" chips (each switches a group of slide types) and one "Posting to"
+  menu grouped by tone. Inject's options are one row (Pose, Outfit, Versions per target, Which person); "Prompt for"
+  and "Style" moved under More options. Characters' Delete is a quiet text button; New character folds the hand-written
+  profile behind "Write it by hand instead".
+- **Inject Outfit menu** (`OUTFIT_CHOICES` in `inject-writer.tsx`): replaces Wardrobe, Change outfit and Recolour
+  clothes. "An outfit I choose" takes an outfit photo, read into words once by `extractOutfit`; the words can be edited,
+  typed by hand or saved. Saved browser options in an old combination settle on the nearest single choice.
+- **Body blend** (`blend` in `SheetOptions` and the sheet meta): with 2 or 3 body photos marked as different bodies,
+  the body sheet prompt asks for one composite that keeps the more pronounced feature from each photo. The fine-tune
+  lost "natural" and "in proportion to her frame"; cups go to J and glute size has Extreme.
+- **Likeness fix**: rebuilds only facial structure, hair, skin tone and body proportions, with `OUTFIT_LOCK`; clothing
+  fixes are filtered (`clothingFix`). The old "repaint the person completely" wording let the body sheet's shorts leak
+  into the fixed photo.
+- **Pin It** (`pin-actions.ts`, `pin-to-references.tsx`): under any generated image of a character. Vision nudity check
+  first (`PIN_CHECK_PROMPT`, ledger feature `pin`); up to 5 reference photos; at the limit a pop-up with a confirmation
+  box replaces the last one. Pinned files in `<uid>/pinned/<character>/` survive replacement and removal, and go with
+  the character or the account. Replaces the Direct swap "Add to reference photos" button. A character page with no
+  reference photos links to Inject.
+- **API key guide**: a note on the models used for testing (Sonnet 5.5, Seedream 5) and now (Haiku 5.5, Seedream 5.5,
+  marked "Latest Iteration" with a tip); Kimi K3.1 Pro is marked "Tested".
+- Run `0026_five_reference_photos.sql` in Supabase (raises the reference photo check from 3 to 5). The marketplace
+  listing editor and persona copy still use only the first 3 reference photos.
