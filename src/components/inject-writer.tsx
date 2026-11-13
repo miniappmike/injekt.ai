@@ -546,34 +546,13 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
 
       <MobileSheet open={sheet} onClose={() => setSheet(false)} title="Options" className="panel flex flex-col gap-4 p-4">
         <h2 className="font-semibold max-sm:hidden">2. Options</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="flex items-center gap-1.5">Prompt for <InfoTip label="About Prompt for">With character sheet: the prompt opens with your reference tag, for generators that get her sheet. Text only: her identity is written out in full.</InfoTip></span>
-            <select className={select} value={o.mode} onChange={(e) => set("mode", e.target.value as Options["mode"])}>
-              <option value="ref">With character sheet</option>
-              <option value="text">Text only</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            Style
-            <select className={select} value={o.len} onChange={(e) => set("len", e.target.value as Options["len"])}>
-              <option value="full">Sectioned</option>
-              <option value="narrative">Narrative</option>
-              <option value="short">Short</option>
-            </select>
-          </label>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="flex flex-col gap-1.5 text-sm">
             Pose
             <select className={select} value={o.poseMode} onChange={(e) => set("poseMode", e.target.value as Options["poseMode"])}>
               <option value="keep">Keep the target's pose</option>
               <option value="natural">Natural pose</option>
               <option value="social">Random social pose</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            Versions per target
-            <select className={select} value={o.count} onChange={(e) => set("count", Number(e.target.value))}>
-              {Array.from({ length: MAX_VERSIONS }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </label>
           <label className="flex flex-col gap-1.5 text-sm">
@@ -585,7 +564,13 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
             </select>
           </label>
           <label className="flex flex-col gap-1.5 text-sm">
-            <span className="flex items-center gap-1.5">Which person <span className="text-xs text-neutral-500">optional</span></span>
+            Versions per target
+            <select className={select} value={o.count} onChange={(e) => set("count", Number(e.target.value))}>
+              {Array.from({ length: MAX_VERSIONS }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            Which person
             <Input value={o.who} maxLength={200} onChange={(e) => set("who", e.target.value)} placeholder='e.g. "the woman on the left"' />
           </label>
         </div>
@@ -658,13 +643,31 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
         </div>
 
         <label className="flex flex-col gap-1.5 text-sm">
-          <span>Extra direction <span className="text-xs text-neutral-500">optional</span></span>
-          <Textarea value={o.extra} maxLength={2000} onChange={(e) => set("extra", e.target.value)} placeholder="Anything else for every prompt, e.g. golden hour light" />
+          Extra direction
+          <Textarea value={o.extra} maxLength={2000} onChange={(e) => set("extra", e.target.value)} placeholder="Optional. Anything else for every prompt, e.g. golden hour light" />
         </label>
 
         <details className="text-sm">
           <summary className="cursor-pointer text-neutral-400">More options</summary>
           <div className="mt-3 flex flex-col gap-3">
+            {/* How the prompt is written: rarely changed, so kept out of the main choices. */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="flex items-center gap-1.5">Prompt for <InfoTip label="About Prompt for">With character sheet: the prompt opens with your reference tag, for generators that get her sheet. Text only: her identity is written out in full.</InfoTip></span>
+              <select className={select} value={o.mode} onChange={(e) => set("mode", e.target.value as Options["mode"])}>
+                <option value="ref">With character sheet</option>
+                <option value="text">Text only</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm">
+              Style
+              <select className={select} value={o.len} onChange={(e) => set("len", e.target.value as Options["len"])}>
+                <option value="full">Sectioned</option>
+                <option value="narrative">Narrative</option>
+                <option value="short">Short</option>
+              </select>
+            </label>
+            </div>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={o.withRefs} onChange={(e) => set("withRefs", e.target.checked)} /> Also send her reference photos to the prompt writer
               <InfoTip label="About sending reference photos">The writer always gets her profile and her sheet's words. Sending her photos too can help with marks and details, and costs more.</InfoTip>

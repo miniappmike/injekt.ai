@@ -109,14 +109,13 @@ export default async function EditCharacterPage({
         <section className="grid gap-3 lg:sticky lg:top-28 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-1">
           <h2 className="text-lg font-semibold">Images</h2>
           <p className="text-sm text-neutral-400 max-sm:hidden">
-            Click a picture to see it full size. To add one, press Upload, drop a file, or paste with Ctrl+V while a box is focused. Photo
-            metadata (location, device) is stripped on upload. The profile photo is only for display and is never sent to an AI model.
+            Click a picture to see it full size. Photo metadata (location, device) is stripped on upload.
           </p>
           <p className="text-sm text-neutral-400">
             No sheets yet? <Link href={`/reference-sheet?character=${c.id}`} className="underline">Make them from photos</Link>: a face sheet from one face photo, then a face and body sheet.
           </p>
           <div className="grid grid-cols-2 gap-3">
-            <ImageSlot label="Profile photo" slot="profile_photo" characterId={c.id} images={imgs([c.profile_photo_path])} hint="For display only." />
+            <ImageSlot label="Profile photo" slot="profile_photo" characterId={c.id} images={imgs([c.profile_photo_path])} hint="For display only, never sent to an AI model." />
             <ImageSlot label="Face sheet" slot="face_sheet" characterId={c.id} images={imgs([c.face_sheet_path])} hint="A sheet of the face from several angles, or one clear face photo." />
             <ImageSlot label="Body sheet" slot="body_sheet" characterId={c.id} images={imgs([c.body_sheet_path])} hint="Front, back and side of the body." />
             <ImageSlot label="Reference images (up to 3)" slot="reference" characterId={c.id} images={imgs(c.reference_paths)} max={3} />

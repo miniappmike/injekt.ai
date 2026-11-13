@@ -367,7 +367,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       </div>
 
       <section className="panel flex flex-col gap-3 p-4">
-        <Step n={1} title="Add your images" hint="Your main image, plus up to 2 extras for the vibe or an outfit." />
+        <Step n={1} title="Add your images" hint={`Your main image, plus up to ${MAX_EXTRA_IMAGES} extras for the vibe or an outfit.`} />
         <div className="grid grid-cols-3 gap-2 sm:gap-3 [&>*]:min-w-0">
           <ImageDrop
             layout="tile"
@@ -411,9 +411,6 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
             </div>
           ))}
         </div>
-        <p id="extras-title" className="text-xs text-neutral-500 max-sm:hidden">
-          <span className="font-medium text-neutral-400">More images</span> are optional, up to {MAX_EXTRA_IMAGES}: show the AI the vibe, an outfit or anything else you want carried into the {tab === "carousel" ? "moments" : "takes"}, and say how to use them in the creative direction.
-        </p>
       </section>
 
       <section className="panel flex flex-col gap-4 p-4">
