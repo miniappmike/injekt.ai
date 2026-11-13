@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { harness } from "@/lib/ai/prompts/harness";
+import { PROMPT_CHARS } from "@/lib/ai/prompts/inject";
 import { BODY_LOCK, MODS_RULE, OVERLAY_RULE, REALISM_FIX, SKIN_ART_SHORT, TEXT_RULE, TEXT_SHORT, fence, makeupRule, asksMakeup, skinNote } from "@/lib/ai/prompts/rules";
 import {
   basePrompt,
+  bodyLockTop,
+  MODS_SHORT,
   bodyScrub,
   clampTags,
   cropRect,
@@ -231,22 +234,24 @@ describe("framing per model", () => {
 
   it("Seedream opens with IDENTITY, repeats it at the end, and closes on the tail", () => {
     const p = framePrompt("pro", scene, R, "face, hair, waist, hips", { outfit: "a black slip dress" });
-    expect(p.startsWith("IDENTITY (follow exactly; where any description below differs, follow this and the reference images): hair: espresso brown")).toBe(true);
+    // Her body leads, then the BODY LOCK right after the reference roles.
+    expect(p.startsWith("IDENTITY (follow exactly; where any description below differs, follow this and the reference images): body: ")).toBe(true);
     expect(p).toContain("Use @image1, @image2, @image3 and @image4 as the strict identity reference. They show one and the same woman: @image1 is a close-up of her face from the front");
-    expect(p).toContain("her exact body shape and proportions from @image3 and @image4. " + BODY_LOCK);
+    expect(p).toContain(bodyLockTop("@image3 and @image4"));
+    expect(p.indexOf("BODY LOCK")).toBeLessThan(p.indexOf("Photo of a young woman"));
     expect(p).toContain("Photo of a young woman with a curvy hourglass build on a balcony");
-    expect(p).toContain(" Identity again: espresso brown, collarbone length; narrow waist, wide hips");
-    expect(p).toContain("OUTFIT LOCK: use @image1, @image2, @image3 and @image4 for her face, hair and body shape only and ignore the clothing shown there. She wears a black slip dress, exactly as described in this prompt. Never dress her in the reference outfit (a white crop top and white shorts).");
+    expect(p).toContain(" Identity again: narrow waist, wide hips");
+    expect(p).toContain("OUTFIT LOCK: she wears only a black slip dress, never the clothing in the references (a white crop top and white shorts).");
     expect(p).toContain(REALISM_FIX.quality);
-    expect(p).toContain(TEXT_RULE);
-    expect(p).toContain(MODS_RULE);
-    expect(p.endsWith("Final identity check: the person in this image is the exact same woman as in @image1, @image2, @image3 and @image4, with an identical face, features, skin, hair, body shape and proportions.")).toBe(true);
+    expect(p).toContain(TEXT_SHORT);
+    expect(p).toContain(MODS_SHORT);
+    expect(p.endsWith("Final identity check: the exact same woman as in @image1, @image2, @image3 and @image4, with an identical face, hair, skin, body shape and proportions.")).toBe(true);
   });
 
   it("Nano Banana gets its own wording", () => {
     const p = framePrompt("nb", scene, R, "", { clean: true });
     expect(p.startsWith("The woman in this photo is the woman in the reference images. Image 1 (@image1) shows a close-up of her face from the front.")).toBe(true);
-    expect(p).toContain("Copy her body exactly from @image3 and @image4:");
+    expect(p).toContain(bodyLockTop("@image3 and @image4") + " Her body: narrow shoulders");
     expect(p).toContain("Do not give her: bright red hair; a slim, narrow-hipped figure; blue eyes; freckles.");
     expect(p).toContain(OVERLAY_RULE);
     expect(p.endsWith("She must look exactly like the woman in the reference images: the same face, hair, skin, body shape and proportions.")).toBe(true);
@@ -257,7 +262,7 @@ describe("framing per model", () => {
     // Recreate keeps the target's image quality and shading (as the prompt describes them), lit by the scene.
     expect(p).toContain(QUALITY_SHADING_MATCH);
     expect(p.startsWith("Use @image1, @image2, @image3 and @image4 as the strict identity reference.")).toBe(true);
-    expect(p).toContain(" Her look from the reference: hair: espresso brown");
+    expect(p).toContain(" Her look from the reference: body: narrow shoulders");
     expect(p).not.toContain("IDENTITY (follow exactly");
   });
 
@@ -265,6 +270,21 @@ describe("framing per model", () => {
     const p = framePrompt("pro", `${scene} No beauty filter, no gibberish.`, R, "");
     expect(p).not.toContain(REALISM_FIX.quality);
     expect(p).not.toContain(TEXT_RULE);
+  });
+
+  it("takes the writer's own camera-and-look passage as the quality line, so it isn't repeated", () => {
+    const look = `${scene} Matte skin with visible pores, visible sensor noise in the shadows. Real photo, not retouched or CGI. No garbled lettering.`;
+    expect(framePrompt("pro", look, R, "")).not.toContain(REALISM_FIX.quality);
+    expect(harness(look).fixed).not.toContain("added image quality line");
+  });
+
+  it("leaves most of the 5,000 characters for the scene", () => {
+    // A written scene carries its own realism and no-garbled-text lines, as the writer is told to.
+    const written = `${scene} Matte skin with visible pores, sensor noise in the shadows, not retouched or CGI. No garbled lettering.`;
+    // Inject sends her two sheets.
+    const R2 = { roles: ["her face reference sheet, a grid of her face from many angles", "her full-body reference sheet, front, side and back views"], kinds: ["faces", "body"], anchors: R.anchors };
+    const overhead = framePrompt("pro", written, R2, "face, hair, waist, hips", { outfit: "a black slip dress" }).length - written.length;
+    expect(overhead).toBeLessThan(5000 - PROMPT_CHARS);
   });
 
   it("modelFamily reads the configured model id", () => {

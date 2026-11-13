@@ -3,7 +3,7 @@
 import { usageChanged } from "@/lib/panel-events";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +46,15 @@ export interface InjectCharacter {
   hasProfile: boolean;
   /** Her picture in the character picker. */
   photo?: string | null;
+  /** Her sheets and photos (labels), so a card can say what Generate sends with the prompt. */
+  refOptions?: { id: string; label: string }[];
+}
+
+/** What Generate here sends with an Inject prompt: her face and body sheets, or up to 3 photos without a sheet. */
+function sentRefs(c: InjectCharacter | undefined, first = 1): string[] {
+  const all = c?.refOptions ?? [];
+  const sheets = all.filter((r) => r.id === "face_sheet" || r.id === "body_sheet");
+  return (sheets.length ? sheets : all.slice(0, 3)).map((r, i) => `@image${i + first} ${r.label.toLowerCase()}`);
 }
 
 interface Version {
@@ -355,61 +364,47 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingKey, editTarget]);
 
-  // How the prompts are used, and whether they edit the target: under Options on a phone, beside the button otherwise.
+  // Two choices, each with its own label: where the image is made, and what happens to the target photo. Under Options
+  // on a phone, beside the button otherwise.
+  const saveWriteOnly = (w: boolean) => {
+    setWriteOnly(w);
+    try {
+      localStorage.setItem(WRITE_ONLY_KEY, w ? "1" : "0");
+    } catch {
+      // Not remembered in a private window.
+    }
+  };
+  const chooseEdit = (on: boolean) => {
+    if (on === editTarget) return;
+    if (on && !window.confirm("Edit the photo sends the target photo itself to the image model and changes it. Only use photos you took or have the rights to, never a real person without their consent. Continue?")) return;
+    setEditTarget(on);
+    writeEditTarget(on);
+  };
+  const choice = (label: string, value: boolean, options: [boolean, string][], onPick: (v: boolean) => void, tip?: ReactNode) => (
+    <div className="flex flex-col gap-1.5">
+      <span className="flex items-center gap-1.5 text-xs font-medium text-neutral-400">{label}{tip}</span>
+      <div role="radiogroup" aria-label={label} className={segTrack}>
+        {options.map(([v, text]) => (
+          <button key={String(v)} type="button" role="radio" aria-checked={value === v} onClick={() => onPick(v)} className={segItem(value === v)}>
+            {text}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
   const controls = (
-        <fieldset>
-          <legend className="mb-1.5 text-sm font-medium">{generation ? "How you'll use the prompts" : "Prompt options"}</legend>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-{generation && (
-            <div role="radiogroup" aria-label="What to do with the prompts" className={segTrack}>
-              {([false, true] as const).map((w) => (
-                <button
-                  key={String(w)}
-                  type="button"
-                  role="radio"
-                  aria-checked={writeOnly === w}
-                  onClick={() => {
-                    setWriteOnly(w);
-                    try {
-                      localStorage.setItem(WRITE_ONLY_KEY, w ? "1" : "0");
-                    } catch {
-                      // Not remembered in a private window.
-                    }
-                  }}
-                  className={segItem(writeOnly === w)}
-                >
-                  {w ? "Write only" : "Generate here"}
-                </button>
-              ))}
-            </div>
-            )}
-            {/* Recreate is the default: the target only guides the prompt. Edit (sending the photo itself) is opt-in. */}
-            <div className="flex items-center gap-2">
-              <div role="radiogroup" aria-label="How to use the target photo" className={segTrack}>
-                {([false, true] as const).map((on) => (
-                  <button
-                    key={String(on)}
-                    type="button"
-                    role="radio"
-                    aria-checked={editTarget === on}
-                    onClick={() => {
-                      if (on === editTarget) return;
-                      if (on && !window.confirm("Edit this photo sends the target photo itself to the image model and changes it. Only use photos you took or have the rights to, never a real person without their consent. Continue?")) return;
-                      setEditTarget(on);
-                      writeEditTarget(on);
-                    }}
-                    className={segItem(editTarget === on)}
-                  >
-                    {on ? "Edit this photo" : "Recreate"}
-                  </button>
-                ))}
-              </div>
-              <InfoTip label="Recreate or edit">
-                Recreate (the default): the target photo only guides the prompt writer, and a new image of her is made from her references in a similar scene, pose and style. Nothing from the photo itself is used. Edit this photo: the photo is sent with her references and she replaces the person in it, which keeps the scene exactly. Only for photos you have the rights to. You can switch after writing; the prompts update without writing again.
-              </InfoTip>
-            </div>
-          </div>
-        </fieldset>
+    <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
+      {generation && choice("Make the image", writeOnly, [[false, "Here"], [true, "Elsewhere (copy prompts)"]], saveWriteOnly)}
+      {choice(
+        "Target photo",
+        editTarget,
+        [[false, "Recreate it"], [true, "Edit it"]],
+        chooseEdit,
+        <InfoTip label="Recreate or edit">
+          Recreate it (the default): the photo only guides the prompt, and a new image of her is made from her sheets in a similar scene, pose and style. Edit it: the photo itself is sent with her sheets and she replaces the person in it, which keeps the scene exactly. Only for photos you have the rights to. You can switch after writing.
+        </InfoTip>,
+      )}
+    </div>
   );
 
   return (
@@ -674,10 +669,10 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
               <input type="checkbox" checked={o.withRefs} onChange={(e) => set("withRefs", e.target.checked)} /> Also send her reference photos to the prompt writer
               <InfoTip label="About sending reference photos">The writer always gets her profile and her sheet's words. Sending her photos too can help with marks and details, and costs more.</InfoTip>
             </label>
-            <label className="flex flex-col gap-1.5">
+            {writeOnly && <label className="flex flex-col gap-1.5">
               <span className="flex items-center gap-1.5">Reference tag <InfoTip label="About the reference tag">What the prompt calls her sheet in your own generator, with "With character sheet". Generate here handles it for you.</InfoTip></span>
               <Input value={o.tag} maxLength={40} onChange={(e) => set("tag", e.target.value)} className="max-w-40" />
-            </label>
+            </label>}
           </div>
         </details>
         {phone && <div className="border-t border-neutral-800 pt-4">{controls}</div>}
@@ -807,10 +802,12 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                       <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words text-sm">{v.text}</pre>
                       <div className="flex flex-wrap gap-1.5">
                         {v.tags.map((x) => <span key={x} className="rounded-full bg-neutral-800 px-2 py-0.5 text-xs text-neutral-300">{x}</span>)}
-                        <span className={`rounded-full px-2 py-0.5 text-xs ${v.fixed.length ? "bg-amber-950 text-amber-300" : "bg-emerald-950 text-emerald-300"}`}>
-                          {v.fixed.length ? `Auto-fixed: ${v.fixed.join(", ")}` : "All checks passed"}
-                        </span>
                       </div>
+                      {/* The written prompt is the scene; Generate wraps it with her identity and body lock and sends these. */}
+                      <p className="text-xs text-neutral-500">
+                        Sent with {editTarget ? "@image1 your target photo, " : ""}
+                        {sentRefs(characters.find((c) => c.id === (t.characterId ?? characterId)), editTarget ? 2 : 1).join(", ") || "her references"}, under her identity and body lock.
+                      </p>
                       <GenerateImage
                         prompt={v.text}
                         characterId={t.characterId ?? characterId}

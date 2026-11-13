@@ -6,7 +6,7 @@ import { isOwnPath } from "@/lib/uploads";
 import { referencesFor } from "@/lib/character-images";
 import { currentPack, ensureSheetPack, selectCharacter } from "@/lib/sheet-pack";
 import { getUserTextClient } from "@/lib/ai/text-client";
-import { basePrompt, clampTags, condenseTask, framePrompt, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
+import { basePrompt, clampTags, condenseTask, framePrompt, sceneCondenseTask, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
 import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
 import { faceFixPrompt, likenessFixPrompt, type FixRefs } from "@/lib/ai/prompts/likeness";
 import { carouselSlidePrompt } from "@/lib/ai/prompts/variants";
@@ -257,7 +257,15 @@ export async function buildJob(
     return artToRealJob(c, c ? await packOf(c) : null, artwork, request.meta?.extra, opts.max);
   }
 
-  if (request.kind === "inject" && request.meta && c) return injectJob(c, await packOf(c), request.prompt, request.meta, opts.model, opts.max);
+  if (request.kind === "inject" && request.meta && c) {
+    const pack = await packOf(c);
+    const job = injectJob(c, pack, request.prompt, request.meta, opts.model, opts.max);
+    if (job.photoEdit || job.prompt.length <= PROMPT_LIMIT || opts.forQuote) return job;
+    // Too long for the image model: shorten only the written scene, so her identity framing, both sheet tags and the
+    // BODY LOCK go through whole instead of being condensed with everything else or cut off at the end.
+    const scene = await shortenScene(supabase, userId, request.prompt, request.prompt.length - (job.prompt.length - PROMPT_LIMIT) - 120);
+    return scene ? injectJob(c, pack, scene, request.meta, opts.model, opts.max) : job;
+  }
 
   if ((request.kind === "likeness_fix" || request.kind === "face_fix") && request.meta) {
     if (!c) throw new UserFacingError("Pick the character to fix the likeness against.");
@@ -311,6 +319,18 @@ async function generationSource(supabase: SupabaseClient, generationId: string):
 }
 
 /** Points tags at images that are sent and keeps the prompt within the provider's limit (artifact wsGenerate). */
+/** The scene text shortened to `max` characters by the person's text model, or null when it can't be. */
+async function shortenScene(supabase: SupabaseClient, userId: string, text: string, max: number): Promise<string | null> {
+  if (max < 800) return null;
+  try {
+    const { client } = await getUserTextClient(supabase, userId, "llm", "condense");
+    const out = String(await client.run({ prompt: sceneCondenseTask(text, max) })).trim();
+    return out && out.length < text.length ? out : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fitPrompt(supabase: SupabaseClient, userId: string, prompt: string, imageCount: number, { forQuote = false } = {}): Promise<string> {
   const t = clampTags(prompt, imageCount);
   if (t.length <= PROMPT_LIMIT || forQuote) return t.slice(0, PROMPT_LIMIT);

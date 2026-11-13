@@ -37,6 +37,14 @@ export const REALISM_FIX = {
     "IMAGE QUALITY: a real, unedited smartphone photo, not a render. Natural camera imperfections: slight softness and focus falloff away from the face, a faint motion blur in moving hands or hair, visible sensor noise in the shadows, mild JPEG compression, slightly imperfect auto white balance and exposure, and light spill from the surroundings onto skin and clothes. Skin is matte and textured: visible pores, fine peach fuzz, uneven tone, faint redness and small imperfections, with only a little natural oil on the nose and forehead. No smoothing, no glossy, waxy, plastic or porcelain skin, no glow, no beauty filter, no CGI, doll or 3D-render look.",
 };
 
+/**
+ * Whether a prompt already says what the IMAGE QUALITY line says: either the line itself (it mentions a beauty filter),
+ * or a camera-and-look passage the writer made with skin pores, camera noise and a "not retouched / not CGI" note.
+ * Adding the line again on top of that only repeats it and pushes the prompt over the image model's length limit.
+ */
+export const hasQualityLine = (t: string) =>
+  /beauty filter/i.test(t) || (/\bpores?\b/i.test(t) && /\b(?:noise|grain|compression)\b/i.test(t) && /\b(?:retouch\w*|unretouched|CGI|render)\b/i.test(t));
+
 export const OVERLAY_RULE =
   "Leave out anything that was overlaid on the original photo: no app interface elements, floating buttons, icons, watermarks, stickers or caption overlays.";
 

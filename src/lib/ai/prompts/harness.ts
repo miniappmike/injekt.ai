@@ -1,4 +1,4 @@
-import { REALISM_FIX, TEXT_RULE, TEXT_SHORT } from "./rules";
+import { hasQualityLine, REALISM_FIX, TEXT_RULE, TEXT_SHORT } from "./rules";
 
 export interface HarnessOptions {
   /** Prepended as "Use <tag> as the strict identity reference." when the prompt doesn't mention it. */
@@ -75,6 +75,8 @@ export function harness(raw: string, opt: HarnessOptions = {}): HarnessResult {
   }
   const add: string[] = [];
   if (opt.realism !== false) {
+    // Read before the realism sentences go in: only the writer's own camera-and-look passage stands in for the line.
+    const hasQuality = hasQualityLine(t);
     if (!/\bpores?\b/i.test(t)) add.push(REALISM_FIX.skin);
     if (!/(texture|weave|knit|grain|crease|wrinkl|fray)/i.test(t)) add.push(REALISM_FIX.texture);
     if (!/(camera|lens|iphone|smartphone|phone photo|film|sensor|\d+\s?mm\b)/i.test(t)) add.push(REALISM_FIX.camera);
@@ -82,7 +84,7 @@ export function harness(raw: string, opt: HarnessOptions = {}): HarnessResult {
       t = t.replace(/\s+$/, "") + "\n\n" + add.join(" ");
       fixed.push("added realism line");
     }
-    if (!/beauty filter/i.test(t)) {
+    if (!hasQuality) {
       t = t.replace(/\s+$/, "") + "\n\n" + REALISM_FIX.quality;
       fixed.push("added image quality line");
     }

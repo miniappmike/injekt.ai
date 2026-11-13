@@ -60,7 +60,8 @@ describe("injectJob", () => {
     expect(job.photoEdit).toBe(false);
     expect(job.paths).toEqual([`${U}/face.jpg`, `${U}/body.jpg`]);
     expect(job.prompt).toMatch(/^IDENTITY \(follow exactly/);
-    expect(job.prompt).toContain("She wears a red dress, exactly as described in this prompt. Never dress her in the reference outfit (white shorts).");
+    expect(job.prompt).toContain("OUTFIT LOCK: she wears only a red dress, never the clothing in the references (white shorts).");
+    expect(job.prompt).toContain("BODY LOCK (top priority): her body matches @image2 exactly");
     expect(injectJob(c, pack, "Photo.", {}, "google/nano-banana-2.1/edit", 10).prompt).toMatch(/^The woman in this photo is the woman in the reference images/);
   });
 
@@ -103,6 +104,20 @@ describe("buildJob", () => {
     await expect(buildJob(userClient(), U, { kind: "inject", characterId: "c1", extraPaths: [], prompt: "p", meta: { target: "other/t.jpg" } }, { model: SEEDREAM, max: 10 })).rejects.toThrow(/couldn't be used/);
     await expect(buildJob(userClient(), U, { kind: "edit", extraPaths: ["../u1/x.jpg"], prompt: "p" }, { model: SEEDREAM, max: 10 })).rejects.toThrow(/couldn't be used/);
     await expect(buildJob(userClient(null), U, { kind: "edit", characterId: "c1", extraPaths: [], prompt: "p" }, { model: SEEDREAM, max: 10 })).rejects.toThrow(/Character not found/);
+  });
+});
+
+describe("buildJob for Inject", () => {
+  it("shortens only the scene when the framed prompt is too long, keeping both sheets and the BODY LOCK whole", async () => {
+    h.ensureSheetPack.mockResolvedValue(pack);
+    h.run.mockResolvedValue("Photo of her on a balcony, shortened.");
+    const long = "Photo of her on a balcony. " + "Soft light on the railing. ".repeat(200);
+    const job = await buildJob(userClient(), U, { kind: "inject", characterId: "c1", prompt: long, extraPaths: [], meta: {} } as never, { model: SEEDREAM, max: 10 });
+    expect(h.run.mock.calls[0][0].prompt).toMatch(/^Shorten this image prompt's scene description/);
+    expect(job.prompt.length).toBeLessThanOrEqual(PROMPT_LIMIT);
+    expect(job.prompt).toContain("Photo of her on a balcony, shortened.");
+    expect(job.prompt).toContain("@image2 is her full-body reference sheet");
+    expect(job.prompt).toContain("BODY LOCK (top priority)");
   });
 });
 

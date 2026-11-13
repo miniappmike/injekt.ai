@@ -3,7 +3,7 @@
  * where they are: her sheets can be two images (face and body), the person may add up to 2 extra images for the vibe or
  * outfit, and the carousel's nudity sentence is left out (no app-level screening).
  */
-import { asksMakeup, BODY_LOCK, fence, joinTags, makeupRule, MODS_RULE, REALISM_FIX, SKIN_ART_SHORT, TEXT_RULE } from "./rules";
+import { asksMakeup, hasQualityLine, BODY_LOCK, fence, joinTags, makeupRule, MODS_RULE, REALISM_FIX, SKIN_ART_SHORT, TEXT_RULE } from "./rules";
 import { harness } from "./harness";
 import { pickAnchors, refOutfitGuard, type Anchors } from "./identity";
 import type { CarouselTypeId, PlatformId, SlidePerson, VariantDimId } from "@/lib/variants-meta";
@@ -101,7 +101,7 @@ export function finishVariant(prompt: string, vt: VariantTags | null, so: string
   if (vt) t = t.replace(/\s*$/, " ") + refOutfitGuard(vt.ref, vt.photo, so) + " " + SKIN_ART_SHORT;
   if (!asksMakeup(extra) && !/MAKEUP STAYS/.test(t)) t = t.replace(/\s*$/, " ") + makeupRule(vt ? vt.photo : "the photo being edited");
   // ModelSpawn's standing rule: every prompt carries the realism line (the artifact relied on "keep the realism").
-  if (!/beauty filter/i.test(t)) t = t.replace(/\s*$/, " ") + REALISM_FIX.quality;
+  if (!hasQualityLine(t)) t = t.replace(/\s*$/, " ") + REALISM_FIX.quality;
   return t;
 }
 
