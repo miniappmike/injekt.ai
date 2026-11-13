@@ -22,6 +22,10 @@ export const DISTANCE_SCORE_RULE =
 /** A fix that is really about makeup (lip colour, eyeshadow...), which the prompts tell the checker not to write. */
 const makeupFix = (f: string) => asksMakeup(f) || /\blip(s)?\b[^;,.]*\b(colou?r|pink|red|nude|burgundy|berry|plum|dark|glossy|matte)\b|\b(pink|red|nude|burgundy|berry|plum|natural)\b[^;,.]*\blips?\b/i.test(f);
 
+/** A suggested fix about clothing: a likeness fix never changes the outfit, so these are dropped. */
+const clothingFix = (f: string) =>
+  /\b(outfit|cloth(es|ing)|garment|wearing|dress|skirt|shorts|jeans|trousers|pants|leggings|top|shirt|t-shirt|tee|blouse|sweater|jumper|hoodie|jacket|coat|bra|bikini|lingerie|underwear|panties|thong|briefs|bodysuit|sleeve|hem|neckline|shoes?|boots?|sneakers|trainers|heels|socks)\b/i.test(f);
+
 // ---------- A10: full report ----------
 
 export function likenessReportPrompt(o: { profile: string; refCount: number; isSheet: boolean; used: string }): string {
@@ -150,7 +154,7 @@ export function parseQuickLikeness(r: unknown, cmp: boolean): QuickLikeness {
     }
   }
   const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
-  const fixes = strings(o.fixes).filter((x) => x.trim() && !makeupFix(x)).map((x) => x.trim().slice(0, 160)).slice(0, 6);
+  const fixes = strings(o.fixes).filter((x) => x.trim() && !makeupFix(x) && !clothingFix(x)).map((x) => x.trim().slice(0, 160)).slice(0, 6);
   const diffs = strings(o.differences).map((x) => x.slice(0, 160)).slice(0, 8);
   const hidden = strings(o.hidden).filter((x) => x.trim()).map((x) => x.trim().replace(/_/g, " ").slice(0, 30)).slice(0, 6);
   const verdict = cmp && (["better", "same", "worse"] as const).includes(o.verdict as never) ? (o.verdict as QuickLikeness["verdict"]) : null;
@@ -169,6 +173,10 @@ export interface FixRefs {
 
 const bodyRefTags = (kinds: string[], tags: string[]) => joinTags(kinds.map((k, i) => (k === "body" || k === "side" ? tags[i] : null)).filter((x): x is string => !!x));
 
+/** A likeness fix corrects who she is, never what she wears. */
+export const OUTFIT_LOCK =
+  "OUTFIT LOCK (strict): every garment, shoe and accessory in @image1 stays exactly as it is: the same type, length, coverage, colour, fabric, wash, rips, layering and how it is worn. Full-length trousers stay full-length, sleeves keep their length, and nothing is shortened, cropped, removed, swapped, tucked differently or made more revealing; no skin is shown that @image1 covers. The references show her in plain sheet clothing only so her shape is visible; never take any clothing from them.";
+
 /** Repaints the person in @image1 from her references (artifact fixParts). */
 export function likenessFixPrompt(R: FixRefs, fixes: string[], frame: string | undefined, family: ModelFamily): string {
   const tags = R.roles.map((_, i) => "@image" + (i + 2));
@@ -179,7 +187,8 @@ export function likenessFixPrompt(R: FixRefs, fixes: string[], frame: string | u
   const words = [an.hair && `hair: ${an.hair}`, an.face && `face: ${an.face}`, an.skin && `skin: ${an.skin}`, body && `body: ${body}`].filter(Boolean).join(". ");
   const first = family === "pro" && words ? `IDENTITY (follow exactly): ${words}.${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""}\n\n` : "";
   const sheetOutfit = R.usePack && R.anchors?.sheetOutfit;
-  return `${first}Replace the woman in @image1 with the woman from ${joinTags(tags)}. ${tags.map((t, i) => `${t} is ${R.roles[i]}`).join(", ")}${tags.length > 1 ? "; they all show the same woman" : ""}. Repaint the person completely from the reference: her face, hair, skin and body must be the reference woman's, not the woman currently in @image1. ${fixes && fixes.length ? `In particular: ${fixes.join("; ")}.` : ""}${an.face ? ` Face: ${an.face}.` : ""}${an.hair ? ` Hair: ${an.hair}.` : ""}${an.skin ? ` Skin: ${an.skin}.` : ""}${body ? ` Her body must match ${bodyRef} exactly: ${body}; her clothes stay the same garments but fit her real shape.` : ""}${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""} Keep everything else from @image1: the pose, expression, outfit, props, background, light, framing and camera look. ${BODY_LOCK} Take only the person from ${joinTags(tags)}, never their layout, panels, backgrounds or outfit.${sheetOutfit ? ` Never dress her in the reference outfit (${sheetOutfit}).` : ""} ${MODS_RULE} ${makeupRule("@image1")} ${REALISM_FIX.quality} ${TEXT_SHORT}`;
+  const who = (fixes ?? []).filter((f) => !clothingFix(f));
+  return `${first}Replace the woman in @image1 with the woman from ${joinTags(tags)}. ${tags.map((t, i) => `${t} is ${R.roles[i]}`).join(", ")}${tags.length > 1 ? "; they all show the same woman" : ""}. Rebuild only who she is: her facial structure, hair, skin tone and body proportions must be the reference woman's, not those of the woman currently in @image1. ${who.length ? `In particular: ${who.join("; ")}.` : ""}${an.face ? ` Face: ${an.face}.` : ""}${an.hair ? ` Hair: ${an.hair}.` : ""}${an.skin ? ` Skin: ${an.skin}.` : ""}${body ? ` Her body must match ${bodyRef} exactly: ${body}; her clothes only re-drape over that shape.` : ""}${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""} Keep everything else from @image1: the pose, expression, outfit, props, background, light, framing and camera look. ${OUTFIT_LOCK} ${BODY_LOCK} Take only the person from ${joinTags(tags)}, never their layout, panels, backgrounds or outfit.${sheetOutfit ? ` Never dress her in the reference outfit (${sheetOutfit}).` : ""} ${MODS_RULE} ${makeupRule("@image1")} ${REALISM_FIX.quality} ${TEXT_SHORT}`;
 }
 
 // ---------- A19: face fix ----------
