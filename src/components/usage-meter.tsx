@@ -17,13 +17,19 @@ const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month
  * Tokens in the header: the token and a white count, with the plan. Opens a card with what things cost, the free plan's daily limits (with bars
  * that turn amber then crimson as they run out), when Pro ends, and links to buy tokens or upgrade.
  */
+let lastStatus: DailyStatus | null = null;
+
 export function UsageMeter() {
-  const [s, setS] = useState<DailyStatus | null>(null);
+  // The header remounts on every page change; starting from the last known balance stops the count blinking out.
+  const [s, setS] = useState<DailyStatus | null>(lastStatus);
 
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const load = () => void getDailyUsage().then((x) => alive && setS(x));
+    const load = () => void getDailyUsage().then((x) => {
+      if (x) lastStatus = x;
+      if (alive && x) setS(x);
+    });
     // Several updates in a row (a batch of images, a prompt run) become one reload.
     const soon = () => {
       clearTimeout(timer);

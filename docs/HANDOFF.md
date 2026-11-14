@@ -13,6 +13,10 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Fixes after the invites session**
+- Payment links: `openPayment` (`src/lib/payment-tab.ts`) now replaces the reserved tab's address inside try/catch, then tries a fresh `window.open(url, "_blank")`, and only then navigates this tab. Cause of the on-tab behaviour was not reproduced (suspected: ChromeOS Chrome losing the blank reserved tab); needs checking on the owner's Chromebook.
+- Token count blinking after page changes: the header remounts per page, so `UsageMeter` now starts from the last loaded balance (module-level cache) instead of rendering nothing until the fetch returns.
+
 **Added in the November 14 referrals session (invite buttons; reward amount not set)**
 - **Invite a friend** is wired in three places, all leading to the "Earn free tokens" card on `/tokens#invite`
   (`src/components/invite-card.tsx`: the person's link, Copy, and Share where the browser has a share sheet, plus a
