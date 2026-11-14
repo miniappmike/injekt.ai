@@ -6,7 +6,8 @@ import { FrontStage } from "@/components/front/stage";
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
     <FrontStage>
-      <div className="flex min-h-dvh flex-col">
+      <div className="relative flex min-h-dvh flex-col">
+        <div aria-hidden="true" className="front-flow pointer-events-none absolute inset-0 -z-10" />
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />

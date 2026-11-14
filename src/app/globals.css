@@ -370,10 +370,42 @@
   from { transform: translateY(-70vh); opacity: 0; }
 }
 
+/*
+ * The haze behind the blurred mark (pinned backdrop), and a second, lighter pool low on the opposite side so the
+ * bottom of the screen has light in it too. Phones: mark low and centred. Wide screens: mark on the right.
+ */
+.front-haze {
+  background:
+    radial-gradient(130vw 62vh at 50% 82%, rgb(255 95 162 / 0.34), rgb(249 39 118 / 0.14) 45%, transparent 72%),
+    radial-gradient(90vw 40vh at 8% 30%, rgb(255 143 192 / 0.1), transparent 70%);
+}
+@media (min-width: 64rem) {
+  .front-haze {
+    background:
+      radial-gradient(62vw 88vh at 72% 50%, rgb(255 95 162 / 0.36), rgb(249 39 118 / 0.15) 45%, transparent 72%),
+      radial-gradient(60vw 60vh at 12% 108%, rgb(255 143 192 / 0.26), transparent 70%),
+      radial-gradient(40vw 40vh at 100% 0%, rgb(255 143 192 / 0.1), transparent 70%);
+  }
+}
+/*
+ * The long landing pages add pools of light that scroll with the page, all the way down: soft pinks on alternating
+ * sides with a touch of iris. It fades in below the first screen, which stays identical to log in / sign up.
+ */
+.front-flow {
+  background-image:
+    radial-gradient(52rem 34rem at 6% 14%, rgb(255 143 192 / 0.2), transparent 70%),
+    radial-gradient(46rem 30rem at 96% 40%, rgb(255 196 220 / 0.15), transparent 70%),
+    radial-gradient(40rem 28rem at 30% 66%, rgb(123 123 255 / 0.1), transparent 70%),
+    radial-gradient(50rem 32rem at 88% 90%, rgb(255 122 156 / 0.18), transparent 70%);
+  background-size: 100% 150rem;
+  background-repeat: repeat-y;
+  mask-image: linear-gradient(to bottom, transparent 55dvh, black 150dvh);
+}
+
 /* Landing pages, log in and sign up: the big out-of-focus mark in the backdrop breathes slowly. */
 @keyframes auth-breathe {
-  from { opacity: 0.68; scale: 1; }
-  to { opacity: 0.85; scale: 1.05; }
+  from { opacity: 0.55; scale: 1; }
+  to { opacity: 0.72; scale: 1.05; }
 }
 .auth-mark {
   animation: auth-breathe 9s ease-in-out infinite alternate;

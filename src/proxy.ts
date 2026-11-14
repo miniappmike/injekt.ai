@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PREFIXES = ["/login", "/signup", "/auth", "/api/webhooks", "/api/cron", "/marketplace", "/terms", "/privacy", "/guides", "/manifest.webmanifest", "/how-it-works", "/about"];
+const PUBLIC_PREFIXES = ["/login", "/signup", "/auth", "/api/webhooks", "/api/cron", "/marketplace", "/terms", "/privacy", "/guides", "/manifest.webmanifest", "/how-it-works", "/about", "/get-a-key"];
 
 // Refreshes the Supabase session cookie and sends signed-out users to /login (the landing pages and a few others are open to everyone).
 export async function proxy(request: NextRequest) {

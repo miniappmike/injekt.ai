@@ -6,7 +6,7 @@ import { TO_AUTH } from "./stage";
 
 /** Frosted glass over the crimson backdrop: dark enough that text on it reads anywhere on the page. */
 export const GLASS =
-  "rounded-3xl border border-white/12 bg-[rgb(14_3_8/0.55)] shadow-[inset_0_1px_0_rgb(255_255_255/0.1),0_24px_60px_-30px_rgb(0_0_0/0.9)] backdrop-blur-2xl";
+  "rounded-3xl border border-white/12 bg-[rgb(14_3_8/0.62)] shadow-[inset_0_1px_0_rgb(255_255_255/0.1),0_24px_60px_-30px_rgb(0_0_0/0.9)] backdrop-blur-2xl";
 
 /** The white pill that opens sign-up (same button as the form's own). */
 export function JoinButton({ children = "Join Now", className, arrow = false }: { children?: React.ReactNode; className?: string; arrow?: boolean }) {
@@ -41,15 +41,15 @@ export function GhostLink({ href, children, className }: { href: string; childre
 }
 
 export function Eyebrow({ children }: { children: React.ReactNode }) {
-  return <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-300">{children}</p>;
+  return <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-300 [text-shadow:0_1px_12px_rgb(10_2_6/0.9)]">{children}</p>;
 }
 
 export function SectionHeading({ eyebrow, title, body, className }: { eyebrow: string; title: React.ReactNode; body?: React.ReactNode; className?: string }) {
   return (
     <div className={cn("max-w-2xl", className)}>
       <Eyebrow>{eyebrow}</Eyebrow>
-      <h2 className="mt-3 text-3xl font-bold leading-[1.1] tracking-tight text-white sm:text-4xl">{title}</h2>
-      {body && <p className="mt-4 text-[15px] leading-relaxed text-white/75 sm:text-base">{body}</p>}
+      <h2 className="mt-3 text-3xl font-bold leading-[1.1] tracking-tight text-white [text-shadow:0_2px_28px_rgb(10_2_6/0.7)] sm:text-4xl">{title}</h2>
+      {body && <p className="mt-4 text-[15px] leading-relaxed text-white/85 [text-shadow:0_1px_16px_rgb(10_2_6/0.8)] sm:text-base">{body}</p>}
     </div>
   );
 }
