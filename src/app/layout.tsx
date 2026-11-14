@@ -1,4 +1,5 @@
 import "./globals.css";
+import { BootSplash } from "@/components/boot-splash";
 import { Bebas_Neue, Exo_2, Inter } from "next/font/google";
 
 // Each page names itself ("Inject"); the browser tab shows "Inject | ModelSpawn".
@@ -13,7 +14,10 @@ const bebas = Bebas_Neue({ subsets: ["latin"], weight: "400", variable: "--font-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${exo.variable} ${bebas.variable}`}>
-      <body className="bg-neutral-950 text-neutral-100 antialiased">{children}</body>
+      <body className="bg-neutral-950 text-neutral-100 antialiased">
+        <BootSplash />
+        {children}
+      </body>
     </html>
   );
 }
