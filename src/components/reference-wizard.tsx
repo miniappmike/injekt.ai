@@ -70,6 +70,14 @@ const STEPS = [
   { id: 4, label: "Reference sheet", short: "Result" },
 ] as const;
 
+/** Where to make a face photo when she doesn't have one yet (opens in a new tab). */
+const FACE_MAKERS = [
+  { name: "Midjourney", href: "https://www.midjourney.com/" },
+  { name: "This Person Not Exist", href: "https://thispersonnotexist.org/" },
+  { name: "Gemini", href: "https://gemini.google.com/" },
+  { name: "ChatGPT", href: "https://chatgpt.com/" },
+];
+
 /** The progress line across the top: numbered steps, done ones ticked and tappable to go back. */
 function Stepper({ step, reached, onGo }: { step: number; reached: number; onGo: (n: number) => void }) {
   return (
@@ -341,6 +349,17 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
             photo={facePhoto}
             onPick={(f) => void pickFacePhoto(f)}
           />
+
+          {!facePhoto && (
+            <p className="-mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-xs text-neutral-500">
+              <span>No face yet? Make one with</span>
+              {FACE_MAKERS.map((m) => (
+                <a key={m.name} href={m.href} target="_blank" rel="noopener noreferrer" className="rounded-full border border-neutral-700 px-2.5 py-1 font-medium text-neutral-300 transition-colors hover:border-neutral-500 hover:text-neutral-50">
+                  {m.name}
+                </a>
+              ))}
+            </p>
+          )}
 
           {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
           <Nav

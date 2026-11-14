@@ -40,7 +40,7 @@ export const FAQ_GROUPS: { title: string; items: Faq[] }[] = [
         a: (
           <>
             Five minutes or less. All you need to start is a face photo. We recommend <A href="https://www.midjourney.com">Midjourney</A> (every face is AI),{" "}
-            <A href="https://thispersondoesnotexist.com">This Person Does Not Exist</A> (free), <A href="https://gemini.google.com">Gemini</A> or{" "}
+            <A href="https://thispersonnotexist.org">This Person Does Not Exist</A> (free), <A href="https://gemini.google.com">Gemini</A> or{" "}
             <A href="https://chatgpt.com">ChatGPT</A> (free generation), or our own <A href="/art-to-real">Art to Real tool</A>, which turns an artwork into a real-looking influencer.
           </>
         ),
