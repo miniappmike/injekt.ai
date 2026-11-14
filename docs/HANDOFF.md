@@ -14,6 +14,7 @@ Live at injektai.vercel.app. Everything below this section is the older build hi
 section is right.
 
 **Fixes after the invites session**
+- Sign up still overflowed a 14-inch Chromebook (about 870px of page): on desktop windows 960px tall or less the auth form now also uses a smaller heading and tighter gaps (`auth-form.tsx`, `(auth)/layout.tsx`). Not checked in a browser.
 - Pro tips in the FAQ are now a highlighted pink badge on their own line under the plain answer, holding the tip text itself (no "Pro tip" label): `ProTip` in `src/lib/faq.tsx`.
 - **Pin It rotates (migration 0028 `pin_cursor` must be run).** When a character has 5 reference photos, each pin replaces the next one in turn (1st, 2nd, ... 5th, then the 1st), still behind the confirmation box, which names the photo. The cursor is `characters.pin_cursor`; until the migration is run it replaces photo 1 every time. Replacing photo 1 changes her cover picture.
 - Removed "coming soon" checkout wording (FAQ sentence, pay-button fallback now says checkout isn't available right now, a code comment). **Marketplace persona Buy still only shows "Checkout is being set up."**: only Pro and token packs are built in `startCheckout`, so that toast is true; `docs/PRICING.md` still lists persona purchase as not built.

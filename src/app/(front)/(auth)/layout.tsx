@@ -20,7 +20,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               <X aria-hidden="true" className="h-5 w-5" />
             </Link>
           </div>
-          <div className="flex flex-1 flex-col pb-10 pt-14 sm:justify-center sm:pt-10 lg:max-w-[26rem] [@media(max-height:960px)]:lg:pb-4 [@media(max-height:960px)]:lg:pt-2">{children}</div>
+          <div className="flex flex-1 flex-col pb-10 pt-14 sm:justify-center sm:pt-10 lg:max-w-[26rem] [@media(max-height:960px)]:lg:pb-2 [@media(max-height:960px)]:lg:pt-0">{children}</div>
           <p className="text-xs leading-relaxed text-white/75 lg:max-w-[26rem]">
             By continuing, you agree to ModelSpawn&apos;s{" "}
             <Link href="/terms" className="text-white/85 underline underline-offset-2 hover:text-white">Terms of Service</Link>{" "}
