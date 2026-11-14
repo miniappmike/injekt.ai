@@ -27,7 +27,7 @@ export function CharacterCard({ c, canList = false }: { c: CharacterCardData; ca
       <Link href={`/characters/${c.id}`} tabIndex={-1} aria-hidden="true" className="relative block aspect-[4/3] isolate overflow-hidden bg-neutral-800 max-sm:aspect-[4/5]">
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt="" className="h-full w-full object-cover object-top transition-transform duration-500 will-change-transform group-hover:scale-105" />
+          <img src={cover} alt="" className="h-full w-full object-cover object-top transition-transform duration-500 will-change-transform [mask-image:linear-gradient(to_bottom,#000_78%,transparent_100%)] group-hover:scale-105" />
         ) : (
           <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_30%_20%,rgb(232_38_94/0.25),transparent_60%),radial-gradient(circle_at_80%_80%,rgb(91_91_246/0.2),transparent_60%)] text-xs text-neutral-400">
             <span className="max-sm:hidden">No reference images yet</span>
