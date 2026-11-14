@@ -22,8 +22,8 @@ export const BOT_COMMANDS = [
   { command: "invite", description: "Invite a friend" },
   { command: "discord", description: "Join the community" },
   { command: "terms", description: "Terms of Service and Privacy Policy" },
-  { command: "support", description: "Help with a payment" },
-  { command: "paysupport", description: "Help with a payment" },
+  { command: "support", description: "Help using ModelSpawn" },
+  { command: "paysupport", description: "A payment didn't arrive or went wrong" },
 ] as const;
 
 const TOOL_LINES: Record<string, string> = {
@@ -56,7 +56,8 @@ export function commandReply(command: string, site: string): Reply | null {
           "/key · get your own API key",
           "/invite · invite a friend",
           "/discord · the community",
-          "/support · help with a payment",
+          "/support · help using ModelSpawn",
+          "/paysupport · a payment went wrong",
           "/terms · terms and privacy",
           "",
           "To pay with Stars, start a purchase on the site and it opens here.",
@@ -106,8 +107,15 @@ export function commandReply(command: string, site: string): Reply | null {
     case "/terms":
       return { text: `Terms of Service: ${site}/terms\nPrivacy Policy: ${site}/privacy` };
     case "/support":
+      return {
+        text: `Need help using ModelSpawn? The FAQ answers most questions, the Discord has other users who can help, or email ${CONTACT_EMAIL}.\n\nProblem with a payment? Use /paysupport.`,
+        buttons: [{ text: "Read the FAQ", url: `${site}/#faq` }, { text: "Join the Discord", url: DISCORD_URL }],
+      };
     case "/paysupport":
-      return { text: `For help with a payment, email ${CONTACT_EMAIL} with your Telegram payment receipt. All sales are final (see /terms).` };
+      return {
+        text: `Payment problem? Tokens and Pro normally arrive within a minute. Check your balance on the Tokens page first.\n\nStill missing? Email ${CONTACT_EMAIL} with your Telegram payment receipt (open the payment message, then tap the receipt). All sales are final (see /terms).`,
+        buttons: [{ text: "Check my tokens", url: `${site}/tokens` }],
+      };
     default:
       return null;
   }

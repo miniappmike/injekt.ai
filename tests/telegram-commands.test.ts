@@ -36,10 +36,16 @@ describe("bot commands", () => {
     expect(text.match(/Inject/g)).toHaveLength(1);
   });
 
-  it("/terms and /support keep their old answers", () => {
+  it("/support is general help and /paysupport is about payments, so they differ", () => {
     expect(commandReply("/terms", SITE)?.text).toContain(`${SITE}/terms`);
-    expect(commandReply("/support", SITE)?.text).toContain("modelspawn@gmail.com");
-    expect(commandReply("/paysupport", SITE)?.text).toEqual(commandReply("/support", SITE)?.text);
+    const support = commandReply("/support", SITE);
+    const pay = commandReply("/paysupport", SITE);
+    expect(support?.text).toContain("FAQ");
+    expect(support?.text).toContain("/paysupport");
+    expect(pay?.text).toContain("receipt");
+    expect(pay?.text).toContain("modelspawn@gmail.com");
+    expect(support?.text).not.toEqual(pay?.text);
+    expect(BOT_COMMANDS.find((c) => c.command === "support")?.description).not.toEqual(BOT_COMMANDS.find((c) => c.command === "paysupport")?.description);
   });
 
   it("reads the command word from messy text and ignores unknown ones", () => {

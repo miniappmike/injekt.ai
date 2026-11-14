@@ -16,7 +16,9 @@ section is right.
 **Telegram bot: commands and deployment alerts (November 14 evening)**
 - **Commands** (`src/lib/telegram-commands.ts`, pure and tested in `tests/telegram-commands.test.ts`; wired in
   `handleTelegramUpdate`): /start, /help, /tools, /tokens (packs with dollar and Stars prices, read from `plans.ts`),
-  /pro, /key, /invite, /discord, /terms, /support, /paysupport. Answers carry link buttons to the matching site page
+  /pro, /key, /invite, /discord, /terms, /support (general help: FAQ, Discord, email) and /paysupport (payment
+  problems: check Tokens, then email with the receipt; Telegram expects this command on a payment bot, so it stays,
+  but it no longer duplicates /support). Answers carry link buttons to the matching site page
   (if Telegram refuses the buttons the text is still sent). Unknown commands and private-chat text get "type /help".
   The bot does not know which site account a chat belongs to, so there is no balance or history command; that needs
   an account-link flow (a one-time code like the admin alerts' `alerts_<code>`, plus a button on the site). Not built.
