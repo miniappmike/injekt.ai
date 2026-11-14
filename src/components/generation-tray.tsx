@@ -116,8 +116,9 @@ export function GenerationTray() {
       >
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-medium">
-            On this page: {items.length} image{items.length === 1 ? "" : "s"}
-            {running > 0 && <span className="font-normal text-neutral-400"> · {running} generating</span>}
+            <span className={collapsed ? "max-sm:hidden" : ""}>On this page: </span>{items.length} image{items.length === 1 ? "" : "s"}
+            {running > 0 && <span className={`font-normal text-neutral-400 ${collapsed ? "max-sm:hidden" : ""}`}> · {running} generating</span>}
+            {collapsed && running > 0 && <span aria-hidden="true" className="ml-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-brand-400 sm:hidden" />}
           </p>
           <div className="flex gap-1">
             <Button type="button" size="sm" variant="ghost" className={collapsed ? "max-sm:hidden" : ""} onClick={() => openHistory("images")}>All images</Button>
