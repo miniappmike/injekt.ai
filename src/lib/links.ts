@@ -17,3 +17,6 @@ export const CONTACT_EMAIL = "modelspawn@gmail.com";
 
 /** The how-to-pay-with-Telegram guide. */
 export const TELEGRAM_GUIDE_PATH = "/guides/telegram-payments";
+
+/** The community Discord: feature requests and help from other users. */
+export const DISCORD_URL = "https://discord.gg/qHNYqCW7fc";

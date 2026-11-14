@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { CONTACT_EMAIL } from "@/lib/links";
+import { CONTACT_EMAIL, DISCORD_URL } from "@/lib/links";
 import { TO_AUTH } from "./stage";
 
 const LINKS = [
@@ -25,6 +25,7 @@ export function SiteFooter() {
           {LINKS.map((l) => (
             <Link key={l.href} href={l.href} className="text-[13px] text-white/75 transition-colors hover:text-white">{l.label}</Link>
           ))}
+          <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="text-[13px] text-white/75 transition-colors hover:text-white">Discord</a>
           <Link href="/login" transitionTypes={TO_AUTH} className="text-[13px] text-white/75 transition-colors hover:text-white">Log In</Link>
         </nav>
       </div>

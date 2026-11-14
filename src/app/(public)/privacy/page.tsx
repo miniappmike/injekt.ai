@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BackButton } from "@/components/back-button";
 import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
-import { CONTACT_EMAIL } from "@/lib/links";
+import { CONTACT_EMAIL, DISCORD_URL } from "@/lib/links";
 import { PRIVACY_UPDATED } from "@/lib/legal";
 
 export const metadata: Metadata = { title: "Privacy Policy" };
@@ -76,7 +76,7 @@ export default async function PrivacyPage({ searchParams }: { searchParams: Prom
       <h3 className={h3}>Technical information</h3>
       <ul className={ul}>
         <li>Your IP address is used briefly to limit abuse (for example, how many requests can be made per minute) and appears in our hosting provider&apos;s standard request logs.</li>
-        <li>Emails you send us, if you contact support.</li>
+        <li>Emails you send us, if you contact support or ask about another way to pay.</li>
       </ul>
 
       <h2 className={h2}>2. Cookies and browser storage</h2>
@@ -115,6 +115,11 @@ export default async function PrivacyPage({ searchParams }: { searchParams: Prom
         </li>
         <li><b className={b}>Rate-limiting service</b>: may receive your account ID or IP address to count requests.</li>
         <li>
+          <b className={b}>Discord</b>: our community server is run by Discord. If you join, what you post there is visible to other members and handled under
+          Discord&apos;s own policy. We don&apos;t link your Discord account to your ModelSpawn account.{" "}
+          <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-400 underline-offset-4 hover:text-brand-300 hover:underline">Join here</a>.
+        </li>
+        <li>
           <b className={b}>Authorities</b>: when the law requires it, or to report illegal content such as child sexual abuse material or non-consensual intimate imagery.
         </li>
       </ul>
@@ -122,7 +127,10 @@ export default async function PrivacyPage({ searchParams }: { searchParams: Prom
       <h2 className={h2}>5. How long we keep it</h2>
       <ul className={ul}>
         <li>Generated images: deleted automatically {GENERATION_RETENTION_HOURS} hours after they&apos;re made.</li>
-        <li>Characters, uploads, saved outfits and prompt history: until you delete them, or your account is deleted.</li>
+        <li>
+          Characters, uploads, saved outfits and prompt history: until you delete them, or your account is deleted. Deleting a character deletes her photos, her
+          reference sheets and the images pinned to her.
+        </li>
         <li>Token balances, token history, the AI-call ledger and daily usage: deleted with your account.</li>
         <li>
           Order and marketplace sale records, and first-month bonus records (the normalised email and hashes): kept after an account is deleted, without the link to
@@ -149,6 +157,14 @@ export default async function PrivacyPage({ searchParams }: { searchParams: Prom
       <h2 className={h2}>7. Security</h2>
       <ul className={ul}>
         <li>Data is encrypted in transit. Files are kept in private storage that only your account can reach, and your own API keys are encrypted.</li>
+        <li>
+          <b className={b}>Who can see your pictures.</b> Only you. Our admin tools show account details (email, plan, tokens, orders, usage and the IDs of your
+          characters), not your pictures, and nobody on our team looks through them. The exceptions are a takedown or abuse report, or a legal duty, where we may
+          need to look at the content concerned.
+        </li>
+        <li>
+          Automated checks: an image you pin to a character&apos;s reference photos is checked by an AI model for nudity before it&apos;s saved. No person sees it.
+        </li>
         <li>No system is perfectly secure, so please use a strong, unique password.</li>
       </ul>
 
