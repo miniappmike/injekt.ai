@@ -4,15 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-
-const TABS = [
-  { href: "/inject", label: "Inject" },
-  { href: "/director", label: "Director" },
-  { href: "/variants", label: "Variants" },
-  { href: "/reference-sheet", label: "Create Model" },
-  { href: "/characters", label: "Characters" },
-  { href: "/marketplace", label: "Marketplace" },
-];
+import { NAV as TABS } from "@/lib/nav";
 
 export function MainNav() {
   const pathname = usePathname();
