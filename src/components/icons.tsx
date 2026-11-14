@@ -11,8 +11,25 @@ export const VariantsIcon = ({ className }: P) => (
 export const LikenessIcon = ({ className }: P) => (
   <svg {...base(className)}><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="11" r="3.2" /><path d="M7.8 17c.9-1.6 2.4-2.4 4.2-2.4s3.3.8 4.2 2.4" /></svg>
 );
+/**
+ * Create Model: one solid person with a circled plus at the lower right, so it reads differently from the outlined
+ * pair of Characters. The person is cut away around the badge.
+ */
 export const CreateModelIcon = ({ className }: P) => (
-  <svg {...base(className)}><circle cx="10" cy="8.5" r="3.6" /><path d="M3.5 20c.9-3.6 3.4-5.6 6.5-5.6 1.6 0 3 .5 4.1 1.4" /><path d="M18.5 13.5v6M15.5 16.5h6" /></svg>
+  <svg {...base(className)}>
+    <defs>
+      <mask id="create-model-cut">
+        <rect width="24" height="24" fill="white" stroke="none" />
+        <circle cx="17.2" cy="17.2" r="6.4" fill="black" stroke="none" />
+      </mask>
+    </defs>
+    <g mask="url(#create-model-cut)" className="fill-current" stroke="none">
+      <circle cx="10" cy="7.2" r="4.2" />
+      <path d="M2.5 21.5v-2.6c0-3.6 3.4-6.3 7.5-6.3s7.5 2.7 7.5 6.3v2.6z" />
+    </g>
+    <circle cx="17.2" cy="17.2" r="4.6" />
+    <path d="M17.2 14.9v4.6M14.9 17.2h4.6" />
+  </svg>
 );
 export const CharactersIcon = ({ className }: P) => (
   <svg {...base(className)}><circle cx="9" cy="9" r="3.2" /><path d="M3.5 19c.9-3 3-4.6 5.5-4.6s4.6 1.6 5.5 4.6" /><path d="M15.5 6.2a3 3 0 0 1 0 5.6M17.5 14.8c1.4.7 2.4 2.1 3 4.2" /></svg>
