@@ -20,13 +20,14 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
     links: [
       { label: "Marketplace", href: "/marketplace" },
       { label: "Art to Real", href: "/art-to-real" },
-      { label: "Group photo", href: "/characters" },
+      { label: "Group photo", href: "/characters#group" },
       { label: "Likeness check", href: "/likeness" },
     ],
   },
   {
     title: "Account",
     links: [
+      { label: "Home", href: "/home" },
       { label: "Get Tokens", href: "/tokens" },
       { label: "Upgrade to Pro", href: "/upgrade" },
       { label: "Characters", href: "/characters" },

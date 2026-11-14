@@ -24,6 +24,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 const inMore = (path: string) => DOCK_MORE.some((m) => !m.href.includes("#") && path.startsWith(m.href));
 
 const TITLES: [RegExp, string][] = [
+  [/^\/home/, "Home"],
   [/^\/marketplace/, "Marketplace"],
   [/^\/characters\/new/, "New character"],
   [/^\/characters\/./, "Character"],
@@ -57,13 +58,13 @@ export function MobileTitle() {
         <button
           type="button"
           aria-label="Back"
-          onClick={() => (history.length > 1 ? router.back() : router.push("/characters"))}
+          onClick={() => (history.length > 1 ? router.back() : router.push("/home"))}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-neutral-800 bg-neutral-900 text-neutral-200 transition-transform active:scale-95"
         >
           <BackIcon />
         </button>
       ) : (
-        <Link href="/characters" aria-label="ModelSpawn home" className="-ml-1 flex h-10 w-9 shrink-0 items-center justify-center max-[379px]:hidden">
+        <Link href="/home" aria-label="ModelSpawn home" className="-ml-1 flex h-10 w-9 shrink-0 items-center justify-center max-[379px]:hidden">
           <Logo withName={false} small />
         </Link>
       )}

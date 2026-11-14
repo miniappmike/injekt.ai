@@ -17,7 +17,7 @@ export function AppHeader({ email, admin = false }: { email: string; admin?: boo
           <MobileTitle />
         </div>
         <div className="flex min-w-0 max-w-full flex-wrap items-center justify-center gap-x-6 max-sm:hidden">
-          <Link href="/characters" aria-label="ModelSpawn home" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60">
+          <Link href="/home" aria-label="ModelSpawn home" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60">
             <Logo />
           </Link>
           <MainNav />

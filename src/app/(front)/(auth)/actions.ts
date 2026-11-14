@@ -53,5 +53,5 @@ export async function signup(_: AuthState, formData: FormData): Promise<AuthStat
 
   // With email confirmation on, there is no session yet.
   if (!data.session) return { message: "Check your email to confirm your account, then log in." };
-  redirect("/characters");
+  redirect("/home");
 }

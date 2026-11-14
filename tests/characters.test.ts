@@ -38,8 +38,8 @@ describe("parseProfile", () => {
 describe("safeNext", () => {
   it("allows relative paths only", () => {
     expect(safeNext("/inject")).toBe("/inject");
-    expect(safeNext("//evil.com")).toBe("/characters");
-    expect(safeNext("https://evil.com")).toBe("/characters");
-    expect(safeNext(null)).toBe("/characters");
+    expect(safeNext("//evil.com")).toBe("/home");
+    expect(safeNext("https://evil.com")).toBe("/home");
+    expect(safeNext(null)).toBe("/home");
   });
 });

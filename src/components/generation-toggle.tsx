@@ -25,7 +25,7 @@ export function GenerationToggle({ enabled, ownKey }: { enabled: boolean; ownKey
     router.refresh();
   }
 
-  const pays = ownKey ? "your own Image key (Pro)" : `credits: ${IMAGE_CREDITS["1k"]}, ${IMAGE_CREDITS["1.5k"]} or ${IMAGE_CREDITS["2k"]} per image at 1k, 1.5k or 2k`;
+  const pays = ownKey ? "your own Image key (Pro)" : `tokens: ${IMAGE_CREDITS["1k"]}, ${IMAGE_CREDITS["1.5k"]} or ${IMAGE_CREDITS["2k"]} per image at 1k, 1.5k or 2k`;
   return (
     <section id="image-generation" className="panel flex scroll-mt-28 flex-col gap-3 p-5" aria-labelledby="gen-title">
       <div className="flex flex-wrap items-center justify-between gap-3">

@@ -1,6 +1,8 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, type RefObject } from "react";
+import { takeStashedFiles } from "@/lib/handoff";
 
 /**
  * Ctrl+V for images, page-wide. Every image box registers with `usePasteTarget`. A paste while a box is focused goes
@@ -60,6 +62,20 @@ export function nearestTarget(targets: HTMLElement[], x: number, y: number): HTM
 
 /** Mounted once in the app layout. */
 export function PasteRouter() {
+  const pathname = usePathname();
+  // Photos handed over from the page before (the dashboard's drop zone): give them to this page's first image box,
+  // waiting a moment for it to appear.
+  useEffect(() => {
+    const files = takeStashedFiles();
+    if (!files.length) return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      const el = document.querySelector<HTMLElement>(`[${ATTR}="on"]`);
+      if (el) el.dispatchEvent(new CustomEvent(EVENT, { detail: files }));
+      if (el || ++tries > 40) clearInterval(timer);
+    }, 100);
+    return () => clearInterval(timer);
+  }, [pathname]);
   useEffect(() => {
     let mouse: { x: number; y: number } | null = null;
     const move = (e: PointerEvent) => {

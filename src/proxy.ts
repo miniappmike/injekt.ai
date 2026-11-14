@@ -40,7 +40,7 @@ export async function proxy(request: NextRequest) {
 
   if (user && (pathname === "/" || pathname === "/login" || pathname === "/signup")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/characters";
+    url.pathname = "/home";
     url.search = "";
     return NextResponse.redirect(url);
   }

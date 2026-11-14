@@ -24,9 +24,9 @@ interface DirectorCharacter {
  * Director: she is picked, the shot is described in plain words, and Generate does the rest. The prompt is written on
  * the server and never shown; her face sheet and body sheet always go with it as @image1 and @image2.
  */
-export function DirectorTool({ characters }: { characters: DirectorCharacter[] }) {
+export function DirectorTool({ characters, initialCharacterId }: { characters: DirectorCharacter[]; initialCharacterId?: string }) {
   const generation = useGeneration();
-  const [characterId, setCharacterId] = useState(characters.find((c) => c.ready)?.id ?? characters[0].id);
+  const [characterId, setCharacterId] = useState(initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id);
   const [direction, setDirection] = useState("");
   // Inject realism: on unless turned off, and remembered in this browser.
   const [realism, setRealism] = useState(true);
