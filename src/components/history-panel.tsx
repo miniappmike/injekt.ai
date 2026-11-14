@@ -232,9 +232,9 @@ export function HistoryPanel() {
         aria-haspopup="dialog"
         aria-label="History"
         title="History"
-        className={"group fixed bottom-[calc(var(--tray-h,0px)+1.5rem)] right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-600 text-white shadow-[0_12px_32px_-10px_rgb(232_38_94/0.85),0_4px_12px_-4px_rgb(0_0_0/0.7)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_16px_40px_-10px_rgb(232_38_94/0.95),0_4px_12px_-4px_rgb(0_0_0/0.7)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/40 active:scale-95 max-sm:bottom-[calc(var(--tray-h,0px)+max(5.5rem,calc(env(safe-area-inset-bottom)+4.75rem)))] max-sm:right-4 max-sm:h-[3.25rem] max-sm:w-[3.25rem] [.sheet-open_&]:pointer-events-none [.sheet-open_&]:scale-75 [.sheet-open_&]:opacity-0"}
+        className={"group fixed bottom-[calc(var(--tray-h,0px)+1.5rem)] right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-600 text-white shadow-[0_12px_32px_-10px_rgb(232_38_94/0.85),0_4px_12px_-4px_rgb(0_0_0/0.7)] ring-1 ring-white/15 transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_16px_40px_-10px_rgb(232_38_94/0.95),0_4px_12px_-4px_rgb(0_0_0/0.7)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/40 active:scale-95 max-sm:hidden [.sheet-open_&]:pointer-events-none [.sheet-open_&]:scale-75 [.sheet-open_&]:opacity-0"}
       >
-        <ScrollQuillIcon className="h-7 w-7 transition-transform duration-200 group-hover:-rotate-6 max-sm:h-6 max-sm:w-6" />
+        <ScrollQuillIcon className="h-7 w-7 transition-transform duration-200 group-hover:-rotate-6" />
       </button>,
           document.body,
         )}

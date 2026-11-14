@@ -89,17 +89,21 @@ export function UsageMeterView({ s, startOpen = false }: { s: DailyStatus; start
         <Link
           href="/tokens"
           aria-label={`${credits} tokens${pro ? ", Pro" : ""}. Buy tokens`}
-          className="flex h-full items-center gap-2 rounded-l-lg pl-2.5 pr-1.5 transition-colors hover:bg-neutral-800 hover:text-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 max-sm:rounded-l-xl max-sm:pl-3"
+          className="flex h-full items-center gap-2 rounded-l-lg pl-2.5 pr-1.5 transition-colors hover:bg-neutral-800 hover:text-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 max-sm:rounded-l-xl max-sm:pl-2.5"
         >
           <TokenIcon className="h-[18px] w-[18px]" />
-          <span className={cn("font-semibold tabular-nums", low ? "text-amber-200" : "text-white")}>{credits.toLocaleString()}</span>
+          {/* Phones shorten a big balance ("1.1K") so the page's name beside it isn't cut off. */}
+          <span className={cn("font-semibold tabular-nums", low ? "text-amber-200" : "text-white")}>
+            <span className="max-sm:hidden">{credits.toLocaleString()}</span>
+            <span className="sm:hidden">{credits < 1000 ? credits : new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(credits)}</span>
+          </span>
         </Link>
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-label="Token details"
-          className="grid h-full w-7 place-items-center rounded-r-lg text-neutral-500 transition-colors hover:bg-neutral-800 hover:text-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 max-sm:rounded-r-xl max-sm:w-8"
+          className="grid h-full w-7 place-items-center rounded-r-lg text-neutral-500 transition-colors hover:bg-neutral-800 hover:text-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 max-sm:rounded-r-xl max-sm:w-6"
         >
           <svg viewBox="0 0 20 20" aria-hidden="true" className={cn("h-3.5 w-3.5 fill-none stroke-current transition-transform", open && "rotate-180")} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 8l5 5 5-5" /></svg>
         </button>
