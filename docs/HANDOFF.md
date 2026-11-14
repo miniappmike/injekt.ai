@@ -28,7 +28,8 @@ section is right.
   finishes. Route `/api/webhooks/deploy`, logic `src/lib/deploy-alerts.ts`, tests `tests/deploy-alerts.test.ts`,
   secret `DEPLOY_WEBHOOK_SECRET`. Sender is a Vercel webhook (Pro/Enterprise only) or a GitHub webhook with the
   "Deployment statuses" event (any plan, what the owner uses). First 401s were a secret mismatch between GitHub and
-  the env var.
+  the env var. The GitHub webhook must have only "Deployment statuses" ticked (not Pushes) and a deploy must happen after saving it; Vercel
+  reports preview builds as well, so a branch push is a valid test.
 
 **Fixes after the invites session**
 - Character card seam, third attempt: the picture itself now fades to transparent over its bottom 22% (a CSS mask on the `<img>`), so whatever the browser does at that edge during the hover lift/zoom, it is dark card background and not the photo. Cause never reproduced (the owner's Chromebook only). If it still shows, ask for a screenshot of the line while hovering and try removing the card's lift (`hover:-translate-y-1`) first.
