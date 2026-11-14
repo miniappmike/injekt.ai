@@ -10,15 +10,16 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/how-it-works", label: "How It Works" },
   { href: "/about", label: "About" },
+  { href: "/marketplace", label: "Marketplace" },
 ];
 
-/** The floating glass bar on the landing pages: logo, the few pages there are, Log In and Join Now. */
+/** The floating glass bar on every page a signed-out visitor can open: logo, the few pages there are, Log In and Join Now. */
 export function SiteHeader() {
   const pathname = usePathname();
   const links = (className: string) => (
     <nav aria-label="Pages" className={className}>
       {LINKS.map((l) => {
-        const on = pathname === l.href;
+        const on = l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
         return (
           <Link
             key={l.href}
@@ -36,7 +37,9 @@ export function SiteHeader() {
     </nav>
   );
   return (
-    <header className="sticky top-0 z-20 px-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-[calc(env(safe-area-inset-top)+1rem)]">
+    <header className="sticky top-0 z-20 px-3 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-[calc(env(safe-area-inset-top)+1rem)]">
+      {/* A dark fade behind the bar, so page text scrolling under it doesn't show around the pills. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[calc(100%+1.5rem)] bg-[linear-gradient(to_bottom,rgb(13_3_8/0.96)_0%,rgb(13_3_8/0.9)_55%,transparent_100%)]" />
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 rounded-full border border-white/12 bg-[rgb(14_3_8/0.6)] pl-4 pr-2 shadow-[inset_0_1px_0_rgb(255_255_255/0.1),0_18px_40px_-24px_rgb(0_0_0/0.9)] backdrop-blur-2xl sm:pl-5">
         <Link href="/" aria-label="ModelSpawn home" className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 max-[379px]:[&_.font-display]:hidden">
           <Logo />
@@ -61,7 +64,7 @@ export function SiteHeader() {
       </div>
       {/* On a phone the page links sit in their own small bar under the main one. */}
       <div className="mt-2 flex justify-center md:hidden">
-        {links("flex items-center gap-1 rounded-full border border-white/12 bg-[rgb(14_3_8/0.6)] p-1 backdrop-blur-2xl")}
+        {links("no-scrollbar flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-white/12 bg-[rgb(14_3_8/0.6)] p-1 backdrop-blur-2xl max-[399px]:[&_a]:px-2.5")}
       </div>
     </header>
   );

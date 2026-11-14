@@ -38,6 +38,16 @@ export function CharactersBoard({ characters, canList, atLimit, limitText }: { c
     }
   }, [generation]);
 
+  // "Group photo" in the More menu opens this page at #group: go straight to picking.
+  useEffect(() => {
+    const fromLink = () => {
+      if (location.hash === "#group" && canGroup) setPicking(true);
+    };
+    fromLink();
+    window.addEventListener("hashchange", fromLink);
+    return () => window.removeEventListener("hashchange", fromLink);
+  }, [canGroup]);
+
   const stop = useCallback(() => {
     setPicking(false);
     setComposing(false);
