@@ -135,6 +135,8 @@ unpaid orders older than 3 days, cancelled or failed orders older than 24 hours.
   `src/app/auth/pv-*`; either way nothing temporary is committed.
 - Work goes on a branch and reaches `main` only when the owner says so. Pushing to `main` deploys to production.
 - The owner works on a Chromebook: give browser-based instructions, never Windows apps.
+- `CLAUDE.md` says to read only the context a task needs and to pick skills through the Alyn MCP (unless Alyn is
+  already used automatically).
 - One test file (`tests/inject-two-sheets.test.ts`) can't load without the server env vars; that is expected locally.
 
 ## Product
