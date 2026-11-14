@@ -14,6 +14,7 @@ Live at injektai.vercel.app. Everything below this section is the older build hi
 section is right.
 
 **Fixes after the invites session**
+- Characters page hover seam: the card's fade now extends 1px past the picture's bottom edge and the picture is on its own layer (`character-card.tsx`), to hide a sub-pixel line that showed while the card lifts and the image zooms. Not verified in a browser; check on the Chromebook.
 - Payment links: `openPayment` (`src/lib/payment-tab.ts`) now replaces the reserved tab's address inside try/catch, then tries a fresh `window.open(url, "_blank")`, and only then navigates this tab. Cause of the on-tab behaviour was not reproduced (suspected: ChromeOS Chrome losing the blank reserved tab); needs checking on the owner's Chromebook.
 - Token count blinking after page changes: the header remounts per page, so `UsageMeter` now starts from the last loaded balance (module-level cache) instead of rendering nothing until the fetch returns.
 
