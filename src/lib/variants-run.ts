@@ -15,6 +15,7 @@ import {
   carouselSlidePrompt,
   dimText,
   finishVariant,
+  sceneLine,
   locksOutfit,
   parseCarousel,
   slideCopyText,
@@ -131,14 +132,15 @@ export async function runVariants(
     [input.imagePath, ...extraPaths].map((path) => ({ label: "image", path })),
     Math.min(EDGE, imageMaxEdge ?? EDGE),
   );
-  const raw = (await askJson(client, { prompt, images: images.map((x) => x.dataUri) })) as { variants?: unknown; outfit?: unknown };
+  const raw = (await askJson(client, { prompt, images: images.map((x) => x.dataUri) })) as { variants?: unknown; outfit?: unknown; scene?: unknown };
   // Without an outfit or colour change, every prompt carries the same outfit description, word for word.
   const outfit = lockOutfit && typeof raw?.outfit === "string" ? raw.outfit.trim() : "";
+  const scene = sceneLine(raw?.scene);
   const list = (Array.isArray(raw?.variants) ? raw.variants : [])
     .filter((v): v is Record<string, unknown> => !!v && typeof v === "object" && typeof v.prompt === "string" && !!v.prompt.trim())
     .slice(0, n);
   if (!list.length) throw new UserFacingError("The model did not write any variants. Try again.");
-  const variants = list.map((v) => ({ label: String(v.label || "Variant").slice(0, 40), changes: String(v.changes || "").slice(0, 80), prompt: finishVariant(String(v.prompt), vt, so, extra, outfit, !!palette, dims) }));
+  const variants = list.map((v) => ({ label: String(v.label || "Variant").slice(0, 40), changes: String(v.changes || "").slice(0, 80), prompt: finishVariant(String(v.prompt), vt, so, extra, outfit, !!palette, dims, scene) }));
 
   const variantIds = await saveHistory(
     supabase,

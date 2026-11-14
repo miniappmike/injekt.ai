@@ -4,6 +4,7 @@ import {
   carouselSlidePrompt,
   dimText,
   finishVariant,
+  sceneLine,
   parseCarousel,
   slideCopyText,
   variantPrompt,
@@ -57,7 +58,7 @@ describe("variantPrompt (A11)", () => {
     expect(p).toContain("Never remove, lighten or change it, except exactly as the user's creative direction below asks.");
     expect(p).toContain("- Avoid these recently used poses: sitting on stairs.");
     expect(p).toContain("<<<make it bare-faced  please>>>");
-    expect(p.endsWith('Reply with only JSON: {"variants": [{"label": "2 to 4 word name, e.g. Low angle laugh", "changes": "pose, angle", "prompt": "the edit prompt"}]}')).toBe(true);
+    expect(p.endsWith('Reply with only JSON: {"scene": {"light": "...", "shadows": "...", "glow": "...", "risk": "..."}, "variants": [{"label": "2 to 4 word name, e.g. Low angle laugh", "changes": "pose, angle", "prompt": "the edit prompt"}]}')).toBe(true);
   });
 });
 
@@ -237,7 +238,7 @@ describe("runVariants", () => {
     const { client } = db();
     const r = await runVariants(client, U, { imagePath: `${U}/t.jpg`, characterId: "c1", dims: ["pose", "angle"], count: 2 });
     expect(h.run.mock.calls[0][0].prompt).toContain("- OUTFIT LOCK: no edit changes the clothing.");
-    expect(h.run.mock.calls[0][0].prompt).toContain('{"outfit": ');
+    expect(h.run.mock.calls[0][0].prompt).toContain('"outfit": "the outfit in the image, garment by garment"');
     const line = "SAME OUTFIT: she wears exactly the outfit from @image2: a black vinyl mini skirt, red patent opera gloves, red platform ankle boots.";
     expect(r.variants.map((v) => v.prompt.includes(line))).toEqual([true, true]);
   });
@@ -410,5 +411,19 @@ describe("photoshoot edits follow their change", () => {
     expect(t).toContain("FOLLOW THE CHANGE ABOVE CLOSELY");
     expect(t).toContain("do not copy @image2's pose, framing and camera position");
     expect(finishVariant("Her hair is up.", vt, "", "", "", false, ["hair"])).not.toContain("FOLLOW THE CHANGE");
+  });
+});
+
+describe("scene read", () => {
+  it("asks for the read first and carries it into every edit that keeps the light", () => {
+    expect(variantPrompt(base)).toContain("SCENE READ FIRST");
+    const line = sceneLine({ light: "porch lamp above left, phone flash from the camera.", shadows: "short hard shadow behind her, long soft one on the steps to the right", glow: "none", risk: "contact shadows" });
+    expect(line).toBe("Light: porch lamp above left, phone flash from the camera. Shadows: short hard shadow behind her, long soft one on the steps to the right.");
+    expect(sceneLine(undefined)).toBe("");
+    expect(sceneLine({ light: "x".repeat(500), shadows: "s", glow: "pumpkins tint her legs orange" }).length).toBeLessThanOrEqual(330);
+    const vt = variantTags(1, true, 0);
+    expect(finishVariant("She sits.", vt, "", "", "", false, ["pose"], line)).toContain(`LIGHT FROM THE PHOTO (keep): ${line}`);
+    // An edit that may change the light or the scene doesn't pin the old one.
+    expect(finishVariant("She sits.", vt, "", "", "", false, ["pose", "light"], line)).not.toContain("LIGHT FROM THE PHOTO");
   });
 });
