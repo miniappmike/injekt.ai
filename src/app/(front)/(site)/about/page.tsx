@@ -26,7 +26,7 @@ import { dollars, PRO } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 
 export const metadata = {
-  title: "About | ModelSpawn",
+  title: "About",
   description: "Why ModelSpawn exists, what else is out there, and what you get here that you don't get elsewhere.",
 };
 

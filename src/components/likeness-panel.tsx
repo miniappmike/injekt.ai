@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { GenerateImage } from "@/components/generate-image";
 import { quickLikeness } from "@/app/(app)/likeness/actions";
 import type { QuickLikeness } from "@/lib/ai/prompts/likeness";
+import { tokenGate } from "@/components/out-of-tokens";
 
 /** An image to check or fix: a generated image, or an uploaded one. */
 export interface ImageRef {
@@ -72,7 +73,7 @@ export function LikenessPanel({ characterId, image, original, frame }: { charact
       usageChanged();
       if (!alive) return;
       if (r.ok) setState({ busy: false, result: r.result });
-      else setState({ busy: false, error: r.error });
+      else setState({ busy: false, error: tokenGate(r.error) });
     });
     return () => {
       alive = false;

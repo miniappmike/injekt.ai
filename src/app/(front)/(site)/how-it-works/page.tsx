@@ -20,7 +20,7 @@ import { dollars, FREE_CREDITS, IMAGE_CREDITS, PRO, PROMPT_CREDITS } from "@/lib
 import { cn } from "@/lib/utils";
 
 export const metadata = {
-  title: "How It Works | ModelSpawn",
+  title: "How It Works",
   description: "Create a model, put her in any photo, check the likeness. Every ModelSpawn tool, explained simply.",
 };
 

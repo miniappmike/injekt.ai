@@ -4,6 +4,9 @@ import { requireUser } from "@/lib/auth";
 import { referenceList } from "@/lib/character-images";
 import { characterAvatars } from "@/lib/character-avatars";
 import { revisedRun, REFERENCES_RUN, type RevisedRun } from "@/lib/revised-run";
+import { PageIntro } from "@/components/page-intro";
+
+export const metadata = { title: "Likeness" };
 
 // Calls a vision model with several images.
 export const maxDuration = 60;
@@ -56,10 +59,9 @@ export default async function LikenessPage({ searchParams }: { searchParams: Pro
 
   return (
     <div>
-      <h1 className="page-title">Likeness</h1>
-      <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
+      <PageIntro title="Likeness" short="Score an image against your character and get a fixed prompt.">
         Made an image? Upload it to see how much it looks like your character, trait by trait, and get a fixed prompt to try again.
-      </p>
+      </PageIntro>
       {characters.length === 0 ? (
         <CreateCharacterFirst />
       ) : (

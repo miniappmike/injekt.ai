@@ -6,6 +6,8 @@ import { FREE_LIMITS, limitMessage } from "@/lib/limits";
 import { adminClient } from "@/lib/supabase/admin";
 import type { CharacterProfile } from "@/lib/characters";
 
+export const metadata = { title: "Characters" };
+
 export default async function CharactersPage() {
   const { supabase, user } = await requireUser();
   const { data: allCharacters } = await supabase

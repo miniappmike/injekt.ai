@@ -2,6 +2,7 @@ import { DirectorTool } from "@/components/director-tool";
 import { CreateCharacterFirst } from "@/components/inject-tabs";
 import { requireUser } from "@/lib/auth";
 import { characterAvatars } from "@/lib/character-avatars";
+import { PageIntro } from "@/components/page-intro";
 
 export const metadata = { title: "Director" };
 
@@ -21,10 +22,9 @@ export default async function DirectorPage() {
   }));
   return (
     <div>
-      <h1 className="page-title">Director</h1>
-      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-400">
+      <PageIntro title="Director" short="Describe the shot in your own words. We write the prompt.">
         Pick a character and say what you want to see, in your own words. The prompt is written for you behind the scenes, with her face and body sheets locked in.
-      </p>
+      </PageIntro>
       {characters.length ? <DirectorTool characters={characters} /> : <CreateCharacterFirst />}
     </div>
   );

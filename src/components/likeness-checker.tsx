@@ -23,6 +23,7 @@ import { checkLikeness } from "@/app/(app)/likeness/actions";
 import type { LikenessReport } from "@/lib/ai/prompts/likeness";
 import { SEND_TO_LIKENESS_KEY } from "@/lib/likeness-link";
 import { CharacterPicker } from "@/components/character-picker";
+import { tokenGate } from "@/components/out-of-tokens";
 
 
 interface Round {
@@ -103,7 +104,7 @@ export function LikenessChecker({
       usageChanged();
       if (!res.ok) {
         if (res.redirectTo) return router.push(res.redirectTo);
-        return setStatus({ text: res.error, good: false });
+        return setStatus({ text: tokenGate(res.error), good: false });
       }
       setRounds((r) => [...r, { n: r.filter((x) => x.characterId === characterId).length + 1, image, characterId, preview: picked.preview, report: res.report }]);
       setStatus(
@@ -176,7 +177,7 @@ export function LikenessChecker({
                     setPasteError(err instanceof Error ? err.message : "Couldn't paste.");
                   }
                 }}
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-white transition-transform active:scale-95 disabled:opacity-50 sm:h-8 sm:w-8 sm:border sm:border-neutral-700 sm:bg-neutral-800/70 sm:text-neutral-200"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-700 bg-neutral-800/70 text-neutral-200 transition-all hover:border-brand-500/60 hover:text-white active:scale-95 disabled:opacity-50 sm:h-8 sm:w-8"
               >
                 <PasteIcon className="h-[18px] w-[18px]" />
               </button>
@@ -210,7 +211,7 @@ export function LikenessChecker({
           </section>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" size="lg" onClick={run} disabled={busy || !picked || !character.ready}>
+            <Button type="button" size="lg" className="max-sm:w-full" onClick={run} disabled={busy || !picked || !character.ready}>
               {busy ? "Comparing..." : "Check likeness"}
             </Button>
             {status && <p role="status" className={`text-sm ${status.good ? "text-neutral-300" : "text-red-400"}`}>{status.text}</p>}

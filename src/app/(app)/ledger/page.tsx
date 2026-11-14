@@ -1,6 +1,8 @@
 import { LedgerView } from "@/components/ledger-view";
 import { requireUser } from "@/lib/auth";
 
+export const metadata = { title: "Ledger" };
+
 export default async function LedgerPage() {
   await requireUser();
   return (

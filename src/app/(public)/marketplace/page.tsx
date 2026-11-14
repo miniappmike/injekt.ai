@@ -7,7 +7,7 @@ import { parseSort, parseView } from "@/lib/marketplace/view";
 import { listPublicListings, marketplaceCounts } from "@/lib/marketplace/public-data";
 import { createUserClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Marketplace · ModelSpawn" };
+export const metadata: Metadata = { title: "Marketplace" };
 
 // Signed-in and signed-out visitors see different things (admin controls, their own hearts), so never cache this page.
 export const dynamic = "force-dynamic";

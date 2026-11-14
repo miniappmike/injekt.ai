@@ -1,4 +1,5 @@
 import { ApiKeyRequiredError, DailyLimitError, InsufficientCreditsError, LimitReachedError, RateLimitError, UserFacingError } from "@/lib/errors";
+import { creditsMessage } from "@/lib/credits-message";
 import { limitMessage } from "@/lib/limits";
 import { ProviderError } from "./providers/text";
 
@@ -32,7 +33,4 @@ export function dailyLimitMessage(e: Pick<DailyLimitError, "key" | "plan" | "lim
   return `You've used today's ${e.limit} ${what} on the free plan. They reset at midnight UTC. Pro has no daily limits: open your profile menu and choose Upgrade to Pro.`;
 }
 
-/** What to say when there aren't enough tokens. */
-export function creditsMessage(e: Pick<InsufficientCreditsError, "needed" | "balance">): string {
-  return `This needs ${e.needed} token${e.needed === 1 ? "" : "s"} and you have ${e.balance}. Buy more on the Tokens page (profile menu → Tokens).`;
-}
+export { creditsMessage };

@@ -32,6 +32,7 @@ import { CharacterPicker } from "@/components/character-picker";
 import { MobileSheet } from "@/components/mobile-sheet";
 import { PasteIcon, SlidersIcon, UploadIcon } from "@/components/icons";
 import { readClipboardImages } from "@/lib/clipboard";
+import { tokenGate } from "@/components/out-of-tokens";
 
 const MAX_TARGETS = 10;
 const OPTIONS_KEY = "ms.injectOptions";
@@ -286,7 +287,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
           setRunning(false);
           return router.push(res.redirectTo);
         }
-        update(t.id, { state: "error", status: res.error });
+        update(t.id, { state: "error", status: tokenGate(res.error) });
         if (res.stop) {
           stop.current = true;
           stoppedBecause = res.error;
@@ -350,7 +351,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
     if (!res.ok) {
       setOutfitPhoto(undefined);
       if ("redirectTo" in res && res.redirectTo) return router.push(res.redirectTo);
-      return show(res.error);
+      return show(tokenGate(res.error));
     }
     usageChanged();
     setO((x) => ({ ...x, exText: res.text, ...OUTFIT_CHOICES.extracted.set }));
@@ -381,6 +382,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
         // Prompts placed back at their version numbers; an unwritten version has none.
         const prompts: StandalonePrompt[] = [];
         if (r.ok) written.forEach((vi, j) => (prompts[vi] = r.prompts[j]));
+        if (!r.ok) tokenGate(r.error);
         setStandalone((s) => (s[t.id]?.key === key ? { ...s, [t.id]: r.ok ? { key, prompts } : { key, error: r.error } } : s));
       });
     }
@@ -628,7 +630,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                     disabled={!outfitName.trim() || !o.exText.trim()}
                     onClick={async () => {
                       const r = await saveOutfit({ name: outfitName, text: o.exText });
-                      if (!r.ok) return show(r.error);
+                      if (!r.ok) return show(tokenGate(r.error));
                       setOutfits((list) => [r.outfit, ...list]);
                       setOutfitName("");
                       show("Outfit saved.");

@@ -7,7 +7,7 @@ import { FREE_CREDITS } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 
 export const metadata = {
-  title: "ModelSpawn: create your AI model once, put her in any photo",
+  title: { absolute: "ModelSpawn: create your AI model once, put her in any photo" },
   description: "A creation suite for AI models. ModelSpawn writes the prompts, locks her identity into every picture and scores the results for likeness.",
 };
 

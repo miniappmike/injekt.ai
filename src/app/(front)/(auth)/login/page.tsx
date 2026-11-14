@@ -1,6 +1,8 @@
 import { AuthForm } from "../auth-form";
 import { login } from "../actions";
 
+export const metadata = { title: "Log In" };
+
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; deleted?: string }> }) {
   const { next, deleted } = await searchParams;
   return (

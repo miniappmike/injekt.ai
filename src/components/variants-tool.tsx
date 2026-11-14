@@ -41,6 +41,7 @@ import {
 } from "@/lib/variants-meta";
 import { chipItem, segItem, segTrack } from "@/components/ui/segmented";
 import { CharacterPicker } from "@/components/character-picker";
+import { tokenGate } from "@/components/out-of-tokens";
 
 /**
  * The two tabs: Photoshoot ("edits": this same scene and setting, new takes) and Moments ("carousel": shots from
@@ -156,7 +157,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         let picked: Picked;
         if (sent.generationId) {
           const r = await importGeneratedImage(sent.generationId);
-          if (!r.ok) throw new Error(r.error);
+          if (!r.ok) throw new Error(tokenGate(r.error));
           picked = { path: r.path, preview: r.preview };
         } else {
           const res = await fetch(sent.url as string);
@@ -218,7 +219,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         usageChanged();
         if (!res.ok) {
           if (res.redirectTo) return router.push(res.redirectTo);
-          return setStatus({ text: res.error, good: false });
+          return setStatus({ text: tokenGate(res.error), good: false });
         }
         setResult({ ...base, theme: "", attach: res.attach, items: res.variants.map((v) => ({ title: v.label, hint: v.changes, copy: v.prompt, historyId: v.historyId })) });
         setStatus({ text: elsewhere ? `${res.variants.length} prompts ready. Paste one into your generator's edit mode with the images listed, in that order.` : `${res.variants.length} takes ready. Generate them one by one or press Generate all.`, good: true });
@@ -227,7 +228,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         usageChanged();
         if (!res.ok) {
           if (res.redirectTo) return router.push(res.redirectTo);
-          return setStatus({ text: res.error, good: false });
+          return setStatus({ text: tokenGate(res.error), good: false });
         }
         setResult({
           ...base,
@@ -241,7 +242,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         usageChanged();
         if (!res.ok) {
           if (res.redirectTo) return router.push(res.redirectTo);
-          return setStatus({ text: res.error, good: false });
+          return setStatus({ text: tokenGate(res.error), good: false });
         }
         setResult({
           ...base,

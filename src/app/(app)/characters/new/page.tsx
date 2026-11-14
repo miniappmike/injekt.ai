@@ -8,6 +8,8 @@ import { PROFILE_BUILD_CREDITS } from "@/lib/plans";
 import { FREE_LIMITS, limitMessage } from "@/lib/limits";
 import { createCharacter } from "../actions";
 
+export const metadata = { title: "New character" };
+
 // "Save and build profile" calls a vision model.
 export const maxDuration = 60;
 

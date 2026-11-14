@@ -3,6 +3,7 @@ import { AppFooter } from "@/components/app-footer";
 import { ModelRefusedToast, PageModelBox } from "@/components/page-model";
 import { GenerationTray } from "@/components/generation-tray";
 import { ImageViewer } from "@/components/image-viewer";
+import { OutOfTokens } from "@/components/out-of-tokens";
 import { PasteRouter } from "@/components/paste-router";
 import { MobileDock } from "@/components/mobile-nav";
 import { HistoryPanel } from "@/components/history-panel";
@@ -44,6 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {generation && <GenerationTray />}
         <ImageViewer />
         <PasteRouter />
+        <OutOfTokens />
       </div>
     </AppProvider>
   );

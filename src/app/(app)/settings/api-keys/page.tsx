@@ -13,6 +13,8 @@ import { canUseOwnKeys } from "@/lib/daily-limits";
 import Link from "next/link";
 import { ProBadge } from "@/components/pro-badge";
 
+export const metadata = { title: "Settings" };
+
 // What turns this job's tokens into dollars, and whose number it is.
 function textPrice(roles: ReturnType<typeof readRoles>, id: RoleId) {
   const chosen = effectiveRole(roles, id);

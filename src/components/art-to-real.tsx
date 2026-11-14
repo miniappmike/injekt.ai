@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { artToRealText } from "@/app/(app)/art-to-real/actions";
+import { tokenGate } from "@/components/out-of-tokens";
 
 type Photo = { preview: string; path?: string; error?: string; busy?: boolean };
 export interface ArtCharacter {
@@ -46,7 +47,7 @@ export function ArtToReal({ characters }: { characters: ArtCharacter[] }) {
   async function write() {
     setWritten({ busy: true });
     const r = await artToRealText({ characterId: characterId || null, direction });
-    setWritten(r.ok ? { text: r.text, attach: r.attach } : { error: r.error });
+    setWritten(r.ok ? { text: r.text, attach: r.attach } : { error: tokenGate(r.error) });
   }
 
   const notReady = character && !character.ready;
@@ -141,7 +142,7 @@ export function ArtToReal({ characters }: { characters: ArtCharacter[] }) {
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-3">
-              <Button type="button" onClick={write} disabled={written.busy}>{written.busy ? "Writing..." : "Write prompt"}</Button>
+              <Button type="button" className="max-sm:h-11 max-sm:w-full max-sm:text-[15px]" onClick={write} disabled={written.busy}>{written.busy ? "Writing..." : "Write prompt"}</Button>
               {written.error && <p role="alert" className="text-sm text-red-400">{written.error}</p>}
             </div>
           )}

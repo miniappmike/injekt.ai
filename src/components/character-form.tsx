@@ -15,6 +15,7 @@ import { useToast } from "@/components/toast";
 import { PROFILE_FIELDS, type CharacterProfile } from "@/lib/characters";
 import type { CharacterFormState } from "@/app/(app)/characters/actions";
 import { buildProfile } from "@/app/(app)/characters/ai-actions";
+import { tokenGate } from "@/components/out-of-tokens";
 
 type Initial = {
   name?: string;
@@ -96,7 +97,7 @@ export function CharacterForm({
       router.push(result.redirectTo);
       return;
     } else {
-      setBuildError(result.error);
+      setBuildError(tokenGate(result.error));
     }
     usageChanged(); // the tokens in the header
     router.refresh();

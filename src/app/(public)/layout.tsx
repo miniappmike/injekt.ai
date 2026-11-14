@@ -3,6 +3,7 @@ import { AppHeader } from "@/components/app-header";
 import { AppProvider } from "@/components/app-context";
 import { GenerationTray } from "@/components/generation-tray";
 import { ImageViewer } from "@/components/image-viewer";
+import { OutOfTokens } from "@/components/out-of-tokens";
 import { Logo } from "@/components/logo";
 import { MobileDock } from "@/components/mobile-nav";
 import { HistoryPanel } from "@/components/history-panel";
@@ -55,6 +56,7 @@ export default async function PublicLayout({ children }: { children: React.React
         <HistoryPanel />
         {generation && <GenerationTray />}
         <ImageViewer />
+        <OutOfTokens />
       </div>
     </AppProvider>
   );

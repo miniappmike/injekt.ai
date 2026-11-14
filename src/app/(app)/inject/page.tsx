@@ -6,6 +6,9 @@ import { currentPack } from "@/lib/sheet-pack";
 import { refOptions } from "@/lib/generation-job";
 import { listOutfits } from "@/lib/outfits";
 import { characterAvatars } from "@/lib/character-avatars";
+import { PageIntro } from "@/components/page-intro";
+
+export const metadata = { title: "Inject" };
 
 // The prompt writer calls a vision model, one call per target image, with up to 4 versions in each.
 export const maxDuration = 300;
@@ -33,10 +36,9 @@ export default async function InjectPage({ searchParams }: { searchParams: Promi
 
   return (
     <div>
-      <h1 className="page-title">Inject</h1>
-      <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400 max-sm:hidden">
+      <PageIntro title="Inject">
         Put your character into any photo. Add a photo you like, and get a prompt that swaps her in, ready to paste into your image generator.
-      </p>
+      </PageIntro>
       <HowItWorks />
       <InjectTabs characters={characters} outfits={outfits} initialCharacterId={characters.some((c) => c.id === character) ? character : undefined} />
     </div>

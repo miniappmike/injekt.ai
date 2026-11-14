@@ -4,6 +4,9 @@ import { FREE_LIMITS } from "@/lib/limits";
 import { requireUser } from "@/lib/auth";
 import { signedUrlMap } from "@/lib/media-urls";
 import { characterAvatars } from "@/lib/character-avatars";
+import { PageIntro } from "@/components/page-intro";
+
+export const metadata = { title: "Create Model" };
 
 export default async function ReferenceSheetPage({ searchParams }: { searchParams: Promise<{ character?: string }> }) {
   const { character } = await searchParams;
@@ -19,10 +22,9 @@ export default async function ReferenceSheetPage({ searchParams }: { searchParam
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="page-title">Create Model</h1>
-      <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400 max-sm:hidden">
+      <PageIntro title="Create Model">
         Create a persona step by step: her face, then her body, then the reference sheet that keeps both the same from one picture to the next.
-      </p>
+      </PageIntro>
       <ReferenceWizard characters={characters} initialCharacterId={character} atLimit={atLimit} />
     </div>
   );

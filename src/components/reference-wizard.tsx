@@ -18,6 +18,7 @@ import type { SheetSlot } from "@/lib/reference-sheet";
 import { CUPS, GLUTE_SHAPES, GLUTE_SIZES, MAX_BODY_PHOTOS, SHEET_ASPECT_RATIO, SHEET_LOOKS } from "@/lib/sheet-options";
 import type { UploadSlot } from "@/lib/images";
 import { cn } from "@/lib/utils";
+import { tokenGate } from "@/components/out-of-tokens";
 
 export interface SheetImage {
   path: string;
@@ -151,7 +152,7 @@ function SaveSheet({
     if (current && !window.confirm(`This replaces ${character.name}'s current ${noun}. Continue?`)) return;
     setState({ busy: true });
     const res = await saveReferenceSheet({ generationId, characterId: character.id, slot });
-    if (!res.ok) return setState({ error: res.error });
+    if (!res.ok) return setState({ error: tokenGate(res.error) });
     onSaved({ path: res.path, url: res.url });
     setState({ saved: true });
   }
@@ -282,7 +283,7 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
     setBusy(true);
     const r = await createPersona({ name, attested });
     setBusy(false);
-    if (!r.ok) return setError(r.error);
+    if (!r.ok) return setError(tokenGate(r.error));
     setList((l) => [...l, { id: r.id, name: r.name, faceSheet: null, bodySheet: null, photo: null }]);
     setCharacterId(r.id);
     // A refresh now resumes with her picked.

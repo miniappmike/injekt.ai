@@ -21,6 +21,7 @@ import { PinToReferences } from "@/components/pin-to-references";
 import { reportModelRefused, usePageModelForRequest } from "@/lib/page-model";
 import { checkGeneration, POLL_MS } from "@/lib/generation-check";
 import { forgetGeneration, latestForRequest, rememberGeneration, requestHash, waitOrWake } from "@/lib/pending-generations";
+import { tokenGate } from "@/components/out-of-tokens";
 
 type Phase = "idle" | "starting" | "running" | "done" | "failed";
 interface Result {
@@ -178,7 +179,7 @@ function GenerateImageInner({
       return r.generationId ? { ok: true as const, generationId: r.generationId, free: false } : null;
     }, { firstCheckMs: 20_000, timeoutMs: 2 * 60_000 }).catch((e: unknown): AiFailure => ({ ok: false, error: e instanceof Error ? e.message : "Couldn't start the image. Try again." }));
     if (!started.ok) {
-      reportGeneration({ ...tray, state: "failed", error: started.error });
+      reportGeneration({ ...tray, state: "failed", error: tokenGate(started.error) });
       if (started.reason) reportModelRefused({ reason: started.reason, model: pageModel ?? null });
       if (started.redirectTo) return router.push(started.redirectTo);
       setPhase("failed");
@@ -318,7 +319,7 @@ function GenerateImageInner({
       {free && <p className="text-xs text-neutral-500">Your free image is made at 1k, and you can only make one.</p>}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" size="sm" onClick={generate} disabled={busy || !ready}>
+        <Button type="button" size="sm" className="max-sm:h-11 max-sm:w-full max-sm:text-[15px]" onClick={generate} disabled={busy || !ready}>
           {busy && <Spinner className="h-3.5 w-3.5" />}
           {phase === "starting" ? "Starting..." : phase === "running" ? "Generating..." : label}
         </Button>

@@ -18,6 +18,7 @@ import { AttachStrip, TaggedPrompt } from "@/components/attach-strip";
 import type { StandalonePrompt } from "@/lib/inject-standalone";
 import { chipItem } from "@/components/ui/segmented";
 import { CharacterPicker } from "@/components/character-picker";
+import { tokenGate } from "@/components/out-of-tokens";
 
 export interface QuickCharacter {
   id: string;
@@ -131,7 +132,7 @@ export function QuickGenerate({ mode, characters }: { mode: "direct_swap" | "edi
     setStarting(false);
     if (!r.ok) {
       if (r.redirectTo) return router.push(r.redirectTo);
-      return show(r.error);
+      return show(tokenGate(r.error));
     }
     setEditPrompt(r.text.slice(0, PROMPT_MAX));
   }
@@ -257,7 +258,7 @@ export function QuickGenerate({ mode, characters }: { mode: "direct_swap" | "edi
                 setSwap({ busy: true });
                 const r = await writeSwapStandalone({ characterId, who: who.trim() || undefined, extra: extra.trim() || undefined });
                 if (!r.ok && r.redirectTo) return router.push(r.redirectTo);
-                setSwap(r.ok ? { prompt: r.prompt } : { error: r.error });
+                setSwap(r.ok ? { prompt: r.prompt } : { error: tokenGate(r.error) });
               }}
             >
               {swap.busy ? "Writing..." : swap.prompt ? "Write it again" : "Write swap prompt"}

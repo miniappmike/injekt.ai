@@ -3,6 +3,9 @@ import { CreateCharacterFirst } from "@/components/inject-tabs";
 import { requireUser } from "@/lib/auth";
 import { referenceList } from "@/lib/character-images";
 import { characterAvatars } from "@/lib/character-avatars";
+import { PageIntro } from "@/components/page-intro";
+
+export const metadata = { title: "Variants" };
 
 // Calls a vision model with several images.
 export const maxDuration = 60;
@@ -24,10 +27,9 @@ export default async function VariantsPage() {
 
   return (
     <div>
-      <h1 className="page-title">Variants</h1>
-      <p className="mt-2 max-w-4xl text-sm leading-relaxed text-neutral-400">
+      <PageIntro title="Variants" short="New takes of an image you love, or a day of moments built from it.">
         Got an image you love? Photoshoot makes new takes of the same scene, and Moments plans shots from throughout her day, built from this one.
-      </p>
+      </PageIntro>
       {characters.length ? <VariantsTool characters={characters} /> : <CreateCharacterFirst />}
     </div>
   );
