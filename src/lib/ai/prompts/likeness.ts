@@ -103,7 +103,7 @@ export function quickLikenessPrompt(roles: string[], cmp: boolean): string {
 ${DISTANCE_SCORE_RULE}
 First list the concrete differences you can see between the reference and the generated woman (face shape, eyes, nose, mouth, hair colour, hair cut and length, skin tone and freckles, tattoos and piercings, and the body shape and proportions that are visible: shoulders, bust, waist, hips, glutes, thighs). Then score each trait on its own from 0 to 10 with this scale: 10 indistinguishable, 8 clearly the same person with small differences, 6 the same type but noticeably different, 4 or less a different person. Use the full scale and score each trait independently; do not give the same number to everything.
 ONLY SCORE WHAT YOU CAN SEE in the generated image. If a trait is mostly hidden (for example the face or eyes behind a phone, hands, hair or sunglasses, a back view, hips and glutes hidden by a seated pose, a table or loose clothing, legs out of frame), set it to null instead of guessing or marking it down. If a trait is only partly visible, score just the visible part and do not penalise what is hidden. Never lower a score because something cannot be seen. ${DISTANCE_SCORE_RULE}
-${cmp ? `Score the LAST image. Then compare it directly with the ORIGINAL against the reference and set "verdict" to "better" if the fixed image is clearly closer to the reference woman, "worse" if the original was clearly closer, or "same" if the difference is small, with "verdict_reason" as one short sentence naming what changed.\n` : ""}Reply with only JSON: {${cmp ? '"verdict": "better", "verdict_reason": "...", ' : ""}"differences": ["..."], "face_shape": 0 or null, "eyes": 0 or null, "nose_mouth": 0 or null, "hair_colour": 0 or null, "hair_cut": 0 or null, "skin": 0 or null, "upper_body": 0 or null (shoulders, bust, arms), "lower_body": 0 or null (waist, hips, glutes, thighs, legs), "hidden": ["short names of the traits you set to null"], "fixes": ["one short concrete phrase per drifted trait that describes the REFERENCE version, for example deep burgundy wine-red hair rather than bright red, wide curvy hips and full rounded glutes with a narrow waist, or no navel piercing"]}`;
+${cmp ? `Score the LAST image. Then compare it directly with the ORIGINAL against the reference and set "verdict" to "better" if the fixed image is clearly closer to the reference woman, "worse" if the original was clearly closer, or "same" if the difference is small, with "verdict_reason" as one short sentence naming what changed. Also score the ORIGINAL on the same traits in "original", using the same scale and the same rules, so the two can be compared number for number.\n` : ""}Reply with only JSON: {${cmp ? '"verdict": "better", "verdict_reason": "...", ' : ""}"differences": ["..."], "face_shape": 0 or null, "eyes": 0 or null, "nose_mouth": 0 or null, "hair_colour": 0 or null, "hair_cut": 0 or null, "skin": 0 or null, "upper_body": 0 or null (shoulders, bust, arms), "lower_body": 0 or null (waist, hips, glutes, thighs, legs), "hidden": ["short names of the traits you set to null"], "fixes": ["one short concrete phrase per drifted trait that describes the REFERENCE version, for example deep burgundy wine-red hair rather than bright red, wide curvy hips and full rounded glutes with a narrow waist, or no navel piercing"]${cmp ? ', "original": {"face_shape": 0 or null, "eyes": 0 or null, "nose_mouth": 0 or null, "hair_colour": 0 or null, "hair_cut": 0 or null, "skin": 0 or null, "upper_body": 0 or null, "lower_body": 0 or null}' : ""}}`;
 }
 
 export interface QuickScores {
@@ -124,11 +124,17 @@ export interface QuickLikeness {
   hidden: string[];
   verdict: "better" | "same" | "worse" | null;
   why: string;
+  /** The original's match score (0-100) from the same check, when a fix was compared. */
+  originalScore: number | null;
 }
 
+/** How many points the fix must gain or lose against the original to count as closer or further. */
+export const VERDICT_MARGIN = 3;
+
+const WEIGHTS = { face: 0.45, hair: 0.2, skin: 0.1, upper: 0.1, lower: 0.15 } as const;
+
 /** Artifact quickLike scoring: face .45, hair .20, skin .10, upper body .10, lower body .15, over what was visible. */
-export function parseQuickLikeness(r: unknown, cmp: boolean): QuickLikeness {
-  const o = (r && typeof r === "object" ? r : {}) as Record<string, unknown>;
+function scoreTraits(o: Record<string, unknown>): { score: number | null; sc: QuickScores } {
   const num = (v: unknown) => (v == null || v === "" || !Number.isFinite(Number(v)) ? null : Math.max(0, Math.min(10, Number(v))));
   const avg = (a: (number | null)[]) => {
     const x = a.filter((v): v is number => v != null);
@@ -143,22 +149,42 @@ export function parseQuickLikeness(r: unknown, cmp: boolean): QuickLikeness {
     body: null,
   };
   sc.body = avg([sc.upper, sc.lower]);
-  const w = { face: 0.45, hair: 0.2, skin: 0.1, upper: 0.1, lower: 0.15 } as const;
   let tot = 0;
   let wt = 0;
-  for (const k of Object.keys(w) as (keyof typeof w)[]) {
+  for (const k of Object.keys(WEIGHTS) as (keyof typeof WEIGHTS)[]) {
     const v = sc[k];
     if (v != null) {
-      tot += v * w[k];
-      wt += w[k];
+      tot += v * WEIGHTS[k];
+      wt += WEIGHTS[k];
     }
   }
+  return { score: wt ? Math.round((tot / wt) * 10) : null, sc };
+}
+
+/**
+ * The verdict is decided by the two scores, never by the model's own opinion: a fix that scores higher can't be
+ * labelled "further from her". The model's verdict is only a fallback when one of the two couldn't be scored.
+ */
+export function verdictFor(fix: number | null, original: number | null): QuickLikeness["verdict"] {
+  if (fix == null || original == null) return null;
+  const d = fix - original;
+  return d >= VERDICT_MARGIN ? "better" : d <= -VERDICT_MARGIN ? "worse" : "same";
+}
+
+export function parseQuickLikeness(r: unknown, cmp: boolean): QuickLikeness {
+  const o = (r && typeof r === "object" ? r : {}) as Record<string, unknown>;
+  const { score, sc } = scoreTraits(o);
   const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
   const fixes = strings(o.fixes).filter((x) => x.trim() && !makeupFix(x) && !clothingFix(x)).map((x) => x.trim().slice(0, 160)).slice(0, 6);
   const diffs = strings(o.differences).map((x) => x.slice(0, 160)).slice(0, 8);
   const hidden = strings(o.hidden).filter((x) => x.trim()).map((x) => x.trim().replace(/_/g, " ").slice(0, 30)).slice(0, 6);
-  const verdict = cmp && (["better", "same", "worse"] as const).includes(o.verdict as never) ? (o.verdict as QuickLikeness["verdict"]) : null;
-  return { score: wt ? Math.round((tot / wt) * 10) : null, sc, fixes, diffs, hidden, verdict, why: verdict && typeof o.verdict_reason === "string" ? o.verdict_reason.slice(0, 200) : "" };
+  const said = cmp && (["better", "same", "worse"] as const).includes(o.verdict as never) ? (o.verdict as "better" | "same" | "worse") : null;
+  const originalScore = cmp && o.original && typeof o.original === "object" ? scoreTraits(o.original as Record<string, unknown>).score : null;
+  const byScores = cmp ? verdictFor(score, originalScore) : null;
+  const verdict = cmp ? byScores ?? said : null;
+  // The model's reason is only shown when it agrees with the verdict that is shown.
+  const why = verdict && (!said || said === verdict) && typeof o.verdict_reason === "string" ? o.verdict_reason.slice(0, 200) : "";
+  return { score, sc, fixes, diffs, hidden, verdict, why, originalScore };
 }
 
 // ---------- A18: likeness fix ----------
@@ -177,6 +203,13 @@ const bodyRefTags = (kinds: string[], tags: string[]) => joinTags(kinds.map((k, 
 export const OUTFIT_LOCK =
   "OUTFIT LOCK (strict): every garment, shoe and accessory in @image1 stays exactly as it is: the same type, length, coverage, colour, fabric, wash, rips, layering and how it is worn. Full-length trousers stay full-length, sleeves keep their length, and nothing is shortened, cropped, removed, swapped, tucked differently or made more revealing; no skin is shown that @image1 covers. The references show her in plain sheet clothing only so her shape is visible; never take any clothing from them.";
 
+/**
+ * The sheets show her in a plain white tube top and shorts (or a black bikini). That clothing was leaking into fixed
+ * photos even when the pack had no outfit note, so it is always named, whatever the pack says.
+ */
+export const SHEET_CLOTHES_RULE =
+  "The reference sheets show her in plain white or black sheet clothing (a plain tube top, shorts or bikini) and nothing else: do not put a white top, white shorts, a bikini or any other sheet clothing on her. Her top and bottom are the ones in @image1, nothing else; the new body only fills them.";
+
 /** Repaints the person in @image1 from her references (artifact fixParts). */
 export function likenessFixPrompt(R: FixRefs, fixes: string[], frame: string | undefined, family: ModelFamily): string {
   const tags = R.roles.map((_, i) => "@image" + (i + 2));
@@ -188,7 +221,7 @@ export function likenessFixPrompt(R: FixRefs, fixes: string[], frame: string | u
   const first = family === "pro" && words ? `IDENTITY (follow exactly): ${words}.${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""}\n\n` : "";
   const sheetOutfit = R.usePack && R.anchors?.sheetOutfit;
   const who = (fixes ?? []).filter((f) => !clothingFix(f));
-  return `${first}Replace the woman in @image1 with the woman from ${joinTags(tags)}. ${tags.map((t, i) => `${t} is ${R.roles[i]}`).join(", ")}${tags.length > 1 ? "; they all show the same woman" : ""}. Rebuild only who she is: her facial structure, hair, skin tone and body proportions must be the reference woman's, not those of the woman currently in @image1. ${who.length ? `In particular: ${who.join("; ")}.` : ""}${an.face ? ` Face: ${an.face}.` : ""}${an.hair ? ` Hair: ${an.hair}.` : ""}${an.skin ? ` Skin: ${an.skin}.` : ""}${body ? ` Her body must match ${bodyRef} exactly: ${body}; her clothes only re-drape over that shape.` : ""}${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""} Keep everything else from @image1: the pose, expression, outfit, props, background, light, framing and camera look. ${OUTFIT_LOCK} ${BODY_LOCK} Take only the person from ${joinTags(tags)}, never their layout, panels, backgrounds or outfit.${sheetOutfit ? ` Never dress her in the reference outfit (${sheetOutfit}).` : ""} ${MODS_RULE} ${makeupRule("@image1")} ${REALISM_FIX.quality} ${TEXT_SHORT}`;
+  return `${first}Replace the woman in @image1 with the woman from ${joinTags(tags)}. ${tags.map((t, i) => `${t} is ${R.roles[i]}`).join(", ")}${tags.length > 1 ? "; they all show the same woman" : ""}. Rebuild only who she is: her facial structure, hair, skin tone and body proportions must be the reference woman's, not those of the woman currently in @image1. ${who.length ? `In particular: ${who.join("; ")}.` : ""}${an.face ? ` Face: ${an.face}.` : ""}${an.hair ? ` Hair: ${an.hair}.` : ""}${an.skin ? ` Skin: ${an.skin}.` : ""}${body ? ` Her body must match ${bodyRef} exactly: ${body}; her clothes only re-drape over that shape.` : ""}${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""} Keep everything else from @image1: the pose, expression, outfit, props, background, light, framing and camera look. ${OUTFIT_LOCK} ${BODY_LOCK} Take only the person from ${joinTags(tags)}, never their layout, panels, backgrounds or outfit.${sheetOutfit ? ` Never dress her in the reference outfit (${sheetOutfit}).` : ""} ${SHEET_CLOTHES_RULE} ${MODS_RULE} ${makeupRule("@image1")} ${REALISM_FIX.quality} ${TEXT_SHORT}`;
 }
 
 // ---------- A19: face fix ----------

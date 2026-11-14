@@ -13,6 +13,13 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Phone fixes from the owner's screenshots (November 14 night; not checked in a browser or on a phone)**
+- Create Model body step: the toggle is now "One body" / "Multi-body" (heading "These photos show"). The long labels did not fit a phone, so `segItem` no longer forces `nowrap` (it can wrap, `min-w-0`).
+- Variants Options sheet: Creative direction has a short placeholder and 3 rows (min 96px on phones) so its text isn't clipped. The sheet's bottom edge was cut in the screenshot, possibly caught mid-slide; if it still clips, look at `MobileSheet` and `dvh`.
+- **Likeness verdict now comes from the scores.** The fix check also scores the original (`original` in the JSON), and `verdictFor` decides: 3+ points up is closer, 3+ down is further, else same (`VERDICT_MARGIN`). Before, the model's own opinion could say "further" while the fix scored 75 against 69. The panel shows "(69 before)"; the model's reason is hidden when it disagrees.
+- **Likeness fix: sheet clothing leak.** `SHEET_CLOTHES_RULE` always tells the editor the sheets' plain white/black clothing isn't hers to wear and that her top and bottom are @image1's, even when the pack has no outfit note. Not tested on a real generation; if the white top still appears, the next step is to describe @image1's outfit in words in the prompt.
+- **Bottom "On this page" bar**: on phones it now starts collapsed as a small pill at the right above the dock (tap for thumbnails); desktop is unchanged. Alternative if still cluttered: drop the tray on phones and rely on the History button.
+
 **Telegram bot: commands and deployment alerts (November 14 evening)**
 - **Commands** (`src/lib/telegram-commands.ts`, pure and tested in `tests/telegram-commands.test.ts`; wired in
   `handleTelegramUpdate`): /start, /help, /tools, /tokens (packs with dollar and Stars prices, read from `plans.ts`),

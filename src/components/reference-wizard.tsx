@@ -417,15 +417,15 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
           <p className="-mt-1 text-xs text-neutral-500">Up to {MAX_BODY_PHOTOS} photos. Her face comes from {face?.isSheet ? "her face sheet" : "her face photo"}.</p>
           {bodies.length > 1 && (
             <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium">These photos are</span>
-              <div role="radiogroup" aria-label="These photos are" className={segTrack}>
+              <span className="text-sm font-medium">These photos show</span>
+              <div role="radiogroup" aria-label="These photos show" className={segTrack}>
                 {([false, true] as const).map((b) => (
                   <button key={String(b)} type="button" role="radio" aria-checked={opts.blend === b} onClick={() => setOpts((o) => ({ ...o, blend: b }))} className={segItem(opts.blend === b)}>
-                    {b ? "Different bodies, blend them" : "One body, other angles"}
+                    {b ? "Multi-body" : "One body"}
                   </button>
                 ))}
               </div>
-              {opts.blend && <p className="text-xs text-neutral-500">Her body combines them, keeping the boldest curves from each photo rather than averaging them out.</p>}
+              {opts.blend && <p className="text-xs text-neutral-500">Different bodies, blended into one: she keeps the boldest curves from each photo rather than an average.</p>}
             </div>
           )}
 

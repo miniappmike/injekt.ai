@@ -121,6 +121,7 @@ export function LikenessPanel({ characterId, image, original, frame }: { charact
             title={r.why}
           >
             {r.verdict === "better" ? "Closer to her than the original" : r.verdict === "worse" ? "Further from her than the original" : "About the same as the original"}
+            {r.originalScore != null && ` (${r.originalScore} before)`}
           </span>
         )}
         {parts.length > 0 && <span className="text-xs text-neutral-400">{parts.join(" · ")}</span>}

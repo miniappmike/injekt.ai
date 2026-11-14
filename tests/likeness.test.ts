@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  verdictFor,
+  VERDICT_MARGIN,
   faceFixPrompt,
   likenessFixPrompt,
   likenessReportPrompt,
@@ -99,10 +101,19 @@ describe("quick likeness (A17)", () => {
     expect(parseQuickLikeness({ face_shape: 14, eyes: -3 }, false).sc.face).toBe(5);
   });
 
-  it("keeps a verdict only when a fix was compared", () => {
+  it("keeps a verdict only when a fix was compared, and the scores decide it", () => {
     expect(parseQuickLikeness({ verdict: "better", verdict_reason: "Hair is now dark." }, true)).toMatchObject({ verdict: "better", why: "Hair is now dark." });
     expect(parseQuickLikeness({ verdict: "better" }, false).verdict).toBeNull();
     expect(parseQuickLikeness({ verdict: "great" }, true).verdict).toBeNull();
+    // The model said "worse" but the fix scores 75 against the original's 69: the numbers win and its reason is dropped.
+    const fix = { face_shape: 8, eyes: 8, nose_mouth: 8, hair_colour: 7, hair_cut: 7, skin: 8, upper_body: 6, lower_body: null };
+    const orig = { face_shape: 7, eyes: 7, nose_mouth: 7, hair_colour: 7, hair_cut: 7, skin: 6, upper_body: 7, lower_body: null };
+    const q = parseQuickLikeness({ ...fix, verdict: "worse", verdict_reason: "Hair got looser.", original: orig }, true);
+    expect(q.score).toBeGreaterThan(q.originalScore as number);
+    expect(q).toMatchObject({ verdict: "better", why: "" });
+    expect(verdictFor(70, 70 + VERDICT_MARGIN - 1)).toBe("same");
+    expect(verdictFor(60, 70)).toBe("worse");
+    expect(verdictFor(null, 70)).toBeNull();
     const many = parseQuickLikeness({ fixes: ["a", " ", "b", 3, "c", "d", "e", "f", "g"] }, false);
     expect(many.fixes).toEqual(["a", "b", "c", "d", "e", "f"]);
   });

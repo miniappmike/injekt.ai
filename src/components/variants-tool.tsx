@@ -489,8 +489,9 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={1000}
-            placeholder={tab === "carousel" ? "Optional. Describe the place, outfit, mood or story and every moment is built around it, e.g. getting ready at a hotel vanity at night, flash photos, playful and moody" : "Optional. Anything specific you want in the takes"}
-            rows={2}
+            placeholder={tab === "carousel" ? "Optional: a place, outfit, mood or story, e.g. getting ready at a hotel vanity at night" : "Optional: anything specific you want in the takes"}
+            rows={3}
+            className="max-sm:min-h-24"
           />
         </section>
         </MobileSheet>

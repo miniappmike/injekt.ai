@@ -17,7 +17,9 @@ export function GenerationTray() {
   // The Create Model wizard shows each result right where it was made, so the tray would only repeat it there.
   const hiddenHere = pathname.startsWith("/reference-sheet");
   const [items, setItems] = useState<TrayGeneration[]>([]);
+  // On phones it starts as a small pill, so the black strip doesn't sit over the page; tap it for the thumbnails.
   const [collapsed, setCollapsed] = useState(false);
+  const isPhone = () => typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches;
 
   // Adds a generation, or merges news about one already in the tray.
   const update = useCallback((u: Partial<TrayGeneration> & { key: string }) => {
@@ -42,7 +44,7 @@ export function GenerationTray() {
     setItems(
       generationsOnPage(pathname).map((p) => ({ key: p.key, label: p.label, prompt: p.prompt, state: "generating" as const, generationId: p.generationId, detached: true })),
     );
-    setCollapsed(false);
+    setCollapsed(isPhone());
   }, [pathname]);
 
   // Jobs whose Generate button went away are checked from here until they finish.
@@ -104,11 +106,13 @@ export function GenerationTray() {
   return (
     <>
       {/* Keeps the end of the page from hiding behind the tray. */}
-      <div aria-hidden="true" className={collapsed ? "h-12" : "h-36"} />
+      <div aria-hidden="true" className={collapsed ? "h-12 max-sm:h-2" : "h-36"} />
       <section
         ref={tray}
         aria-label="Images generated on this page"
-        className="fixed inset-x-0 bottom-0 z-30 animate-fade-up max-sm:inset-x-3 max-sm:bottom-[5.25rem] max-sm:rounded-2xl max-sm:border border-t border-neutral-800/80 bg-neutral-950/85 px-4 py-2 shadow-[0_-12px_40px_-12px_rgb(0_0_0/0.8)] backdrop-blur-xl"
+        className={`fixed inset-x-0 bottom-0 z-30 animate-fade-up border-t border-neutral-800/80 bg-neutral-950/85 px-4 py-2 shadow-[0_-12px_40px_-12px_rgb(0_0_0/0.8)] backdrop-blur-xl max-sm:bottom-[5.25rem] max-sm:rounded-2xl max-sm:border ${
+          collapsed ? "max-sm:left-auto max-sm:right-3 max-sm:rounded-full max-sm:py-1 max-sm:pl-3 max-sm:pr-1" : "max-sm:inset-x-3"
+        }`}
       >
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-medium">
@@ -116,7 +120,7 @@ export function GenerationTray() {
             {running > 0 && <span className="font-normal text-neutral-400"> · {running} generating</span>}
           </p>
           <div className="flex gap-1">
-            <Button type="button" size="sm" variant="ghost" onClick={() => openHistory("images")}>All images</Button>
+            <Button type="button" size="sm" variant="ghost" className={collapsed ? "max-sm:hidden" : ""} onClick={() => openHistory("images")}>All images</Button>
             <Button type="button" size="sm" variant="ghost" aria-expanded={!collapsed} onClick={() => setCollapsed((c) => !c)}>
               {collapsed ? "Show" : "Hide"}
             </Button>
