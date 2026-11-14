@@ -34,7 +34,7 @@ export const REALISM_FIX = {
   texture: "Fabrics and surfaces show their real texture, with visible weave and creases in the clothing and natural wear on the surroundings.",
   camera: "It has a smartphone main-camera look with slight softness and focus falloff, visible noise in the shadows, mild compression and true-to-life colour.",
   quality:
-    "IMAGE QUALITY: a real, unedited smartphone photo, not a render. Natural camera imperfections: slight softness and focus falloff away from the face, a faint motion blur in moving hands or hair, visible sensor noise in the shadows, mild JPEG compression, slightly imperfect auto white balance and exposure, and light spill from the surroundings onto skin and clothes. Skin is matte and textured: visible pores, fine peach fuzz, uneven tone, faint redness and small imperfections, with only a little natural oil on the nose and forehead. No smoothing, no glossy, waxy, plastic or porcelain skin, no glow, no beauty filter, no CGI, doll or 3D-render look.",
+    "IMAGE QUALITY: a real, unedited smartphone photo, not a render: slight softness and focus falloff, faint motion blur in moving hands or hair, sensor noise in the shadows, mild JPEG compression, imperfect auto white balance. LIGHT AND SHADOW: shadows follow the scene's visible light sources in one direction and softness, with soft contact shadows under feet, hands and props and warm light spilling from glowing objects onto nearby skin; with camera flash, a tight shadow sits just behind her. Skin is matte and textured: visible pores, fine peach fuzz, uneven tone, faint redness, small imperfections. No smoothing, no glossy, waxy, plastic or porcelain skin, no glow, no beauty filter, no CGI, doll or 3D-render look.",
 };
 
 /**
