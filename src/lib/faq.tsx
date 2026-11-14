@@ -101,7 +101,7 @@ export const FAQ_GROUPS: { title: string; items: Faq[] }[] = [
         q: "What do I get when I buy a model from the marketplace?",
         a: (
           <>
-            Each persona is exclusive: she is sold once, to one owner. You get two reference sheets and three to five photos of her, yours to post, train with elsewhere or take off the platform entirely. <ProTip />Use Photoshoot mode to make variants of the photos that come with her. Checkout is being connected now; until it opens you can browse every persona.
+            Each persona is exclusive: she is sold once, to one owner. You get two reference sheets and three to five photos of her, yours to post, train with elsewhere or take off the platform entirely. <ProTip />Use Photoshoot mode to make variants of the photos that come with her.
           </>
         ),
       },

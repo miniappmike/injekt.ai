@@ -8,12 +8,12 @@ import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
 
 /**
  * "Pin It" under a generated image of a character. At the limit, a pop-up asks before the new image
- * replaces her last reference photo, and it only goes ahead once the box is ticked.
+ * replaces the next of her reference photos in rotation (1st, 2nd, ... then back to the 1st), and it only goes ahead once the box is ticked.
  */
 export function PinToReferences({ generationId, characterId }: { generationId: string; characterId: string }) {
   const router = useRouter();
   const [state, setState] = useState<{ busy?: boolean; done?: string; error?: string }>({});
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState<number | false>(false);
   const [agreed, setAgreed] = useState(false);
 
   async function pin(replaceLast = false) {
@@ -21,11 +21,11 @@ export function PinToReferences({ generationId, characterId }: { generationId: s
     const r = await pinToReferences({ generationId, characterId, replaceLast });
     if (r.ok) {
       setConfirm(false);
-      setState({ done: r.replaced ? "Pinned. It replaced her last reference photo." : `Pinned to her reference photos (${r.count} of ${MAX_REFERENCE_PHOTOS}).` });
+      setState({ done: r.replaced ? `Pinned. It replaced her reference photo ${r.slot}.` : `Pinned to her reference photos (${r.count} of ${MAX_REFERENCE_PHOTOS}).` });
       router.refresh();
     } else if ("full" in r) {
       setAgreed(false);
-      setConfirm(true);
+      setConfirm(r.slot);
       setState({});
     } else if (r.redirectTo) {
       router.push(r.redirectTo);
@@ -54,10 +54,10 @@ export function PinToReferences({ generationId, characterId }: { generationId: s
             onKeyDown={(e) => e.key === "Escape" && !state.busy && setConfirm(false)}
           >
             <p id="pin-full-title" className="font-display text-lg font-bold text-neutral-50">She already has {MAX_REFERENCE_PHOTOS} reference photos</p>
-            <p className="text-neutral-300">You are about to replace her last reference photo (photo {MAX_REFERENCE_PHOTOS}) with this image.</p>
+            <p className="text-neutral-300">You are about to replace her reference photo {confirm} of {MAX_REFERENCE_PHOTOS} with this image. Each new pin replaces the next photo in turn, so you can cycle through all of them.</p>
             <label className="flex items-start gap-2 text-neutral-200">
               <input type="checkbox" className="mt-1" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} autoFocus />
-              Replace her last reference photo with this one
+              Replace reference photo {confirm} with this one
             </label>
             {state.error && <p role="alert" className="text-red-400">{state.error}</p>}
             <div className="flex flex-wrap justify-end gap-2">
