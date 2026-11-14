@@ -416,3 +416,11 @@ main input:-webkit-autofill {
   caret-color: #fff;
   transition: background-color 99999s ease-out;
 }
+
+/* The landing page's FAQ link (and the FAQ jump chips) glide to their spot instead of jumping. Only pages that have the
+   FAQ get this, so other navigation is unchanged; people who ask for less motion still jump. */
+@media (prefers-reduced-motion: no-preference) {
+  html:has(#faq) {
+    scroll-behavior: smooth;
+  }
+}

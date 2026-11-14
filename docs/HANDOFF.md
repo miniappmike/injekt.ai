@@ -14,6 +14,7 @@ Live at injektai.vercel.app. Everything below this section is the older build hi
 section is right.
 
 **Fixes after the invites session**
+- FAQ links glide: `html:has(#faq)` has smooth scrolling in `globals.css` (off for reduced motion). Not checked in a browser.
 - FAQ and header edits: "Pro tip" is now an on-brand badge (`ProTip` in `src/lib/faq.tsx`); the consistency question is removed; the sites and Art to Real in the first-picture answer are links (Art to Real goes to `/art-to-real`, which signed-out visitors reach via log in); the signed-out header has an FAQ link to `/#faq`.
 - Character card seam, second attempt: a solid 2px strip now covers the picture's bottom edge (`character-card.tsx`). The first attempt (fade past the edge) did not fix it on the owner's Chromebook; if it persists, look at the card's lift transform and the `-mt-10` overlap of the body.
 - Characters page hover seam: the card's fade now extends 1px past the picture's bottom edge and the picture is on its own layer (`character-card.tsx`), to hide a sub-pixel line that showed while the card lifts and the image zooms. Not verified in a browser; check on the Chromebook.
