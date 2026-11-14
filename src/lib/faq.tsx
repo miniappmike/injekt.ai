@@ -17,10 +17,11 @@ const A = ({ href, children }: { href: string; children: React.ReactNode }) =>
   ) : (
     <a href={href} className={LINK} {...(href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{children}</a>
   );
-/** An on-brand badge that sets a tip apart from the answer around it. */
-const ProTip = () => (
-  <span className="mr-1.5 inline-flex -translate-y-px items-center gap-1 rounded-full bg-gradient-to-r from-[#e8265e] to-[#ff5c8a] px-2.5 py-0.5 align-middle text-[11px] font-bold uppercase tracking-wide text-white shadow-[0_6px_16px_-8px_rgb(232_38_94/0.9)]">
-    <Lightbulb aria-hidden="true" className="h-3 w-3" /> Pro tip
+/** The tip itself, in an on-brand highlighted badge on its own line under the plain answer. */
+const ProTip = ({ children }: { children: React.ReactNode }) => (
+  <span className="mt-3 flex items-start gap-2.5 rounded-xl bg-gradient-to-r from-[#e8265e] to-[#ff5c8a] px-3.5 py-2.5 text-sm font-semibold leading-snug text-white shadow-[0_8px_20px_-10px_rgb(232_38_94/0.9)]">
+    <Lightbulb aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+    <span>{children}</span>
   </span>
 );
 const Email = () => <A href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</A>;
@@ -56,7 +57,7 @@ export const FAQ_GROUPS: { title: string; items: Faq[] }[] = [
         q: "Does it work on a phone?",
         a: (
           <>
-            Yes, ModelSpawn has a fully working mobile layout. <ProTip />Add the site to your home screen and it opens like an app.
+            Yes, ModelSpawn has a fully working mobile layout.<ProTip>Add the site to your home screen and it opens like an app.</ProTip>
           </>
         ),
       },
@@ -101,7 +102,7 @@ export const FAQ_GROUPS: { title: string; items: Faq[] }[] = [
         q: "What do I get when I buy a model from the marketplace?",
         a: (
           <>
-            Each persona is exclusive: she is sold once, to one owner. You get two reference sheets and three to five photos of her, yours to post, train with elsewhere or take off the platform entirely. <ProTip />Use Photoshoot mode to make variants of the photos that come with her.
+            Each persona is exclusive: she is sold once, to one owner. You get two reference sheets and three to five photos of her, yours to post, train with elsewhere or take off the platform entirely.<ProTip>Use Photoshoot mode to make variants of the photos that come with her.</ProTip>
           </>
         ),
       },
