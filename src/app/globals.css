@@ -341,7 +341,36 @@
   }
 }
 
-/* Log in / sign up: the big out-of-focus mark behind the form breathes slowly. */
+/*
+ * Landing page <-> log in / sign up (FrontStage). The backdrop stays put; what's in front of it swipes.
+ * Opening the form: the landing page leaves upward and the form rises slowly from below. The X does the reverse.
+ */
+::view-transition-old(.front-rise-out) {
+  animation: 520ms cubic-bezier(0.5, 0, 0.75, 0.4) both front-leave-up;
+}
+::view-transition-new(.front-rise-in) {
+  animation: 1100ms cubic-bezier(0.16, 1, 0.3, 1) 160ms both front-arrive-up;
+}
+::view-transition-old(.front-drop-out) {
+  animation: 520ms cubic-bezier(0.5, 0, 0.75, 0.4) both front-leave-down;
+}
+::view-transition-new(.front-drop-in) {
+  animation: 1100ms cubic-bezier(0.16, 1, 0.3, 1) 160ms both front-arrive-down;
+}
+@keyframes front-leave-up {
+  to { transform: translateY(-45vh); opacity: 0; }
+}
+@keyframes front-arrive-up {
+  from { transform: translateY(70vh); opacity: 0; }
+}
+@keyframes front-leave-down {
+  to { transform: translateY(45vh); opacity: 0; }
+}
+@keyframes front-arrive-down {
+  from { transform: translateY(-70vh); opacity: 0; }
+}
+
+/* Landing pages, log in and sign up: the big out-of-focus mark in the backdrop breathes slowly. */
 @keyframes auth-breathe {
   from { opacity: 0.68; scale: 1; }
   to { opacity: 0.85; scale: 1.05; }

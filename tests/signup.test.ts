@@ -5,7 +5,7 @@ vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("@/env", () => ({ env: { NEXT_PUBLIC_APP_URL: "https://app.test" } }));
 vi.mock("@/lib/supabase/server", () => ({ createUserClient: async () => ({ auth: { signUp } }) }));
 
-import { signup } from "@/app/(auth)/actions";
+import { signup } from "@/app/(front)/(auth)/actions";
 import { TERMS_UPDATED } from "@/lib/legal";
 
 const form = (extra: Record<string, string> = {}) => {
