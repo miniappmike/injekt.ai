@@ -13,6 +13,17 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Deployment alerts (built, not yet switched on)**
+- The ModelSpawn bot can message connected admins when a deployment finishes ("🚀 Deployed to production" with repo,
+  commit and link, or "❌ Deployment failed"). Route `/api/webhooks/deploy` (`src/app/api/webhooks/deploy/route.ts`),
+  logic in `src/lib/deploy-alerts.ts`, tests in `tests/deploy-alerts.test.ts`. It reuses the admin Telegram alerts
+  (`alertAdmins`), so it reaches whoever already pressed Connect in Admin.
+- **Needs `DEPLOY_WEBHOOK_SECRET` in Vercel env vars** (without it the route returns 503), then one of two senders:
+  a Vercel webhook (Project Settings → Webhooks; **Pro/Enterprise only**; events "Deployment Ready" and "Deployment
+  Error"; use the secret Vercel shows as the env var), or a GitHub webhook (repo Settings → Webhooks, payload URL
+  `<site>/api/webhooks/deploy`, content type `application/json`, your own secret, event "Deployment statuses"), which
+  works on the Hobby plan. Not tried against live Vercel or GitHub payloads (shapes written from their docs).
+
 **Fixes after the invites session**
 - Character card seam, third attempt: the picture itself now fades to transparent over its bottom 22% (a CSS mask on the `<img>`), so whatever the browser does at that edge during the hover lift/zoom, it is dark card background and not the photo. Cause never reproduced (the owner's Chromebook only). If it still shows, ask for a screenshot of the line while hovering and try removing the card's lift (`hover:-translate-y-1`) first.
 - **Loading screen with the flashing M** (`src/components/boot-splash.tsx`, styles at the end of `globals.css`): `BootSplash` in the root layout covers the page from the first HTML and fades out once the page is ready (so opening the home-screen app no longer shows a bare black page; a CSS timer removes it after 10s if scripts never run). `(app)/loading.tsx` keeps its skeleton blocks and adds the dim cover with the M only if a page takes over 0.7s. The manifest's background and theme colour are now `#12030a` (was `#0a0a0a`) so the phone's own launch screen matches. The very first moments before any HTML arrives are the phone's launch screen (manifest colour plus icon) and can't be changed from the site; an installed app may need removing and re-adding to the home screen to pick up the new colour. Not checked in a browser or on a phone.

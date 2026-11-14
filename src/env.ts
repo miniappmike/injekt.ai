@@ -20,6 +20,8 @@ export const env = createEnv({
     NOWPAYMENTS_IPN_SECRET: z.string().optional(),
     // "1" sends NOWPayments calls to its sandbox (test payments with no real money).
     NOWPAYMENTS_SANDBOX: z.string().optional(),
+    // Verifies the deployment webhook (/api/webhooks/deploy); without it that route refuses every request.
+    DEPLOY_WEBHOOK_SECRET: z.string().min(8).optional(),
   },
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
@@ -40,6 +42,7 @@ export const env = createEnv({
     NOWPAYMENTS_API_KEY: process.env.NOWPAYMENTS_API_KEY,
     NOWPAYMENTS_IPN_SECRET: process.env.NOWPAYMENTS_IPN_SECRET,
     NOWPAYMENTS_SANDBOX: process.env.NOWPAYMENTS_SANDBOX,
+    DEPLOY_WEBHOOK_SECRET: process.env.DEPLOY_WEBHOOK_SECRET,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
