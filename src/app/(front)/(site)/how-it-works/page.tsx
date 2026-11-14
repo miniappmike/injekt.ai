@@ -55,7 +55,7 @@ const TOOLS = [
   { icon: Users, title: "Group photo", body: "Put several of your models in one picture. Each keeps her own face and body." },
   { icon: Pin, title: "Pin It", body: "Pin your best generated images to a model as reference photos, up to five each, so she keeps getting more consistent." },
   { icon: History, title: "History", body: "Every prompt and image you have made, ready to copy, rerun or check again." },
-  { icon: Store, title: "Marketplace", body: "Browse ready-made personas with their own looks and backstories.", tag: "Checkout coming soon" },
+  { icon: Store, title: "Marketplace", body: "Browse ready-made personas with their own looks and backstories." },
 ];
 
 const WAYS = [
