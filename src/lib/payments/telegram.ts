@@ -5,6 +5,7 @@ import { PRO } from "@/lib/plans";
 import { CONTACT_EMAIL } from "@/lib/links";
 import { fulfillOrder, getOrder, renewProOrder, type StoredOrder } from "@/lib/orders";
 import { alertPaid, connectAlertChat } from "@/lib/payments/alerts";
+import { BOT_COMMANDS, commandReply, commandWord, NOT_A_COMMAND, type Reply } from "@/lib/telegram-commands";
 
 /**
  * Telegram Stars payments through the ModelSpawn bot.
@@ -59,7 +60,7 @@ interface Update {
   update_id: number;
   pre_checkout_query?: { id: string; currency: string; total_amount: number; invoice_payload: string };
   message?: {
-    chat: { id: number };
+    chat: { id: number; type?: string };
     text?: string;
     successful_payment?: {
       currency: string;
@@ -75,6 +76,20 @@ interface Update {
 const SITE = () => env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
 
 const say = (chatId: number, text: string) => telegramApi("sendMessage", { chat_id: chatId, text, link_preview_options: { is_disabled: true } }).catch(() => null);
+
+/** A command's answer with its link buttons. If Telegram refuses the buttons (it only takes https links), the text still goes. */
+async function sayReply(chatId: number, reply: Reply): Promise<void> {
+  if (reply.buttons?.length) {
+    const sent = await telegramApi("sendMessage", {
+      chat_id: chatId,
+      text: reply.text,
+      link_preview_options: { is_disabled: true },
+      reply_markup: { inline_keyboard: reply.buttons.map((b) => [{ text: b.text, url: b.url }]) },
+    }).catch(() => null);
+    if (sent) return;
+  }
+  await say(chatId, reply.text);
+}
 
 /** Why an order can't be paid with this pre-checkout, or null when it can. */
 export function precheckProblem(order: StoredOrder | null, q: { currency: string; total_amount: number }): string | null {
@@ -120,17 +135,16 @@ export async function handleTelegramUpdate(update: Update): Promise<void> {
     return;
   }
 
-  // Commands. Telegram asks bots that take payments to offer terms and support.
-  const words = msg?.text?.trim().split(/\s+/) ?? [];
-  const text = words[0]?.toLowerCase();
-  if (!msg || !text) return;
+  // Commands (see `telegram-commands.ts`). Telegram asks bots that take payments to offer terms and support.
+  if (!msg?.text) return;
+  const words = msg.text.trim().split(/\s+/);
+  const command = commandWord(msg.text);
   // An admin connecting alerts: "/start alerts_<code>" from the link in Admin.
-  if (text === "/start" && words[1]?.startsWith("alerts_")) return void (await say(msg.chat.id, await connectAlertChat(words[1].slice(7), msg.chat.id)));
-  if (text === "/terms") return void (await say(msg.chat.id, `Terms of Service: ${SITE()}/terms\nPrivacy Policy: ${SITE()}/privacy`));
-  if (text === "/support" || text === "/paysupport")
-    return void (await say(msg.chat.id, `For help with a payment, email ${CONTACT_EMAIL} with your Telegram payment receipt. All sales are final (see /terms).`));
-  if (text === "/start")
-    return void (await say(msg.chat.id, `This is the ModelSpawn payment bot. Buy tokens or Pro on the site, and pay here with Telegram Stars.\n\n${SITE()}/tokens\n\n/terms · /support`));
+  if (command === "/start" && words[1]?.startsWith("alerts_")) return void (await say(msg.chat.id, await connectAlertChat(words[1].slice(7), msg.chat.id)));
+  const reply = commandReply(command, SITE());
+  if (reply) return void (await sayReply(msg.chat.id, reply));
+  // Plain chatter in a group is none of the bot's business; in a private chat, point to /help.
+  if (command.startsWith("/") || !msg.chat.type || msg.chat.type === "private") await sayReply(msg.chat.id, NOT_A_COMMAND);
 }
 
 /** Points Telegram at this site's webhook and sets the bot's commands. Run once from Admin after adding the token. */
@@ -142,14 +156,7 @@ export async function connectTelegramBot(): Promise<{ username: string; url: str
     allowed_updates: ["message", "pre_checkout_query"],
     drop_pending_updates: false,
   });
-  await telegramApi("setMyCommands", {
-    commands: [
-      { command: "start", description: "About this bot" },
-      { command: "terms", description: "Terms of Service and Privacy Policy" },
-      { command: "support", description: "Help with a payment" },
-      { command: "paysupport", description: "Help with a payment" },
-    ],
-  });
+  await telegramApi("setMyCommands", { commands: BOT_COMMANDS });
   const me = await telegramApi<{ username: string }>("getMe");
   return { username: me.username, url };
 }

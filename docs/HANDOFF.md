@@ -13,16 +13,20 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
-**Deployment alerts (built, not yet switched on)**
-- The ModelSpawn bot can message connected admins when a deployment finishes ("🚀 Deployed to production" with repo,
-  commit and link, or "❌ Deployment failed"). Route `/api/webhooks/deploy` (`src/app/api/webhooks/deploy/route.ts`),
-  logic in `src/lib/deploy-alerts.ts`, tests in `tests/deploy-alerts.test.ts`. It reuses the admin Telegram alerts
-  (`alertAdmins`), so it reaches whoever already pressed Connect in Admin.
-- **Needs `DEPLOY_WEBHOOK_SECRET` in Vercel env vars** (without it the route returns 503), then one of two senders:
-  a Vercel webhook (Project Settings → Webhooks; **Pro/Enterprise only**; events "Deployment Ready" and "Deployment
-  Error"; use the secret Vercel shows as the env var), or a GitHub webhook (repo Settings → Webhooks, payload URL
-  `<site>/api/webhooks/deploy`, content type `application/json`, your own secret, event "Deployment statuses"), which
-  works on the Hobby plan. Not tried against live Vercel or GitHub payloads (shapes written from their docs).
+**Telegram bot: commands and deployment alerts (November 14 evening)**
+- **Commands** (`src/lib/telegram-commands.ts`, pure and tested in `tests/telegram-commands.test.ts`; wired in
+  `handleTelegramUpdate`): /start, /help, /tools, /tokens (packs with dollar and Stars prices, read from `plans.ts`),
+  /pro, /key, /invite, /discord, /terms, /support, /paysupport. Answers carry link buttons to the matching site page
+  (if Telegram refuses the buttons the text is still sent). Unknown commands and private-chat text get "type /help".
+  The bot does not know which site account a chat belongs to, so there is no balance or history command; that needs
+  an account-link flow (a one-time code like the admin alerts' `alerts_<code>`, plus a button on the site). Not built.
+- **The new "/" menu only appears after pressing Connect Telegram bot again** in Admin → Payments (it calls
+  `setMyCommands` from `BOT_COMMANDS`). Until then the old four commands show, though every new command already works.
+- **Deployment alerts** (live, confirmed 200 from GitHub): the bot messages connected admins when a deployment
+  finishes. Route `/api/webhooks/deploy`, logic `src/lib/deploy-alerts.ts`, tests `tests/deploy-alerts.test.ts`,
+  secret `DEPLOY_WEBHOOK_SECRET`. Sender is a Vercel webhook (Pro/Enterprise only) or a GitHub webhook with the
+  "Deployment statuses" event (any plan, what the owner uses). First 401s were a secret mismatch between GitHub and
+  the env var.
 
 **Fixes after the invites session**
 - Character card seam, third attempt: the picture itself now fades to transparent over its bottom 22% (a CSS mask on the `<img>`), so whatever the browser does at that edge during the hover lift/zoom, it is dark card background and not the photo. Cause never reproduced (the owner's Chromebook only). If it still shows, ask for a screenshot of the line while hovering and try removing the card's lift (`hover:-translate-y-1`) first.
