@@ -5,10 +5,10 @@ import { useEffect, useRef, type RefObject } from "react";
 import { takeStashedFiles } from "@/lib/handoff";
 
 /**
- * Ctrl+V for images, page-wide. Every image box registers with `usePasteTarget`. A paste while a box is focused goes
- * to that box through its own onPaste, as before. A paste anywhere else (nothing focused, or a button or the page) goes
- * to the box nearest the mouse, or the one nearest the middle of the screen if the mouse hasn't moved yet. That box
- * then takes focus, so the next paste goes to it too. Pasting into a text field is left alone. While a dialog is open,
+ * Ctrl+V for images, page-wide. Every image box registers with `usePasteTarget`. A paste goes to the box under or nearest
+ * the mouse (focus doesn't decide, so hovering a different box and pasting fills that one), or the one nearest the
+ * middle of the screen if the mouse hasn't moved yet; with only the keyboard, a focused box takes it through its own
+ * onPaste. The chosen box takes focus. Pasting into a text field is left alone. While a dialog is open,
  * only its boxes count.
  */
 const ATTR = "data-paste-target";
@@ -84,8 +84,10 @@ export function PasteRouter() {
     const paste = (e: ClipboardEvent) => {
       if (e.defaultPrevented) return;
       const t = e.target instanceof Element ? e.target : null;
-      // Typing somewhere, or already inside a box (its own onPaste takes it).
-      if (t?.closest(`input, textarea, select, [contenteditable=""], [contenteditable="true"], [${ATTR}]`)) return;
+      // Typing somewhere: leave it alone.
+      if (t?.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
+      // Focus on a box with no mouse in play (keyboard only): that box's own onPaste takes it.
+      if (!mouse && t?.closest(`[${ATTR}]`)) return;
       const files = clipboardImages(e.clipboardData);
       if (!files.length) return;
       const dialogs = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"]'));
@@ -94,15 +96,19 @@ export function PasteRouter() {
       const p = mouse ?? { x: innerWidth / 2, y: innerHeight / 2 };
       const el = nearestTarget(targets, p.x, p.y);
       if (!el) return;
+      // Focus stays on the box that took the last paste, so the mouse decides, not focus: the box under or nearest the
+      // mouse gets it even when another box is focused. This listener runs in the capture phase and stops the event, so
+      // a focused box's own onPaste never sees it too.
       e.preventDefault();
+      e.stopPropagation();
       el.focus({ preventScroll: true });
       el.dispatchEvent(new CustomEvent(EVENT, { detail: files }));
     };
     addEventListener("pointermove", move, { passive: true });
-    document.addEventListener("paste", paste);
+    document.addEventListener("paste", paste, true);
     return () => {
       removeEventListener("pointermove", move);
-      document.removeEventListener("paste", paste);
+      document.removeEventListener("paste", paste, true);
     };
   }, []);
   return null;

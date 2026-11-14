@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MenuSelect } from "@/components/menu-select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
@@ -215,7 +216,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       const base = { path, preview: image.preview, extraPaths, extraPreviews, characterId: characterId || null, mode, runId: crypto.randomUUID(), elsewhere };
       const who = (p: SlidePerson, type: string) => (p === "none" ? " · no person" : p === "partial" ? " · partly her" : type === "pose" ? "" : " · with her");
       if (mode === "edits") {
-        const res = await writeVariantEdits({ imagePath: path, dims: [...dims], count, ...common });
+        const res = await writeVariantEdits({ imagePath: path, dims: [...dims], count, ...where, ...common });
         usageChanged();
         if (!res.ok) {
           if (res.redirectTo) return router.push(res.redirectTo);
@@ -288,18 +289,19 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   );
 
   // Where the set is going: one menu, grouped by the tone each platform sets, so it needs no explaining.
-  const platformField = mode !== "edits" && (
+  const platformField = (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor="platform">Posting to</Label>
-      <select id="platform" value={platform ?? ""} onChange={(e) => setPlatform((e.target.value || null) as PlatformId | null)} className={selectClass}>
-        <option value="">Anywhere</option>
-        {PLATFORM_TONES.map((tone) => (
-          <optgroup key={tone.label} label={tone.label}>
-            {tone.ids.map((id) => <option key={id} value={id}>{platformLabel(id)}</option>)}
-          </optgroup>
-        ))}
-        <option value="other">Somewhere else…</option>
-      </select>
+      <MenuSelect
+        id="platform"
+        value={platform ?? ""}
+        onChange={(v) => setPlatform((v || null) as PlatformId | null)}
+        groups={[
+          { options: [{ value: "", label: "Anywhere" }] },
+          ...PLATFORM_TONES.map((tone) => ({ label: tone.label, options: tone.ids.map((id) => ({ value: id as string, label: platformLabel(id) })) })),
+          { options: [{ value: "other", label: "Somewhere else…" }] },
+        ]}
+      />
       {platform === "other" && (
         <Input
           value={platformOther}
@@ -416,7 +418,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
 
       <section className="panel flex flex-col gap-4 p-4">
         <Step n={2} title={tab === "carousel" ? "Plan her day" : "Choose what changes"} />
-        <div className={`grid gap-3 ${mode === "edits" ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
+        <div className="grid gap-3 sm:grid-cols-4">
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label htmlFor="character">Character</Label>
             <CharacterPicker

@@ -84,7 +84,7 @@ export interface VariantResult {
 export async function runVariants(
   supabase: SupabaseClient,
   userId: string,
-  input: { imagePath: string; characterId?: string | null; dims: VariantDimId[]; count?: number; note?: string; extraPaths?: string[] },
+  input: { imagePath: string; characterId?: string | null; dims: VariantDimId[]; count?: number; note?: string; extraPaths?: string[]; platform?: PlatformId | null; platformOther?: string },
   random: () => number = Math.random,
 ): Promise<VariantResult> {
   if (!isOwnPath(userId, input.imagePath)) throw new UserFacingError("Add the image you want to vary.");
@@ -107,6 +107,7 @@ export async function runVariants(
   const { client, imageMaxEdge } = await getUserTextClient(supabase, userId, "vision", "variants");
   const recent = (await recentPoses(supabase, userId)).poses.slice(-RECENT_SEND);
   // One outfit for the whole set; with "Outfit colours" on, its palette is picked here, once, before anything is written.
+  const platform = PLATFORMS.some((x) => x.id === input.platform) ? (input.platform as PlatformId) : undefined;
   const lockOutfit = locksOutfit(dims);
   const palette = lockOutfit && dims.includes("colours") ? shuffleArr(PALETTES, random)[0] : "";
   const prompt = variantPrompt({
@@ -123,6 +124,7 @@ export async function runVariants(
     extraTags: extraPaths.map((_, i) => "@image" + (i + 2)),
     lockOutfit,
     palette,
+    ...(platform ? { platform, platformOther: platform === "other" ? String(input.platformOther ?? "").slice(0, PLATFORM_OTHER_MAX) : "" } : {}),
   });
   const images = await loadForVision(
     supabase,
@@ -136,7 +138,7 @@ export async function runVariants(
     .filter((v): v is Record<string, unknown> => !!v && typeof v === "object" && typeof v.prompt === "string" && !!v.prompt.trim())
     .slice(0, n);
   if (!list.length) throw new UserFacingError("The model did not write any variants. Try again.");
-  const variants = list.map((v) => ({ label: String(v.label || "Variant").slice(0, 40), changes: String(v.changes || "").slice(0, 80), prompt: finishVariant(String(v.prompt), vt, so, extra, outfit, !!palette) }));
+  const variants = list.map((v) => ({ label: String(v.label || "Variant").slice(0, 40), changes: String(v.changes || "").slice(0, 80), prompt: finishVariant(String(v.prompt), vt, so, extra, outfit, !!palette, dims) }));
 
   const variantIds = await saveHistory(
     supabase,

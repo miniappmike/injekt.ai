@@ -16,6 +16,8 @@ export interface ViewableImage {
   generated?: boolean;
   /** Its generation, so Variants can copy the image on the server. */
   generationId?: string | null;
+  /** The images it was opened from, in order (the page's tray): the arrow keys step through them. */
+  gallery?: ViewableImage[];
 }
 
 /** The image the viewer's Variants button hands to the Variants page ({ generationId, url } as JSON, this tab only). */

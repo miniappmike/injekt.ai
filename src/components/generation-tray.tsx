@@ -134,7 +134,11 @@ export function GenerationTray() {
                 {i.state === "ready" && i.url ? (
                   <button
                     type="button"
-                    onClick={() => viewImage({ url: i.url as string, downloadUrl: i.downloadUrl, prompt: i.prompt, title: i.label, generated: true, generationId: i.generationId })}
+                    onClick={() => {
+                      const shot = (x: TrayGeneration) => ({ url: x.url as string, downloadUrl: x.downloadUrl, prompt: x.prompt, title: x.label, generated: true, generationId: x.generationId });
+                      // The tray's ready images, so the viewer's arrow keys step through them in the tray's order.
+                      viewImage({ ...shot(i), gallery: items.filter((x) => x.state === "ready" && x.url).map(shot) });
+                    }}
                     className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
                     aria-label={`View ${i.label} image`}
                     title={i.label}

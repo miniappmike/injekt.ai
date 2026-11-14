@@ -61,6 +61,9 @@ export interface VariantPromptInput {
   lockOutfit?: boolean;
   /** With the outfit locked and "Outfit colours" on: the one palette every edit's outfit is recoloured with. */
   palette?: string;
+  /** Where the set will be posted (sets the tone of poses and expressions); `platformOther` names "other". */
+  platform?: PlatformId;
+  platformOther?: string;
 }
 
 /**
@@ -79,10 +82,13 @@ export function variantPrompt(o: VariantPromptInput): string {
 ${two ? `IMAGE TAGS (use exactly these, never swap them): ${vt.ref} ${isAre} the ${vt.refKind}, the identity source of truth for the face, hair and body. ${vt.photo} is the photo being edited (the attached image). Every edit changes ${vt.photo} and keeps the person identical to ${vt.ref}. Never call the photo ${vt.ref} or the reference ${vt.photo}, and never describe the layout, grid, panels or grey background of the reference.` : ""}
 
 Each edit keeps EVERYTHING the same (the same person and face, hair, body, makeup, nail polish, outfit, accessories, overall style, colour grade, light quality, camera look and realism) except what that edit changes. Things that may change: ${dims.join(", ")}. Each edit changes one or two of these, and together the ${n} edits should cover them with variety.
-${o.traits ? `The person is this character; restate their 3 to 5 most recognisable traits that are visible in this image (skip any that are out of frame or hidden) in each edit so the face does not drift: ${fence(o.traits)}` : ""}
+The photo tells the image model who she is, what she wears and how the shot looks and feels (aesthetic, colour grade, light, camera look). It is NOT a layout to copy. Whatever an edit changes must be so clear that the result is never mistaken for the original photo or for another edit: the new pose, framing or expression comes from the edit's words, and the model must follow them closely.
+${o.platform ? `${platformBrief(o.platform, o.platformOther)}\nApply the platform's tone only to what may change above (pose, expression and so on): never change anything that is not in that list.\n` : ""}${o.traits ? `The person is this character; restate their 3 to 5 most recognisable traits that are visible in this image (skip any that are out of frame or hidden) in each edit so the face does not drift: ${fence(o.traits)}` : ""}
 RULES
 - ${two ? `Start every edit with "Edit ${vt.photo}. Keep the person exactly as she looks in ${vt.ref}: same face, features, skin, hair, body shape and proportions. Keep the outfit and photo style of ${vt.photo}." then the change.` : 'Start every edit with "Keep the same person, outfit and photo style." then the change.'}
-- Read the image's vibe (setting, props, mood, camera position) so each change fits it. Poses are fresh, eye-catching social media poses: confident, playful or candid, physically plausible and non-sexual. Describe a new pose limb by limb with left and right, plus expression and gaze.
+- Read the image's vibe (setting, props, mood, camera position) so each change fits it. ${o.platform && SPICY.has(o.platform) ? "Poses are fresh, confident, flirtatious and teasing as the platform above calls for, physically plausible and never explicit." : "Poses are fresh, eye-catching social media poses: confident, playful or candid, physically plausible and non-sexual."} Describe a new pose limb by limb with left and right, plus expression and gaze.
+- Put the change first and make it concrete: right after the opening line, state it in one specific sentence that says it replaces the photo's (for a pose: "Her pose is completely different from the photo: ..." naming where her torso, both arms, both legs, head and gaze go; for an angle: the exact camera position, height and framing). Never write a change so small that the result could pass for the original, such as a slight head tilt, a shifted hand or a slightly different smile: those are not a new pose or expression.
+- No two edits in the set share a pose, camera position or framing. They read as different frames from one photoshoot, and a pose or angle edit never repeats the photo's own pose or framing.
 - A camera angle change names the new position and framing (for example low angle from hip height, high angle from above, profile from the left, tighter head-and-shoulders crop, wider full-body shot).
 - A scene change keeps the same light quality, colour grade and camera style in the new place.
 - An outfit colour change keeps every garment and only names the new colours.
@@ -105,10 +111,14 @@ function extrasLine(tags: string[]) {
 }
 
 /** Artifact post-processing of each variant: harness, the opener, the reference outfit guard and the makeup rule. */
-export function finishVariant(prompt: string, vt: VariantTags | null, so: string, extra: string, outfit = "", recoloured = false): string {
+export function finishVariant(prompt: string, vt: VariantTags | null, so: string, extra: string, outfit = "", recoloured = false, dims: string[] = []): string {
   let t = harness(prompt, { realism: false }).text;
   if (vt && !(t.includes(vt.ref) && t.includes(vt.photo)))
     t = `Edit ${vt.photo}. Keep the person exactly as she looks in ${vt.ref}: same face, features, skin, hair, body shape and proportions. ` + t;
+  // The change is the point: without this the model tends to hand back the photo with tiny differences.
+  const moves = ["pose", "angle", "expression", "scene", "light"].filter((d) => dims.includes(d));
+  if (moves.length)
+    t = t.replace(/\s*$/, " ") + `FOLLOW THE CHANGE ABOVE CLOSELY: it must be clearly visible. Keep her look, outfit and the photo's aesthetic, but do not copy ${vt ? vt.photo : "the photo"}'s ${[dims.includes("pose") && "pose", dims.includes("angle") && "framing and camera position", dims.includes("expression") && "expression", dims.includes("scene") && "setting", dims.includes("light") && "lighting"].filter(Boolean).join(", ")} where the change says otherwise.`;
   // The same outfit, word for word, in every edit of the set.
   if (outfit) t = t.replace(/\s*$/, " ") + outfitKeep(outfit, vt ? vt.photo : "the photo being edited", recoloured);
   if (vt) t = t.replace(/\s*$/, " ") + refOutfitGuard(vt.ref, vt.photo, so) + " " + SKIN_ART_SHORT;

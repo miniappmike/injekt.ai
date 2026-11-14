@@ -41,10 +41,22 @@ export function ImageViewer() {
   const pathname = usePathname();
 
   // Copies the picture itself. Clipboards take PNG, so a JPEG is redrawn as one (from the file, so nothing is tainted).
-  async function copyImage(url: string) {
+  async function copyImage(urls: (string | null | undefined)[]) {
     try {
-      const png = fetch(url)
-        .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("load"))))
+      // Tries each address in turn (the download link, then the plain one); one may be refused by the browser.
+      const tryUrls = urls.filter((u): u is string => !!u);
+      const png = (async () => {
+        let last: unknown = new Error("load");
+        for (const u of tryUrls) {
+          try {
+            const r = await fetch(u, { mode: "cors", credentials: "omit" });
+            if (r.ok) return await r.blob();
+          } catch (err) {
+            last = err;
+          }
+        }
+        throw last;
+      })()
         .then(async (blob) => {
           if (blob.type === "image/png") return blob;
           const bmp = await createImageBitmap(blob);
@@ -57,8 +69,10 @@ export function ImageViewer() {
       // The promise goes straight into the ClipboardItem, so the copy still counts as part of the click.
       await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
       show("Image copied");
-    } catch {
-      show("Couldn't copy the image. Use Download instead.");
+    } catch (err) {
+      console.error("Copy image failed", err);
+      const why = err instanceof Error && err.name && err.name !== "Error" ? ` (${err.name})` : err instanceof TypeError ? " (the picture's address refused the copy)" : "";
+      show(`Couldn't copy the image${why}. Use Download instead.`);
     }
   }
 
@@ -138,6 +152,18 @@ export function ImageViewer() {
   useEffect(() => {
     if (!image) return;
     const onKey = (e: KeyboardEvent) => {
+      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        const list = image.gallery;
+        if (!list || list.length < 2 || (e.target instanceof Element && e.target.closest("input, textarea, select"))) return;
+        const at = Math.max(0, list.findIndex((x) => x.url === image.url));
+        const next = list[(at + (e.key === "ArrowRight" ? 1 : -1) + list.length) % list.length];
+        e.preventDefault();
+        e.stopPropagation();
+        setNatural(null);
+        setPos({ x: 0, y: 0 });
+        setImage({ ...next, gallery: list });
+        return;
+      }
       if (e.key !== "Escape") return;
       // In full screen the browser uses Esc to leave it; the viewer stays open.
       if (document.fullscreenElement) return;
@@ -286,12 +312,17 @@ export function ImageViewer() {
           <span className="w-12 text-center text-sm tabular-nums" aria-live="polite">{natural ? `${Math.round(scale * 100)}%` : ""}</span>
           <Button type="button" size="sm" variant="ghost" onClick={() => zoomAt(1.25)} aria-label="Zoom in">+</Button>
         </div>
+        {image.gallery && image.gallery.length > 1 && (
+          <span className="rounded-full border border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-xs tabular-nums text-neutral-300" aria-live="polite" title="Left and right arrow keys">
+            {Math.max(0, image.gallery.findIndex((x) => x.url === image.url)) + 1} / {image.gallery.length}
+          </span>
+        )}
         {image.downloadUrl && (
           <Button asChild size="sm" variant="secondary">
             <a href={image.downloadUrl}>Download</a>
           </Button>
         )}
-        <Button type="button" size="sm" variant="secondary" onClick={() => void copyImage(image.downloadUrl ?? image.url)}>
+        <Button type="button" size="sm" variant="secondary" onClick={() => void copyImage([image.url, image.downloadUrl])}>
           Copy image
         </Button>
         {image.prompt && (

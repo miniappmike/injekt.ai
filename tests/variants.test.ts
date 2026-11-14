@@ -387,3 +387,28 @@ describe("carouselJob", () => {
     expect(carouselJob(null, null, "p", "full", `${U}/cover.jpg`, [], 10).paths).toEqual([`${U}/cover.jpg`]);
   });
 });
+
+describe("photoshoot edits follow their change", () => {
+  it("tells the writer the photo is not a layout, to lead with a big visible change, and never to repeat a pose", () => {
+    const p = variantPrompt(base);
+    expect(p).toContain("It is NOT a layout to copy.");
+    expect(p).toContain("Put the change first and make it concrete");
+    expect(p).toContain("No two edits in the set share a pose, camera position or framing.");
+  });
+
+  it("carries the platform's tone, only for what may change", () => {
+    const p = variantPrompt({ ...base, platform: "onlyfans" });
+    expect(p).toContain("PLATFORM: OnlyFans");
+    expect(p).toContain("Apply the platform's tone only to what may change above");
+    expect(p).toContain("flirtatious and teasing as the platform above calls for");
+    expect(variantPrompt(base)).not.toContain("PLATFORM:");
+  });
+
+  it("finishVariant adds a follow-the-change line when pose, framing or expression may change", () => {
+    const vt = variantTags(1, true, 0);
+    const t = finishVariant("Her pose is completely different: she sits.", vt, "", "", "", false, ["pose", "angle"]);
+    expect(t).toContain("FOLLOW THE CHANGE ABOVE CLOSELY");
+    expect(t).toContain("do not copy @image2's pose, framing and camera position");
+    expect(finishVariant("Her hair is up.", vt, "", "", "", false, ["hair"])).not.toContain("FOLLOW THE CHANGE");
+  });
+});
