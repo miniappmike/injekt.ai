@@ -162,6 +162,7 @@ export default function HowItWorksPage() {
             <JoinButton className="mt-auto self-start">Join, Then Upgrade</JoinButton>
           </div>
         </div>
+        <p className="mt-3 text-xs text-white/65">{`${dollars(PRO.priceCents)} is the price in crypto. In Telegram, Pro is ${PRO.stars} Stars, and what Telegram charges for Stars varies by device and region.`}</p>
       </section>
 
       <ClosingCta title="See it with your own model" body={`Join with ${FREE_CREDITS} free tokens, create her, and run your first photo in a few minutes.`} />

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 const RATIO: Record<LandingImage["ratio"], string> = { "1/1": "aspect-square", "3/4": "aspect-[3/4]", "4/5": "aspect-[4/5]", "2/3": "aspect-[2/3]" };
 
 /** How far down each column starts: a staircase that climbs to the right, beside the headline on wide screens. */
-const OFFSET = ["mt-16 xl:mt-[36rem]", "mt-8 xl:mt-[33rem]", "mt-0 xl:mt-[30rem]", "md:mt-12 xl:mt-[9rem]", "md:mt-6 xl:mt-[4rem]", "md:mt-0"];
+const OFFSET = ["mt-16 xl:mt-[36rem]", "mt-8 xl:mt-[33rem]", "mt-0 xl:mt-[30rem]", "md:mt-12 xl:mt-[11rem]", "md:mt-6 xl:mt-[6rem]", "md:mt-0 xl:mt-[2rem]"];
 
 function Tile({ image, eager }: { image: LandingImage; eager: boolean }) {
   return (

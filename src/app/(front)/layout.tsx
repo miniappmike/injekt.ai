@@ -14,12 +14,12 @@ export default function FrontLayout({ children }: { children: React.ReactNode })
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         {/* The app icon's backdrop, full screen: near-black plum at the top easing into a deep rose, never a hard band. */}
         <div className="absolute inset-0 bg-[linear-gradient(180deg,#12030a_0%,#1f0510_30%,#3d0a1c_58%,#641029_82%,#7c1232_100%)]" />
-        {/* A wide haze around where the mark sits, so its glow melts into the backdrop instead of ending at an edge. */}
+        {/* A wide haze around where the mark sits, so its glow eases into the backdrop. Kept light: the letter itself must stay readable. */}
         <div className="front-haze absolute inset-0" />
         {/* The mark itself, huge and out of focus, shaded like the icon's "m": white-hot in the middle, pink at the edges. */}
         <svg
           viewBox="255 655 1540 760"
-          className="auth-mark absolute bottom-[4%] left-1/2 w-[165vw] max-w-none -translate-x-1/2 opacity-80 blur-[64px] sm:w-[120vw] sm:blur-[80px] lg:bottom-auto lg:left-auto lg:right-[-8%] lg:top-1/2 lg:w-[68vw] lg:-translate-y-1/2 lg:translate-x-0 lg:blur-[84px]"
+          className="auth-mark absolute bottom-[4%] left-1/2 w-[165vw] max-w-none -translate-x-1/2 opacity-80 blur-[42px] sm:w-[120vw] sm:blur-[56px] lg:bottom-auto lg:left-auto lg:right-[-8%] lg:top-1/2 lg:w-[68vw] lg:-translate-y-1/2 lg:translate-x-0 lg:blur-[40px]"
         >
           <defs>
             <radialGradient id="ms-backdrop" gradientUnits="userSpaceOnUse" cx="1000" cy="965" r="1" gradientTransform="translate(1000 965) rotate(-12) scale(820 400) translate(-1000 -965)">

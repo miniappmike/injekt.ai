@@ -376,13 +376,13 @@
  */
 .front-haze {
   background:
-    radial-gradient(130vw 62vh at 50% 82%, rgb(255 95 162 / 0.34), rgb(249 39 118 / 0.14) 45%, transparent 72%),
+    radial-gradient(130vw 62vh at 50% 82%, rgb(249 39 118 / 0.2), rgb(249 39 118 / 0.1) 45%, transparent 72%),
     radial-gradient(90vw 40vh at 8% 30%, rgb(255 143 192 / 0.1), transparent 70%);
 }
 @media (min-width: 64rem) {
   .front-haze {
     background:
-      radial-gradient(62vw 88vh at 72% 50%, rgb(255 95 162 / 0.36), rgb(249 39 118 / 0.15) 45%, transparent 72%),
+      radial-gradient(62vw 88vh at 72% 50%, rgb(249 39 118 / 0.2), rgb(249 39 118 / 0.1) 45%, transparent 72%),
       radial-gradient(60vw 60vh at 12% 108%, rgb(255 143 192 / 0.26), transparent 70%),
       radial-gradient(40vw 40vh at 100% 0%, rgb(255 143 192 / 0.1), transparent 70%);
   }
@@ -404,8 +404,8 @@
 
 /* Landing pages, log in and sign up: the big out-of-focus mark in the backdrop breathes slowly. */
 @keyframes auth-breathe {
-  from { opacity: 0.55; scale: 1; }
-  to { opacity: 0.72; scale: 1.05; }
+  from { opacity: 0.68; scale: 1; }
+  to { opacity: 0.85; scale: 1.05; }
 }
 .auth-mark {
   animation: auth-breathe 9s ease-in-out infinite alternate;

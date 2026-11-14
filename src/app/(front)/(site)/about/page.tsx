@@ -22,6 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 import { ClosingCta, GLASS, IconBadge, SectionHeading } from "@/components/front/parts";
+import { dollars, PRO } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 
 export const metadata = {
@@ -109,12 +110,12 @@ export default function AboutPage() {
             ))}
             <li className="grid gap-1 bg-white/[0.08] px-5 py-5 sm:grid-cols-[1.1fr_1fr_1.3fr] sm:items-center sm:gap-6 sm:px-7">
               <span className="text-[15px] font-bold text-white">ModelSpawn</span>
-              <span className="text-[15px] font-semibold text-white">Free to start, $9.99 for Pro</span>
+              <span className="text-[15px] font-semibold text-white">Free to start, {dollars(PRO.priceCents)} for Pro</span>
               <span className="text-sm text-white/85">Generation tools, identity lock and likeness checks included</span>
             </li>
           </ul>
         </div>
-        <p className="mt-3 text-xs text-white/65">Prices as listed on each site, November 2026.</p>
+        <p className="mt-3 text-xs text-white/65">{`Prices as listed on each site, November 2026. Ours: ${dollars(PRO.priceCents)} is the price in crypto. In Telegram, Pro is ${PRO.stars} Stars, and what Telegram charges for Stars varies by device and region.`}</p>
       </section>
 
       <section>

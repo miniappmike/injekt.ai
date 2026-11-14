@@ -113,7 +113,7 @@ export const FAQ_GROUPS: { title: string; items: Faq[] }[] = [
     items: [
       {
         q: "Is it free to try?",
-        a: `Yes. Every new account gets ${FREE_CREDITS} tokens and one model, with no payment details asked for. Pro is ${dollars(PRO.priceCents)} for ${PRO.days} days when you want more.`,
+        a: `Yes. Every new account gets ${FREE_CREDITS} tokens and one model, with no payment details asked for. Pro is ${dollars(PRO.priceCents)} for ${PRO.days} days when you want more (${PRO.stars} Stars in Telegram, where the price of Stars varies a little by device and region).`,
       },
       {
         q: "How do I pay? Do you need my card?",
