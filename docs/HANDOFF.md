@@ -24,12 +24,17 @@ section is right.
   an account-link flow (a one-time code like the admin alerts' `alerts_<code>`, plus a button on the site). Not built.
 - **The new "/" menu only appears after pressing Connect Telegram bot again** in Admin → Payments (it calls
   `setMyCommands` from `BOT_COMMANDS`). Until then the old four commands show, though every new command already works.
-- **Deployment alerts** (live, confirmed 200 from GitHub): the bot messages connected admins when a deployment
-  finishes. Route `/api/webhooks/deploy`, logic `src/lib/deploy-alerts.ts`, tests `tests/deploy-alerts.test.ts`,
-  secret `DEPLOY_WEBHOOK_SECRET`. Sender is a Vercel webhook (Pro/Enterprise only) or a GitHub webhook with the
-  "Deployment statuses" event (any plan, what the owner uses). First 401s were a secret mismatch between GitHub and
-  the env var. The GitHub webhook must have only "Deployment statuses" ticked (not Pushes) and a deploy must happen after saving it; Vercel
-  reports preview builds as well, so a branch push is a valid test.
+- **Deployment alerts**: the bot messages connected admins when a build finishes. Route `/api/webhooks/deploy`,
+  logic `src/lib/deploy-alerts.ts`, tests `tests/deploy-alerts.test.ts`, secret `DEPLOY_WEBHOOK_SECRET`.
+  Three senders are understood: **the build's own notice** (`scripts/notify-deploy.mjs`, npm `postbuild`; says
+  "Build finished, going live now" with branch, commit and link; works on Hobby; cannot report a failed build; the
+  owner's choice because the GitHub route got nothing), a Vercel webhook (Pro/Enterprise only) and a GitHub
+  `deployment_status` webhook. The GitHub webhook is set up (Deployment statuses only) but receives nothing: the repo
+  has no Deployments section, so Vercel does not report builds to GitHub. Leave it or delete it; if both it and the
+  build notice ever fire there would be two messages.
+- The build notice needs `DEPLOY_WEBHOOK_SECRET` and `NEXT_PUBLIC_APP_URL` set for **both Production and Preview** in
+  Vercel env vars (build time). It posts to the production site, so a branch's own notice only works once the route
+  change is on `main`. Untested on a real Vercel build; locally it was checked against a stand-in server.
 
 **Fixes after the invites session**
 - Character card seam, third attempt: the picture itself now fades to transparent over its bottom 22% (a CSS mask on the `<img>`), so whatever the browser does at that edge during the hover lift/zoom, it is dark card background and not the photo. Cause never reproduced (the owner's Chromebook only). If it still shows, ask for a screenshot of the line while hovering and try removing the card's lift (`hover:-translate-y-1`) first.

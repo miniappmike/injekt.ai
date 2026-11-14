@@ -6,7 +6,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/env", () => ({ env: { DEPLOY_WEBHOOK_SECRET: "test-secret-123" } }));
 vi.mock("@/lib/payments/alerts", () => ({ alertAdmins: vi.fn(async (t: string) => void h.sent.push(t)) }));
 
-import { githubMessage, handleDeployWebhook, validDeploySignature, vercelMessage } from "@/lib/deploy-alerts";
+import { buildMessage, githubMessage, handleDeployWebhook, validDeploySignature, vercelMessage } from "@/lib/deploy-alerts";
 
 beforeEach(() => (h.sent.length = 0));
 
@@ -41,6 +41,13 @@ describe("deploy alert messages", () => {
     expect(githubMessage(body("failure"))).toMatch(/^❌/);
     expect(githubMessage(body("pending"))).toBeNull();
     expect(githubMessage(body("in_progress"))).toBeNull();
+  });
+  it("build notice: names the branch, commit and link; sent through handleDeployWebhook", async () => {
+    const body = { env: "production", repo: "injekt.ai", branch: "main", message: "Fix seam\n\nbody", url: "https://injektai.vercel.app" };
+    expect(buildMessage(body)).toBe("🚀 Build finished (production), going live now\ninjekt.ai · main\nFix seam\nhttps://injektai.vercel.app");
+    expect(buildMessage({ env: "weird" })).toMatch(/\(preview\)/);
+    expect(await handleDeployWebhook(new Headers({ "x-modelspawn-build": "1" }), body)).toBe("sent");
+    expect(h.sent).toHaveLength(1);
   });
   it("handleDeployWebhook sends once for a finished deploy and nothing for anything else", async () => {
     const ok = { deployment_status: { state: "success", environment: "Production" }, deployment: {}, repository: { full_name: "o/r" } };

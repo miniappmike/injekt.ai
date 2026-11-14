@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "node scripts/notify-deploy.mjs",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

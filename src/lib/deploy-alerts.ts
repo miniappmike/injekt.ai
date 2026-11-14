@@ -63,9 +63,27 @@ export function githubMessage(body: unknown): string | null {
   return lines(head, str(obj(b.repository).full_name), str(d.description) ?? str(s.description), url);
 }
 
+/**
+ * The Telegram message for the build's own notice (`scripts/notify-deploy.mjs`, run after `next build` on Vercel).
+ * It works on any plan and needs no GitHub or Vercel webhook, but it can only say a build finished, not that it failed.
+ */
+export function buildMessage(body: unknown): string | null {
+  const b = obj(body);
+  const env_ = b.env === "production" ? "production" : "preview";
+  const where = [str(b.repo), str(b.branch)].filter(Boolean).join(" · ");
+  const msg = str(b.message);
+  return lines(`🚀 Build finished (${env_}), going live now`, where || null, msg ? clip(msg.split("\n")[0], 100) : null, str(b.url));
+}
+
 /** Handles one verified webhook: sends the alert if it is a finished deployment. Returns what happened, for the log. */
 export async function handleDeployWebhook(headers: Headers, body: unknown): Promise<string> {
-  const message = headers.get("x-vercel-signature") ? vercelMessage(body) : headers.get("x-github-event") === "deployment_status" ? githubMessage(body) : null;
+  const message = headers.get("x-modelspawn-build")
+    ? buildMessage(body)
+    : headers.get("x-vercel-signature")
+      ? vercelMessage(body)
+      : headers.get("x-github-event") === "deployment_status"
+        ? githubMessage(body)
+        : null;
   if (!message) return "ignored";
   await alertAdmins(message);
   return "sent";
