@@ -12,6 +12,18 @@ import { parsePinCheck, PIN_CHECK_PROMPT } from "@/lib/ai/prompts/pin";
 
 export type PinResult = { ok: true; count: number; replaced: boolean } | { ok: false; full: true; count: number } | AiFailure;
 
+/** The character a generated image was made for, if it can be pinned to her (reference sheets have their own Save). */
+export async function getPinTarget(generationId: string): Promise<string | null> {
+  try {
+    const { supabase } = await requireUser();
+    const { data } = await supabase.from("generations").select("character_id, kind, status").eq("id", generationId).maybeSingle();
+    if (!data?.character_id || data.kind === "reference_sheet" || data.status !== "complete") return null;
+    return data.character_id as string;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Pins a generated image to a character's reference photos (up to MAX_REFERENCE_PHOTOS). When she already has the
  * maximum, nothing happens unless `replaceLast` is set, which swaps out her last reference photo. A vision check on the

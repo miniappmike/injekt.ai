@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
+import { PinToReferences } from "@/components/pin-to-references";
+import { getPinTarget } from "@/app/(app)/characters/pin-actions";
 import { SEND_TO_VARIANTS_EVENT, SEND_TO_VARIANTS_KEY, VIEW_IMAGE_EVENT, type ViewableImage } from "@/lib/panel-events";
 
 const MIN_SCALE = 0.05;
@@ -33,6 +35,8 @@ export function ImageViewer() {
   const returnFocus = useRef<HTMLElement | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const { toast, show } = useToast(2000);
+  // The character this image was made for, so Pin It can be offered wherever the image is opened from.
+  const [pinTarget, setPinTarget] = useState<{ generationId: string; characterId: string } | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -98,6 +102,17 @@ export function ImageViewer() {
   useEffect(() => {
     if (natural) fit();
   }, [natural, fit]);
+
+  const generationId = image?.generated ? image.generationId : null;
+  useEffect(() => {
+    setPinTarget(null);
+    if (!generationId) return;
+    let alive = true;
+    void getPinTarget(generationId).then((characterId) => alive && characterId && setPinTarget({ generationId, characterId }));
+    return () => {
+      alive = false;
+    };
+  }, [generationId]);
 
   const close = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
@@ -292,6 +307,7 @@ export function ImageViewer() {
             Copy prompt
           </Button>
         )}
+        {pinTarget && <PinToReferences generationId={pinTarget.generationId} characterId={pinTarget.characterId} />}
         {image.generated && (
           <Button type="button" size="sm" onClick={() => sendToVariants(image)}>
             Variants

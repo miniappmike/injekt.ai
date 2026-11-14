@@ -14,6 +14,7 @@ Live at injektai.vercel.app. Everything below this section is the older build hi
 section is right.
 
 **Fixes after the invites session**
+- Pin It in the full-screen viewer: when an image made for a character is opened from anywhere (history, tray, dashboard), the viewer asks `getPinTarget` (`characters/pin-actions.ts`) for her and shows the same `PinToReferences` button as the generation page. Reference sheets are excluded. Not checked in a browser.
 - Log in / sign up on short desktop screens (14-inch Chromebook, about 900px tall): the auth layout trims its top and bottom padding when the window is 960px tall or less, so the terms line is no longer cut off (`(front)/(auth)/layout.tsx`). Not checked in a browser.
 - FAQ links glide: `html:has(#faq)` has smooth scrolling in `globals.css` (off for reduced motion). Not checked in a browser.
 - FAQ and header edits: "Pro tip" is now an on-brand badge (`ProTip` in `src/lib/faq.tsx`); the consistency question is removed; the sites and Art to Real in the first-picture answer are links (Art to Real goes to `/art-to-real`, which signed-out visitors reach via log in); the signed-out header has an FAQ link to `/#faq`.
