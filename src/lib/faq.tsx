@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Lightbulb } from "lucide-react";
 import { CONTACT_EMAIL, DISCORD_URL, GET_KEY_PATH } from "@/lib/links";
 import { dollars, FREE_CREDITS, PRO } from "@/lib/plans";
 import { GENERATION_RETENTION_HOURS } from "@/lib/retention";
@@ -16,6 +17,12 @@ const A = ({ href, children }: { href: string; children: React.ReactNode }) =>
   ) : (
     <a href={href} className={LINK} {...(href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{children}</a>
   );
+/** An on-brand badge that sets a tip apart from the answer around it. */
+const ProTip = () => (
+  <span className="mr-1.5 inline-flex -translate-y-px items-center gap-1 rounded-full bg-gradient-to-r from-[#e8265e] to-[#ff5c8a] px-2.5 py-0.5 align-middle text-[11px] font-bold uppercase tracking-wide text-white shadow-[0_6px_16px_-8px_rgb(232_38_94/0.9)]">
+    <Lightbulb aria-hidden="true" className="h-3 w-3" /> Pro tip
+  </span>
+);
 const Email = () => <A href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</A>;
 const KeyGuide = ({ children = "API key guide" }: { children?: React.ReactNode }) => <A href={GET_KEY_PATH}>{children}</A>;
 
@@ -31,8 +38,9 @@ export const FAQ_GROUPS: { title: string; items: Faq[] }[] = [
         q: "I've never made an AI model. How long until my first picture?",
         a: (
           <>
-            Five minutes or less. All you need to start is a face photo. We recommend Midjourney (every face is AI), This Person Does Not Exist (free), Gemini or ChatGPT (free generation), or our own{" "}
-            Art to Real tool, which turns an artwork into a real-looking influencer.
+            Five minutes or less. All you need to start is a face photo. We recommend <A href="https://www.midjourney.com">Midjourney</A> (every face is AI),{" "}
+            <A href="https://thispersondoesnotexist.com">This Person Does Not Exist</A> (free), <A href="https://gemini.google.com">Gemini</A> or{" "}
+            <A href="https://chatgpt.com">ChatGPT</A> (free generation), or our own <A href="/art-to-real">Art to Real tool</A>, which turns an artwork into a real-looking influencer.
           </>
         ),
       },
@@ -46,7 +54,11 @@ export const FAQ_GROUPS: { title: string; items: Faq[] }[] = [
       },
       {
         q: "Does it work on a phone?",
-        a: "Yes, ModelSpawn has a fully working mobile layout. Pro tip: add the site to your home screen and it opens like an app.",
+        a: (
+          <>
+            Yes, ModelSpawn has a fully working mobile layout. <ProTip />Add the site to your home screen and it opens like an app.
+          </>
+        ),
       },
       {
         q: "Can I make video?",
@@ -60,10 +72,6 @@ export const FAQ_GROUPS: { title: string; items: Faq[] }[] = [
       {
         q: "Who owns my model and the images?",
         a: "You do. Every model and image is yours, whether you created her or bought her.",
-      },
-      {
-        q: "How good is the consistency, really?",
-        a: "Top of the pyramid. A good likeness score is 70 or higher. A full-body shot or an odd angle can come in around 65, and that is exactly what the likeness check is for: it rates the image and writes the fix.",
       },
       {
         q: "Can I base a model on a real person, or on myself?",
@@ -91,7 +99,11 @@ export const FAQ_GROUPS: { title: string; items: Faq[] }[] = [
       },
       {
         q: "What do I get when I buy a model from the marketplace?",
-        a: "Each persona is exclusive: she is sold once, to one owner. You get two reference sheets and three to five photos of her, yours to post, train with elsewhere or take off the platform entirely. Pro tip: use Photoshoot mode to make variants of the photos that come with her. Checkout is being connected now; until it opens you can browse every persona.",
+        a: (
+          <>
+            Each persona is exclusive: she is sold once, to one owner. You get two reference sheets and three to five photos of her, yours to post, train with elsewhere or take off the platform entirely. <ProTip />Use Photoshoot mode to make variants of the photos that come with her. Checkout is being connected now; until it opens you can browse every persona.
+          </>
+        ),
       },
     ],
   },

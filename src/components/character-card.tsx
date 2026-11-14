@@ -34,6 +34,8 @@ export function CharacterCard({ c, canList = false }: { c: CharacterCardData; ca
             <span className="font-display text-4xl font-bold text-white/80 sm:hidden">{c.name.charAt(0)}</span>
           </div>
         )}
+        {/* A solid strip on the bottom edge, so the zooming picture can never show a light line under the fade. */}
+        <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-0.5 bg-neutral-900" />
         <div className="absolute inset-x-0 -bottom-px top-0 bg-gradient-to-t from-neutral-900 via-neutral-900/30 to-transparent max-sm:via-transparent max-sm:from-neutral-900/70" />
         {/* Phones: whether she's ready to use, over the picture. */}
         <span className={`absolute bottom-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 sm:hidden ${cover ? "bg-neutral-950/80 text-neutral-100 ring-white/10" : "bg-amber-400/90 text-amber-950 ring-amber-300"}`}>
