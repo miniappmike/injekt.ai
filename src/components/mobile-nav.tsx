@@ -5,16 +5,19 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
-import { BackIcon, CharactersIcon, InjectIcon, SheetIcon, SparkIcon, StoreIcon, VariantsIcon } from "@/components/icons";
+import { BackIcon, CharactersIcon, CreateModelIcon, InjectIcon, SparkIcon, StoreIcon, VariantsIcon } from "@/components/icons";
+import { NAV, type NavHref } from "@/lib/nav";
 
-const DOCK = [
-  { href: "/inject", label: "Inject", Icon: InjectIcon },
-  { href: "/director", label: "Director", Icon: SparkIcon },
-  { href: "/variants", label: "Variants", Icon: VariantsIcon },
-  { href: "/reference-sheet", label: "Sheets", Icon: SheetIcon },
-  { href: "/characters", label: "Characters", Icon: CharactersIcon },
-  { href: "/marketplace", label: "Marketplace", Icon: StoreIcon },
-];
+/** The dock is the desktop tabs (same names, same order) with an icon each. */
+const ICONS: Record<NavHref, typeof InjectIcon> = {
+  "/inject": InjectIcon,
+  "/director": SparkIcon,
+  "/variants": VariantsIcon,
+  "/reference-sheet": CreateModelIcon,
+  "/characters": CharactersIcon,
+  "/marketplace": StoreIcon,
+};
+const DOCK = NAV.map((t) => ({ ...t, Icon: ICONS[t.href] }));
 
 const TITLES: [RegExp, string][] = [
   [/^\/marketplace/, "Marketplace"],
@@ -26,6 +29,10 @@ const TITLES: [RegExp, string][] = [
   [/^\/variants/, "Variants"],
   [/^\/likeness/, "Likeness"],
   [/^\/reference-sheet/, "Create Model"],
+  [/^\/art-to-real/, "Art to Real"],
+  [/^\/tokens/, "Tokens"],
+  [/^\/upgrade/, "Upgrade to Pro"],
+  [/^\/get-a-key/, "API key guide"],
   [/^\/settings/, "Settings"],
   [/^\/ledger/, "Ledger"],
   [/^\/admin/, "Admin"],
@@ -83,30 +90,37 @@ export function MobileDock() {
     <nav
       aria-label="Tools"
       className={cn(
-        "fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 flex justify-center px-4 transition-all duration-300 sm:hidden [.sheet-open_&]:pointer-events-none [.sheet-open_&]:translate-y-24 [.sheet-open_&]:opacity-0",
+        "fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 flex justify-center px-2 transition-all duration-300 sm:hidden [.sheet-open_&]:pointer-events-none [.sheet-open_&]:translate-y-24 [.sheet-open_&]:opacity-0",
         typing && "pointer-events-none translate-y-24 opacity-0",
       )}
     >
-      <div className="flex items-center gap-0.5 rounded-full border border-neutral-800 bg-neutral-900/90 p-1.5 shadow-[0_18px_40px_-12px_rgb(0_0_0/0.9)] backdrop-blur-xl">
-        {DOCK.map(({ href, label, Icon }) => {
-          const on = path.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              aria-label={label}
-              aria-current={on ? "page" : undefined}
-              className={cn(
-                "flex h-10 items-center justify-center gap-1.5 rounded-full text-neutral-400 transition-all duration-300 active:scale-95",
-                on ? "glow-brand bg-brand-500 px-3.5 text-white" : "w-10 hover:bg-neutral-800 hover:text-neutral-100 max-[389px]:w-9",
-              )}
-            >
-              <Icon className="h-[22px] w-[22px] shrink-0" />
-              {on && <span className="animate-fade-in text-[13px] font-semibold">{label}</span>}
-            </Link>
-          );
-        })}
-      </div>
+      <DockBar path={path} />
     </nav>
+  );
+}
+
+/** The dock's buttons, the one for `path` filled and named. */
+export function DockBar({ path }: { path: string }) {
+  return (
+    <div className="flex items-center gap-0.5 rounded-full border border-neutral-800 bg-neutral-900/90 p-1.5 shadow-[0_18px_40px_-12px_rgb(0_0_0/0.9)] backdrop-blur-xl">
+      {DOCK.map(({ href, label, Icon }) => {
+        const on = path.startsWith(href);
+        return (
+          <Link
+            key={href}
+            href={href}
+            aria-label={label}
+            aria-current={on ? "page" : undefined}
+            className={cn(
+              "flex h-10 items-center justify-center gap-1.5 rounded-full text-neutral-400 transition-all duration-300 active:scale-95",
+              on ? "glow-brand bg-brand-500 px-3.5 text-white max-[389px]:px-3" : "w-10 hover:bg-neutral-800 hover:text-neutral-100 max-[389px]:w-9",
+            )}
+          >
+            <Icon className="h-[22px] w-[22px] shrink-0" />
+            {on && <span className="animate-fade-in text-[13px] font-semibold">{label}</span>}
+          </Link>
+        );
+      })}
+    </div>
   );
 }
