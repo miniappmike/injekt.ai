@@ -14,7 +14,8 @@ npm run dev
 
 ## Where things are written down
 
-- `docs/HANDOFF.md`: the current state of the project, what's live, what's next. Start here.
+- `docs/HANDOFF.md`: the current state of the project, what's live, what's next. Start here, and update it when you
+  finish a piece of work. `AGENTS.md` tells coding agents to do the same.
 - `docs/ARCHITECTURE.md`: how the pieces fit (generation, keys, tokens, payments, admin, speed).
 - `docs/PRICING.md`: plans, token prices, packs, payments and refunds.
 - `PROGRESS.md`: the detailed build log, including the marketplace phases and the database migrations to run.

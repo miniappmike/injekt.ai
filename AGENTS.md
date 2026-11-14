@@ -1,3 +1,9 @@
+## Read this first
+
+`docs/HANDOFF.md` is this project's memory between sessions. Read its "Current state" section before you start, and
+update it in the same commit as your work before you finish: what changed, what was decided, what is next. Replace
+lines that are no longer true instead of adding to the end. `README.md` lists the other docs.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

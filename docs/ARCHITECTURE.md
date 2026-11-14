@@ -46,5 +46,24 @@ One Vercel Cron job a night (`vercel.json` → `/api/cron/cleanup`, guarded by `
 - `src/app/(app)/loading.tsx` shows a skeleton while a page's data loads.
 - The biggest remaining factor is distance: the Vercel function region should match the Supabase project's region (Vercel → Settings → Functions).
 
+## Pages by audience
+- `src/app/(front)/`: what a signed-out visitor sees first. `(site)/` holds the landing pages, `(auth)/` log in and sign
+  up. They share one backdrop in `(front)/layout.tsx`, which stays mounted while `FrontStage` swipes the content.
+- `src/app/(public)/`: pages anyone can open (marketplace, Terms, Privacy, the key guide). Signed out they use the
+  landing header; signed in, the app's.
+- `src/app/(app)/`: everything that needs an account. `src/proxy.ts` sends signed-out visitors to `/login`, and
+  signed-in visitors from `/`, `/login` and `/signup` to `/home`.
+
+## Home dashboard
+`/home` reads everything in one go (`loadDashboard`, `src/lib/dashboard.ts`): characters, the latest generation's
+character (the model in focus), recent images, counts for the month and week, the token balance, the generation
+setting, and the marketplace listings with their Virality Rank. Each part that fails shows as empty. The first-steps
+tile is computed from those reads, so there is no progress table. Types the browser needs are in
+`src/lib/dashboard-types.ts`, because the loader is server-only.
+
+## Navigation
+`src/lib/nav.ts` holds every list: `NAV` (desktop tabs), `MORE_NAV` (desktop More menu), `DOCK_NAV` and `DOCK_MORE`
+(phone dock and its sheet). Change the order there, not in the components.
+
 ## Still to build
 Marketplace checkout, the Telegram payment guide, Sentry with scrubbing, Playwright tests, pgTAP RLS tests, a sweep for abandoned `targets/` and `pending/` uploads.

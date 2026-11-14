@@ -1,9 +1,74 @@
 # Project handoff
 
+This is the one file every session reads first and updates last. It is the project's memory between sessions.
+
+- **Before starting work:** read "Current state" below. It overrides anything older further down.
+- **Before finishing work:** update "Current state" (what changed, what was decided, what is next) in the same commit
+  as the work. Keep it short and current: replace lines that are no longer true, don't just add to the end.
+- Deeper detail lives in `docs/ARCHITECTURE.md` (how the pieces fit), `docs/PRICING.md` (plans, tokens, payments) and
+  `PROGRESS.md` (the build log). Update those too when what they describe changes.
+
 ## Current state (November 2026)
 
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
+
+**Added in the November 14 session (landing pages, dashboard, navigation)**
+- **Landing pages** for signed-out visitors, under `src/app/(front)/(site)/`: `/` (hero with a picture collage, features,
+  three steps, FAQ), `/how-it-works`, `/about`. Signed in, `/` goes to `/home`.
+- **One shared backdrop** (`src/app/(front)/layout.tsx`): the landing pages and log in / sign up (`(front)/(auth)/`)
+  sit in front of the same pinned crimson backdrop with the blurred M. Join Now / Log In swipe the landing page up and
+  raise the form (`FrontStage` in `src/components/front/stage.tsx`, React `<ViewTransition>` with Link
+  `transitionTypes`; the motion is the `front-*` rules in `globals.css`). The X on the form goes back. The owner wants
+  the M to stay recognisable: don't raise its blur.
+- **Landing collage pictures are placeholders.** Real ones go in `public/landing/` and are listed in
+  `src/lib/landing-images.ts`. The owner is making a consistent model on the platform to supply them.
+- **FAQ** (`src/lib/faq.tsx`, shown by `src/components/front/faq.tsx`): 24 questions in five groups, written from the
+  owner's answers, with jump chips. All start closed.
+- **Terms and Privacy** now cover what the FAQ promises (ownership, marketplace personas, content limits, other ways
+  to pay, who can see pictures, Discord). Both dated November 14, 2026 (`src/lib/legal.ts`). Not yet read by a lawyer.
+- **The API key guide (`/get-a-key`) is public.**
+- **Signed-out pages share one header** (`src/components/front/site-header.tsx`): Home, How It Works, About,
+  Marketplace, Log In, Join Now. Used by the landing pages and by `(public)/layout.tsx` when signed out.
+- **Home dashboard** at `/home` (`src/app/(app)/home/page.tsx`, data in `src/lib/dashboard.ts`, tiles in
+  `src/components/dashboard/`). The logo, login and sign-up land here. It shows: the model in focus (the one the last
+  image was made for) with Inject and Director aimed at her; a drop zone that hands a photo to Inject
+  (`src/lib/handoff.ts`, delivered by `PasteRouter`); a next-step tile; recent images with the time each has left;
+  tokens, images this month, the generation switch; the best-ranked marketplace persona still for sale with the
+  available / sold tracker; Discord and Settings.
+- **Next-step tile**: five first steps, each read from the account (never ticked by hand): a character exists, one has
+  both sheets, a generation completed, an `api_ledger` row with feature `likeness` succeeded, a reference path contains
+  `/pinned/`. When all five are done the tile becomes Quick tools for good. The owner rejected showing an average
+  likeness score.
+- **Phone navigation** (`src/components/mobile-nav.tsx`, lists in `src/lib/nav.ts`): the dock is Characters, Inject,
+  Director, Variants and More; More slides up a sheet with Likeness, Create Model, Marketplace, Art to Real, Group
+  photo. The order is a guess at session flow, not measured usage. History is a square button in the phone top bar
+  (`src/components/history-button.tsx`); the floating History button is desktop and tablet only.
+- **Desktop navigation**: a More menu after the tabs (Likeness, Art to Real, Group photo). `/characters#group` opens
+  Characters already picking for a group photo.
+- **Out of Tokens pop-up** (`src/components/out-of-tokens.tsx`): opens whenever a tool returns the "not enough tokens"
+  message (`src/lib/credits-message.ts` makes and recognises it). New call sites wrap the error in `tokenGate(...)`.
+- **Tool pages**: one shared heading (`src/components/page-intro.tsx`) with a short line for phones; every page names
+  its browser tab ("Inject | ModelSpawn", template in `src/app/layout.tsx`); each `Logo` has its own gradient id (a
+  shared id made the footer mark vanish on phones).
+- **Discord**: `DISCORD_URL` in `src/lib/links.ts`.
+
+**Ideas discussed, not built**
+- Daily tasks that pay tokens, set and weighted in Admin; then achievements with an on/off switch in Settings. Agreed
+  direction: referrals first (pay when the friend confirms their email and makes a first image), then tasks that can
+  be checked from stored data, then social tasks by pasted link and admin approval (X and Instagram posts can't be
+  verified automatically), then achievements. Rewards need the same one-per-person check as the first-month bonus.
+- The marketplace is in the phone More sheet, not the dock. The owner may want it back in the dock: swap it with
+  Variants in `src/lib/nav.ts`.
+- A "what's new" line on the dashboard's Discord tile needs a changelog source first.
+
+**Looking at signed-in pages locally (no real Supabase needed)**
+1. `node scripts/preview-backend.cjs` (a stand-in backend on port 54321; `MOCK=new` or `MOCK=done` for other accounts).
+2. `.env.local` with `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321`, `NEXT_PUBLIC_SUPABASE_ANON_KEY=dummy`,
+   `NEXT_PUBLIC_APP_URL=http://localhost:3000`, `SUPABASE_SERVICE_ROLE_KEY=dummy`, any 32-byte base64 `ENCRYPTION_KEY`,
+   a 16+ character `WEBHOOK_SECRET` and `SPICY_API_KEY=dummy`. Delete the file afterwards; it is git-ignored.
+3. `npm run dev`, then set the cookie printed by `node scripts/preview-cookie.cjs` for `localhost`.
+Nothing can be generated this way; it is for layout and screenshots only.
 
 **What's live**
 - Characters, Create Model, Inject (Recreate by default, "Edit this photo" opt-in), Variants, Likeness, Art to Real,
@@ -59,14 +124,18 @@ unpaid orders older than 3 days, cancelled or failed orders older than 24 hours.
 - Staying on Vercel; upgrade to Vercel Pro before relying on sales (Hobby is non-commercial).
 
 **Next, in rough order**
+0. Real pictures for the landing collage; then referrals and daily tasks if the owner goes ahead.
 1. Marketplace checkout through Telegram or NOWPayments (the Buy button says checkout is being set up).
 2. Owner's to-do: Vercel Pro, a spend cap, and setting the Vercel function region next to the Supabase region.
 3. Optional: a lawyer's read of Terms and Privacy, a report button, a manual Cash App flow.
 
 **Working rules**
 - Secrets only in Vercel env vars, never in chat or the repo.
-- Screenshots for review use throwaway pages under `src/app/auth/pv-*`, deleted before committing.
-- Work goes on a branch, then a pull request, then merged to `main` once the Vercel build passes.
+- Screenshots of signed-in pages use the stand-in backend (see above). Older sessions used throwaway pages under
+  `src/app/auth/pv-*`; either way nothing temporary is committed.
+- Work goes on a branch and reaches `main` only when the owner says so. Pushing to `main` deploys to production.
+- The owner works on a Chromebook: give browser-based instructions, never Windows apps.
+- One test file (`tests/inject-two-sheets.test.ts`) can't load without the server env vars; that is expected locally.
 
 ## Product
 ModelSpawn: build persistent AI influencer characters, optimize prompts, and inject a character into a target image via image models. BYOK for vision, language and image APIs. Prototype UI described in `docs/ui-reference.md` (tabs: Inject, Variants, Likeness, Reference Sheet, Characters).

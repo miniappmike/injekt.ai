@@ -428,3 +428,9 @@ On the Characters page, shown only when image generation is on (and disabled unt
   marked "Latest Iteration" with a tip); Kimi K3.1 Pro is marked "Tested".
 - Run `0026_five_reference_photos.sql` in Supabase (raises the reference photo check from 3 to 5). The marketplace
   listing editor and persona copy still use only the first 3 reference photos.
+
+## November 14, 2026: landing pages, dashboard, navigation
+Landing pages (`/`, `/how-it-works`, `/about`) with a backdrop shared with log in / sign up and a swipe between them;
+FAQ, Terms and Privacy updates; the public API key guide; the Out of Tokens pop-up; a shared tool-page heading; the
+phone dock with a More sheet and History in the top bar; a desktop More menu; and the `/home` dashboard. No database
+migration was needed. The details and the reasons are in `docs/HANDOFF.md` under "Current state".
