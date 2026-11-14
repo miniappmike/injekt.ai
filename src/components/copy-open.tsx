@@ -45,7 +45,7 @@ export function CopyOpen({ text, disabled, className }: { text: string; disabled
 
 /**
  * A greyed-out Generate image button. Hovering, focusing or tapping it opens a small card with the three ways to
- * generate: buy tokens (coming soon), get an API key, or turn on image generation.
+ * generate: buy tokens, get an API key, or turn on image generation.
  */
 export function LockedGenerate({ label = "Generate image", size = "sm" }: { label?: string; size?: "sm" | "xs" }) {
   const { imageKey, pro } = useApp();

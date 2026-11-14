@@ -416,3 +416,30 @@ main input:-webkit-autofill {
   caret-color: #fff;
   transition: background-color 99999s ease-out;
 }
+
+/* The landing page's FAQ link (and the FAQ jump chips) glide to their spot instead of jumping. Only pages that have the
+   FAQ get this, so other navigation is unchanged; people who ask for less motion still jump. */
+@media (prefers-reduced-motion: no-preference) {
+  html:has(#faq) {
+    scroll-behavior: smooth;
+  }
+}
+
+/* The loading screen's flashing M. */
+@keyframes splash-flash {
+  0%, 100% { opacity: 0.25; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1); }
+}
+.splash-m {
+  animation: splash-flash 1.4s ease-in-out infinite;
+}
+/* If the page's script never runs, the opening cover still goes away on its own. */
+@keyframes splash-failsafe {
+  to { opacity: 0; visibility: hidden; }
+}
+.boot-splash {
+  animation: splash-failsafe 0.4s ease 10s forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .splash-m { animation: none; }
+}

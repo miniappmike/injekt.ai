@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/how-it-works", label: "How It Works" },
   { href: "/about", label: "About" },
+  { href: "/#faq", label: "FAQ" },
   { href: "/marketplace", label: "Marketplace" },
 ];
 
@@ -19,7 +20,7 @@ export function SiteHeader() {
   const links = (className: string) => (
     <nav aria-label="Pages" className={className}>
       {LINKS.map((l) => {
-        const on = l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
+        const on = l.href === "/" ? pathname === "/" : !l.href.includes("#") && pathname.startsWith(l.href);
         return (
           <Link
             key={l.href}

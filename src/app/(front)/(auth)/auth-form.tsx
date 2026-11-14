@@ -32,14 +32,14 @@ export function AuthForm({
 
   return (
     <div className="w-full animate-fade-up [animation-delay:60ms]">
-      <h1 className="text-[2.6rem] font-bold leading-[1.08] tracking-tight text-white sm:text-5xl">
+      <h1 className="text-[2.6rem] font-bold leading-[1.08] tracking-tight text-white sm:text-5xl [@media(max-height:960px)]:lg:text-[2.5rem]">
         {isLogin ? <>Log In to<br />ModelSpawn</> : <>Create Your<br />Account</>}
       </h1>
-      <p className="mt-3 text-[15px] text-white/70">
+      <p className="mt-3 text-[15px] text-white/70 [@media(max-height:960px)]:lg:mt-2">
         {isLogin ? "Welcome back. Pick up where you left off." : "Create your model once, then put her in any photo."}
       </p>
 
-      <form action={formAction} className="mt-8 flex flex-col gap-3">
+      <form action={formAction} className="mt-8 flex flex-col gap-3 [@media(max-height:960px)]:lg:mt-5 [@media(max-height:960px)]:lg:gap-2.5">
         {next && <input type="hidden" name="next" value={next} />}
         <label htmlFor="email" className="sr-only">Email</label>
         <input id="email" name="email" type="email" autoComplete="email" placeholder="Email" required className={FIELD} />
@@ -92,12 +92,12 @@ export function AuthForm({
         </button>
       </form>
 
-      <div className="mt-6 flex items-center gap-4 text-xs text-white/55">
+      <div className="mt-6 flex items-center gap-4 text-xs text-white/55 [@media(max-height:960px)]:lg:mt-4">
         <span className="h-px flex-1 bg-white/15" />
         or continue with
         <span className="h-px flex-1 bg-white/15" />
       </div>
-      <div className="mt-5 flex justify-center gap-3">
+      <div className="mt-5 flex justify-center gap-3 [@media(max-height:960px)]:lg:mt-3">
         {SOCIALS.map(({ name, Icon }) => (
           <button
             key={name}
@@ -111,7 +111,7 @@ export function AuthForm({
           </button>
         ))}
       </div>
-      <p className="mt-7 text-center text-sm text-white/70">
+      <p className="mt-7 text-center text-sm text-white/70 [@media(max-height:960px)]:lg:mt-4">
         {isLogin ? "New here? " : "Already have an account? "}
         <Link href={isLogin ? "/signup" : "/login"} className={TEXT_LINK}>
           {isLogin ? "Create an account" : "Log in"}

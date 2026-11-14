@@ -19,10 +19,17 @@ export function reserveTab(): Window | null {
 
 /** Sends the reserved tab to the payment page. Returns "tab", or "here" if there was no tab and this page went instead. */
 export function openPayment(tab: Window | null, url: string): "tab" | "here" {
-  if (tab && !tab.closed) {
-    tab.location.href = url;
-    return "tab";
+  try {
+    if (tab && !tab.closed) {
+      tab.location.replace(url);
+      return "tab";
+    }
+  } catch {
+    // Fall through to opening a fresh tab.
   }
+  // The reserved tab is gone (some browsers, e.g. ChromeOS, lose it); try a new one before leaving this page.
+  const fresh = window.open(url, "_blank", "noopener");
+  if (fresh) return "tab";
   window.location.href = url;
   return "here";
 }

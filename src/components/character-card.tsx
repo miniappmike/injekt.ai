@@ -24,17 +24,19 @@ export function CharacterCard({ c, canList = false }: { c: CharacterCardData; ca
   const [cover, ...rest] = c.thumbs;
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 max-sm:rounded-[1.25rem] shadow-[0_14px_40px_-24px_rgb(0_0_0/0.9)] transition-all duration-300 hover:-translate-y-1 hover:border-brand-500/40 hover:shadow-[0_24px_50px_-24px_rgb(232_38_94/0.45)]">
-      <Link href={`/characters/${c.id}`} tabIndex={-1} aria-hidden="true" className="relative block aspect-[4/3] overflow-hidden bg-neutral-800 max-sm:aspect-[4/5]">
+      <Link href={`/characters/${c.id}`} tabIndex={-1} aria-hidden="true" className="relative block aspect-[4/3] isolate overflow-hidden bg-neutral-800 max-sm:aspect-[4/5]">
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt="" className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105" />
+          <img src={cover} alt="" className="h-full w-full object-cover object-top transition-transform duration-500 will-change-transform [mask-image:linear-gradient(to_bottom,#000_78%,transparent_100%)] group-hover:scale-105" />
         ) : (
           <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_30%_20%,rgb(232_38_94/0.25),transparent_60%),radial-gradient(circle_at_80%_80%,rgb(91_91_246/0.2),transparent_60%)] text-xs text-neutral-400">
             <span className="max-sm:hidden">No reference images yet</span>
             <span className="font-display text-4xl font-bold text-white/80 sm:hidden">{c.name.charAt(0)}</span>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-neutral-900/30 to-transparent max-sm:via-transparent max-sm:from-neutral-900/70" />
+        {/* A solid strip on the bottom edge, so the zooming picture can never show a light line under the fade. */}
+        <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-0.5 bg-neutral-900" />
+        <div className="absolute inset-x-0 -bottom-px top-0 bg-gradient-to-t from-neutral-900 via-neutral-900/30 to-transparent max-sm:via-transparent max-sm:from-neutral-900/70" />
         {/* Phones: whether she's ready to use, over the picture. */}
         <span className={`absolute bottom-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 sm:hidden ${cover ? "bg-neutral-950/80 text-neutral-100 ring-white/10" : "bg-amber-400/90 text-amber-950 ring-amber-300"}`}>
           {cover ? "Ready" : "Add photos"}
