@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Gift, X } from "lucide-react";
+import { INVITE_PATH, inviteLabel } from "@/lib/invites";
 import { useApp } from "@/components/app-context";
 import { TokenIcon } from "@/components/token-icon";
 import { parseCreditsMessage } from "@/lib/credits-message";
@@ -74,6 +75,15 @@ export function OutOfTokens() {
           className="relative mt-7 flex h-13 w-full items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-600 text-base font-semibold text-white shadow-[0_10px_30px_-10px_rgb(232_38_94/0.8)] transition-all duration-150 hover:from-brand-300 hover:to-brand-500 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
         >
           Get Tokens
+        </Link>
+        {/* The free way to more tokens, under the paid one. */}
+        <Link
+          href={INVITE_PATH}
+          onClick={close}
+          className="relative mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-full border border-iris-400/50 bg-iris-500/15 text-sm font-semibold text-indigo-100 transition-colors hover:bg-iris-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-iris-400/60"
+        >
+          <Gift aria-hidden="true" className="h-[18px] w-[18px]" />
+          {inviteLabel()}
         </Link>
         {!pro && (
           <Link href="/upgrade" onClick={close} className="relative mt-4 rounded-md text-sm text-neutral-400 underline-offset-4 transition-colors hover:text-neutral-100 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60">

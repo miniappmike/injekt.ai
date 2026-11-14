@@ -2,6 +2,11 @@
 
 Also follow `AGENTS.md` (read `docs/HANDOFF.md` first, update it before you finish).
 
+## Always update the handoff
+
+After every task, update `docs/HANDOFF.md` ("Current state": what changed, what was decided, what is next) in the same
+commit as the work. Replace lines that are no longer true instead of adding to the end.
+
 ## Skills come from the Alyn MCP
 
 For specialised work (design, writing, documents, testing, debugging, review, research, security and similar), use the

@@ -13,6 +13,28 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Added in the November 14 referrals session (invite buttons; reward amount not set)**
+- **Invite a friend** is wired in three places, all leading to the "Earn free tokens" card on `/tokens#invite`
+  (`src/components/invite-card.tsx`: the person's link, Copy, and Share where the browser has a share sheet, plus a
+  count of friends who signed up): a violet button under Get Tokens in the Out of Tokens pop-up
+  (`out-of-tokens.tsx`), the card itself on the Tokens page (between the balance and Buy tokens), and an "Invite
+  friends" row in the profile menu (`profile-menu.tsx`). The design came from the mockup artifact
+  (claude.ai/artifact/XWFwJMWtFT4AxrQfaB1zuH). The word "referral" already means the SpicyAPI link in this repo
+  (`REFERRAL_DISCLOSURE`), so this feature is called invites in code.
+- **How a link works** (`src/lib/invites.ts` settings and helpers, `src/lib/invites-server.ts` database side): the link
+  is `<app url>/?ref=<8-character code>`. `src/proxy.ts` keeps a valid `ref` in the `ms_ref` cookie for 30 days
+  (signed-out visitors only); `signup` in `(front)/(auth)/actions.ts` records it with `record_invite` and clears the
+  cookie. It never blocks sign-up. Self-invites, unknown codes and repeats record nothing.
+- **Migration 0027 (`invites`) must be run** in the Supabase SQL editor: `profiles.invite_code` (every account gets
+  one, existing ones are filled in), the `invites` table (one row per invited person, `rewarded_at` empty) and the
+  `record_invite` function. Until it is run the card shows the plain site link and nothing is recorded; nothing breaks.
+- **Reward amount is not set, and nothing is paid.** `INVITE_REWARD_TOKENS` in `src/lib/invites.ts` is `null`, so the
+  buttons say "Invite a friend" and the card says rewards are coming soon. Setting it changes the wording only.
+  Paying the reward is not built: it should pay both people once the friend confirms their email and makes a first
+  image (set `invites.rewarded_at`), with the same one-per-person check as the first-month bonus (`bonus_claims`).
+- Tests: `tests/invites.test.ts` (codes, link, wording), and `tests/signup.test.ts` covers recording and clearing.
+- `CLAUDE.md` (repo root) tells sessions to update this file after every task and to pick skills through the Alyn MCP.
+
 **Added in the November 14 session (landing pages, dashboard, navigation)**
 - **Landing pages** for signed-out visitors, under `src/app/(front)/(site)/`: `/` (hero with a picture collage, features,
   three steps, FAQ), `/how-it-works`, `/about`. Signed in, `/` goes to `/home`.
@@ -111,7 +133,8 @@ Nothing can be generated this way; it is for layout and screenshots only.
   (`anthropic/claude-haiku-5.5/chat`) follows the Sonnet ID's pattern; confirm it against SpicyAPI's model list.
 
 **Database**: migrations 0001 to 0025 are all run in production (0023 tokens, 0024 account deletion, 0025 payment
-providers). **0026 (five reference photos) must be run** before a 4th or 5th reference photo can be saved.
+providers). **0026 (five reference photos) must be run** before a 4th or 5th reference photo can be saved. **0027
+(invites) must be run** before invite links record anything.
 
 **Nightly job** (`/api/cron/cleanup`, 03:00 UTC): expired images, unfinished marketplace copies, final ledger charges,
 unpaid orders older than 3 days, cancelled or failed orders older than 24 hours.
@@ -124,7 +147,8 @@ unpaid orders older than 3 days, cancelled or failed orders older than 24 hours.
 - Staying on Vercel; upgrade to Vercel Pro before relying on sales (Hobby is non-commercial).
 
 **Next, in rough order**
-0. Real pictures for the landing collage; then referrals and daily tasks if the owner goes ahead.
+0. Next session: decide the invite reward (set `INVITE_REWARD_TOKENS`) and build the payout; run migration 0027.
+   Then real pictures for the landing collage, and daily tasks if the owner goes ahead.
 1. Marketplace checkout through Telegram or NOWPayments (the Buy button says checkout is being set up).
 2. Owner's to-do: Vercel Pro, a spend cap, and setting the Vercel function region next to the Supabase region.
 3. Optional: a lawyer's read of Terms and Privacy, a report button, a manual Cash App flow.

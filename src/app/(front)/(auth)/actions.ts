@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
@@ -7,6 +8,8 @@ import { createUserClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/auth";
 import { env } from "@/env";
 import { PRIVACY_UPDATED, TERMS_UPDATED } from "@/lib/legal";
+import { INVITE_COOKIE } from "@/lib/invites";
+import { recordInvite } from "@/lib/invites-server";
 
 export type AuthState = { error?: string; message?: string };
 
@@ -44,6 +47,14 @@ export async function signup(_: AuthState, formData: FormData): Promise<AuthStat
     },
   });
   if (error) return { error: error.message };
+  // A friend who came in through an invite link is recorded against the person who invited them (never blocks sign-up).
+  try {
+    const jar = await cookies();
+    if (data.user) await recordInvite(data.user.id, jar.get(INVITE_COOKIE)?.value);
+    jar.delete(INVITE_COOKIE);
+  } catch {
+    // Outside a request (tests): skip it.
+  }
   // Admins with Telegram alerts on get a "new sign-up" message (after the answer goes out; never blocks sign-up).
   try {
     after(async () => (await import("@/lib/payments/alerts")).alertSignup(parsed.data.email).catch(() => {}));

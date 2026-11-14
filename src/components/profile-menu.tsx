@@ -8,6 +8,8 @@ import { useApp } from "@/components/app-context";
 import { toggleGeneration } from "@/app/(app)/settings/api-keys/actions";
 import { cn } from "@/lib/utils";
 import { GET_KEY_PATH } from "@/lib/links";
+import { INVITE_PATH, INVITE_REWARD_TOKENS } from "@/lib/invites";
+import { Gift } from "lucide-react";
 
 const item =
   "block w-full rounded-md px-3 py-2 text-left text-sm text-neutral-200 hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none";
@@ -161,6 +163,15 @@ export function ProfileMenu({ email, admin = false }: { email: string; admin?: b
               </button>
               <div role="separator" className="my-1 border-t border-neutral-800" />
               <Link href="/tokens" role="menuitem" onClick={close} className={item}>Tokens</Link>
+              <Link href={INVITE_PATH} role="menuitem" onClick={close} className={cn(item, "flex items-center justify-between gap-3 bg-iris-500/10 text-indigo-100 hover:bg-iris-500/20")}>
+                <span className="flex items-center gap-2">
+                  <Gift aria-hidden="true" className="h-4 w-4" />
+                  Invite friends
+                </span>
+                {INVITE_REWARD_TOKENS && (
+                  <span className="rounded-full border border-iris-400/50 bg-iris-500/30 px-2 text-xs font-semibold">+{INVITE_REWARD_TOKENS}</span>
+                )}
+              </Link>
               <Link href="/ledger" role="menuitem" onClick={close} className={item}>Ledger</Link>
               <Link href="/settings/api-keys" role="menuitem" onClick={close} className={item}>Settings</Link>
               {/* Only until they have a key; after that the guide stays in the footer. */}

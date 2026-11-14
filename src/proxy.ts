@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { INVITE_COOKIE, INVITE_COOKIE_DAYS, parseInviteCode } from "@/lib/invites";
 
 const PUBLIC_PREFIXES = ["/login", "/signup", "/auth", "/api/webhooks", "/api/cron", "/marketplace", "/terms", "/privacy", "/guides", "/manifest.webmanifest", "/how-it-works", "/about", "/get-a-key"];
 
@@ -43,6 +44,18 @@ export async function proxy(request: NextRequest) {
     url.pathname = "/home";
     url.search = "";
     return NextResponse.redirect(url);
+  }
+
+  // A signed-out visitor who arrives on an invite link keeps the code for 30 days, so sign-up can credit the friend.
+  const invite = parseInviteCode(request.nextUrl.searchParams.get("ref"));
+  if (!user && invite) {
+    response.cookies.set(INVITE_COOKIE, invite, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: INVITE_COOKIE_DAYS * 24 * 60 * 60,
+    });
   }
 
   return response;

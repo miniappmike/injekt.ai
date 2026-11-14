@@ -5,11 +5,12 @@ import { CREDIT_PACKS, IMAGE_CREDITS, PRO, PROFILE_BUILD_CREDITS, PROMPT_CREDITS
 import { BuyPacks } from "@/components/buy-packs";
 import { TokenIcon } from "@/components/token-icon";
 import { ProBadge } from "@/components/pro-badge";
+import { InviteCard } from "@/components/invite-card";
 
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
 /** The Tokens page: the balance by where it came from, the packs to buy, what things cost, and recent activity. */
-export function TokensView({ s, emailConfirmed, methods, justPaid = false }: { s: CreditSummary; emailConfirmed: boolean; methods: PayMethods; justPaid?: boolean }) {
+export function TokensView({ s, emailConfirmed, methods, invite, justPaid = false }: { s: CreditSummary; emailConfirmed: boolean; methods: PayMethods; invite: { link: string; joined: number }; justPaid?: boolean }) {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -56,6 +57,8 @@ export function TokensView({ s, emailConfirmed, methods, justPaid = false }: { s
         {!s.ready && <p className="text-sm text-amber-300 sm:col-span-2">Tokens aren&apos;t switched on yet (run migration 0023 in Supabase).</p>}
         {s.ready && !emailConfirmed && <p className="text-sm text-amber-300 sm:col-span-2">Confirm your email to get your free tokens.</p>}
       </section>
+
+      <InviteCard link={invite.link} joined={invite.joined} />
 
       <section aria-labelledby="packs-title" className="flex flex-col gap-3">
         <h2 id="packs-title" className="font-display text-lg font-bold text-neutral-50">Buy tokens</h2>
