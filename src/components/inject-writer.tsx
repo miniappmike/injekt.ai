@@ -25,7 +25,7 @@ import type { StandalonePrompt } from "@/lib/inject-standalone";
 import type { SavedOutfit } from "@/lib/outfits";
 import { INJECT_DEFAULTS, MAX_VERSIONS, metaForRun, readEditTarget, writeEditTarget, type InjectMeta, type InjectOptionsInput } from "@/lib/inject-meta";
 import { closestAspectRatio } from "@/lib/aspect";
-import { SEND_TO_LIKENESS_KEY } from "@/lib/likeness-link";
+import { glideTo } from "@/lib/scroll-to";
 import type { ImageAspectRatio } from "@/lib/ai/providers/types";
 import { segItem, segTrack } from "@/components/ui/segmented";
 import { CharacterPicker } from "@/components/character-picker";
@@ -312,7 +312,16 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
     });
     setRunning(false);
     router.refresh();
+    // Once the cards have rendered, glide down to the first Generate button (about a second; see glideTo).
+    if (done > 0) {
+      glide.current();
+      setTimeout(() => {
+        const anchor = document.querySelector("[data-generate-anchor]");
+        if (anchor) glide.current = glideTo(anchor, 1000);
+      }, 250);
+    }
   }
+  const glide = useRef<() => void>(() => {});
 
   // Picking a different character after prompts were written rewrites them for her (artifact autoRewrite).
   useEffect(() => {
@@ -802,21 +811,6 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                             Copy
                           </Button>
                         )}
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            try {
-                              sessionStorage.setItem(SEND_TO_LIKENESS_KEY, JSON.stringify({ characterId: t.characterId ?? characterId, prompt: v.text }));
-                            } catch {
-                              // The page still opens; the prompt just isn't filled in.
-                            }
-                            router.push("/likeness");
-                          }}
-                        >
-                          Check likeness
-                        </Button>
                       </div>
                     )}
                   </div>
@@ -851,6 +845,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                         Sent with {editTarget ? "@image1 your target photo, " : ""}
                         {sentRefs(characters.find((c) => c.id === (t.characterId ?? characterId)), editTarget ? 2 : 1).join(", ") || "her references"}, under her identity and body lock.
                       </p>
+                      <div data-generate-anchor className="scroll-mt-24" aria-hidden="true" />
                       <GenerateImage
                         prompt={v.text}
                         characterId={t.characterId ?? characterId}

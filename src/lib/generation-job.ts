@@ -6,7 +6,7 @@ import { isOwnPath } from "@/lib/uploads";
 import { referencesFor } from "@/lib/character-images";
 import { currentPack, ensureSheetPack, selectCharacter } from "@/lib/sheet-pack";
 import { getUserTextClient } from "@/lib/ai/text-client";
-import { basePrompt, clampTags, condenseTask, framePrompt, sceneCondenseTask, sheetLines, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
+import { basePrompt, clampTags, fitCrops, condenseTask, framePrompt, sceneCondenseTask, sheetLines, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
 import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
 import { faceFixPrompt, likenessFixPrompt, type FixRefs } from "@/lib/ai/prompts/likeness";
 import { carouselSlidePrompt } from "@/lib/ai/prompts/variants";
@@ -83,6 +83,11 @@ export function injectJob(c: JobCharacter, pack: SheetPack | null, text: string,
 
 /** A likeness fix's references: her two sheets (her look in words from the pack), else 2 reference photos. */
 export function fixRefs(c: JobCharacter, pack: SheetPack | null, max: number): { paths: string[]; R: FixRefs } {
+  // Crops of the sheets (her face, front and side views) where she has them: less sheet clothing and layout to leak.
+  if (pack?.crops.length && max > 0) {
+    const crops = fitCrops(pack.crops, Math.min(max, 3)); // face, whole body and side are enough; fewer images, less to copy
+    return { paths: crops.map((x) => x.path), R: { roles: crops.map((x) => x.role), kinds: crops.map((x) => x.kind), anchors: pack.anchors ?? null, usePack: !!pack.anchors } };
+  }
   const s = sheetRefs(c, pack, max);
   return { paths: s.paths, R: { ...s.R, usePack: s.isSheet && !!s.R.anchors } };
 }
@@ -108,7 +113,7 @@ export function fixJob(kind: "likeness_fix" | "face_fix", c: JobCharacter, pack:
   }
   const { paths, R } = fixRefs(c, pack, max - 1);
   if (!paths.length) throw new UserFacingError("This character has no sheet or reference photos to fix against.");
-  return { prompt: likenessFixPrompt(R, meta.fixes ?? [], meta.frame, modelFamily(model)), paths: [source, ...paths], photoEdit: true };
+  return { prompt: likenessFixPrompt(R, meta.fixes ?? [], meta.frame, modelFamily(model), meta.outfit), paths: [source, ...paths], photoEdit: true };
 }
 
 /**

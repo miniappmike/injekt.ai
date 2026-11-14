@@ -56,7 +56,7 @@ export const injectMetaSchema = z.object({
 });
 export type InjectMeta = z.infer<typeof injectMetaSchema>;
 /** What a likeness fix or face fix carries (the same schema; the job builder reads only its own fields). */
-export type FixMeta = Pick<InjectMeta, "sourceGeneration" | "fixes" | "matchHair" | "note" | "frame">;
+export type FixMeta = Pick<InjectMeta, "sourceGeneration" | "fixes" | "matchHair" | "note" | "frame" | "outfit">;
 
 /** The Inject options as the browser sends them (artifact readOpts). */
 export const injectOptionsSchema = z.object({
