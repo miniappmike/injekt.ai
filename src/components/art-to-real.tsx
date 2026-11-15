@@ -86,35 +86,44 @@ export function ArtToReal({ characters }: { characters: ArtCharacter[] }) {
           <Label className="font-display text-base font-bold text-neutral-50">
             1. Your artwork <span className="text-sm font-normal text-neutral-500">(up to {MAX_ARTWORKS})</span>
           </Label>
-          {arts.length > 0 && (
-            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-              {arts.map((a, i) => (
-                <li key={a.id} className="relative aspect-square overflow-hidden rounded-lg ring-1 ring-white/10">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={a.preview} alt={`Artwork ${i + 1}`} className={`h-full w-full object-cover ${a.busy ? "opacity-50" : ""}`} />
-                  {a.busy && <span className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold text-white">Uploading...</span>}
-                  {a.error && <span className="absolute inset-x-0 bottom-0 bg-red-950/90 px-1 py-0.5 text-center text-[10px] text-red-200">{a.error}</span>}
-                  <button
-                    type="button"
-                    onClick={() => remove(a.id)}
-                    aria-label={`Remove artwork ${i + 1}`}
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-sm leading-none text-white transition-colors hover:bg-black"
-                  >
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {arts.length < MAX_ARTWORKS && (
-            <ImageDrop
-              layout="tile"
-              multiple
-              title={arts.length ? `Add more (${arts.length}/${MAX_ARTWORKS})` : "Artwork"}
-              hint="Anime, a drawing, a render, any non-photo image. Pick up to 5 at once, drop, or paste."
-              onPick={(f) => void pick(f)}
-            />
-          )}
+          <ImageDrop
+            layout="tile"
+            multiple
+            full={arts.length >= MAX_ARTWORKS}
+            title={arts.length >= MAX_ARTWORKS ? `${MAX_ARTWORKS}/${MAX_ARTWORKS} artworks` : arts.length ? `Add more (${arts.length}/${MAX_ARTWORKS})` : "Artwork"}
+            hint={arts.length >= MAX_ARTWORKS ? "Remove one to add another." : "Anime, a drawing, a render, any non-photo image. Pick up to 5 at once, drop, or paste."}
+            onPick={(f) => void pick(f)}
+            gallery={
+              <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                {arts.map((a, i) => (
+                  <li key={a.id} className="relative aspect-square overflow-hidden rounded-lg ring-1 ring-white/10">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={a.preview} alt={`Artwork ${i + 1}`} className={`h-full w-full object-cover ${a.busy ? "opacity-50" : ""}`} />
+                    {a.busy && <span className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold text-white">Uploading...</span>}
+                    {a.error && <span className="absolute inset-x-0 bottom-0 bg-red-950/90 px-1 py-0.5 text-center text-[10px] text-red-200">{a.error}</span>}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        remove(a.id);
+                      }}
+                      aria-label={`Remove artwork ${i + 1}`}
+                      className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-sm leading-none text-white transition-colors hover:bg-black"
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+                {Array.from({ length: MAX_ARTWORKS - arts.length }, (_, i) => (
+                  <li key={`empty-${i}`} className="flex aspect-square items-center justify-center rounded-lg bg-neutral-950/50 text-neutral-600 transition-colors group-hover:text-brand-400">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6 fill-none stroke-current" strokeWidth="1.6" strokeLinecap="round">
+                      <path d="M12 6v12M6 12h12" />
+                    </svg>
+                  </li>
+                ))}
+              </ul>
+            }
+          />
           {notice && <p role="alert" className="text-sm text-amber-300">{notice}</p>}
         </section>
 
