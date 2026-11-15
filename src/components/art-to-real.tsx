@@ -180,7 +180,7 @@ export function ArtToReal({ characters }: { characters: ArtCharacter[] }) {
                     setRunAll((v) => v + 1);
                   }}
                 >
-                  Generate make real{ready.length > 1 ? ` (${ready.length})` : ""}
+                  Make Real{ready.length > 1 ? ` (${ready.length})` : ""}
                 </Button>
                 {ready.length > 1 && <p className="text-xs text-neutral-500">Starts every artwork below, one every 5 seconds. Or press Make it real on just one.</p>}
               </div>
