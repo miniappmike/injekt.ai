@@ -4,6 +4,7 @@ import { collectPending, GENERATIONS_BUCKET, type Actor } from "@/lib/generation
 import { featureLabel } from "@/lib/ledger-types";
 import { timeLeft } from "@/lib/retention";
 import type { GenerationItem } from "@/lib/history-types";
+import { signedUrlMap } from "@/lib/media-urls";
 
 type Row = {
   id: string;
@@ -17,7 +18,7 @@ type Row = {
   created_at: string;
   expires_at: string | null;
   cost_usd: string | number | null;
-  params: { free?: boolean; deleted?: boolean } | null;
+  params: { free?: boolean; deleted?: boolean; input_path?: string } | null;
 };
 
 /** Where a generation is in its life. A finished image past its 72 hours (or whose file is gone) counts as expired. */
@@ -52,6 +53,9 @@ export async function listGenerations(supabase: SupabaseClient, user: Actor, lim
       }),
   );
 
+  // Art to Real: a small preview of the artwork it was made from.
+  const inputs = await signedUrlMap(supabase, rows.map((r) => r.params?.input_path ?? null)).catch(() => ({}) as Record<string, string>);
+
   return rows.map((r) => {
     const state = generationState(r);
     const linked = links.get(r.id);
@@ -72,6 +76,7 @@ export async function listGenerations(supabase: SupabaseClient, user: Actor, lim
       previewUrl: linked?.view ?? null,
       downloadUrl: linked?.save ?? null,
       characterId: r.character_id ?? null,
+      inputUrl: r.params?.input_path ? (inputs[r.params.input_path] ?? null) : null,
     };
   });
 }

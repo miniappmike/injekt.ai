@@ -88,6 +88,18 @@ export function HistoryImages({
                 {(i.state === "ready" || i.state === "expired") && (
                   <div className="mt-1"><ExpiryBadge expiresAt={i.expiresAt} /></div>
                 )}
+                {i.inputUrl && (
+                  <button
+                    type="button"
+                    onClick={() => viewImage({ url: i.inputUrl as string, title: `${i.kindLabel}: original artwork` })}
+                    aria-label="View the original artwork"
+                    className="mt-1 flex items-center gap-2 rounded-md text-xs text-neutral-500 hover:text-neutral-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={i.inputUrl} alt="" className="h-8 w-8 cursor-zoom-in rounded object-cover ring-1 ring-white/10" />
+                    Original artwork
+                  </button>
+                )}
                 {i.prompt && <p className="mt-1 line-clamp-2 text-neutral-400">{i.prompt}</p>}
                 {i.error && <p className="mt-1 text-red-400">{i.error}</p>}
                 {cost && (
