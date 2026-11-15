@@ -56,6 +56,7 @@ function GenerateImageInner({
   actionLabel = "Generate image",
   renderActions,
   runSignal = 0,
+  runDelayMs = 0,
   meta,
   autoAspectRatio,
   autoStart = false,
@@ -79,6 +80,8 @@ function GenerateImageInner({
   renderActions?: (result: Result) => React.ReactNode;
   /** Each time this goes up, the image is generated as if the button were pressed (used by "Generate all"). */
   runSignal?: number;
+  /** How long after "Generate all" this one waits before it starts, so a batch is staggered. */
+  runDelayMs?: number;
   /** Inject: what the server needs to frame the prompt for the image model. */
   meta?: InjectMeta;
   /** The shape to start on (the ratio closest to the target photo). */
@@ -259,10 +262,16 @@ function GenerateImageInner({
 
   // "Generate all": start when the signal goes up, unless this one is already running or done.
   const lastSignal = useRef(runSignal);
+  // The check runs when the timer fires, with the state of that moment (it may have been started by hand meanwhile).
+  const runIfIdle = useRef(() => {});
+  runIfIdle.current = () => {
+    if (!busy && phase !== "done" && ready) void generate();
+  };
   useEffect(() => {
     if (runSignal === lastSignal.current) return;
     lastSignal.current = runSignal;
-    if (!busy && phase !== "done" && ready) void generate();
+    const timer = setTimeout(() => runIfIdle.current(), runDelayMs);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runSignal]);
   // A fix starts straight away: the person already chose it.

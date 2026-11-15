@@ -26,6 +26,7 @@ import type { SavedOutfit } from "@/lib/outfits";
 import { INJECT_DEFAULTS, MAX_VERSIONS, metaForRun, readEditTarget, writeEditTarget, type InjectMeta, type InjectOptionsInput } from "@/lib/inject-meta";
 import { closestAspectRatio } from "@/lib/aspect";
 import { glideTo } from "@/lib/scroll-to";
+import { staggerDelay, WRITE_STAGGER_MS } from "@/lib/stagger";
 import type { ImageAspectRatio } from "@/lib/ai/providers/types";
 import { segItem, segTrack } from "@/components/ui/segmented";
 import { CharacterPicker } from "@/components/character-picker";
@@ -115,6 +116,8 @@ function loadOptions(): Options {
 
 export function InjectWriter({ characters, outfits: initialOutfits = [], initialCharacterId }: { characters: InjectCharacter[]; outfits?: SavedOutfit[]; initialCharacterId?: string }) {
   const router = useRouter();
+  // Goes up by one each time "Generate all" is pressed; every prompt that hasn't been generated yet starts, one every few seconds.
+  const [runAll, setRunAll] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const { toast, show } = useToast();
   const [characterId, setCharacterId] = useState(initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id);
@@ -270,16 +273,17 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
       const onDelta = (d: string) => {
         raw += d;
         if (frame) return;
-        frame = requestAnimationFrame(() => {
+        // Redrawn about 6 times a second, not every frame: with a long list of cards every redraw is costly.
+        frame = window.setTimeout(() => {
           frame = 0;
           update(t.id, { live: raw });
-        });
+        }, 160);
       };
       const res = await awaitOrRecover(streamInjectPrompts({ characterId, targetPath: path, options: { ...o } }, onDelta), async () => {
         const r = await recoverInjectPrompts({ characterId, targetPath: path, since, count: o.count });
         return r.ok && r.result ? { ok: true as const, ...r.result } : null;
       }).catch((e: unknown): AiFailure => ({ ok: false, error: e instanceof Error ? e.message : "Couldn't write the prompts. Try again." }));
-      if (frame) cancelAnimationFrame(frame);
+      if (frame) clearTimeout(frame);
       update(t.id, { live: undefined });
       usageChanged();
       if (!res.ok) {
@@ -304,6 +308,8 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
         status: res.truncated ? "Cut short. Try fewer versions or the Short style." : written < res.versions.length ? "Some versions were not written. Press Write prompts to try again." : "Done.",
       });
       if (n > 1) setSummary({ text: `Target ${i + 1} of ${n} done…`, good: true });
+      // A short pause before the next photo, so a long list never fires its calls back to back.
+      if (i < n - 1 && !stop.current) await new Promise((r) => setTimeout(r, WRITE_STAGGER_MS));
     }
     const total = n * o.count;
     setSummary({
@@ -750,7 +756,23 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
 
       {results.length > 0 && (
         <section className="flex flex-col gap-4">
-          <h2 className="font-medium">Prompts</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-medium">Prompts</h2>
+            {!writeOnly && !running && (() => {
+              const n = results.reduce((sum, t) => sum + (t.versions?.filter(Boolean).length ?? 0), 0);
+              return n > 0 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    if (window.confirm(`Generate all ${n} image${n > 1 ? "s" : ""}? They start one every 5 seconds, on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
+                  }}
+                >
+                  Generate all
+                </Button>
+              ) : null;
+            })()}
+          </div>
           {writeOnly && (
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-neutral-500">
@@ -778,8 +800,12 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
               </Button>
             </div>
           )}
-          {results.map((t, ti) =>
+          {(() => {
+            // Position of each prompt across all targets, so "Generate all" starts them one after another.
+            let position = 0;
+            return results.map((t, ti) =>
             (t.versions?.length ? t.versions : [null]).map((v, k) => {
+              const startAt = v ? position++ : 0;
               const label = (results.length > 1 ? `Target ${ti + 1} of ${results.length}` : "Target") + (o.count > 1 && t.versions ? ` · version ${k + 1}` : "");
               const sa = writeOnly && v ? standalone[t.id] : undefined;
               const ready = sa?.key === standaloneKey(t) ? sa.prompts?.[k] : undefined;
@@ -854,13 +880,16 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                         meta={metaForRun(v.meta, t.writtenPath ?? t.path ?? null, editTarget)}
                         autoAspectRatio={t.ratio}
                         historyId={v.historyId}
+                        runSignal={runAll}
+                        runDelayMs={staggerDelay(startAt)}
                       />
                     </>
                   )}
                 </article>
               );
             }),
-          )}
+            );
+          })()}
         </section>
       )}
       {toast}

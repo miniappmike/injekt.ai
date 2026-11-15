@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { staggerDelay } from "@/lib/stagger";
 import { MenuSelect } from "@/components/menu-select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -521,7 +522,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                   size="sm"
                   onClick={() => {
                     const n = result.items.length;
-                    if (window.confirm(`Generate all ${n} ${result.mode === "edits" ? "takes" : "moments"}? This starts ${n} images on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
+                    if (window.confirm(`Generate all ${n} ${result.mode === "edits" ? "takes" : "moments"}? They start one every 5 seconds, on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
                   }}
                 >
                   Generate all
@@ -571,7 +572,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                   <p className="whitespace-pre-wrap break-words">{item.copy}</p>
                 )}
                 {result.elsewhere ? null : result.mode === "edits" ? (
-                  <GenerateImage prompt={item.copy} characterId={result.characterId} extraPaths={[result.path, ...result.extraPaths]} kind="variant" runSignal={runAll} historyId={item.historyId} />
+                  <GenerateImage prompt={item.copy} characterId={result.characterId} extraPaths={[result.path, ...result.extraPaths]} kind="variant" runSignal={runAll} runDelayMs={staggerDelay(i)} historyId={item.historyId} />
                 ) : (
                   <GenerateImage
                     prompt={item.slidePrompt as string}
@@ -580,6 +581,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                     kind="carousel"
                     meta={{ person: item.person }}
                     runSignal={runAll}
+                    runDelayMs={staggerDelay(i)}
                     checkLikeness={item.person === "full"}
                     historyId={item.historyId}
                   />
