@@ -94,7 +94,7 @@ export default async function HomePage() {
             <DiscordIcon className="h-6 w-6 text-iris-400" />
             Discord
           </a>
-          <Link href="/settings/api-keys" className="panel flex min-h-[5.5rem] flex-col items-center justify-center gap-1.5 p-3 text-center text-sm font-semibold text-neutral-100 transition-colors hover:border-neutral-700">
+          <Link href="/settings/api-keys" className="panel flex min-h-[5.5rem] flex-col items-center justify-center gap-1.5 p-3 text-center text-sm font-semibold text-neutral-100 transition-colors hover:border-brand-500/50">
             <Settings aria-hidden="true" className="h-6 w-6 text-brand-300" strokeWidth={1.8} />
             Settings
           </Link>

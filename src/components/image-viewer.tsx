@@ -1,5 +1,6 @@
 "use client";
 
+import { DownloadLink } from "@/components/download-link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
@@ -354,7 +355,7 @@ export function ImageViewer() {
         )}
         {image.downloadUrl && (
           <Button asChild size="sm" variant="secondary">
-            <a href={image.downloadUrl}>Download</a>
+            <DownloadLink href={image.downloadUrl}>Download</DownloadLink>
           </Button>
         )}
         <Button type="button" size="sm" variant="secondary" onClick={() => void copyImage([image.url, image.downloadUrl])}>

@@ -1,5 +1,6 @@
 "use client";
 
+import { DownloadLink } from "@/components/download-link";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ExpiryBadge } from "@/components/expiry-badge";
@@ -112,7 +113,7 @@ export function HistoryImages({
                 <div className="mt-1 flex flex-wrap items-center gap-1">
                   {i.downloadUrl && (
                     <Button asChild size="sm" variant="ghost">
-                      <a href={i.downloadUrl}>Download</a>
+                      <DownloadLink href={i.downloadUrl}>Download</DownloadLink>
                     </Button>
                   )}
                   {i.prompt && (

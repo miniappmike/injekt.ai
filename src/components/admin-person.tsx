@@ -1,3 +1,5 @@
+import { ProBadge } from "@/components/pro-badge";
+import { PlanSwitch } from "@/components/admin-console";
 import Link from "next/link";
 import type { PersonDetail } from "@/lib/admin-data";
 import { AdminTokenAdjust } from "@/components/admin-token-adjust";
@@ -25,7 +27,7 @@ export function AdminPerson({ p }: { p: PersonDetail }) {
           {(p.email ?? "?").slice(0, 1)}
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="break-all font-display text-2xl font-extrabold leading-tight text-neutral-50 sm:text-3xl">{p.email ?? "No email"}</h1>
+          <h1 className="break-all font-display text-2xl font-extrabold leading-tight text-neutral-50 sm:text-3xl">{p.email ?? "No email"}{p.plan === "pro" && !p.isAdmin && <ProBadge className="ml-2 align-middle" />}</h1>
           <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
             <span className={`rounded-full px-2 py-0.5 font-semibold ring-1 ${p.isAdmin ? "bg-iris-500/15 text-iris-400 ring-iris-500/40" : p.plan === "pro" ? "bg-brand-500/15 text-[#ff8fc0] ring-brand-500/40" : "bg-neutral-800 text-neutral-300 ring-neutral-700"}`}>
               {p.isAdmin ? "Admin" : p.plan === "pro" ? "Pro" : "Free plan"}
@@ -34,6 +36,10 @@ export function AdminPerson({ p }: { p: PersonDetail }) {
             <span className="rounded-full bg-neutral-800/70 px-2 py-0.5 text-neutral-300">Joined {day(p.createdAt)}</span>
             <span className="rounded-full bg-neutral-800/70 px-2 py-0.5 text-neutral-300">Last sign-in {day(p.lastSignIn)}</span>
           </div>
+        </div>
+        <div className="flex flex-col gap-1 text-xs text-neutral-400 sm:shrink-0">
+          Plan
+          <PlanSwitch user={{ id: p.id, email: p.email, plan: p.plan, is_admin: p.isAdmin }} />
         </div>
         {p.email && (
           <div className="flex gap-2 sm:shrink-0">

@@ -5,11 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
-import { Brush } from "lucide-react";
+import { Brush, LayoutDashboard } from "lucide-react";
 import { BackIcon, CharactersIcon, CreateModelIcon, GridIcon, GroupIcon, InjectIcon, LikenessIcon, SparkIcon, StoreIcon, VariantsIcon } from "@/components/icons";
 import { DOCK_MORE, DOCK_NAV } from "@/lib/nav";
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  "/home": LayoutDashboard,
   "/characters": CharactersIcon,
   "/inject": InjectIcon,
   "/director": SparkIcon,

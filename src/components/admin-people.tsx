@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { PlanSwitch } from "@/components/admin-console";
+import { ProBadge } from "@/components/pro-badge";
 import { TokenIcon } from "@/components/token-icon";
 import { Input } from "@/components/ui/input";
 import type { UserStats } from "@/lib/admin-stats";
@@ -104,7 +105,10 @@ export function AdminPeople({ users, extras, freeRunCap }: { users: UserStats[];
           return (
             <li key={u.id} className="flex items-center gap-3 px-1 py-3">
               <Link href={`/admin/people/${u.id}`} className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="truncate text-sm font-semibold text-neutral-50">{u.email ?? u.id.slice(0, 8)}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate text-sm font-semibold text-neutral-50">{u.email ?? u.id.slice(0, 8)}</span>
+                  {u.plan === "pro" && !u.is_admin && <ProBadge className="shrink-0" />}
+                </span>
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-neutral-400">
                   <span className="inline-flex items-center gap-1 tabular-nums text-neutral-200"><TokenIcon className="h-3 w-3" />{e.tokens.toLocaleString()}</span>
                   {e.paidUsd > 0 && <span className="font-semibold tabular-nums text-emerald-300">${e.paidUsd.toFixed(2)} paid</span>}
@@ -141,9 +145,12 @@ export function AdminPeople({ users, extras, freeRunCap }: { users: UserStats[];
               return (
                 <tr key={u.id} className="border-b border-neutral-800/60 transition-colors hover:bg-neutral-800/30">
                   <td className="max-w-[240px] py-2 pr-3">
-                    <Link href={href} className="block truncate font-medium text-neutral-100 hover:text-brand-300 hover:underline" title={u.email ?? u.id}>
-                      {u.email ?? u.id.slice(0, 8)}
-                    </Link>
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <Link href={href} className="block min-w-0 truncate font-medium text-neutral-100 hover:text-brand-300 hover:underline" title={u.email ?? u.id}>
+                        {u.email ?? u.id.slice(0, 8)}
+                      </Link>
+                      {u.plan === "pro" && !u.is_admin && <ProBadge className="shrink-0" />}
+                    </span>
                     <span className="flex gap-2 text-[11px]">
                       {u.ownKey && <span className="text-emerald-300">Own AI key</span>}
                       {proPass && <span className="text-[#ff8fc0]">Pro until {day(u.proUntil)}</span>}

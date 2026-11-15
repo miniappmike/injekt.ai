@@ -9,6 +9,7 @@ import { GenerateImage } from "@/components/generate-image";
 import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { Button } from "@/components/ui/button";
+import { MenuSelect } from "@/components/menu-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { segItem, segTrack } from "@/components/ui/segmented";
@@ -190,7 +191,6 @@ function UseAsFaceSheet({ generationId, url, onUse }: { generationId: string; ur
   return <p className="text-xs text-neutral-500">Ready for step 3 and 4 as her face sheet.</p>;
 }
 
-const select = "h-10 w-full rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-3 text-sm";
 
 function StepCard({ n, title, intro, children }: { n: number; title: string; intro: string; children: React.ReactNode }) {
   return (
@@ -308,7 +308,7 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
   return (
     <div id="wz-top" className="mt-5 flex scroll-mt-20 flex-col gap-5 max-sm:mt-3 max-sm:gap-4">
       <div className="panel p-4 pb-3 max-sm:rounded-3xl max-sm:p-3">
-        <Stepper step={step} reached={reached} onGo={go} />
+        <Stepper step={step} reached={character && (savedFace || faceSheetUpload?.path || madeFace) ? STEPS.length : reached} onGo={go} />
       </div>
 
       {step === 1 && (
@@ -449,26 +449,20 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
           )}
 
           <details className="group rounded-2xl border border-neutral-800 bg-neutral-950/40 p-3">
-            <summary className="cursor-pointer select-none text-sm font-semibold text-neutral-200">Fine-tune the sheet <span className="font-normal text-neutral-500">(body, optional)</span></summary>
+            <summary className="cursor-pointer select-none text-sm text-neutral-400 hover:text-neutral-200">Fine-tune the sheet</summary>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3 [&>*]:min-w-0">
-              <label className="flex flex-col gap-1.5 text-sm">
-                Bust
-                <select className={select} value={opts.cup} onChange={(e) => setOpts((o) => ({ ...o, cup: e.target.value }))}>
-                  {CUPS.map((c) => <option key={c} value={c}>{c === "match" ? "As in the photos" : `${c} cup`}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1.5 text-sm">
-                Glute size
-                <select className={select} value={opts.gluteSize} onChange={(e) => setOpts((o) => ({ ...o, gluteSize: e.target.value }))}>
-                  {GLUTE_SIZES.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1.5 text-sm">
-                Glute shape
-                <select className={select} value={opts.gluteShape} onChange={(e) => setOpts((o) => ({ ...o, gluteShape: e.target.value }))}>
-                  {GLUTE_SHAPES.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
-                </select>
-              </label>
+              <div className="flex flex-col gap-1.5 text-sm">
+                <Label htmlFor="ft-cup">Bust</Label>
+                <MenuSelect id="ft-cup" value={opts.cup} onChange={(v) => setOpts((o) => ({ ...o, cup: v }))} groups={[{ options: CUPS.map((c) => ({ value: c, label: c === "match" ? "As in the photos" : `${c} cup` })) }]} />
+              </div>
+              <div className="flex flex-col gap-1.5 text-sm">
+                <Label htmlFor="ft-glute-size">Glute size</Label>
+                <MenuSelect id="ft-glute-size" value={opts.gluteSize} onChange={(v) => setOpts((o) => ({ ...o, gluteSize: v }))} groups={[{ options: GLUTE_SIZES.map((g) => ({ value: g.id, label: g.label })) }]} />
+              </div>
+              <div className="flex flex-col gap-1.5 text-sm">
+                <Label htmlFor="ft-glute-shape">Glute shape</Label>
+                <MenuSelect id="ft-glute-shape" value={opts.gluteShape} onChange={(v) => setOpts((o) => ({ ...o, gluteShape: v }))} groups={[{ options: GLUTE_SHAPES.map((g) => ({ value: g.id, label: g.label })) }]} />
+              </div>
             </div>
           </details>
 

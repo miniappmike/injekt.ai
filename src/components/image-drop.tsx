@@ -25,6 +25,9 @@ export function ImageDrop({
   disabled,
   onPick,
   layout = "row",
+  multiple = false,
+  gallery,
+  full = false,
 }: {
   title: string;
   hint?: string;
@@ -32,17 +35,24 @@ export function ImageDrop({
   disabled?: boolean;
   onPick: (file: File) => void;
   layout?: "row" | "tile";
+  /** Several images at once: `onPick` is called once per image file (the parent applies any limit). */
+  multiple?: boolean;
+  /** Replaces the single picture: what is already in the box (thumbnails), shown inside the drop area. */
+  gallery?: React.ReactNode;
+  /** The box is at its limit: it stays on screen but no longer takes images. */
+  full?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [pasteError, setPasteError] = useState<string>();
   const box = useRef<HTMLElement>(null);
   usePasteTarget(box, (f) => take(f), disabled);
   const take = (files: FileList | File[] | null) => {
-    const f = files && Array.from(files).find((x) => x.type.startsWith("image/"));
-    if (f) onPick(f);
+    if (full) return;
+    const images = files ? Array.from(files).filter((x) => x.type.startsWith("image/")) : [];
+    for (const f of multiple ? images : images.slice(0, 1)) onPick(f);
   };
   const open = () => {
-    if (!disabled) input.current?.click();
+    if (!disabled && !full) input.current?.click();
   };
   const tile = layout === "tile";
   const picture = preview ? (
@@ -56,7 +66,7 @@ export function ImageDrop({
   return (
     <section
       ref={box}
-      className={`dropzone group min-w-0 cursor-pointer ${tile ? "flex flex-col gap-2.5 p-3 max-sm:gap-1.5 max-sm:rounded-2xl max-sm:p-1.5" : "flex items-center gap-4 p-3 max-sm:gap-3 max-sm:p-2.5"} ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+      className={`dropzone group min-w-0 cursor-pointer ${tile ? "flex flex-col gap-2.5 p-3 max-sm:gap-1.5 max-sm:rounded-2xl max-sm:p-1.5" : "flex items-center gap-4 p-3 max-sm:gap-3 max-sm:p-2.5"} ${disabled ? "cursor-not-allowed opacity-60" : full ? "cursor-default" : ""}`}
       tabIndex={0}
       onClick={open}
       onKeyDown={(e) => {
@@ -72,7 +82,7 @@ export function ImageDrop({
         take(e.dataTransfer.files);
       }}
     >
-      {tile ? <div className="h-28 w-full max-sm:h-auto max-sm:aspect-square sm:h-32">{picture}</div> : <div className="shrink-0">{picture}</div>}
+      {gallery ? <div className="w-full">{gallery}</div> : tile ? <div className="h-28 w-full max-sm:h-auto max-sm:aspect-square sm:h-32">{picture}</div> : <div className="shrink-0">{picture}</div>}
       <div className={`flex min-w-0 flex-1 ${tile ? "items-start justify-between gap-2 max-sm:flex-col max-sm:items-stretch max-sm:gap-1.5" : "items-center justify-between gap-3"}`}>
         <div className="min-w-0">
           <h2 className={`truncate text-sm font-semibold ${tile ? "max-sm:px-1 max-sm:text-xs" : ""}`}>{title}</h2>
@@ -83,7 +93,7 @@ export function ImageDrop({
           {/* Phones have no Ctrl+V: this reads the clipboard. */}
           <button
             type="button"
-            disabled={disabled}
+            disabled={disabled || full}
             aria-label={`Paste ${title.toLowerCase()} from the clipboard`}
             title="Paste from the clipboard"
             onClick={async (e) => {
@@ -103,7 +113,7 @@ export function ImageDrop({
             type="button"
             size="sm"
             variant="secondary"
-            disabled={disabled}
+            disabled={disabled || full}
             className={tile ? "max-sm:h-9 max-sm:px-0" : "max-sm:h-9"}
             aria-label={tile ? `Upload ${title.toLowerCase()}` : undefined}
             onClick={(e) => {
@@ -124,6 +134,7 @@ export function ImageDrop({
         ref={input}
         type="file"
         accept="image/jpeg,image/png,image/webp"
+        multiple={multiple}
         className="hidden"
         onClick={(e) => e.stopPropagation()}
         onChange={(e) => {

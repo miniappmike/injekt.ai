@@ -165,7 +165,7 @@ export function CapsForm({ config }: { config: Config }) {
   );
 }
 
-export function PlanSwitch({ user }: { user: UserStats }) {
+export function PlanSwitch({ user }: { user: Pick<UserStats, "id" | "email" | "plan" | "is_admin"> }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   if (user.is_admin) return <span className="rounded-full bg-iris-500/15 px-2 py-0.5 text-xs font-semibold text-iris-400 ring-1 ring-iris-500/40">Admin</span>;

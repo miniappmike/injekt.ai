@@ -1,5 +1,6 @@
 "use client";
 
+import { DownloadLink } from "@/components/download-link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -349,7 +350,7 @@ function GenerateImageInner({
             <img src={result.url} alt="Generated" className="thumb max-h-96 w-auto max-w-full animate-pop-in cursor-zoom-in ring-1 ring-white/10 shadow-[0_20px_50px_-25px_rgb(0_0_0/0.9)]" />
           </button>
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <a href={result.downloadUrl} className="font-semibold text-brand-400 underline-offset-4 transition-colors hover:text-brand-300 hover:underline">Download</a>
+            <DownloadLink href={result.downloadUrl} className="font-semibold text-brand-400 underline-offset-4 transition-colors hover:text-brand-300 hover:underline">Download</DownloadLink>
             <button type="button" onClick={() => openHistory("images")} className="text-neutral-400 underline-offset-4 transition-colors hover:text-neutral-100 hover:underline">All images</button>
             <span className="flex items-center gap-1.5 text-xs text-neutral-500">
               Kept for {GENERATION_RETENTION_HOURS} hours

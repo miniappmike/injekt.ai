@@ -48,6 +48,9 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           You don&apos;t need any keys: prompts and images run on our AI and are paid with tokens. On Pro, add your own key and your prompts and images run on it instead,{" "}
           <b className="text-neutral-200">with no tokens used</b>. Paste a key and we work out the provider. Keys are encrypted, and only the last 4 characters are ever shown.
         </p>
+        <p className="text-sm">
+          <Link href="/get-a-key" className="font-semibold text-brand-300 underline-offset-4 hover:text-brand-200 hover:underline">New to API keys? Read the API key guide →</Link>
+        </p>
       </section>
       {!pro && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-500/40 bg-brand-500/5 p-4 text-sm">
