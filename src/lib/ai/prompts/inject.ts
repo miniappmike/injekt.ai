@@ -11,9 +11,9 @@ import type { POSE_MODES, PROMPT_STYLES, WARDROBES } from "@/lib/inject-meta";
 
 /**
  * How long each written prompt may be. The image model takes 5,000 characters; Generate here adds her identity framing
- * and body lock (about 2,000), so the written scene gets the rest, and a longer one has its scene shortened.
+ * and body lock (about 2,200), so the written scene gets the rest, and a longer one has its scene shortened.
  */
-export const PROMPT_CHARS = 2600;
+export const PROMPT_CHARS = 2800;
 
 /** The written prompt's opener when both of her sheets go to the generator. */
 export const TWO_SHEET_OPENER = "Use @image1 (her face sheet) and @image2 (her body sheet) as the strict identity reference.";
@@ -162,6 +162,16 @@ const cleanOut = (t: string) =>
     .replace(/\s*\[\[[A-Z-]*\]?$/, "")
     .replace(/\n[ \t]*={2,}[^\n]*$/, "")
     .trim();
+
+/**
+ * Whether the text model declined instead of writing a prompt ("I'm not able to write this prompt..."). A refusal must
+ * never be passed on as a prompt: the app would wrap it in her identity and realism lines and the image model would
+ * invent an unrelated picture. Looks only at the opening, where a refusal always sits.
+ */
+export function looksLikeRefusal(text: string): boolean {
+  const head = String(text).replace(/\s+/g, " ").slice(0, 600);
+  return /\b(?:I(?:'m| am) (?:not able|unable|not going)|I can(?:'|no)t|I (?:won't|will not|must decline|have to decline)|I'm sorry,? but|I apologi[sz]e,? but)\b[^.]{0,120}\b(?:write|help|create|produce|recreate|recreating|generate|assist|provide|fulfil|comply|do that|this (?:prompt|request|task))/i.test(head);
+}
 
 /** Splits the reply into versions and reads the machine lines (POSE, IN FRAME, OUTFIT, EDIT) in any order. */
 export function parseVersions(text: string): ParsedVersion[] {

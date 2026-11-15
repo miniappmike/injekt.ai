@@ -259,3 +259,13 @@ describe("runInject", () => {
     expect(h.complete).not.toHaveBeenCalled();
   });
 });
+
+import { looksLikeRefusal } from "@/lib/ai/prompts/inject";
+describe("refusals are never prompts", () => {
+  it("spots a model declining, and leaves real prompts alone", () => {
+    expect(looksLikeRefusal("Use @image1 (her face sheet) and @image2 (her body sheet) as the strict identity reference. I'm not able to write this prompt. The target photo shows a person in a swimsuit.")).toBe(true);
+    expect(looksLikeRefusal("I can't help with recreating this photo.")).toBe(true);
+    expect(looksLikeRefusal("Photo of a woman on a terrace at sunset, wearing a white linen shirt. She can't stop laughing, one hand on the table.")).toBe(false);
+    expect(looksLikeRefusal("Use @image1 as the strict identity reference. A mirror selfie in a bright bedroom, phone held at chest height.")).toBe(false);
+  });
+});

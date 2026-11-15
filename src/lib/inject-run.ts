@@ -9,7 +9,7 @@ import { recentPoses, rememberPoses, RECENT_SEND } from "@/lib/recent-poses";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { harness } from "@/lib/ai/prompts/harness";
 import { sheetLines } from "@/lib/ai/prompts/identity";
-import { buildInjectPrompt, parseVersions, TWO_SHEET_OPENER, type InjectOptions, type VersionPlan } from "@/lib/ai/prompts/inject";
+import { buildInjectPrompt, looksLikeRefusal, parseVersions, TWO_SHEET_OPENER, type InjectOptions, type VersionPlan } from "@/lib/ai/prompts/inject";
 import { HAIRSTYLES, PALETTES, POSE_HINTS, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
 import { injectOptionsSchema, type InjectMeta, type InjectOptionsInput } from "@/lib/inject-meta";
 import type { CharacterProfile } from "@/lib/characters";
@@ -107,7 +107,13 @@ export async function runInject(
   const task = { prompt, images: [target, ...refs].map((x) => x.dataUri) };
   const reply = client.complete ? await client.complete(task, { onDelta }) : { text: await client.run(task), truncated: false };
 
-  const parsedVersions = parseVersions(reply.text);
+  const parsedVersions = parseVersions(reply.text).map((v) => (looksLikeRefusal(v.text) ? { ...v, text: "" } : v));
+  if (!parsedVersions.some((v) => v.text))
+    throw new UserFacingError(
+      looksLikeRefusal(reply.text)
+        ? "The text model declined to write a prompt for this photo, so nothing was made and nothing was charged. Try a different target photo, or a different text model on the API keys page."
+        : "The model did not write a prompt. Try again.",
+    );
   const chg = { pose: o.pose, outfit: o.newOutfit || o.recolor || o.ward === "extracted" || o.ward === "signature", hair: o.hair, who: o.who };
   const versions = plans.map((plan, i): InjectVersion | null => {
     const v = parsedVersions[i];
