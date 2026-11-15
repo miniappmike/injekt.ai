@@ -114,7 +114,7 @@ function ImageStrip({ name, images }: { name: string; images: CardImage[] }) {
           <li key={img.label + img.url} className="w-[62vw] max-w-[18rem] shrink-0 snap-start sm:w-64">
             <button
               type="button"
-              onClick={() => viewImage({ url: img.url, title: `${name}: ${img.label}` })}
+              onClick={() => viewImage({ url: img.url, title: `${name}: ${img.label}`, gallery: images.map((x) => ({ url: x.url, title: `${name}: ${x.label}` })) })}
               className="group block w-full overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950 text-left transition-colors hover:border-brand-500/50"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
