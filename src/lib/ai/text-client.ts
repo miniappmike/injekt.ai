@@ -46,5 +46,5 @@ export async function getUserTextClient(supabase: SupabaseClient, userId: string
       return recordTextCall(adminClient(), { userId, job: role, feature, setup: cfg, keySource: source, usage, price, taskIds, apiKey: key });
     },
   });
-  return { client, imageMaxEdge: backend.imageMaxEdge, ownKey: !!chosen };
+  return { client, imageMaxEdge: backend.imageMaxEdge, ownKey: !!chosen, model: cfg.model };
 }
