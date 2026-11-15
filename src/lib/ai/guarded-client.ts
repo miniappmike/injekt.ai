@@ -1,4 +1,5 @@
 import { withScope } from "./master-prompt";
+import { looksLikeRefusal, ModelDeclinedError } from "./refusal";
 import type { GuardedTextClient, TextBackend } from "./providers/types";
 import type { TokenUsage } from "@/lib/pricing";
 
@@ -18,5 +19,14 @@ export function createGuardedClient(backend: TextBackend, apiKey: string, option
     }
     return { text: result.text, truncated: !!result.truncated };
   };
-  return { complete, run: async (task) => (await complete(task)).text };
+  // run() is for answers that get used as they are, so a refusal is an error there (complete() hands back the raw text, for
+// callers like Inject that check it themselves).
+  return {
+    complete,
+    run: async (task) => {
+      const { text } = await complete(task);
+      if (looksLikeRefusal(text)) throw new ModelDeclinedError();
+      return text;
+    },
+  };
 }

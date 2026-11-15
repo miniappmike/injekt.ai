@@ -5,7 +5,7 @@ import type { InjectMeta } from "@/lib/inject-meta";
 import { isOwnPath } from "@/lib/uploads";
 import { referencesFor } from "@/lib/character-images";
 import { currentPack, ensureSheetPack, selectCharacter } from "@/lib/sheet-pack";
-import { getUserTextClient } from "@/lib/ai/text-client";
+import { getUserTextClient, withDeclineFallback } from "@/lib/ai/text-client";
 import { basePrompt, clampTags, fitCrops, condenseTask, framePrompt, sceneCondenseTask, sheetLines, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
 import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
 import { faceFixPrompt, likenessFixPrompt, type FixRefs } from "@/lib/ai/prompts/likeness";
@@ -352,8 +352,9 @@ async function directorJob(
     c.id,
     "profile, always_keep, height, weight",
   );
-  const { client } = await getUserTextClient(supabase, userId, "llm", "prompt");
-  const reply = String(await client.run({ prompt: buildDirectorPrompt({ ...row, profile: row?.profile ?? {} }, sheetLines(pack), dir, realism) }));
+  const { client, model } = await getUserTextClient(supabase, userId, "llm", "prompt");
+  const directorTask = { prompt: buildDirectorPrompt({ ...row, profile: row?.profile ?? {} }, sheetLines(pack), dir, realism) };
+  const reply = String(await withDeclineFallback(supabase, userId, "prompt", { client, model }, "vision", (cl) => cl.run(directorTask)));
   const v = parseVersions(reply)[0];
   if (!v?.text) throw new UserFacingError("Couldn't plan that shot. Try again, or describe it a little differently.");
   const meta = { frame: v.frame, outfit: v.outfit, real: realism };

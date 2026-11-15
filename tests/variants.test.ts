@@ -180,7 +180,7 @@ describe("referencesFor", () => {
 
 const h = vi.hoisted(() => ({ run: vi.fn(), getUserTextClient: vi.fn(), saveHistory: vi.fn(async (_s: unknown, _u: unknown, e: unknown[]) => e.map((_, i) => `h${i + 1}`)), ensureSheetPack: vi.fn() }));
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: h.getUserTextClient }));
+vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: h.getUserTextClient, withDeclineFallback: async (_s: unknown, _u: unknown, _f: unknown, p: { client: unknown }, _r: unknown, work: (c: unknown) => unknown) => work(p.client) }));
 vi.mock("@/lib/history", () => ({ saveHistory: h.saveHistory }));
 vi.mock("@/lib/character-images", async (orig) => ({
   ...(await orig<typeof import("@/lib/character-images")>()),
