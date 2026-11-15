@@ -42,4 +42,6 @@ export interface GenerationItem {
   downloadUrl: string | null;
   /** The character it was made for, so "See likeness" can open on her. */
   characterId: string | null;
+  /** Art to Real: the artwork it was made from, as a link for a small preview. Null for everything else. */
+  inputUrl: string | null;
 }

@@ -172,6 +172,8 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
           ...(spend.id ? { credit_spend: spend.id, credits: IMAGE_CREDITS[resolution] } : {}),
           image_count: prepared.imageUrls.length,
           ...(prepared.photoEdit ? { photo_edit: true } : {}),
+          // Art to Real keeps its artwork's path so History can show a small preview of the input.
+          ...(request.kind === "art_to_real" && request.extraPaths[0] && !request.extraPaths[0].startsWith(GEN_PREFIX) ? { input_path: request.extraPaths[0] } : {}),
           ...(request.historyId ? { history_id: request.historyId } : {}),
           ...(request.kind === "group_photo" && request.meta?.group ? { group_ids: request.meta.group } : {}),
           ...(request.clientRef ? { client_ref: request.clientRef } : {}),

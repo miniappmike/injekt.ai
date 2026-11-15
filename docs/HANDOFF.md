@@ -13,6 +13,9 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Art to Real input preview in History (November 15; not checked in a browser; types not checked, `node_modules` isn't installed here)**
+- History > Images shows a small "Original artwork" thumbnail (click to enlarge) under an Art to Real row. The generation now stores `params.input_path` (the artwork's media path, `generation.ts`); `listGenerations` signs it into `GenerationItem.inputUrl`. **Only new Art to Real images have it**: older rows didn't save the path, so they show no preview. Artwork taken from a generated image (`gen:` path) isn't previewed.
+
 **Phone fixes from the owner's screenshots (November 14 night; not checked in a browser or on a phone)**
 - Create Model body step: the toggle is now "One body" / "Multi-body" (heading "These photos show"). The long labels did not fit a phone, so `segItem` no longer forces `nowrap` (it can wrap, `min-w-0`).
 - Variants Options sheet: Creative direction has a short placeholder and 3 rows (min 96px on phones) so its text isn't clipped. The sheet's bottom edge was cut in the screenshot, possibly caught mid-slide; if it still clips, look at `MobileSheet` and `dvh`.
