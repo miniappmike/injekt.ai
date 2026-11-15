@@ -4,6 +4,7 @@ import {
   carouselSlidePrompt,
   dimText,
   finishVariant,
+  sceneLine,
   parseCarousel,
   slideCopyText,
   variantPrompt,
@@ -57,7 +58,7 @@ describe("variantPrompt (A11)", () => {
     expect(p).toContain("Never remove, lighten or change it, except exactly as the user's creative direction below asks.");
     expect(p).toContain("- Avoid these recently used poses: sitting on stairs.");
     expect(p).toContain("<<<make it bare-faced  please>>>");
-    expect(p.endsWith('Reply with only JSON: {"variants": [{"label": "2 to 4 word name, e.g. Low angle laugh", "changes": "pose, angle", "prompt": "the edit prompt"}]}')).toBe(true);
+    expect(p.endsWith('Reply with only JSON: {"scene": {"light": "...", "shadows": "...", "glow": "...", "risk": "..."}, "variants": [{"label": "2 to 4 word name, e.g. Low angle laugh", "changes": "pose, angle", "prompt": "the edit prompt"}]}')).toBe(true);
   });
 });
 
@@ -179,7 +180,7 @@ describe("referencesFor", () => {
 
 const h = vi.hoisted(() => ({ run: vi.fn(), getUserTextClient: vi.fn(), saveHistory: vi.fn(async (_s: unknown, _u: unknown, e: unknown[]) => e.map((_, i) => `h${i + 1}`)), ensureSheetPack: vi.fn() }));
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: h.getUserTextClient }));
+vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: h.getUserTextClient, withDeclineFallback: async (_s: unknown, _u: unknown, _f: unknown, p: { client: unknown }, _r: unknown, work: (c: unknown) => unknown) => work(p.client) }));
 vi.mock("@/lib/history", () => ({ saveHistory: h.saveHistory }));
 vi.mock("@/lib/character-images", async (orig) => ({
   ...(await orig<typeof import("@/lib/character-images")>()),
@@ -237,7 +238,7 @@ describe("runVariants", () => {
     const { client } = db();
     const r = await runVariants(client, U, { imagePath: `${U}/t.jpg`, characterId: "c1", dims: ["pose", "angle"], count: 2 });
     expect(h.run.mock.calls[0][0].prompt).toContain("- OUTFIT LOCK: no edit changes the clothing.");
-    expect(h.run.mock.calls[0][0].prompt).toContain('{"outfit": ');
+    expect(h.run.mock.calls[0][0].prompt).toContain('"outfit": "the outfit in the image, garment by garment"');
     const line = "SAME OUTFIT: she wears exactly the outfit from @image2: a black vinyl mini skirt, red patent opera gloves, red platform ankle boots.";
     expect(r.variants.map((v) => v.prompt.includes(line))).toEqual([true, true]);
   });
@@ -385,5 +386,59 @@ describe("carouselJob", () => {
     expect(carouselJob(c, null, "p", "partial", `${U}/cover.jpg`, [], 10).paths).toEqual([`${U}/face.jpg`, `${U}/cover.jpg`]);
     expect(carouselJob(c, pack, "No people in the frame. p", "none", `${U}/cover.jpg`, [], 10).paths).toEqual([`${U}/cover.jpg`]);
     expect(carouselJob(null, null, "p", "full", `${U}/cover.jpg`, [], 10).paths).toEqual([`${U}/cover.jpg`]);
+  });
+});
+
+describe("photoshoot edits follow their change", () => {
+  it("tells the writer the photo is not a layout, to lead with a big visible change, and never to repeat a pose", () => {
+    const p = variantPrompt(base);
+    expect(p).toContain("It is NOT a layout to copy.");
+    expect(p).toContain("Put the change first and make it concrete");
+    expect(p).toContain("No two edits in the set share a pose, camera position or framing.");
+  });
+
+  it("carries the platform's tone, only for what may change", () => {
+    const p = variantPrompt({ ...base, platform: "onlyfans" });
+    expect(p).toContain("PLATFORM: OnlyFans");
+    expect(p).toContain("Apply the platform's tone only to what may change above");
+    expect(p).toContain("flirtatious and teasing as the platform above calls for");
+    expect(variantPrompt(base)).not.toContain("PLATFORM:");
+  });
+
+  it("finishVariant adds a follow-the-change line when pose, framing or expression may change", () => {
+    const vt = variantTags(1, true, 0);
+    const t = finishVariant("Her pose is completely different: she sits.", vt, "", "", "", false, ["pose", "angle"]);
+    expect(t).toContain("FOLLOW THE CHANGE ABOVE CLOSELY");
+    expect(t).toContain("do not copy @image2's pose, framing and camera position");
+    expect(finishVariant("Her hair is up.", vt, "", "", "", false, ["hair"])).not.toContain("FOLLOW THE CHANGE");
+  });
+});
+
+describe("scene read", () => {
+  it("asks for the read first and carries it into every edit that keeps the light", () => {
+    expect(variantPrompt(base)).toContain("SCENE READ FIRST");
+    const line = sceneLine({ light: "porch lamp above left, phone flash from the camera.", shadows: "short hard shadow behind her, long soft one on the steps to the right", glow: "none", risk: "contact shadows" });
+    expect(line).toBe("Light: porch lamp above left, phone flash from the camera. Shadows: short hard shadow behind her, long soft one on the steps to the right.");
+    expect(sceneLine(undefined)).toBe("");
+    expect(sceneLine({ light: "x".repeat(500), shadows: "s", glow: "pumpkins tint her legs orange" }).length).toBeLessThanOrEqual(330);
+    const vt = variantTags(1, true, 0);
+    expect(finishVariant("She sits.", vt, "", "", "", false, ["pose"], line)).toContain(`LIGHT FROM THE PHOTO (keep): ${line}`);
+    // An edit that may change the light or the scene doesn't pin the old one.
+    expect(finishVariant("She sits.", vt, "", "", "", false, ["pose", "light"], line)).not.toContain("LIGHT FROM THE PHOTO");
+  });
+});
+
+describe("hairstyle edits keep her real length", () => {
+  const hair = "dark brown, mid-back length, loose waves, centre part";
+  it("tells the writer the sheet decides the length, only when hair may change", () => {
+    const p = variantPrompt({ ...base, vt: variantTags(1, true, 0), hair, dims: dimText(["hair", "pose"]) });
+    expect(p).toContain("HER REAL HAIR (from her character reference sheet): dark brown, mid-back length");
+    expect(p).toContain("the sheet decides the length, not the photo");
+    expect(variantPrompt({ ...base, hair, dims: dimText(["pose"]) })).not.toContain("HER REAL HAIR");
+  });
+  it("finishVariant restates her real hair on hairstyle edits only", () => {
+    const vt = variantTags(1, true, 0);
+    expect(finishVariant("A high bun.", vt, "", "", "", false, ["hair"], "", hair)).toContain("Her real hair is dark brown, mid-back length, loose waves, centre part: the new style is how this same hair is worn");
+    expect(finishVariant("She sits.", vt, "", "", "", false, ["pose"], "", hair)).not.toContain("Her real hair is");
   });
 });

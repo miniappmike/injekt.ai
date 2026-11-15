@@ -16,6 +16,8 @@ export interface ViewableImage {
   generated?: boolean;
   /** Its generation, so Variants can copy the image on the server. */
   generationId?: string | null;
+  /** The images it was opened from, in order (the page's tray): the arrow keys step through them. */
+  gallery?: ViewableImage[];
 }
 
 /** The image the viewer's Variants button hands to the Variants page ({ generationId, url } as JSON, this tab only). */
@@ -52,4 +54,10 @@ export const USAGE_EVENT = "modelspawn:usage";
 /** Tells the usage meter in the header that a prompt run or likeness check may have used some of today's allowance. */
 export function usageChanged() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(USAGE_EVENT));
+}
+
+/** An image was deleted (from History or the viewer): every list showing it drops it. */
+export const GENERATION_DELETED_EVENT = "modelspawn:generation-deleted";
+export function generationDeleted(id: string) {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(GENERATION_DELETED_EVENT, { detail: id }));
 }

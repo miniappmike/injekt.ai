@@ -1,10 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { pinToReferences } from "@/app/(app)/characters/pin-actions";
 import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
+
+// What each image's Pin It is doing lives outside the component, so stepping to another image with the arrow keys while
+// the nudity check runs doesn't lose it: the check carries on, and its result is there when you come back.
+type PinState = { busy?: boolean; done?: string; error?: string };
+const pinStates = new Map<string, PinState>();
+const pinListeners = new Set<() => void>();
+function setPinState(id: string, s: PinState) {
+  pinStates.set(id, s);
+  pinListeners.forEach((l) => l());
+}
+function usePinState(id: string): PinState {
+  const [, bump] = useState(0);
+  useEffect(() => {
+    const l = () => bump((n) => n + 1);
+    pinListeners.add(l);
+    return () => void pinListeners.delete(l);
+  }, []);
+  return pinStates.get(id) ?? {};
+}
 
 /**
  * "Pin It" under a generated image of a character. At the limit, a pop-up asks before the new image
@@ -12,7 +31,8 @@ import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
  */
 export function PinToReferences({ generationId, characterId }: { generationId: string; characterId: string }) {
   const router = useRouter();
-  const [state, setState] = useState<{ busy?: boolean; done?: string; error?: string }>({});
+  const state = usePinState(generationId);
+  const setState = (s: PinState) => setPinState(generationId, s);
   const [confirm, setConfirm] = useState<number | false>(false);
   const [agreed, setAgreed] = useState(false);
 

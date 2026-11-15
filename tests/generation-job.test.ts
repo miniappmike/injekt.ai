@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({ ensureSheetPack: vi.fn(), getUserTextClient: vi.fn(), run: vi.fn() }));
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: h.getUserTextClient }));
+vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: h.getUserTextClient, withDeclineFallback: async (_s: unknown, _u: unknown, _f: unknown, p: { client: unknown }, _r: unknown, work: (c: unknown) => unknown) => work(p.client) }));
 vi.mock("@/lib/sheet-pack", async (orig) => ({ ...(await orig<typeof import("@/lib/sheet-pack")>()), ensureSheetPack: h.ensureSheetPack }));
 
 import { buildJob, fitPrompt, injectJob, PROMPT_LIMIT, type JobCharacter } from "@/lib/generation-job";

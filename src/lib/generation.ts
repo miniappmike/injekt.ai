@@ -12,6 +12,8 @@ import { canUseOwnKeys, useDaily, type DailySlot } from "@/lib/daily-limits";
 import { getAppConfig } from "@/lib/app-config";
 import { IMAGE_CREDITS } from "@/lib/plans";
 import { ApiKeyRequiredError, UserFacingError } from "@/lib/errors";
+import { ProviderError } from "@/lib/ai/providers/text";
+import { entitlements } from "@/lib/entitlements";
 import { getUserImageConfig, resolveUserImageKey } from "@/lib/ai/image-setup";
 import { getImageProvider } from "@/lib/ai/providers/registry";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS, type ImageJobInput, type ImageResolution } from "@/lib/ai/providers/types";
@@ -200,6 +202,17 @@ export async function startGeneration(supabase: SupabaseClient, user: Actor, raw
         .from("generations")
         .update({ status: "failed", error: e instanceof Error ? e.message : "Couldn't start the generation.", completed_at: new Date().toISOString() })
         .eq("id", generationId);
+      // Paid with tokens, the model is the platform's setting, not the person's: the page's "clear the model box" advice
+      // would be wrong for them, so they get a plain message and the owner gets the detail (also in the server log).
+      if (access.source === "server" && e instanceof ProviderError && e.reason) {
+        console.error(`[generation] the platform key can't use the image model "${access.model}" (${e.reason}). Fix: Admin > Costs > Image model on your key, or the key's Allowed models on SpicyAPI.`);
+        const owner = (await entitlements.planOf(user.id).catch(() => null)) === "admin";
+        throw new UserFacingError(
+          owner
+            ? `The platform key can't use the image model "${access.model}" (${e.reason === "model_not_allowed" ? "not in the key's Allowed models on SpicyAPI" : "no model with that ID"}). Fix it in Admin > Costs > "Image model on your key", or allow the model on the key (the SPICY_API_KEY in Vercel). Nothing was charged.`
+            : "Making images with tokens isn't available right now. Nothing was charged. Please try again later.",
+        );
+      }
       throw e;
     }
     return { generationId, free: access.free };

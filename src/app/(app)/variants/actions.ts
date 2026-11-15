@@ -21,6 +21,9 @@ export async function writeVariantEdits(input: {
   note?: string;
   /** Up to 2 extra images (vibe, outfit) after the image to edit. */
   extraPaths?: string[];
+  /** Where the set will be posted (sets the tone of poses and expressions). */
+  platform?: PlatformId | null;
+  platformOther?: string;
 }): Promise<Ok<VariantResult>> {
   try {
     const { supabase, user } = await requireUser();

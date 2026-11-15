@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
 import { PinToReferences } from "@/components/pin-to-references";
 import { getPinTarget } from "@/app/(app)/characters/pin-actions";
-import { SEND_TO_VARIANTS_EVENT, SEND_TO_VARIANTS_KEY, VIEW_IMAGE_EVENT, type ViewableImage } from "@/lib/panel-events";
+import { deleteGeneration } from "@/app/(app)/history/actions";
+import { generationDeleted, SEND_TO_VARIANTS_EVENT, SEND_TO_VARIANTS_KEY, VIEW_IMAGE_EVENT, type ViewableImage } from "@/lib/panel-events";
+
+// Which character each generated image can be pinned to, remembered so stepping between images shows Pin It at once.
+const pinCache = new Map<string, string | null>();
 
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 8;
@@ -36,15 +40,26 @@ export function ImageViewer() {
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const { toast, show } = useToast(2000);
   // The character this image was made for, so Pin It can be offered wherever the image is opened from.
-  const [pinTarget, setPinTarget] = useState<{ generationId: string; characterId: string } | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
   // Copies the picture itself. Clipboards take PNG, so a JPEG is redrawn as one (from the file, so nothing is tainted).
-  async function copyImage(url: string) {
+  async function copyImage(urls: (string | null | undefined)[]) {
     try {
-      const png = fetch(url)
-        .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("load"))))
+      // Tries each address in turn (the download link, then the plain one); one may be refused by the browser.
+      const tryUrls = urls.filter((u): u is string => !!u);
+      const png = (async () => {
+        let last: unknown = new Error("load");
+        for (const u of tryUrls) {
+          try {
+            const r = await fetch(u, { mode: "cors", credentials: "omit" });
+            if (r.ok) return await r.blob();
+          } catch (err) {
+            last = err;
+          }
+        }
+        throw last;
+      })()
         .then(async (blob) => {
           if (blob.type === "image/png") return blob;
           const bmp = await createImageBitmap(blob);
@@ -57,9 +72,31 @@ export function ImageViewer() {
       // The promise goes straight into the ClipboardItem, so the copy still counts as part of the click.
       await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
       show("Image copied");
-    } catch {
-      show("Couldn't copy the image. Use Download instead.");
+    } catch (err) {
+      console.error("Copy image failed", err);
+      const why = err instanceof Error && err.name && err.name !== "Error" ? ` (${err.name})` : err instanceof TypeError ? " (the picture's address refused the copy)" : "";
+      show(`Couldn't copy the image${why}. Use Download instead.`);
     }
+  }
+
+  // Deletes this generated image from storage (after asking), then shows the next one in the gallery, or closes.
+  const [deleting, setDeleting] = useState(false);
+  async function deleteCurrent(img: ViewableImage) {
+    if (!img.generationId || !window.confirm("Delete this image? It is removed from storage everywhere and can't be brought back.")) return;
+    setDeleting(true);
+    const r = await deleteGeneration(img.generationId);
+    setDeleting(false);
+    if (!r.ok) return show(r.error);
+    generationDeleted(img.generationId);
+    pinCache.delete(img.generationId);
+    const list = img.gallery ?? [];
+    const at = list.findIndex((x) => x.url === img.url);
+    const rest = list.filter((x) => x.url !== img.url);
+    router.refresh();
+    if (!rest.length) return close();
+    setNatural(null);
+    setPos({ x: 0, y: 0 });
+    setImage({ ...rest[Math.min(Math.max(at, 0), rest.length - 1)], gallery: rest });
   }
 
   // Opens Variants with this picture in its "Generated image" slot.
@@ -104,15 +141,27 @@ export function ImageViewer() {
   }, [natural, fit]);
 
   const generationId = image?.generated ? image.generationId : null;
+  // Looked up for this image and, in the background, for the others in its gallery, so the button is already there
+  // when you step to the next picture instead of appearing after the other buttons.
+  const [, pinTick] = useState(0);
+  const galleryIds = (image?.gallery ?? []).map((x) => (x.generated ? x.generationId : null)).filter((x): x is string => !!x).join(",");
   useEffect(() => {
-    setPinTarget(null);
-    if (!generationId) return;
+    const ids = [...new Set([generationId, ...galleryIds.split(",")].filter((x): x is string => !!x && !pinCache.has(x)))];
+    if (!ids.length) return;
     let alive = true;
-    void getPinTarget(generationId).then((characterId) => alive && characterId && setPinTarget({ generationId, characterId }));
+    void (async () => {
+      for (const id of ids) {
+        const characterId = await getPinTarget(id);
+        pinCache.set(id, characterId);
+        if (alive) pinTick((n) => n + 1);
+      }
+    })();
     return () => {
       alive = false;
     };
-  }, [generationId]);
+  }, [generationId, galleryIds]);
+  const pinKnown = !!generationId && pinCache.has(generationId);
+  const pinCharacter = generationId ? pinCache.get(generationId) ?? null : null;
 
   const close = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
@@ -138,6 +187,18 @@ export function ImageViewer() {
   useEffect(() => {
     if (!image) return;
     const onKey = (e: KeyboardEvent) => {
+      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        const list = image.gallery;
+        if (!list || list.length < 2 || (e.target instanceof Element && e.target.closest("input, textarea, select"))) return;
+        const at = Math.max(0, list.findIndex((x) => x.url === image.url));
+        const next = list[(at + (e.key === "ArrowRight" ? 1 : -1) + list.length) % list.length];
+        e.preventDefault();
+        e.stopPropagation();
+        setNatural(null);
+        setPos({ x: 0, y: 0 });
+        setImage({ ...next, gallery: list });
+        return;
+      }
       if (e.key !== "Escape") return;
       // In full screen the browser uses Esc to leave it; the viewer stays open.
       if (document.fullscreenElement) return;
@@ -286,12 +347,17 @@ export function ImageViewer() {
           <span className="w-12 text-center text-sm tabular-nums" aria-live="polite">{natural ? `${Math.round(scale * 100)}%` : ""}</span>
           <Button type="button" size="sm" variant="ghost" onClick={() => zoomAt(1.25)} aria-label="Zoom in">+</Button>
         </div>
+        {image.gallery && image.gallery.length > 1 && (
+          <span className="rounded-full border border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-xs tabular-nums text-neutral-300" aria-live="polite" title="Left and right arrow keys">
+            {Math.max(0, image.gallery.findIndex((x) => x.url === image.url)) + 1} / {image.gallery.length}
+          </span>
+        )}
         {image.downloadUrl && (
           <Button asChild size="sm" variant="secondary">
             <a href={image.downloadUrl}>Download</a>
           </Button>
         )}
-        <Button type="button" size="sm" variant="secondary" onClick={() => void copyImage(image.downloadUrl ?? image.url)}>
+        <Button type="button" size="sm" variant="secondary" onClick={() => void copyImage([image.url, image.downloadUrl])}>
           Copy image
         </Button>
         {image.prompt && (
@@ -307,7 +373,13 @@ export function ImageViewer() {
             Copy prompt
           </Button>
         )}
-        {pinTarget && <PinToReferences generationId={pinTarget.generationId} characterId={pinTarget.characterId} />}
+        {generationId && !pinKnown && <span aria-hidden="true" className="h-8 w-16 animate-pulse rounded-lg bg-neutral-800" />}
+        {generationId && (
+          <Button type="button" size="sm" variant="secondary" className="text-red-300" disabled={deleting} onClick={() => void deleteCurrent(image)}>
+            {deleting ? "Deleting…" : "Delete"}
+          </Button>
+        )}
+        {generationId && pinCharacter && <PinToReferences key={generationId} generationId={generationId} characterId={pinCharacter} />}
         {image.generated && (
           <Button type="button" size="sm" onClick={() => sendToVariants(image)}>
             Variants

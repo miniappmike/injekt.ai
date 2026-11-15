@@ -9,7 +9,8 @@ import { recentPoses, rememberPoses, RECENT_SEND } from "@/lib/recent-poses";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { harness } from "@/lib/ai/prompts/harness";
 import { sheetLines } from "@/lib/ai/prompts/identity";
-import { buildInjectPrompt, parseVersions, TWO_SHEET_OPENER, type InjectOptions, type VersionPlan } from "@/lib/ai/prompts/inject";
+import { DECLINED_MESSAGE } from "@/lib/ai/refusal";
+import { buildInjectPrompt, looksLikeRefusal, parseVersions, TWO_SHEET_OPENER, type InjectOptions, type VersionPlan } from "@/lib/ai/prompts/inject";
 import { HAIRSTYLES, PALETTES, POSE_HINTS, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
 import { injectOptionsSchema, type InjectMeta, type InjectOptionsInput } from "@/lib/inject-meta";
 import type { CharacterProfile } from "@/lib/characters";
@@ -89,7 +90,7 @@ export async function runInject(
     clean: opt.clean,
   };
 
-  const { client, imageMaxEdge } = await getUserTextClient(supabase, userId, "vision", "prompt");
+  const { client, imageMaxEdge, model } = await getUserTextClient(supabase, userId, "vision", "prompt");
   // Her sheet's words go in as the source of truth; the sheet is read once on first use.
   const pack = await ensureSheetPack(supabase, userId, c);
 
@@ -105,9 +106,31 @@ export async function runInject(
 
   const prompt = buildInjectPrompt({ ...c, profile: c.profile ?? {} }, sheetLines(pack), o, plans, refs.length, recent, inspo);
   const task = { prompt, images: [target, ...refs].map((x) => x.dataUri) };
-  const reply = client.complete ? await client.complete(task, { onDelta }) : { text: await client.run(task), truncated: false };
+  const reply = client.complete ? await client.complete(task, { onDelta, stopOnRefusal: true }) : { text: await client.run(task), truncated: false };
 
-  const parsedVersions = parseVersions(reply.text);
+  const readReply = (text: string) => parseVersions(text).map((v) => (looksLikeRefusal(v.text) ? { ...v, text: "" } : v));
+  let parsedVersions = readReply(reply.text);
+  let truncated = reply.truncated;
+  let declined = looksLikeRefusal(reply.text);
+  if (!parsedVersions.some((v) => v.text) && declined) {
+    // The reading model declined: the person's other (Text) model writes it from the same photo and instructions, so the
+    // outfit, pose and scene come from a model that will, instead of from nothing. Skipped when it is the same model.
+    try {
+      const alt = await getUserTextClient(supabase, userId, "llm", "prompt");
+      if (alt.model !== model) {
+        const second = await alt.client.run(task);
+        parsedVersions = readReply(second);
+        truncated = false;
+        declined = !parsedVersions.some((v) => v.text) && looksLikeRefusal(second);
+      }
+    } catch {
+      // The second model couldn't read the photo or failed; the message below says what to do.
+    }
+  }
+  if (!parsedVersions.some((v) => v.text))
+    throw new UserFacingError(
+      declined ? DECLINED_MESSAGE : "The model did not write a prompt. Try again.",
+    );
   const chg = { pose: o.pose, outfit: o.newOutfit || o.recolor || o.ward === "extracted" || o.ward === "signature", hair: o.hair, who: o.who };
   const versions = plans.map((plan, i): InjectVersion | null => {
     const v = parsedVersions[i];
@@ -140,7 +163,7 @@ export async function runInject(
   let k = 0;
   for (const v of versions) if (v) v.historyId = historyIds[k++] ?? null;
   await rememberPoses(supabase, userId, parsedVersions.map((v) => v.pose).filter(Boolean));
-  return { versions, truncated: reply.truncated, characterName: c.name };
+  return { versions, truncated, characterName: c.name };
 }
 
 /** A prompt that still opens on @image1 alone gets the two-sheet opener, and its body line points at @image2. */

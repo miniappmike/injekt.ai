@@ -82,6 +82,8 @@ async function postStream(
   apiKey: string,
   onDelta: (text: string) => void,
   taskIds?: string[],
+  /** Called with the text so far after each piece; true ends the call at once (the model started a refusal). */
+  shouldStop?: (textSoFar: string) => boolean,
 ): Promise<{ text: string; usage?: TokenUsage; truncated: boolean; finish: string | null }> {
   let res: Response;
   try {
@@ -129,6 +131,7 @@ async function postStream(
     if (choice?.finish_reason) finish = choice.finish_reason;
     if (json.usage) usage = readUsage(json.usage.prompt_tokens, json.usage.completion_tokens) ?? usage;
   };
+  let stopped = false;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -137,10 +140,19 @@ async function postStream(
     while ((nl = buffer.indexOf("\n")) >= 0) {
       handle(buffer.slice(0, nl));
       buffer = buffer.slice(nl + 1);
+      if (shouldStop?.(text)) {
+        stopped = true;
+        break;
+      }
+    }
+    if (stopped) {
+      // Hang up: the provider stops generating and nothing more is billed for the rest of the reply.
+      await reader.cancel().catch(() => {});
+      break;
     }
   }
-  if (buffer) handle(buffer);
-  return { text, usage, truncated: finish === "length", finish };
+  if (buffer && !stopped) handle(buffer);
+  return { text, usage, truncated: finish === "length", finish: stopped ? "stopped" : finish };
 }
 
 export function anthropicBackend(model: string): TextBackend {
@@ -243,11 +255,11 @@ export function openaiCompatBackend(id: "openai" | "openrouter" | "google" | "cu
 // Its docs list a 6000 image-token limit, so images are shrunk harder than for other providers.
 export const SPICY_MAX_TOKENS = 32000;
 export type SpicyEffort = "low" | "none";
-export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.ai/v1", effort: SpicyEffort = "low"): TextBackend {
+export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.ai/v1", effort: SpicyEffort = "low", maxTokens = SPICY_MAX_TOKENS): TextBackend {
   return {
     id: "spicyapi",
     imageMaxEdge: 768,
-    async complete({ system, text, images = [], apiKey, onDelta }) {
+    async complete({ system, text, images = [], apiKey, onDelta, shouldStop }) {
       await assertPublicHttpsUrl(baseUrl);
       const taskIds: string[] = [];
       // Streaming (for prompts shown as they're written): each piece of text goes out as it arrives. A reply that
@@ -259,7 +271,7 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
           { authorization: `Bearer ${apiKey}`, "idempotency-key": randomUUID() },
           {
             model,
-            max_tokens: SPICY_MAX_TOKENS,
+            max_tokens: maxTokens,
             reasoning_effort: effort,
             messages: [
               ...(system ? [{ role: "system", content: system }] : []),
@@ -269,6 +281,7 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
           apiKey,
           onDelta,
           taskIds,
+          shouldStop,
         );
         if (streamed.text.trim()) return { text: streamed.text, usage: streamed.usage, truncated: streamed.truncated, taskIds };
       }
@@ -279,7 +292,7 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
           { authorization: `Bearer ${apiKey}`, "idempotency-key": randomUUID() },
           {
             model,
-            max_tokens: SPICY_MAX_TOKENS,
+            max_tokens: maxTokens,
             reasoning_effort: effort,
             messages: [
               ...(system ? [{ role: "system", content: system }] : []),
@@ -309,14 +322,14 @@ export function spicyapiBackend(model: string, baseUrl = "https://api.spicyapi.a
 }
 
 /** `effort` is how much SpicyAPI models may think first ("none" for writing jobs, which don't gain from it). */
-export function getTextBackend(provider: string, model: string, baseUrl?: string, effort?: SpicyEffort): TextBackend {
+export function getTextBackend(provider: string, model: string, baseUrl?: string, effort?: SpicyEffort, maxTokens?: number): TextBackend {
   if (provider === "anthropic") return anthropicBackend(model);
   if (provider === "openai" || provider === "openrouter" || provider === "google") return openaiCompatBackend(provider, model);
-  if (provider === "spicyapi") return spicyapiBackend(model, undefined, effort);
+  if (provider === "spicyapi") return spicyapiBackend(model, undefined, effort, maxTokens);
   if (provider === "custom") {
     if (!baseUrl) throw new Error("A base URL is required for this provider");
     // SpicyAPI rejects unknown fields and needs reasoning kept low, so it gets its own request shape.
-    if (isSpicyHost(baseUrl)) return spicyapiBackend(model, baseUrl, effort);
+    if (isSpicyHost(baseUrl)) return spicyapiBackend(model, baseUrl, effort, maxTokens);
     return openaiCompatBackend("custom", model, baseUrl);
   }
   throw new Error(`Unknown text provider: ${provider}`);

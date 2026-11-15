@@ -5,6 +5,7 @@ import { effectiveRole, readRoles } from "./roles";
 import { resolveApiKey } from "@/lib/keys";
 import { adminClient } from "@/lib/supabase/admin";
 import { priceFor } from "@/lib/pricing";
+import { ModelDeclinedError } from "./refusal";
 import { recordTextCall, type TextFeature } from "@/lib/ledger";
 import { keyResolverDeps } from "@/lib/key-store";
 import { ApiKeyRequiredError } from "@/lib/errors";
@@ -18,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * seconds to write take a minute or more. Jobs that judge or read images (likeness, profile, sheet, overlays) keep a
  * little thinking.
  */
+const SHORT_ANSWER: ReadonlySet<TextFeature> = new Set(["cleanup", "pin"]);
 const WRITING: ReadonlySet<TextFeature> = new Set(["prompt", "variants", "carousel", "outfit", "condense", "test"]);
 
 // `feature` says what the call is for, which is how spend is broken down. Returns the guarded client for a role plus the
@@ -35,7 +37,10 @@ export async function getUserTextClient(supabase: SupabaseClient, userId: string
   const { key, source } = chosen
     ? await resolveApiKey(keyResolverDeps, userId, cfg.provider, chosen.keyRole)
     : { key: env.SPICY_API_KEY as string, source: "server" as const };
-  const backend = getTextBackend(cfg.provider, cfg.model, cfg.baseUrl, WRITING.has(feature) ? "none" : "low");
+  // Short analysis jobs (spotting overlays, the pin check) get a small output cap and no thinking: their answer is a few
+  // lines of JSON, so a model that wanders off (or refuses at length) is cut off in seconds, not minutes.
+  const short = SHORT_ANSWER.has(feature);
+  const backend = getTextBackend(cfg.provider, cfg.model, cfg.baseUrl, WRITING.has(feature) || short ? "none" : "low", short ? 3000 : undefined);
   const price = priceFor(cfg);
   // Every call is written to the ledger as it finishes.
   const started = Date.now();
@@ -46,5 +51,37 @@ export async function getUserTextClient(supabase: SupabaseClient, userId: string
       return recordTextCall(adminClient(), { userId, job: role, feature, setup: cfg, keySource: source, usage, price, taskIds, apiKey: key });
     },
   });
-  return { client, imageMaxEdge: backend.imageMaxEdge, ownKey: !!chosen };
+  return { client, imageMaxEdge: backend.imageMaxEdge, ownKey: !!chosen, model: cfg.model };
+}
+
+/**
+ * Runs `work` with the primary client; if the model declines, the person's other model (the Vision or Text one, whichever
+ * the primary isn't) tries the same work. Skipped when both are the same model. The original refusal is the error when
+ * the second model can't help either.
+ */
+export async function withDeclineFallback<T>(
+  supabase: SupabaseClient,
+  userId: string,
+  feature: TextFeature,
+  primary: { client: Awaited<ReturnType<typeof getUserTextClient>>["client"]; model: string },
+  altRole: "vision" | "llm",
+  work: (client: Awaited<ReturnType<typeof getUserTextClient>>["client"]) => Promise<T>,
+): Promise<T> {
+  try {
+    return await work(primary.client);
+  } catch (e) {
+    if (!(e instanceof ModelDeclinedError)) throw e;
+    let alt: Awaited<ReturnType<typeof getUserTextClient>> | null = null;
+    try {
+      alt = await getUserTextClient(supabase, userId, altRole, feature);
+    } catch {
+      throw e;
+    }
+    if (alt.model === primary.model) throw e;
+    try {
+      return await work(alt.client);
+    } catch (e2) {
+      throw e2 instanceof ModelDeclinedError ? e2 : e;
+    }
+  }
 }

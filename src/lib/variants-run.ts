@@ -7,7 +7,7 @@ import { loadForVision, referencesFor } from "@/lib/character-images";
 import { ensureSheetPack, selectCharacter } from "@/lib/sheet-pack";
 import { saveHistory } from "@/lib/history";
 import { recentPoses, rememberPoses, RECENT_SEND } from "@/lib/recent-poses";
-import { getUserTextClient } from "@/lib/ai/text-client";
+import { getUserTextClient, withDeclineFallback } from "@/lib/ai/text-client";
 import { askJson } from "@/lib/ai/json";
 import { HAIRSTYLES, PALETTES, POSE_HINTS, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
 import {
@@ -15,6 +15,7 @@ import {
   carouselSlidePrompt,
   dimText,
   finishVariant,
+  sceneLine,
   locksOutfit,
   parseCarousel,
   slideCopyText,
@@ -84,7 +85,7 @@ export interface VariantResult {
 export async function runVariants(
   supabase: SupabaseClient,
   userId: string,
-  input: { imagePath: string; characterId?: string | null; dims: VariantDimId[]; count?: number; note?: string; extraPaths?: string[] },
+  input: { imagePath: string; characterId?: string | null; dims: VariantDimId[]; count?: number; note?: string; extraPaths?: string[]; platform?: PlatformId | null; platformOther?: string },
   random: () => number = Math.random,
 ): Promise<VariantResult> {
   if (!isOwnPath(userId, input.imagePath)) throw new UserFacingError("Add the image you want to vary.");
@@ -104,9 +105,10 @@ export async function runVariants(
   const pack = c && (c.face_sheet_path || c.body_sheet_path) ? await ensureSheetPack(supabase, userId, c) : null;
   const so = pack?.anchors.sheetOutfit ?? "";
 
-  const { client, imageMaxEdge } = await getUserTextClient(supabase, userId, "vision", "variants");
+  const { client, imageMaxEdge, model } = await getUserTextClient(supabase, userId, "vision", "variants");
   const recent = (await recentPoses(supabase, userId)).poses.slice(-RECENT_SEND);
   // One outfit for the whole set; with "Outfit colours" on, its palette is picked here, once, before anything is written.
+  const platform = PLATFORMS.some((x) => x.id === input.platform) ? (input.platform as PlatformId) : undefined;
   const lockOutfit = locksOutfit(dims);
   const palette = lockOutfit && dims.includes("colours") ? shuffleArr(PALETTES, random)[0] : "";
   const prompt = variantPrompt({
@@ -119,24 +121,27 @@ export async function runVariants(
     recent,
     inspo: shuffleArr(SOCIAL_POSES, random).slice(0, 6),
     hairExamples: shuffleArr(HAIRSTYLES, random).slice(0, 5),
+    hair: pack?.anchors.hair ?? "",
     extra,
     extraTags: extraPaths.map((_, i) => "@image" + (i + 2)),
     lockOutfit,
     palette,
+    ...(platform ? { platform, platformOther: platform === "other" ? String(input.platformOther ?? "").slice(0, PLATFORM_OTHER_MAX) : "" } : {}),
   });
   const images = await loadForVision(
     supabase,
     [input.imagePath, ...extraPaths].map((path) => ({ label: "image", path })),
     Math.min(EDGE, imageMaxEdge ?? EDGE),
   );
-  const raw = (await askJson(client, { prompt, images: images.map((x) => x.dataUri) })) as { variants?: unknown; outfit?: unknown };
+  const raw = (await withDeclineFallback(supabase, userId, "variants", { client, model }, "llm", (cl) => askJson(cl, { prompt, images: images.map((x) => x.dataUri) }))) as { variants?: unknown; outfit?: unknown; scene?: unknown };
   // Without an outfit or colour change, every prompt carries the same outfit description, word for word.
   const outfit = lockOutfit && typeof raw?.outfit === "string" ? raw.outfit.trim() : "";
+  const scene = sceneLine(raw?.scene);
   const list = (Array.isArray(raw?.variants) ? raw.variants : [])
     .filter((v): v is Record<string, unknown> => !!v && typeof v === "object" && typeof v.prompt === "string" && !!v.prompt.trim())
     .slice(0, n);
   if (!list.length) throw new UserFacingError("The model did not write any variants. Try again.");
-  const variants = list.map((v) => ({ label: String(v.label || "Variant").slice(0, 40), changes: String(v.changes || "").slice(0, 80), prompt: finishVariant(String(v.prompt), vt, so, extra, outfit, !!palette) }));
+  const variants = list.map((v) => ({ label: String(v.label || "Variant").slice(0, 40), changes: String(v.changes || "").slice(0, 80), prompt: finishVariant(String(v.prompt), vt, so, extra, outfit, !!palette, dims, scene, pack?.anchors.hair ?? "") }));
 
   const variantIds = await saveHistory(
     supabase,
@@ -203,7 +208,7 @@ export async function runCarousel(
   const n = input.writeOnly ? clampCount(input.count, DEFAULT_WRITE_ONLY, MAX_WRITE_ONLY) : clampCount(input.count, DEFAULT_NEW_SLIDES, MAX_NEW_SLIDES);
   const c = await character(supabase, input.characterId);
 
-  const { client, imageMaxEdge } = await getUserTextClient(supabase, userId, "vision", "carousel");
+  const { client, imageMaxEdge, model } = await getUserTextClient(supabase, userId, "vision", "carousel");
   const platform = PLATFORMS.some((x) => x.id === input.platform) ? (input.platform as PlatformId) : undefined;
   // Poses used lately and a fresh handful of ideas, so sets don't keep landing on the same poses.
   const recent = (await recentPoses(supabase, userId)).poses.slice(-RECENT_SEND);
@@ -226,7 +231,7 @@ export async function runCarousel(
     [input.coverPath, ...extraPaths].map((path) => ({ label: "image", path })),
     Math.min(EDGE, imageMaxEdge ?? EDGE),
   );
-  const plan = parseCarousel(await askJson(client, { prompt, images: images.map((x) => x.dataUri) }), n);
+  const plan = parseCarousel(await withDeclineFallback(supabase, userId, "carousel", { client, model }, "llm", (cl) => askJson(cl, { prompt, images: images.map((x) => x.dataUri) })), n);
   // Write only: her sheet's words (hair, body) go into each prompt, as Generate would add them.
   const anchors = input.writeOnly && c && (c.face_sheet_path || c.body_sheet_path) ? ((await ensureSheetPack(supabase, userId, c))?.anchors ?? null) : null;
   const slides: CarouselResult["slides"] = plan.slides.map((s) =>

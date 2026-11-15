@@ -70,6 +70,14 @@ const STEPS = [
   { id: 4, label: "Reference sheet", short: "Result" },
 ] as const;
 
+/** Where to make a face photo when she doesn't have one yet (opens in a new tab). */
+const FACE_MAKERS = [
+  { name: "Midjourney", href: "https://www.midjourney.com/" },
+  { name: "This Person Not Exist", href: "https://thispersonnotexist.org/" },
+  { name: "Gemini", href: "https://gemini.google.com/" },
+  { name: "ChatGPT", href: "https://chatgpt.com/" },
+];
+
 /** The progress line across the top: numbered steps, done ones ticked and tappable to go back. */
 function Stepper({ step, reached, onGo }: { step: number; reached: number; onGo: (n: number) => void }) {
   return (
@@ -342,6 +350,17 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
             onPick={(f) => void pickFacePhoto(f)}
           />
 
+          {!facePhoto && (
+            <p className="-mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-xs text-neutral-500">
+              <span>No face yet? Make one with</span>
+              {FACE_MAKERS.map((m) => (
+                <a key={m.name} href={m.href} target="_blank" rel="noopener noreferrer" className="rounded-full border border-neutral-700 px-2.5 py-1 font-medium text-neutral-300 transition-colors hover:border-neutral-500 hover:text-neutral-50">
+                  {m.name}
+                </a>
+              ))}
+            </p>
+          )}
+
           {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
           <Nav
             next={() => void finishStep1()}
@@ -417,15 +436,15 @@ export function ReferenceWizard({ characters, initialCharacterId, atLimit = fals
           <p className="-mt-1 text-xs text-neutral-500">Up to {MAX_BODY_PHOTOS} photos. Her face comes from {face?.isSheet ? "her face sheet" : "her face photo"}.</p>
           {bodies.length > 1 && (
             <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium">These photos are</span>
-              <div role="radiogroup" aria-label="These photos are" className={segTrack}>
+              <span className="text-sm font-medium">These photos show</span>
+              <div role="radiogroup" aria-label="These photos show" className={segTrack}>
                 {([false, true] as const).map((b) => (
                   <button key={String(b)} type="button" role="radio" aria-checked={opts.blend === b} onClick={() => setOpts((o) => ({ ...o, blend: b }))} className={segItem(opts.blend === b)}>
-                    {b ? "Different bodies, blend them" : "One body, other angles"}
+                    {b ? "Multi-body" : "One body"}
                   </button>
                 ))}
               </div>
-              {opts.blend && <p className="text-xs text-neutral-500">Her body combines them, keeping the boldest curves from each photo rather than averaging them out.</p>}
+              {opts.blend && <p className="text-xs text-neutral-500">Different bodies, blended into one: she keeps the boldest curves from each photo rather than an average.</p>}
             </div>
           )}
 

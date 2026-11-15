@@ -139,7 +139,14 @@ export function ImageSlot({
               {/* Opens full size in the viewer. */}
               <button
                 type="button"
-                onClick={() => viewImage({ url: img.url, title: current.length > 1 ? `${label} · ${current.indexOf(img) + 1}` : label })}
+                onClick={() =>
+                  viewImage({
+                    url: img.url,
+                    title: current.length > 1 ? `${label} · ${current.indexOf(img) + 1}` : label,
+                    // Her images in this box, so the viewer's arrow keys step through them.
+                    gallery: current.map((x, i) => ({ url: x.url, title: current.length > 1 ? `${label} · ${i + 1}` : label })),
+                  })
+                }
                 aria-label={`View ${label.toLowerCase()} full size`}
                 className="block cursor-zoom-in rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
               >

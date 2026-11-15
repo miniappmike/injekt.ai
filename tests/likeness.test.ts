@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  verdictFor,
+  VERDICT_MARGIN,
   faceFixPrompt,
   likenessFixPrompt,
   likenessReportPrompt,
@@ -99,10 +101,19 @@ describe("quick likeness (A17)", () => {
     expect(parseQuickLikeness({ face_shape: 14, eyes: -3 }, false).sc.face).toBe(5);
   });
 
-  it("keeps a verdict only when a fix was compared", () => {
+  it("keeps a verdict only when a fix was compared, and the scores decide it", () => {
     expect(parseQuickLikeness({ verdict: "better", verdict_reason: "Hair is now dark." }, true)).toMatchObject({ verdict: "better", why: "Hair is now dark." });
     expect(parseQuickLikeness({ verdict: "better" }, false).verdict).toBeNull();
     expect(parseQuickLikeness({ verdict: "great" }, true).verdict).toBeNull();
+    // The model said "worse" but the fix scores 75 against the original's 69: the numbers win and its reason is dropped.
+    const fix = { face_shape: 8, eyes: 8, nose_mouth: 8, hair_colour: 7, hair_cut: 7, skin: 8, upper_body: 6, lower_body: null };
+    const orig = { face_shape: 7, eyes: 7, nose_mouth: 7, hair_colour: 7, hair_cut: 7, skin: 6, upper_body: 7, lower_body: null };
+    const q = parseQuickLikeness({ ...fix, verdict: "worse", verdict_reason: "Hair got looser.", original: orig }, true);
+    expect(q.score).toBeGreaterThan(q.originalScore as number);
+    expect(q).toMatchObject({ verdict: "better", why: "" });
+    expect(verdictFor(70, 70 + VERDICT_MARGIN - 1)).toBe("same");
+    expect(verdictFor(60, 70)).toBe("worse");
+    expect(verdictFor(null, 70)).toBeNull();
     const many = parseQuickLikeness({ fixes: ["a", " ", "b", 3, "c", "d", "e", "f", "g"] }, false);
     expect(many.fixes).toEqual(["a", "b", "c", "d", "e", "f"]);
   });
@@ -113,7 +124,13 @@ describe("likeness fix (A18)", () => {
 
   it("on Seedream opens with IDENTITY and repaints her from the pack, keeping everything else", () => {
     const p = likenessFixPrompt(pack, ["dark brown eyes", "no navel piercing"], "face, hair, waist, hips", "pro");
-    expect(p.startsWith("IDENTITY (follow exactly): hair: jet black, waist length. face: oval face, dark brown almond eyes. skin: light olive. body: narrow waist, wide hips. Not: red hair; a slim figure; blue eyes.\n\nReplace the woman in @image1 with the woman from @image2, @image3 and @image4.")).toBe(true);
+    expect(p.startsWith("IDENTITY (follow exactly): hair: jet black, waist length. face: oval face, dark brown almond eyes. skin: light olive. body: narrow waist, wide hips. Not: red hair; a slim figure; blue eyes.\n\n@image1 is the PHOTO TO EDIT")).toBe(true);
+    expect(p).toContain("@image2 is her face, @image3 is her body from the side, @image4 is her full body; these are REFERENCE PHOTOS of the same woman, used only for who she is.");
+    expect(p).toContain("Replace the woman in @image1 with the woman from @image2, @image3 and @image4, copying only her face, hair, skin tone and body from them, nothing she wears.");
+    // The outfit to keep is listed when the check read it.
+    const kept = likenessFixPrompt(pack, [], "", "nb", "black long-sleeve top, grey tie-dye shorts.");
+    expect(kept).toContain("OUTFIT TO KEEP, exactly as @image1 shows it: black long-sleeve top, grey tie-dye shorts.");
+    expect(p).not.toContain("OUTFIT TO KEEP");
     expect(p).toContain("In particular: dark brown eyes; no navel piercing.");
     expect(p).toContain("Her body must match @image3 and @image4 exactly:");
     expect(p).toContain("Never dress her in the reference outfit (white crop top and shorts).");
@@ -121,9 +138,10 @@ describe("likeness fix (A18)", () => {
   });
 
   it("other models get no IDENTITY line; without a pack there are no anchors", () => {
-    expect(likenessFixPrompt(pack, [], "", "nb").startsWith("Replace the woman in @image1")).toBe(true);
+    expect(likenessFixPrompt(pack, [], "", "nb").startsWith("@image1 is the PHOTO TO EDIT")).toBe(true);
     const sheet = likenessFixPrompt({ roles: ["her character reference sheet"], kinds: [], anchors: null, usePack: false }, [], "", "pro");
-    expect(sheet.startsWith("Replace the woman in @image1 with the woman from @image2. @image2 is her character reference sheet. Rebuild only who she is")).toBe(true);
+    expect(sheet).toContain("@image2 is her character reference sheet; this is a REFERENCE PHOTO of her, used only for who she is.");
+    expect(sheet).toContain("Replace the woman in @image1 with the woman from @image2, copying only her face, hair, skin tone and body from it, nothing she wears. Rebuild only who she is");
     expect(sheet).not.toContain("In particular");
     expect(sheet).not.toContain("Never dress her");
   });
@@ -175,9 +193,9 @@ const crop = (kind: "front" | "faces" | "side" | "body") => ({ kind, role: `her 
 const pack: SheetPack = { v: PACK_V, sig: "x", body: null, side: null, faces: null, facesFrom: "face", anchors, crops: [crop("front"), crop("faces"), crop("side"), crop("body")], at: "" };
 
 describe("fix jobs", () => {
-  it("likeness fix: the image first, then her two reference sheets (never crops)", () => {
+  it("likeness fix: the image first, then crops of her sheets (face, body, side) where she has them", () => {
     const job = fixJob("likeness_fix", c, pack, "gen:u1/g.png", { fixes: ["dark eyes"] }, "bytedance/seedream-5.0-pro/edit", 4);
-    expect(job.paths).toEqual(["gen:u1/g.png", `${U}/face.jpg`, `${U}/body.jpg`]);
+    expect(job.paths).toEqual(["gen:u1/g.png", `${U}/pack/front.jpg`, `${U}/pack/body.jpg`, `${U}/pack/side.jpg`]);
     expect(job.prompt).toMatch(/^IDENTITY \(follow exactly\)/);
     expect(job.prompt).toContain("In particular: dark eyes.");
   });

@@ -27,6 +27,7 @@ export function FixRun({
   characterId,
   source,
   fixes,
+  outfit,
   frame,
   matchHair,
   note,
@@ -35,6 +36,7 @@ export function FixRun({
   characterId: string;
   source: ImageRef;
   fixes?: string[];
+  outfit?: string;
   frame?: string;
   matchHair?: boolean;
   note?: string;
@@ -45,7 +47,7 @@ export function FixRun({
       characterId={characterId}
       extraPaths={source.path ? [source.path] : []}
       kind={kind}
-      meta={{ ...(source.generationId ? { sourceGeneration: source.generationId } : {}), fixes, frame, matchHair, note }}
+      meta={{ ...(source.generationId ? { sourceGeneration: source.generationId } : {}), fixes, outfit, frame, matchHair, note }}
       actionLabel={kind === "face_fix" ? "Fix her face" : "Fix the likeness"}
       autoStart
       compareTo={source}
@@ -121,6 +123,7 @@ export function LikenessPanel({ characterId, image, original, frame }: { charact
             title={r.why}
           >
             {r.verdict === "better" ? "Closer to her than the original" : r.verdict === "worse" ? "Further from her than the original" : "About the same as the original"}
+            {r.originalScore != null && ` (${r.originalScore} before)`}
           </span>
         )}
         {parts.length > 0 && <span className="text-xs text-neutral-400">{parts.join(" · ")}</span>}
@@ -154,7 +157,7 @@ export function LikenessPanel({ characterId, image, original, frame }: { charact
         </div>
       )}
       {faceRun && <FixRun kind="face_fix" characterId={characterId} source={image} frame={frame} matchHair={faceRun.hair} note={faceRun.note || undefined} />}
-      {fix === "likeness_fix" && <FixRun kind="likeness_fix" characterId={characterId} source={image} fixes={r.fixes} frame={frame} />}
+      {fix === "likeness_fix" && <FixRun kind="likeness_fix" characterId={characterId} source={image} fixes={r.fixes} outfit={r.outfit || undefined} frame={frame} />}
     </div>
   );
 }

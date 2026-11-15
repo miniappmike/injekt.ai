@@ -75,7 +75,7 @@ describe("buildInjectPrompt", () => {
   it("matches the style: Sectioned never mentions ratio; Narrative and Short state it", () => {
     expect(build()).toContain("- Do not mention aspect ratio or image dimensions.");
     expect(build()).toContain("FORMAT: each prompt has an identity paragraph first, then labelled sections");
-    expect(build({ len: "narrative" })).toContain("FORMAT: each prompt is one long flowing narrative paragraph of roughly 300 to 420 words");
+    expect(build({ len: "narrative" })).toContain("FORMAT: each prompt is one long flowing narrative paragraph of roughly 380 to 430 words");
     expect(build({ len: "short" })).toContain('- State the aspect ratio you believe the target has.');
   });
 
@@ -257,5 +257,23 @@ describe("runInject", () => {
     await expect(runInject(client, U, { characterId: "c1", targetPath: "other/t.jpg", options: {} })).rejects.toThrow(/couldn't be used/);
     await expect(runInject(client, U, { characterId: "c1", targetPath: `${U}/t.jpg`, options: { count: 9 } })).rejects.toThrow(/weren't valid/);
     expect(h.complete).not.toHaveBeenCalled();
+  });
+});
+
+import { looksLikeRefusal } from "@/lib/ai/prompts/inject";
+describe("refusals are never prompts", () => {
+  it("spots a model declining, and leaves real prompts alone", () => {
+    expect(looksLikeRefusal("Use @image1 (her face sheet) and @image2 (her body sheet) as the strict identity reference. I'm not able to write this prompt. The target photo shows a person in a swimsuit.")).toBe(true);
+    expect(looksLikeRefusal("I can't help with recreating this photo.")).toBe(true);
+    expect(looksLikeRefusal("Photo of a woman on a terrace at sunset, wearing a white linen shirt. She can't stop laughing, one hand on the table.")).toBe(false);
+    expect(looksLikeRefusal("Use @image1 as the strict identity reference. A mirror selfie in a bright bedroom, phone held at chest height.")).toBe(false);
+  });
+});
+
+import { PROMPT_CHARS } from "@/lib/ai/prompts/inject";
+describe("prompt length", () => {
+  it("asks the writer to use the room up to the limit, not to stay under it", () => {
+    const t = buildInjectPrompt({ name: "A", profile: {} } as never, "", injectOptionsSchema.parse({}) as never, [{ palette: "", hair: "" }], 0, [], []);
+    expect(t).toContain(`LENGTH: use the room. Write each finished prompt at roughly ${PROMPT_CHARS - 500} to ${PROMPT_CHARS} characters`);
   });
 });

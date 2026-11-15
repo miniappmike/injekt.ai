@@ -17,7 +17,7 @@ import { uploadImage } from "@/components/image-slot";
 import { ImageDrop } from "@/components/image-drop";
 import { useToast } from "@/components/toast";
 import { clipboardImages, usePasteTarget } from "@/components/paste-router";
-import { cleanOverlays, deleteOutfit, extractOutfit, recoverInjectPrompts, saveOutfit, warmSheetPack, writeInjectStandalone } from "@/app/(app)/inject/actions";
+import { deleteOutfit, extractOutfit, recoverInjectPrompts, saveOutfit, warmSheetPack, writeInjectStandalone } from "@/app/(app)/inject/actions";
 import { awaitOrRecover } from "@/lib/recoverable";
 import { liveText, streamInjectPrompts } from "@/lib/inject-stream";
 import type { AiFailure } from "@/lib/ai/failure";
@@ -25,7 +25,8 @@ import type { StandalonePrompt } from "@/lib/inject-standalone";
 import type { SavedOutfit } from "@/lib/outfits";
 import { INJECT_DEFAULTS, MAX_VERSIONS, metaForRun, readEditTarget, writeEditTarget, type InjectMeta, type InjectOptionsInput } from "@/lib/inject-meta";
 import { closestAspectRatio } from "@/lib/aspect";
-import { SEND_TO_LIKENESS_KEY } from "@/lib/likeness-link";
+import { glideTo } from "@/lib/scroll-to";
+import { staggerDelay, WRITE_STAGGER_MS } from "@/lib/stagger";
 import type { ImageAspectRatio } from "@/lib/ai/providers/types";
 import { segItem, segTrack } from "@/components/ui/segmented";
 import { CharacterPicker } from "@/components/character-picker";
@@ -113,8 +114,20 @@ function loadOptions(): Options {
   }
 }
 
+/** Clean-up for one target over a plain request (not a server action, which would hold up the page's other actions), given up on after 100 seconds so the original photo is used instead. */
+async function cleanViaRoute(path: string): Promise<{ ok: true; path: string; removed: string[] } | { ok: false; redirectTo?: string; error?: string }> {
+  try {
+    const res = await fetch("/api/inject/clean", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path }), signal: AbortSignal.timeout(100_000) });
+    return await res.json();
+  } catch {
+    return { ok: false, error: "Clean-up took too long, so the original photo is used." };
+  }
+}
+
 export function InjectWriter({ characters, outfits: initialOutfits = [], initialCharacterId }: { characters: InjectCharacter[]; outfits?: SavedOutfit[]; initialCharacterId?: string }) {
   const router = useRouter();
+  // Goes up by one each time "Generate all" is pressed; every prompt that hasn't been generated yet starts, one every few seconds.
+  const [runAll, setRunAll] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const { toast, show } = useToast();
   const [characterId, setCharacterId] = useState(initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id);
@@ -235,27 +248,27 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
     const n = list.length;
     let done = 0;
     let stoppedBecause = "";
-    for (const [i, t] of list.entries()) {
+    const work = async (t: (typeof list)[number], i: number): Promise<void> => {
       if (stop.current) {
         update(t.id, { state: "error", status: "Skipped." });
-        continue;
+        return;
       }
       update(t.id, { state: "busy", status: o.count > 1 ? `Writing ${o.count} versions in one call…` : "Reading the target image…" });
       const uploaded = await ensureUploaded(t);
-      if (!uploaded) continue;
+      if (!uploaded) return;
       let path = uploaded;
       if (o.clean) {
         // Cleaned once and reused on later runs; if cleaning fails the original is used.
         let clean = t.clean;
         if (!clean) {
           update(t.id, { status: "Cleaning up overlays…" });
-          const c = await cleanOverlays(uploaded);
+          const c = await cleanViaRoute(uploaded);
           if (c.ok) {
             clean = { path: c.path, removed: c.removed };
             update(t.id, { clean });
           } else if (c.redirectTo) {
-            setRunning(false);
-            return router.push(c.redirectTo);
+            stop.current = true;
+            return void router.push(c.redirectTo);
           }
         }
         if (clean) path = clean.path;
@@ -270,29 +283,30 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
       const onDelta = (d: string) => {
         raw += d;
         if (frame) return;
-        frame = requestAnimationFrame(() => {
+        // Redrawn about 6 times a second, not every frame: with a long list of cards every redraw is costly.
+        frame = window.setTimeout(() => {
           frame = 0;
           update(t.id, { live: raw });
-        });
+        }, 160);
       };
       const res = await awaitOrRecover(streamInjectPrompts({ characterId, targetPath: path, options: { ...o } }, onDelta), async () => {
         const r = await recoverInjectPrompts({ characterId, targetPath: path, since, count: o.count });
         return r.ok && r.result ? { ok: true as const, ...r.result } : null;
       }).catch((e: unknown): AiFailure => ({ ok: false, error: e instanceof Error ? e.message : "Couldn't write the prompts. Try again." }));
-      if (frame) cancelAnimationFrame(frame);
+      if (frame) clearTimeout(frame);
       update(t.id, { live: undefined });
       usageChanged();
       if (!res.ok) {
         if (res.redirectTo) {
-          setRunning(false);
-          return router.push(res.redirectTo);
+          stop.current = true;
+          return void router.push(res.redirectTo);
         }
         update(t.id, { state: "error", status: tokenGate(res.error) });
         if (res.stop) {
           stop.current = true;
           stoppedBecause = res.error;
         }
-        continue;
+        return;
       }
       const written = res.versions.filter(Boolean).length;
       done += written;
@@ -304,7 +318,18 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
         status: res.truncated ? "Cut short. Try fewer versions or the Short style." : written < res.versions.length ? "Some versions were not written. Press Write prompts to try again." : "Done.",
       });
       if (n > 1) setSummary({ text: `Target ${i + 1} of ${n} done…`, good: true });
-    }
+    };
+    // Two targets at a time: one is being cleaned or read while the other is written, so ten photos don't wait in a
+    // single line. The second starts a moment after the first, and the calls stay inside the rate limit.
+    let next = 0;
+    const worker = async (delay: number) => {
+      if (delay) await new Promise((r) => setTimeout(r, delay));
+      while (next < n) {
+        const i = next++;
+        await work(list[i], i);
+      }
+    };
+    await Promise.all([worker(0), worker(WRITE_STAGGER_MS)]);
     const total = n * o.count;
     setSummary({
       text: (total > 1 ? `${done} of ${total} prompts written.` : done ? "Done." : "No prompt was produced.") + (stoppedBecause ? ` Stopped early: ${stoppedBecause}` : ""),
@@ -312,7 +337,16 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
     });
     setRunning(false);
     router.refresh();
+    // Once the cards have rendered, glide down to the first Generate button (about a second; see glideTo).
+    if (done > 0) {
+      glide.current();
+      setTimeout(() => {
+        const anchor = document.querySelector("[data-generate-anchor]");
+        if (anchor) glide.current = glideTo(anchor, 1000);
+      }, 250);
+    }
   }
+  const glide = useRef<() => void>(() => {});
 
   // Picking a different character after prompts were written rewrites them for her (artifact autoRewrite).
   useEffect(() => {
@@ -741,7 +775,23 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
 
       {results.length > 0 && (
         <section className="flex flex-col gap-4">
-          <h2 className="font-medium">Prompts</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-medium">Prompts</h2>
+            {!writeOnly && !running && (() => {
+              const n = results.reduce((sum, t) => sum + (t.versions?.filter(Boolean).length ?? 0), 0);
+              return n > 0 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    if (window.confirm(`Generate all ${n} image${n > 1 ? "s" : ""}? They start one every 5 seconds, on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
+                  }}
+                >
+                  Generate all
+                </Button>
+              ) : null;
+            })()}
+          </div>
           {writeOnly && (
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-neutral-500">
@@ -769,8 +819,12 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
               </Button>
             </div>
           )}
-          {results.map((t, ti) =>
+          {(() => {
+            // Position of each prompt across all targets, so "Generate all" starts them one after another.
+            let position = 0;
+            return results.map((t, ti) =>
             (t.versions?.length ? t.versions : [null]).map((v, k) => {
+              const startAt = v ? position++ : 0;
               const label = (results.length > 1 ? `Target ${ti + 1} of ${results.length}` : "Target") + (o.count > 1 && t.versions ? ` · version ${k + 1}` : "");
               const sa = writeOnly && v ? standalone[t.id] : undefined;
               const ready = sa?.key === standaloneKey(t) ? sa.prompts?.[k] : undefined;
@@ -802,21 +856,6 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                             Copy
                           </Button>
                         )}
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            try {
-                              sessionStorage.setItem(SEND_TO_LIKENESS_KEY, JSON.stringify({ characterId: t.characterId ?? characterId, prompt: v.text }));
-                            } catch {
-                              // The page still opens; the prompt just isn't filled in.
-                            }
-                            router.push("/likeness");
-                          }}
-                        >
-                          Check likeness
-                        </Button>
                       </div>
                     )}
                   </div>
@@ -851,6 +890,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                         Sent with {editTarget ? "@image1 your target photo, " : ""}
                         {sentRefs(characters.find((c) => c.id === (t.characterId ?? characterId)), editTarget ? 2 : 1).join(", ") || "her references"}, under her identity and body lock.
                       </p>
+                      <div data-generate-anchor className="scroll-mt-24" aria-hidden="true" />
                       <GenerateImage
                         prompt={v.text}
                         characterId={t.characterId ?? characterId}
@@ -859,13 +899,16 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                         meta={metaForRun(v.meta, t.writtenPath ?? t.path ?? null, editTarget)}
                         autoAspectRatio={t.ratio}
                         historyId={v.historyId}
+                        runSignal={runAll}
+                        runDelayMs={staggerDelay(startAt)}
                       />
                     </>
                   )}
                 </article>
               );
             }),
-          )}
+            );
+          })()}
         </section>
       )}
       {toast}

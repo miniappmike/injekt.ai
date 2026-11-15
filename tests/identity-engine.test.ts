@@ -328,3 +328,13 @@ describe("photo edit and the no-pack fallback", () => {
   });
 });
 
+
+describe("the image quality line", () => {
+  it("covers light and shadow and stays short enough to read in one go", () => {
+    expect(REALISM_FIX.quality).toContain("LIGHT AND SHADOW");
+    expect(REALISM_FIX.quality).toContain("contact shadows");
+    expect(REALISM_FIX.quality.length).toBeLessThan(740);
+    // Variants slides without her cut the line at "Skin is", so the light rule must come before that.
+    expect(REALISM_FIX.quality.split(" Skin is")[0]).toContain("LIGHT AND SHADOW");
+  });
+});

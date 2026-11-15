@@ -54,6 +54,8 @@ export interface VariantPromptInput {
   recent: string[];
   inspo: string[];
   hairExamples: string[];
+  /** Her real hair from her face sheet (shade, length, cut, texture), so hairstyle edits keep her true length. */
+  hair?: string;
   extra: string;
   /** Without a character: the tags of the extra images (they follow the photo, @image2 onwards). */
   extraTags?: string[];
@@ -61,6 +63,9 @@ export interface VariantPromptInput {
   lockOutfit?: boolean;
   /** With the outfit locked and "Outfit colours" on: the one palette every edit's outfit is recoloured with. */
   palette?: string;
+  /** Where the set will be posted (sets the tone of poses and expressions); `platformOther` names "other". */
+  platform?: PlatformId;
+  platformOther?: string;
 }
 
 /**
@@ -79,22 +84,26 @@ export function variantPrompt(o: VariantPromptInput): string {
 ${two ? `IMAGE TAGS (use exactly these, never swap them): ${vt.ref} ${isAre} the ${vt.refKind}, the identity source of truth for the face, hair and body. ${vt.photo} is the photo being edited (the attached image). Every edit changes ${vt.photo} and keeps the person identical to ${vt.ref}. Never call the photo ${vt.ref} or the reference ${vt.photo}, and never describe the layout, grid, panels or grey background of the reference.` : ""}
 
 Each edit keeps EVERYTHING the same (the same person and face, hair, body, makeup, nail polish, outfit, accessories, overall style, colour grade, light quality, camera look and realism) except what that edit changes. Things that may change: ${dims.join(", ")}. Each edit changes one or two of these, and together the ${n} edits should cover them with variety.
-${o.traits ? `The person is this character; restate their 3 to 5 most recognisable traits that are visible in this image (skip any that are out of frame or hidden) in each edit so the face does not drift: ${fence(o.traits)}` : ""}
+The photo tells the image model who she is, what she wears and how the shot looks and feels (aesthetic, colour grade, light, camera look). It is NOT a layout to copy. Whatever an edit changes must be so clear that the result is never mistaken for the original photo or for another edit: the new pose, framing or expression comes from the edit's words, and the model must follow them closely.
+${o.platform ? `${platformBrief(o.platform, o.platformOther)}\nApply the platform's tone only to what may change above (pose, expression and so on): never change anything that is not in that list.\n` : ""}${o.traits ? `The person is this character; restate their 3 to 5 most recognisable traits that are visible in this image (skip any that are out of frame or hidden) in each edit so the face does not drift: ${fence(o.traits)}` : ""}
 RULES
 - ${two ? `Start every edit with "Edit ${vt.photo}. Keep the person exactly as she looks in ${vt.ref}: same face, features, skin, hair, body shape and proportions. Keep the outfit and photo style of ${vt.photo}." then the change.` : 'Start every edit with "Keep the same person, outfit and photo style." then the change.'}
-- Read the image's vibe (setting, props, mood, camera position) so each change fits it. Poses are fresh, eye-catching social media poses: confident, playful or candid, physically plausible and non-sexual. Describe a new pose limb by limb with left and right, plus expression and gaze.
+- Read the image's vibe (setting, props, mood, camera position) so each change fits it. ${o.platform && SPICY.has(o.platform) ? "Poses are fresh, confident, flirtatious and teasing as the platform above calls for, physically plausible and never explicit." : "Poses are fresh, eye-catching social media poses: confident, playful or candid, physically plausible and non-sexual."} Describe a new pose limb by limb with left and right, plus expression and gaze.
+- Put the change first and make it concrete: right after the opening line, state it in one specific sentence that says it replaces the photo's (for a pose: "Her pose is completely different from the photo: ..." naming where her torso, both arms, both legs, head and gaze go; for an angle: the exact camera position, height and framing). Never write a change so small that the result could pass for the original, such as a slight head tilt, a shifted hand or a slightly different smile: those are not a new pose or expression.
+- No two edits in the set share a pose, camera position or framing. They read as different frames from one photoshoot, and a pose or angle edit never repeats the photo's own pose or framing.
 - A camera angle change names the new position and framing (for example low angle from hip height, high angle from above, profile from the left, tighter head-and-shoulders crop, wider full-body shot).
+- SCENE READ FIRST: before the edits, fill in "scene" from what you actually see in the image, each as a short phrase of at most 25 words: "light" (every visible source, its direction, and whether it is flash or ambient), "shadows" (which way they fall, how long and how soft, and what they land on), "glow" (any glowing object tinting nearby skin or surfaces, or "none") and "risk" (the one or two things in THIS photo that would look fake if the image model got them wrong, for example contact shadows on steps or flash falloff). Then each edit says in one short clause how that light and those shadows apply to her NEW pose or position (for example the shadow now falls to the right across the step), unless the edit changes the light itself. Say nothing about light or shadow that the image does not show.
 - A scene change keeps the same light quality, colour grade and camera style in the new place.
 - An outfit colour change keeps every garment and only names the new colours.
 - A different-outfit change replaces all the clothing with a completely new outfit that keeps the image's vibe, aesthetic, colour story and level of dressiness and makes sense for the scene; it overrides "keep the outfit" for that edit. Name every garment with its type, fabric, fit and colour, plus shoes if in frame; real brands are fine where they fit. Every different-outfit edit uses a different outfit.
-- A hairstyle change restyles the hair only (for example ${o.hairExamples.join("; ")}) and keeps the exact hair colour, length, texture, highlights and face. If the hair is too short for a style, pick one that suits its length. Every hairstyle edit uses a different style.
+${o.hair && dims.some((d) => /hair/.test(d)) ? `- HER REAL HAIR (from her ${vt ? vt.refKind : "face sheet"}): ${fence(o.hair)}. Every hairstyle edit works within that exact length and texture: the photo may show it pulled up, tucked or styled, so the sheet decides the length, not the photo. Choose only styles her length really allows, and never cut, shorten, lengthen or add extensions: no bob, lob or pixie, and no longer or thicker hair than she has. Colour stays the same.\n` : ""}- A hairstyle change restyles the hair only (for example ${o.hairExamples.join("; ")}) and keeps the exact hair colour, length, texture, highlights and face. If the hair is too short for a style, pick one that suits its length. Every hairstyle edit uses a different style.
 ${two ? `- ${vt.ref} shows her in a plain placeholder outfit${o.so ? ` (${o.so})` : ""}. Never describe or reuse it: the outfit always comes from ${vt.photo}, or from the new outfit a different-outfit edit describes.\n` : ""}- The body never changes: keep her exact build and proportions (shoulders, bust, waist, hips, glutes, legs, height) in every edit, including pose and angle changes; never slim, enlarge or idealise her.
 - MAKEUP STAYS EXACTLY AS IN THE PHOTO in every edit, including expression, hairstyle, scene, light and outfit changes: the same eyeshadow, eyeliner, lashes, brows, blush, contour, lip colour and finish, and nail polish. If she wears makeup, briefly name it in each edit as something to keep (for example "keep her winged black liner, brown smoky lids and nude matte lips"). Never remove, lighten or change it${extra && asksMakeup(extra) ? ", except exactly as the user's creative direction below asks" : ""}.
 - Tattoos are skin, never clothing: a tattoo shows only where its spot is bare skin. If an edit's outfit covers it, it stays hidden under the fabric and is never printed or drawn on the clothes.
 - Each edit is 2 to 4 sentences, plain prose. Always describe the person as an adult. Never use "photorealistic", "8k" or similar filler.
 ${o.recent.length ? `- Avoid these recently used poses: ${o.recent.join("; ")}.\n` : ""}- For pose inspiration only, never copy: ${o.inspo.join("; ")}.
 ${o.lockOutfit ? `- OUTFIT LOCK: no edit changes the clothing${o.palette ? `, and no edit changes its colours on its own` : ""}. In "outfit", describe the outfit in the image once, garment by garment, in at most 60 words: every garment, shoe and accessory with its type, colour, fabric, finish and fit (for example "a glossy black vinyl high-waisted mini skirt, long red patent leather opera gloves above the elbow, red patent platform lace-up ankle boots with stiletto heels"). Name only what is visible.${o.palette ? ` Recolour it with this palette first: ${o.palette}. Keep every garment's type, cut, fabric, finish and fit, give each one a colour from the palette, and write the new colours into the description (the original colours never appear in it).` : ""} The app adds this exact description to every edit, so the edits themselves do not describe the outfit.\n` : ""}${extrasLine(vt ? vt.extras : (o.extraTags ?? []))}${extra ? `- Creative direction from the user, only as it applies to the image: <<<${fence(extra)}>>>\n` : ""}
-Reply with only JSON: {${o.lockOutfit ? '"outfit": "the outfit in the image, garment by garment", ' : ""}"variants": [{"label": "2 to 4 word name, e.g. Low angle laugh", "changes": "pose, angle", "prompt": "the edit prompt"}]}`;
+Reply with only JSON: {"scene": {"light": "...", "shadows": "...", "glow": "...", "risk": "..."}, ${o.lockOutfit ? '"outfit": "the outfit in the image, garment by garment", ' : ""}"variants": [{"label": "2 to 4 word name, e.g. Low angle laugh", "changes": "pose, angle", "prompt": "the edit prompt"}]}`;
 }
 
 // ModelSpawn addition: the person's extra images (vibe, outfit) follow the photo, in this order, in their generator.
@@ -105,10 +114,18 @@ function extrasLine(tags: string[]) {
 }
 
 /** Artifact post-processing of each variant: harness, the opener, the reference outfit guard and the makeup rule. */
-export function finishVariant(prompt: string, vt: VariantTags | null, so: string, extra: string, outfit = "", recoloured = false): string {
+export function finishVariant(prompt: string, vt: VariantTags | null, so: string, extra: string, outfit = "", recoloured = false, dims: string[] = [], scene = "", hair = ""): string {
   let t = harness(prompt, { realism: false }).text;
   if (vt && !(t.includes(vt.ref) && t.includes(vt.photo)))
     t = `Edit ${vt.photo}. Keep the person exactly as she looks in ${vt.ref}: same face, features, skin, hair, body shape and proportions. ` + t;
+  // The change is the point: without this the model tends to hand back the photo with tiny differences.
+  const moves = ["pose", "angle", "expression", "scene", "light"].filter((d) => dims.includes(d));
+  if (moves.length)
+    t = t.replace(/\s*$/, " ") + `FOLLOW THE CHANGE ABOVE CLOSELY: it must be clearly visible. Keep her look, outfit and the photo's aesthetic, but do not copy ${vt ? vt.photo : "the photo"}'s ${[dims.includes("pose") && "pose", dims.includes("angle") && "framing and camera position", dims.includes("expression") && "expression", dims.includes("scene") && "setting", dims.includes("light") && "lighting"].filter(Boolean).join(", ")} where the change says otherwise.`;
+  // Hairstyle edits keep her real length from the sheet, word for word, not whatever length the photo happens to show.
+  if (hair && dims.includes("hair")) t = t.replace(/\s*$/, " ") + `Her real hair is ${fence(hair).replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 160)}: the new style is how this same hair is worn, never a different length, cut or thickness.`;
+  // The photo's own light, as the writer read it, in every edit that doesn't change the light (the same way the outfit is carried).
+  if (scene && !dims.includes("light") && !dims.includes("scene")) t = t.replace(/\s*$/, " ") + `LIGHT FROM THE PHOTO (keep): ${scene}`;
   // The same outfit, word for word, in every edit of the set.
   if (outfit) t = t.replace(/\s*$/, " ") + outfitKeep(outfit, vt ? vt.photo : "the photo being edited", recoloured);
   if (vt) t = t.replace(/\s*$/, " ") + refOutfitGuard(vt.ref, vt.photo, so) + " " + SKIN_ART_SHORT;
@@ -116,6 +133,17 @@ export function finishVariant(prompt: string, vt: VariantTags | null, so: string
   // ModelSpawn's standing rule: every prompt carries the realism line (the artifact relied on "keep the realism").
   if (!hasQualityLine(t)) t = t.replace(/\s*$/, " ") + REALISM_FIX.quality;
   return t;
+}
+
+/** The writer's scene read, boiled down to one short line that every edit of the set carries (empty when it read nothing). */
+export function sceneLine(raw: unknown): string {
+  if (!raw || typeof raw !== "object") return "";
+  const r = raw as Record<string, unknown>;
+  const part = (k: string, label: string) => {
+    const v = typeof r[k] === "string" ? fence(r[k] as string).replace(/\s+/g, " ").trim().replace(/[.;]+$/, "").slice(0, 110) : "";
+    return v && !/^(none|n\/a|no)$/i.test(v) ? `${label}: ${v}.` : "";
+  };
+  return [part("light", "Light"), part("shadows", "Shadows"), part("glow", "Glow")].filter(Boolean).join(" ").slice(0, 330);
 }
 
 /** The outfit line every variant of a set carries when no edit changes the clothes. */
@@ -213,7 +241,7 @@ RULES
 - Write each slide as an image-generation prompt of 3 to 6 sentences of plain prose for an edit model. The model receives {PHOTO}, the source photo, and ${c ? "{REF}, her identity reference" : "no other image"}. Use the placeholders exactly as written.
 - Slides with her (pose, model_alt, detail): say she is the same woman as in ${c ? "{REF}" : "{PHOTO}"}, keep her outfit, hair and accessories from {PHOTO}, describe the new pose limb by limb with left and right, and name the new camera position and framing (for example low angle from hip height, high angle from above, side profile from the left, tight close-up, wide full-body from across the room). A detail slide keeps her face out of frame or cropped (person "partial").
 - Slides without her (flatlay, object, environment, food, ambient): start with "No people in the frame." and use {PHOTO} only as the reference for the place, objects, colour grade, light and camera look (person "none").
-- Name the camera and framing for each slide (phone main camera, 0.5x wide, close-up, top-down, mirror, flash at night) and the light with its source and direction. Real, unretouched social-media phone-photo quality, never glossy or CGI.
+- Name the camera and framing for each slide (phone main camera, 0.5x wide, close-up, top-down, mirror, flash at night) and the light with its source and direction, plus which way the shadows fall and, if something glows, that it tints the nearby skin and surfaces. Describe only light the scene would really have. Real, unretouched social-media phone-photo quality, never glossy or CGI.
 - Real brands and logos seen in the image stay accurate and named (for example a black quilted Chanel flap bag with the gold CC turn-lock). Quote any readable text exactly; never invent gibberish lettering.
 - ${o.platform && SPICY.has(o.platform) ? "Poses are confident, flirtatious and teasing as the platform above calls for, never explicit." : "Poses are natural, confident or candid, and non-sexual."} Always an adult woman.
 - VARIETY: every slide with her uses a clearly different body position from the cover and from each other (mix standing, sitting, lying down, kneeling, leaning, walking, crouching, from behind), with a different camera height and distance each time. Avoid the default poses every set falls back on (hand on hip facing the camera, one hand in the hair, the plain mirror selfie) unless the creative direction asks for them.

@@ -11,9 +11,9 @@ import type { POSE_MODES, PROMPT_STYLES, WARDROBES } from "@/lib/inject-meta";
 
 /**
  * How long each written prompt may be. The image model takes 5,000 characters; Generate here adds her identity framing
- * and body lock (about 2,000), so the written scene gets the rest, and a longer one has its scene shortened.
+ * and body lock (about 2,200), so the written scene gets the rest, and a longer one has its scene shortened.
  */
-export const PROMPT_CHARS = 2600;
+export const PROMPT_CHARS = 2800;
 
 /** The written prompt's opener when both of her sheets go to the generator. */
 export const TWO_SHEET_OPENER = "Use @image1 (her face sheet) and @image2 (her body sheet) as the strict identity reference.";
@@ -76,7 +76,7 @@ export function buildInjectPrompt(c: InjectCharacter, sheet: string, o: InjectOp
         : "WARDROBE: dress the character in an outfit consistent with the profile's signature style and accessories instead of the target's clothing, keeping the target's mood and season.";
   const format =
     o.len === "narrative"
-      ? 'FORMAT: each prompt is one long flowing narrative paragraph of roughly 300 to 420 words, written like a vivid scene description, with no section labels or bullet points. Order: who is there, what they are doing and the mood; expression and gaze; hair; the pose limb by limb using left and right and what each hand holds or touches; the outfit; the character\'s face and skin from the profile; the setting and everything visible in the room or reflection; the light with its source and direction; the capture device and image quality; the colour palette; the overall vibe in one sentence; the aspect ratio. Use concrete everyday phrases such as "messy low bun" or "foot flat on the floor" instead of abstract adjectives. Finish with the exclusions (no text overlays, no watermark, no added logos beyond the brands named in the prompt, no garbled or made-up lettering).'
+      ? 'FORMAT: each prompt is one long flowing narrative paragraph of roughly 380 to 430 words, written like a vivid scene description, with no section labels or bullet points. Order: who is there, what they are doing and the mood; expression and gaze; hair; the pose limb by limb using left and right and what each hand holds or touches; the outfit; the character\'s face and skin from the profile; the setting and everything visible in the room or reflection; the light with its source and direction; the capture device and image quality; the colour palette; the overall vibe in one sentence; the aspect ratio. Use concrete everyday phrases such as "messy low bun" or "foot flat on the floor" instead of abstract adjectives. Finish with the exclusions (no text overlays, no watermark, no added logos beyond the brands named in the prompt, no garbled or made-up lettering).'
       : o.len === "short"
         ? 'FORMAT: each prompt is one tight paragraph that begins "Photo of ...", then the identity, action, setting, light and camera look in that order, then one closing line for aspect ratio and exclusions.'
         : "FORMAT: each prompt has an identity paragraph first, then labelled sections in this order: SCENE, WARDROBE, BACKGROUND, LIGHT, CAMERA AND LOOK, and ends with one line of exclusions (no text overlays or captions, no watermark, no added logos beyond the brands named in the prompt, no garbled or made-up lettering). Do not mention aspect ratio anywhere. Section bodies are short flowing prose, no bullet points. Each section adds only what is not already said: the opening sentence names the scene and outfit in brief, and SCENE, WARDROBE and the rest give the details without repeating it; the skin and camera realism goes once, in CAMERA AND LOOK.";
@@ -131,7 +131,7 @@ ${keepLine}
 - Always describe the character as an adult (young woman, woman, young man, man), never as a girl, boy, teen or child, and never state an age under 21.
 - Body shape: describe the build exactly as the reference sheet lines state (or the profile when there are none), in neutral, fashion-catalogue wording such as curvy hourglass figure, wide hips, full rounded glutes, fuller bust, narrow waist, slim build or petite frame. Never soften a curvy build into slim or athletic, and never make a slim build curvy. ${PROPORTIONS_WORDS} Replace any explicit or sexual detail with a neutral term at the same scale (for example extremely large bust, not fuller bust, when her bust is extreme). Never use explicit or anatomical sexual language, never call clothing see-through or underwear-like, and leave out remarks about attractiveness.
 - If the profile gives a height or weight, turn them into visual build terms (for example tall and long-limbed, petite, slender). Mention the height once in plain terms such as about 5'6", only when most of the body is in frame. Never write the weight as a number.
-- Light: name the source and direction (for example key light from top right, bounce fill from low left, hard midday sun overhead, daylight through blinds off camera). Never write just "natural lighting". Let the setting inform the light.
+- Light: name the source and direction (for example key light from top right, bounce fill from low left, hard midday sun overhead, daylight through blinds off camera) and how the shadows fall (which way, how long, how soft, a contact shadow where she touches the ground); if something glows (candles, pumpkins, a neon sign, a screen) say it tints the nearby skin and surfaces. Never write just "natural lighting". Let the setting inform the light.
 - IMAGE QUALITY AND SHADING, required in every prompt: describe the target's image quality (sharpness, resolution feel, noise or grain, compression, dynamic range, colour grade) and its shading (where the light falls on the person and the scene, the contrast, how hard or soft and how deep the shadows are, highlight roll-off, the colour of the shadows), so the new image keeps both exactly. Never upgrade a low-quality or phone photo to a clean studio look, and never flatten or even out the shading.
 - If the target looks candid or phone-shot, say so. Add film stock, lens or grade details only if the image clearly shows them. If you name a camera body, put it near the end.
 ${o.len === "full" ? "- Do not mention aspect ratio or image dimensions." : "- State the aspect ratio you believe the target has."}
@@ -143,7 +143,7 @@ OUTPUT CONTRACT
 ${o.pose ? "- Directly under that marker write one line that starts with POSE: followed by that version's pose in at most 12 words.\n" : ""}- Then one line that starts with IN FRAME: followed by the parts of the person that will be visible in this version, chosen from: face, back of head, hair, shoulders, bust, arms, waist, hips, glutes, thighs, legs, feet.
 - Then one line that starts with OUTFIT: followed by the outfit she wears in this version in at most 30 words, garment by garment with colours, exactly as the prompt dresses her (after any recolour or new outfit).
 - Then one line that starts with EDIT: followed by a short instruction, at most 60 words, for a photo editor that already has the target photo and her reference images, naming only what this version changes in the target photo: the new pose, the new outfit or colours, the hairstyle, a new background when the target's is empty, turning a drawing or render into a real photo, the exact replacement wording for unreadable or gibberish text, and removing any tattoo, piercing or mark of the target person that the character does not have (for example "remove the navel piercing"). Never describe her face, skin, hair colour or body, and never describe the scene, in it. Write EDIT: none when nothing changes.
-- LENGTH: keep each finished prompt under ${PROMPT_CHARS} characters (about ${Math.round(PROMPT_CHARS / 6.5)} words); the image model takes 5,000 characters and the app adds her identity and body lock around it. Describe everything that matters, but say each detail once: no repeated outfit, pose or realism wording, no filler. If something must be shorter, shorten the background and light first, never her body and build.
+- LENGTH: use the room. Write each finished prompt at roughly ${PROMPT_CHARS - 500} to ${PROMPT_CHARS} characters (about ${Math.round((PROMPT_CHARS - 500) / 6.5)} to ${Math.round(PROMPT_CHARS / 6.5)} words) and never over ${PROMPT_CHARS}: the image model takes 5,000 characters and the app adds her identity and body lock around yours. Spend the room on what makes the picture match the target: the outfit garment by garment (type, colour, fabric, fit, accessories), the pose limb by limb with left and right, expression and gaze, the setting and its details, and the light with its sources and shadows. Never pad: say each detail once, with no repeated outfit, pose or realism wording and no filler. If something must be shorter, shorten the background first, never her body and build.
 - Then the finished prompt. Nothing before the first marker and nothing after the last prompt.`;
 }
 
@@ -162,6 +162,8 @@ const cleanOut = (t: string) =>
     .replace(/\s*\[\[[A-Z-]*\]?$/, "")
     .replace(/\n[ \t]*={2,}[^\n]*$/, "")
     .trim();
+
+export { looksLikeRefusal } from "@/lib/ai/refusal";
 
 /** Splits the reply into versions and reads the machine lines (POSE, IN FRAME, OUTFIT, EDIT) in any order. */
 export function parseVersions(text: string): ParsedVersion[] {
