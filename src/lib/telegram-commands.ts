@@ -27,6 +27,7 @@ export const BOT_COMMANDS = [
 ] as const;
 
 const TOOL_LINES: Record<string, string> = {
+  "/home": "your dashboard: recent images, tokens, next steps",
   "/reference-sheet": "build a new model from your photos",
   "/characters": "your models and their reference photos",
   "/marketplace": "ready-made personas",

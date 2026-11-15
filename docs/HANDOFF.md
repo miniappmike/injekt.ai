@@ -13,6 +13,11 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Menu order, landing and CRM polish (November 15; not checked in a browser; types not checked)**
+- **Menu is now Dashboard, Inject, Variants, Director, Marketplace, More** on desktop and phone (`NAV`/`MORE_NAV` in `src/lib/nav.ts`; the dock reuses them). More holds Characters, Create Model, Likeness, Art to Real, Group photo. Characters and Create Model lost their own tabs, so the dashboard's links are how people reach them quickly. The Telegram /tools list follows the same lists.
+- Landing: "See How It Works" in the hero now scrolls to the page's own "Three steps" section (`#how-it-works`); "See every tool" still opens `/how-it-works`. The step tiles lift and brighten on hover like the feature tiles.
+- Settings > API keys links to the API key guide (`/get-a-key`). Admin > People shows the pink Pro badge by Pro people's names (list, phone list and their page; not on admins).
+
 **Download, wizard skip, menus, plan switch (November 15; not checked in a browser; types not checked)**
 - **Download no longer navigates**: `saveImage` (`src/lib/download.ts`) fetches the file and saves it from a blob link; if the fetch is refused it opens a new tab, never this one. `DownloadLink` (`download-link.tsx`) is used by the Generate result, the viewer, History Images and the attach strip's Save image (the wizard lost progress because the plain link opened the file in the tab). Not tested against Supabase's CORS headers: if saving falls back to a new tab, check the storage bucket's CORS.
 - **Create Model**: with a face sheet (saved, uploaded or just made) the stepper's 1 to 4 are all clickable. The Fine-tune menus (Bust, Glute size, Glute shape) are `MenuSelect` like Variants' "Posting to".
@@ -143,7 +148,7 @@ section is right.
   Director, Variants and More; More slides up a sheet with Likeness, Create Model, Marketplace, Art to Real, Group
   photo. The order is a guess at session flow, not measured usage. History is a square button in the phone top bar
   (`src/components/history-button.tsx`); the floating History button is desktop and tablet only.
-- **Desktop navigation**: a More menu after the tabs (Likeness, Art to Real, Group photo). `/characters#group` opens
+- **Desktop navigation**: a More menu after the tabs (see the November 15 menu note above). `/characters#group` opens
   Characters already picking for a group photo.
 - **Out of Tokens pop-up** (`src/components/out-of-tokens.tsx`): opens whenever a tool returns the "not enough tokens"
   message (`src/lib/credits-message.ts` makes and recognises it). New call sites wrap the error in `tokenGate(...)`.

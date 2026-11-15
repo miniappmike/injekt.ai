@@ -41,7 +41,7 @@ export default function LandingPage() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <JoinButton arrow />
-              <GhostLink href="/how-it-works">See How It Works</GhostLink>
+              <GhostLink href="#how-it-works">See How It Works</GhostLink>
             </div>
             <p className="mt-4 text-sm text-white/70">{FREE_CREDITS} free tokens when you join. No card needed.</p>
           </div>
@@ -63,11 +63,11 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section>
+        <section id="how-it-works" className="scroll-mt-24">
           <SectionHeading eyebrow="How it works" title="Three steps, start to finished picture" />
           <ol className="mt-8 grid gap-4 lg:grid-cols-3">
             {STEPS.map((s, i) => (
-              <li key={s.title} className={cn(GLASS, "flex gap-4 p-5 sm:p-6")}>
+              <li key={s.title} className={cn(GLASS, "flex gap-4 p-5 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-white/25 sm:p-6")}>
                 <IconBadge icon={s.icon} />
                 <div>
                   <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-300">Step {i + 1}</p>
