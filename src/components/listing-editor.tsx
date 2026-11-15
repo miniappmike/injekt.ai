@@ -15,6 +15,7 @@ import {
   addPreviewUpload,
   getOrCreateDraft,
   publishListing,
+  discardDraft,
   removePreview,
   reorderPreviews,
   updateListingDetails,
@@ -307,9 +308,33 @@ function EditorBody({
 
       {!sold && (
         <div className="grid gap-2 border-t border-neutral-800 pt-4">
-          <Button className="h-11 max-sm:w-full sm:w-fit" disabled={!canPublish} onClick={() => act(() => publishListing(listing.id), live ? "Listing updated" : "Published to the marketplace")}>
+          <Button
+            className="h-11 max-sm:w-full sm:w-fit"
+            disabled={!canPublish}
+            onClick={() => {
+              // A first publish puts her in front of every shopper, so it asks first; leaving without it keeps her a regular character.
+              if (!live && !window.confirm(`Publish ${listing.name || "her"} to the marketplace for ${centsToDollars(listing.priceCents) ? "$" + centsToDollars(listing.priceCents) : "her price"}? Shoppers will see her small watermarked pictures and profile right away.`)) return;
+              act(() => publishListing(listing.id), live ? "Listing updated" : "Published to the marketplace");
+            }}
+          >
             {busy ? "Working..." : live ? "Update listing" : "Publish to marketplace"}
           </Button>
+          {listing.status === "draft" && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 text-neutral-300 max-sm:w-full sm:w-fit"
+              disabled={busy}
+              onClick={() => {
+                if (!window.confirm("Discard this draft? She goes back to being a regular character and the listing's pictures are removed. Nothing has been published.")) return;
+                act(() => discardDraft(listing.id), "Draft discarded", () => {
+                  window.location.href = window.location.pathname;
+                });
+              }}
+            >
+              Discard draft
+            </Button>
+          )}
           {listing.holdActive && <p className="text-xs text-amber-300">You can update the listing once the checkout finishes or times out.</p>}
           {!canPublish && !listing.holdActive && blockers.length > 0 && (
             <ul className="list-disc pl-5 text-xs text-neutral-400">

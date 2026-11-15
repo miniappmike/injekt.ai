@@ -50,7 +50,7 @@ export function CharacterCard({ c, canList = false }: { c: CharacterCardData; ca
           </div>
         )}
       </Link>
-      <CharacterImagesButton name={c.name} images={c.images} />
+      <CharacterImagesButton name={c.name} characterId={c.id} />
       {/* Phones: straight into Inject with her picked. */}
       <Link
         href={`/inject?character=${c.id}`}
@@ -77,7 +77,7 @@ export function CharacterCard({ c, canList = false }: { c: CharacterCardData; ca
           {/* Phones: just List (admin) and a trash icon; the card itself opens her page. */}
           <div className="flex w-full items-center justify-between gap-2 sm:hidden">
             {canList ? (
-              <Link href={`/characters/${c.id}#marketplace`} className="flex h-9 flex-1 items-center justify-center rounded-xl bg-emerald-600 text-sm font-semibold text-white transition-transform active:scale-95">List</Link>
+              <Link href={`/characters/${c.id}?list=1#marketplace`} className="flex h-9 flex-1 items-center justify-center rounded-xl bg-emerald-600 text-sm font-semibold text-white transition-transform active:scale-95">List</Link>
             ) : (
               <Link href={`/characters/${c.id}`} className="flex h-9 flex-1 items-center justify-center rounded-xl bg-neutral-800 text-sm font-semibold text-neutral-100 transition-transform active:scale-95">Edit</Link>
             )}
@@ -86,7 +86,7 @@ export function CharacterCard({ c, canList = false }: { c: CharacterCardData; ca
           <div className="contents max-sm:hidden">
           {canList && (
             <Button asChild size="sm" className="bg-emerald-600 text-white hover:bg-emerald-500">
-              <Link href={`/characters/${c.id}#marketplace`}>List</Link>
+              <Link href={`/characters/${c.id}?list=1#marketplace`}>List</Link>
             </Button>
           )}
           <DeleteCharacterButton id={c.id} name={c.name} />

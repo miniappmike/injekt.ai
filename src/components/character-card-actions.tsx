@@ -5,11 +5,16 @@ import { createPortal } from "react-dom";
 import { ChevronIcon, SearchIcon, TrashIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { deleteCharacter } from "@/app/(app)/characters/actions";
+import { getCharacterGenerations } from "@/app/(app)/characters/media-actions";
 import { viewImage } from "@/lib/panel-events";
 
 export interface CardImage {
   label: string;
   url: string;
+  /** Set for generated images, so the viewer can offer Download, Copy prompt, Variants and Pin It. */
+  generationId?: string;
+  downloadUrl?: string | null;
+  prompt?: string | null;
 }
 
 /** Delete with a confirmation. Deleting also removes her stored images, so it asks first. */
@@ -33,11 +38,24 @@ export function DeleteCharacterButton({ id, name, icon = false }: { id: string; 
 }
 
 /**
- * A magnifying glass over her card. It opens a panel with all of her reference images and consistency sheets, each
- * labelled, so she can be checked without opening her page. Tapping one opens it full screen.
+ * A magnifying glass over her card. It opens a panel with every image generated for her that is still on the server
+ * (kept 72 hours), newest first; tapping one opens it full screen, and the arrow keys step through them. Her reference
+ * photos are a separate pack (what she has pinned) and live on her own page.
  */
-export function CharacterImagesButton({ name, images }: { name: string; images: CardImage[] }) {
+export function CharacterImagesButton({ name, characterId }: { name: string; characterId: string }) {
   const [open, setOpen] = useState(false);
+  const [images, setImages] = useState<CardImage[] | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    setImages(null);
+    void getCharacterGenerations(characterId)
+      .then((list) => alive && setImages(list.map((g) => ({ label: `${g.label} · ${new Date(g.expiresAt).getTime() - Date.now() < 3_600_000 ? "under 1h" : `${Math.max(1, Math.round((new Date(g.expiresAt).getTime() - Date.now()) / 3_600_000))}h`} left`, url: g.url, generationId: g.id, downloadUrl: g.downloadUrl, prompt: g.prompt }))))
+      .catch(() => alive && setImages([]));
+    return () => {
+      alive = false;
+    };
+  }, [open, characterId]);
   useEffect(() => {
     if (!open) return;
     const key = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
@@ -57,7 +75,7 @@ export function CharacterImagesButton({ name, images }: { name: string; images: 
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label={`See ${name}'s reference images and sheets`}
+        aria-label={`See the images made for ${name}`}
         className="absolute left-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-950/70 text-neutral-50 ring-1 ring-white/15 backdrop-blur transition-all hover:scale-105 hover:bg-neutral-950/90 active:scale-90 max-sm:left-2 max-sm:top-2"
       >
         <SearchIcon className="h-[18px] w-[18px]" />
@@ -68,12 +86,14 @@ export function CharacterImagesButton({ name, images }: { name: string; images: 
             <div aria-hidden="true" onClick={() => setOpen(false)} className="absolute inset-0 animate-fade-in bg-black/75 backdrop-blur-sm" />
             <div className="panel relative flex max-h-[88dvh] w-full max-w-5xl animate-pop-in flex-col overflow-hidden max-sm:rounded-b-none sm:max-h-[90dvh]">
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-neutral-800 px-5 py-3">
-                <h2 className="font-display text-lg font-bold text-neutral-50">{name}&apos;s images <span className="text-sm font-medium text-neutral-500">{images.length}</span></h2>
+                <h2 className="font-display text-lg font-bold text-neutral-50">{name}&apos;s images <span className="text-sm font-medium text-neutral-500">{images?.length ?? ""}</span></h2>
                 <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>Close</Button>
               </div>
               <div className="min-h-0 flex-1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5">
-                {images.length === 0 ? (
-                  <p className="py-10 text-center text-sm text-neutral-400">No reference images or sheets yet.</p>
+                {images === null ? (
+                  <p className="py-10 text-center text-sm text-neutral-400" role="status">Loading…</p>
+                ) : images.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-neutral-400">No images made for {name} in the last 72 hours. Her reference photos are on her page.</p>
                 ) : (
                   <ImageStrip name={name} images={images} />
                 )}
@@ -114,7 +134,10 @@ function ImageStrip({ name, images }: { name: string; images: CardImage[] }) {
           <li key={img.label + img.url} className="w-[62vw] max-w-[18rem] shrink-0 snap-start sm:w-64">
             <button
               type="button"
-              onClick={() => viewImage({ url: img.url, title: `${name}: ${img.label}`, gallery: images.map((x) => ({ url: x.url, title: `${name}: ${x.label}` })) })}
+              onClick={() => {
+                const shot = (x: CardImage) => ({ url: x.url, downloadUrl: x.downloadUrl, prompt: x.prompt, title: `${name}: ${x.label}`, generated: !!x.generationId, generationId: x.generationId });
+                viewImage({ ...shot(img), gallery: images.map(shot) });
+              }}
               className="group block w-full overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950 text-left transition-colors hover:border-brand-500/50"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

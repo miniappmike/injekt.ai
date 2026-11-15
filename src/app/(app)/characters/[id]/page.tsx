@@ -49,10 +49,10 @@ export default async function EditCharacterPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ notice?: string; from?: string }>;
+  searchParams: Promise<{ notice?: string; from?: string; list?: string }>;
 }) {
   const { id } = await params;
-  const { notice, from } = await searchParams;
+  const { notice, from, list: listParam } = await searchParams;
   const banner = notice ? NOTICES[notice] : undefined;
   const { supabase, user } = await requireUser();
   const c = await selectCharacter<CharacterRow>(
@@ -70,6 +70,9 @@ export default async function EditCharacterPage({
   // The marketplace panel is for admins only. The listing data is read with the service role, after this admin check.
   const isAdmin = (await entitlements.planOf(user.id)) === "admin";
   const listing = isAdmin ? await loadEditorListing(c.id) : null;
+  // A draft that was never published doesn't take over her page: Edit is her normal profile. The marketplace panel shows
+  // when the person pressed List (?list=1) or the listing is live, reserved, delisted or sold.
+  const showListing = isAdmin && (listParam === "1" || (!!listing && listing.status !== "draft"));
   const ownImages: OwnImage[] = [
     { which: "profile_photo", label: "Profile photo", path: c.profile_photo_path },
     { which: "face_sheet", label: "Face sheet", path: c.face_sheet_path },
@@ -92,7 +95,7 @@ export default async function EditCharacterPage({
         </p>
       )}
 
-      {isAdmin && (
+      {showListing && (
         <div className="mb-8">
           <ListingEditor
             characterId={c.id}

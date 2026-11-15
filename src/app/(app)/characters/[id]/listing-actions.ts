@@ -254,3 +254,21 @@ export async function publishListing(listingId: string): Promise<Result> {
     return {};
   });
 }
+
+/** Throws a draft away: the listing and its preview pictures go, and she is just a regular character again. Only a draft that was never published. */
+export async function discardDraft(listingId: string): Promise<Result> {
+  return run(async () => {
+    const id = parseId(listingId);
+    const db = adminClient();
+    const l = await loadListing(id);
+    if (l.status !== "draft") throw new ActionError("Only a draft that was never published can be discarded. Use Delist for a live listing.");
+    const { data: imgs } = await db.from("listing_images").select("storage_path").eq("listing_id", id);
+    await db.from("listing_images").delete().eq("listing_id", id);
+    const paths = (imgs ?? []).map((r: { storage_path: string }) => r.storage_path);
+    if (paths.length) await db.storage.from(PREVIEW_BUCKET).remove(paths);
+    const { error } = await db.from("marketplace_listings").delete().eq("id", id).eq("status", "draft");
+    if (error) throw new ActionError("Couldn't discard the draft. Try again.");
+    revalidate(l.source_character_id);
+    return {};
+  });
+}
