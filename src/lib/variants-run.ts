@@ -121,6 +121,7 @@ export async function runVariants(
     recent,
     inspo: shuffleArr(SOCIAL_POSES, random).slice(0, 6),
     hairExamples: shuffleArr(HAIRSTYLES, random).slice(0, 5),
+    hair: pack?.anchors.hair ?? "",
     extra,
     extraTags: extraPaths.map((_, i) => "@image" + (i + 2)),
     lockOutfit,
@@ -140,7 +141,7 @@ export async function runVariants(
     .filter((v): v is Record<string, unknown> => !!v && typeof v === "object" && typeof v.prompt === "string" && !!v.prompt.trim())
     .slice(0, n);
   if (!list.length) throw new UserFacingError("The model did not write any variants. Try again.");
-  const variants = list.map((v) => ({ label: String(v.label || "Variant").slice(0, 40), changes: String(v.changes || "").slice(0, 80), prompt: finishVariant(String(v.prompt), vt, so, extra, outfit, !!palette, dims, scene) }));
+  const variants = list.map((v) => ({ label: String(v.label || "Variant").slice(0, 40), changes: String(v.changes || "").slice(0, 80), prompt: finishVariant(String(v.prompt), vt, so, extra, outfit, !!palette, dims, scene, pack?.anchors.hair ?? "") }));
 
   const variantIds = await saveHistory(
     supabase,

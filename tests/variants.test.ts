@@ -427,3 +427,18 @@ describe("scene read", () => {
     expect(finishVariant("She sits.", vt, "", "", "", false, ["pose", "light"], line)).not.toContain("LIGHT FROM THE PHOTO");
   });
 });
+
+describe("hairstyle edits keep her real length", () => {
+  const hair = "dark brown, mid-back length, loose waves, centre part";
+  it("tells the writer the sheet decides the length, only when hair may change", () => {
+    const p = variantPrompt({ ...base, vt: variantTags(1, true, 0), hair, dims: dimText(["hair", "pose"]) });
+    expect(p).toContain("HER REAL HAIR (from her character reference sheet): dark brown, mid-back length");
+    expect(p).toContain("the sheet decides the length, not the photo");
+    expect(variantPrompt({ ...base, hair, dims: dimText(["pose"]) })).not.toContain("HER REAL HAIR");
+  });
+  it("finishVariant restates her real hair on hairstyle edits only", () => {
+    const vt = variantTags(1, true, 0);
+    expect(finishVariant("A high bun.", vt, "", "", "", false, ["hair"], "", hair)).toContain("Her real hair is dark brown, mid-back length, loose waves, centre part: the new style is how this same hair is worn");
+    expect(finishVariant("She sits.", vt, "", "", "", false, ["pose"], "", hair)).not.toContain("Her real hair is");
+  });
+});

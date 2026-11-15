@@ -54,6 +54,8 @@ export interface VariantPromptInput {
   recent: string[];
   inspo: string[];
   hairExamples: string[];
+  /** Her real hair from her face sheet (shade, length, cut, texture), so hairstyle edits keep her true length. */
+  hair?: string;
   extra: string;
   /** Without a character: the tags of the extra images (they follow the photo, @image2 onwards). */
   extraTags?: string[];
@@ -94,7 +96,7 @@ RULES
 - A scene change keeps the same light quality, colour grade and camera style in the new place.
 - An outfit colour change keeps every garment and only names the new colours.
 - A different-outfit change replaces all the clothing with a completely new outfit that keeps the image's vibe, aesthetic, colour story and level of dressiness and makes sense for the scene; it overrides "keep the outfit" for that edit. Name every garment with its type, fabric, fit and colour, plus shoes if in frame; real brands are fine where they fit. Every different-outfit edit uses a different outfit.
-- A hairstyle change restyles the hair only (for example ${o.hairExamples.join("; ")}) and keeps the exact hair colour, length, texture, highlights and face. If the hair is too short for a style, pick one that suits its length. Every hairstyle edit uses a different style.
+${o.hair && dims.some((d) => /hair/.test(d)) ? `- HER REAL HAIR (from her ${vt ? vt.refKind : "face sheet"}): ${fence(o.hair)}. Every hairstyle edit works within that exact length and texture: the photo may show it pulled up, tucked or styled, so the sheet decides the length, not the photo. Choose only styles her length really allows, and never cut, shorten, lengthen or add extensions: no bob, lob or pixie, and no longer or thicker hair than she has. Colour stays the same.\n` : ""}- A hairstyle change restyles the hair only (for example ${o.hairExamples.join("; ")}) and keeps the exact hair colour, length, texture, highlights and face. If the hair is too short for a style, pick one that suits its length. Every hairstyle edit uses a different style.
 ${two ? `- ${vt.ref} shows her in a plain placeholder outfit${o.so ? ` (${o.so})` : ""}. Never describe or reuse it: the outfit always comes from ${vt.photo}, or from the new outfit a different-outfit edit describes.\n` : ""}- The body never changes: keep her exact build and proportions (shoulders, bust, waist, hips, glutes, legs, height) in every edit, including pose and angle changes; never slim, enlarge or idealise her.
 - MAKEUP STAYS EXACTLY AS IN THE PHOTO in every edit, including expression, hairstyle, scene, light and outfit changes: the same eyeshadow, eyeliner, lashes, brows, blush, contour, lip colour and finish, and nail polish. If she wears makeup, briefly name it in each edit as something to keep (for example "keep her winged black liner, brown smoky lids and nude matte lips"). Never remove, lighten or change it${extra && asksMakeup(extra) ? ", except exactly as the user's creative direction below asks" : ""}.
 - Tattoos are skin, never clothing: a tattoo shows only where its spot is bare skin. If an edit's outfit covers it, it stays hidden under the fabric and is never printed or drawn on the clothes.
@@ -112,7 +114,7 @@ function extrasLine(tags: string[]) {
 }
 
 /** Artifact post-processing of each variant: harness, the opener, the reference outfit guard and the makeup rule. */
-export function finishVariant(prompt: string, vt: VariantTags | null, so: string, extra: string, outfit = "", recoloured = false, dims: string[] = [], scene = ""): string {
+export function finishVariant(prompt: string, vt: VariantTags | null, so: string, extra: string, outfit = "", recoloured = false, dims: string[] = [], scene = "", hair = ""): string {
   let t = harness(prompt, { realism: false }).text;
   if (vt && !(t.includes(vt.ref) && t.includes(vt.photo)))
     t = `Edit ${vt.photo}. Keep the person exactly as she looks in ${vt.ref}: same face, features, skin, hair, body shape and proportions. ` + t;
@@ -120,6 +122,8 @@ export function finishVariant(prompt: string, vt: VariantTags | null, so: string
   const moves = ["pose", "angle", "expression", "scene", "light"].filter((d) => dims.includes(d));
   if (moves.length)
     t = t.replace(/\s*$/, " ") + `FOLLOW THE CHANGE ABOVE CLOSELY: it must be clearly visible. Keep her look, outfit and the photo's aesthetic, but do not copy ${vt ? vt.photo : "the photo"}'s ${[dims.includes("pose") && "pose", dims.includes("angle") && "framing and camera position", dims.includes("expression") && "expression", dims.includes("scene") && "setting", dims.includes("light") && "lighting"].filter(Boolean).join(", ")} where the change says otherwise.`;
+  // Hairstyle edits keep her real length from the sheet, word for word, not whatever length the photo happens to show.
+  if (hair && dims.includes("hair")) t = t.replace(/\s*$/, " ") + `Her real hair is ${fence(hair).replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 160)}: the new style is how this same hair is worn, never a different length, cut or thickness.`;
   // The photo's own light, as the writer read it, in every edit that doesn't change the light (the same way the outfit is carried).
   if (scene && !dims.includes("light") && !dims.includes("scene")) t = t.replace(/\s*$/, " ") + `LIGHT FROM THE PHOTO (keep): ${scene}`;
   // The same outfit, word for word, in every edit of the set.
