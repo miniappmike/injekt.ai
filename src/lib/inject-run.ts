@@ -106,7 +106,7 @@ export async function runInject(
 
   const prompt = buildInjectPrompt({ ...c, profile: c.profile ?? {} }, sheetLines(pack), o, plans, refs.length, recent, inspo);
   const task = { prompt, images: [target, ...refs].map((x) => x.dataUri) };
-  const reply = client.complete ? await client.complete(task, { onDelta }) : { text: await client.run(task), truncated: false };
+  const reply = client.complete ? await client.complete(task, { onDelta, stopOnRefusal: true }) : { text: await client.run(task), truncated: false };
 
   const readReply = (text: string) => parseVersions(text).map((v) => (looksLikeRefusal(v.text) ? { ...v, text: "" } : v));
   let parsedVersions = readReply(reply.text);

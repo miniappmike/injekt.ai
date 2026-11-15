@@ -19,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * seconds to write take a minute or more. Jobs that judge or read images (likeness, profile, sheet, overlays) keep a
  * little thinking.
  */
+const SHORT_ANSWER: ReadonlySet<TextFeature> = new Set(["cleanup", "pin"]);
 const WRITING: ReadonlySet<TextFeature> = new Set(["prompt", "variants", "carousel", "outfit", "condense", "test"]);
 
 // `feature` says what the call is for, which is how spend is broken down. Returns the guarded client for a role plus the
@@ -36,7 +37,10 @@ export async function getUserTextClient(supabase: SupabaseClient, userId: string
   const { key, source } = chosen
     ? await resolveApiKey(keyResolverDeps, userId, cfg.provider, chosen.keyRole)
     : { key: env.SPICY_API_KEY as string, source: "server" as const };
-  const backend = getTextBackend(cfg.provider, cfg.model, cfg.baseUrl, WRITING.has(feature) ? "none" : "low");
+  // Short analysis jobs (spotting overlays, the pin check) get a small output cap and no thinking: their answer is a few
+  // lines of JSON, so a model that wanders off (or refuses at length) is cut off in seconds, not minutes.
+  const short = SHORT_ANSWER.has(feature);
+  const backend = getTextBackend(cfg.provider, cfg.model, cfg.baseUrl, WRITING.has(feature) || short ? "none" : "low", short ? 3000 : undefined);
   const price = priceFor(cfg);
   // Every call is written to the ledger as it finishes.
   const started = Date.now();

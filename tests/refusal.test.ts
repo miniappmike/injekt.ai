@@ -19,3 +19,19 @@ describe("refusals", () => {
     await expect(createGuardedClient(backend('{"variants": []}'), "k").run({ prompt: "x" })).resolves.toBe('{"variants": []}');
   });
 });
+
+describe("early stop", () => {
+  it("complete() with stopOnRefusal hands the backend a stop test that fires on the first words of a refusal", async () => {
+    let stop: ((t: string) => boolean) | undefined;
+    const b = { complete: async (a: { shouldStop?: (t: string) => boolean }) => ((stop = a.shouldStop), { text: "ok" }), imageMaxEdge: 1 } as never;
+    await createGuardedClient(b, "k").complete!({ prompt: "x" }, { stopOnRefusal: true });
+    // It fires as soon as the refusal's verb is out ("...not able to write"), not before.
+    expect(stop?.("Use @image1 (her face sheet) as the strict identity reference. I'm not able to")).toBe(false);
+    expect(stop?.("Use @image1 (her face sheet) as the strict identity reference. I'm not able to write")).toBe(true);
+    expect(stop?.("Use @image1 as the strict identity reference. I'm not able to write this prompt.")).toBe(true);
+    expect(stop?.("Photo of a young woman taking a mirror selfie in a bathroom, wearing a halter top.")).toBe(false);
+    expect(stop?.("x".repeat(800) + " I can't help with this.")).toBe(false);
+    await createGuardedClient(b, "k").complete!({ prompt: "x" });
+    expect(stop).toBeUndefined();
+  });
+});

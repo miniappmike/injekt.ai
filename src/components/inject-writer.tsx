@@ -17,7 +17,7 @@ import { uploadImage } from "@/components/image-slot";
 import { ImageDrop } from "@/components/image-drop";
 import { useToast } from "@/components/toast";
 import { clipboardImages, usePasteTarget } from "@/components/paste-router";
-import { cleanOverlays, deleteOutfit, extractOutfit, recoverInjectPrompts, saveOutfit, warmSheetPack, writeInjectStandalone } from "@/app/(app)/inject/actions";
+import { deleteOutfit, extractOutfit, recoverInjectPrompts, saveOutfit, warmSheetPack, writeInjectStandalone } from "@/app/(app)/inject/actions";
 import { awaitOrRecover } from "@/lib/recoverable";
 import { liveText, streamInjectPrompts } from "@/lib/inject-stream";
 import type { AiFailure } from "@/lib/ai/failure";
@@ -111,6 +111,16 @@ function loadOptions(): Options {
     return { ...o, ...OUTFIT_CHOICES[outfitChoice(o)].set };
   } catch {
     return { ...INJECT_DEFAULTS };
+  }
+}
+
+/** Clean-up for one target over a plain request (not a server action, which would hold up the page's other actions), given up on after 100 seconds so the original photo is used instead. */
+async function cleanViaRoute(path: string): Promise<{ ok: true; path: string; removed: string[] } | { ok: false; redirectTo?: string; error?: string }> {
+  try {
+    const res = await fetch("/api/inject/clean", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path }), signal: AbortSignal.timeout(100_000) });
+    return await res.json();
+  } catch {
+    return { ok: false, error: "Clean-up took too long, so the original photo is used." };
   }
 }
 
@@ -238,27 +248,27 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
     const n = list.length;
     let done = 0;
     let stoppedBecause = "";
-    for (const [i, t] of list.entries()) {
+    const work = async (t: (typeof list)[number], i: number): Promise<void> => {
       if (stop.current) {
         update(t.id, { state: "error", status: "Skipped." });
-        continue;
+        return;
       }
       update(t.id, { state: "busy", status: o.count > 1 ? `Writing ${o.count} versions in one call…` : "Reading the target image…" });
       const uploaded = await ensureUploaded(t);
-      if (!uploaded) continue;
+      if (!uploaded) return;
       let path = uploaded;
       if (o.clean) {
         // Cleaned once and reused on later runs; if cleaning fails the original is used.
         let clean = t.clean;
         if (!clean) {
           update(t.id, { status: "Cleaning up overlays…" });
-          const c = await cleanOverlays(uploaded);
+          const c = await cleanViaRoute(uploaded);
           if (c.ok) {
             clean = { path: c.path, removed: c.removed };
             update(t.id, { clean });
           } else if (c.redirectTo) {
-            setRunning(false);
-            return router.push(c.redirectTo);
+            stop.current = true;
+            return void router.push(c.redirectTo);
           }
         }
         if (clean) path = clean.path;
@@ -288,15 +298,15 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
       usageChanged();
       if (!res.ok) {
         if (res.redirectTo) {
-          setRunning(false);
-          return router.push(res.redirectTo);
+          stop.current = true;
+          return void router.push(res.redirectTo);
         }
         update(t.id, { state: "error", status: tokenGate(res.error) });
         if (res.stop) {
           stop.current = true;
           stoppedBecause = res.error;
         }
-        continue;
+        return;
       }
       const written = res.versions.filter(Boolean).length;
       done += written;
@@ -308,9 +318,18 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
         status: res.truncated ? "Cut short. Try fewer versions or the Short style." : written < res.versions.length ? "Some versions were not written. Press Write prompts to try again." : "Done.",
       });
       if (n > 1) setSummary({ text: `Target ${i + 1} of ${n} done…`, good: true });
-      // A short pause before the next photo, so a long list never fires its calls back to back.
-      if (i < n - 1 && !stop.current) await new Promise((r) => setTimeout(r, WRITE_STAGGER_MS));
-    }
+    };
+    // Two targets at a time: one is being cleaned or read while the other is written, so ten photos don't wait in a
+    // single line. The second starts a moment after the first, and the calls stay inside the rate limit.
+    let next = 0;
+    const worker = async (delay: number) => {
+      if (delay) await new Promise((r) => setTimeout(r, delay));
+      while (next < n) {
+        const i = next++;
+        await work(list[i], i);
+      }
+    };
+    await Promise.all([worker(0), worker(WRITE_STAGGER_MS)]);
     const total = n * o.count;
     setSummary({
       text: (total > 1 ? `${done} of ${total} prompts written.` : done ? "Done." : "No prompt was produced.") + (stoppedBecause ? ` Stopped early: ${stoppedBecause}` : ""),

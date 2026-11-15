@@ -9,6 +9,9 @@ import { PinToReferences } from "@/components/pin-to-references";
 import { getPinTarget } from "@/app/(app)/characters/pin-actions";
 import { SEND_TO_VARIANTS_EVENT, SEND_TO_VARIANTS_KEY, VIEW_IMAGE_EVENT, type ViewableImage } from "@/lib/panel-events";
 
+// Which character each generated image can be pinned to, remembered so stepping between images shows Pin It at once.
+const pinCache = new Map<string, string | null>();
+
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 8;
 const clamp = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
@@ -36,7 +39,6 @@ export function ImageViewer() {
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const { toast, show } = useToast(2000);
   // The character this image was made for, so Pin It can be offered wherever the image is opened from.
-  const [pinTarget, setPinTarget] = useState<{ generationId: string; characterId: string } | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -118,15 +120,27 @@ export function ImageViewer() {
   }, [natural, fit]);
 
   const generationId = image?.generated ? image.generationId : null;
+  // Looked up for this image and, in the background, for the others in its gallery, so the button is already there
+  // when you step to the next picture instead of appearing after the other buttons.
+  const [, pinTick] = useState(0);
+  const galleryIds = (image?.gallery ?? []).map((x) => (x.generated ? x.generationId : null)).filter((x): x is string => !!x).join(",");
   useEffect(() => {
-    setPinTarget(null);
-    if (!generationId) return;
+    const ids = [...new Set([generationId, ...galleryIds.split(",")].filter((x): x is string => !!x && !pinCache.has(x)))];
+    if (!ids.length) return;
     let alive = true;
-    void getPinTarget(generationId).then((characterId) => alive && characterId && setPinTarget({ generationId, characterId }));
+    void (async () => {
+      for (const id of ids) {
+        const characterId = await getPinTarget(id);
+        pinCache.set(id, characterId);
+        if (alive) pinTick((n) => n + 1);
+      }
+    })();
     return () => {
       alive = false;
     };
-  }, [generationId]);
+  }, [generationId, galleryIds]);
+  const pinKnown = !!generationId && pinCache.has(generationId);
+  const pinCharacter = generationId ? pinCache.get(generationId) ?? null : null;
 
   const close = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
@@ -338,7 +352,8 @@ export function ImageViewer() {
             Copy prompt
           </Button>
         )}
-        {pinTarget && <PinToReferences generationId={pinTarget.generationId} characterId={pinTarget.characterId} />}
+        {generationId && !pinKnown && <span aria-hidden="true" className="h-8 w-16 animate-pulse rounded-lg bg-neutral-800" />}
+        {generationId && pinCharacter && <PinToReferences key={generationId} generationId={generationId} characterId={pinCharacter} />}
         {image.generated && (
           <Button type="button" size="sm" onClick={() => sendToVariants(image)}>
             Variants
