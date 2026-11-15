@@ -111,7 +111,11 @@ export function RecentImages({ images, className }: { images: DashImage[]; class
               <li key={i.id} className="w-[30%] min-w-[6.25rem] shrink-0 sm:w-auto sm:min-w-0 sm:flex-1">
                 <button
                   type="button"
-                  onClick={() => viewImage({ url: i.url, downloadUrl: i.downloadUrl, prompt: i.prompt, generated: true, generationId: i.id })}
+                  onClick={() => {
+                    const shot = (x: typeof i) => ({ url: x.url, downloadUrl: x.downloadUrl, prompt: x.prompt, generated: true, generationId: x.id });
+                    // The recent images in order, so the viewer's arrow keys step through them.
+                    viewImage({ ...shot(i), gallery: images.map(shot) });
+                  }}
                   aria-label={`View image${left ? `, ${left.label}` : ""}`}
                   className="thumb relative block aspect-[3/4] w-full overflow-hidden bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/70"
                 >

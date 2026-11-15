@@ -52,7 +52,11 @@ export function HistoryImages({
               {i.previewUrl ? (
                 <button
                   type="button"
-                  onClick={() => viewImage({ url: i.previewUrl as string, downloadUrl: i.downloadUrl, prompt: i.prompt, title: i.kindLabel, generated: true, generationId: i.id })}
+                  onClick={() => {
+                    const shot = (x: NonNullable<typeof images>[number]) => ({ url: x.previewUrl as string, downloadUrl: x.downloadUrl, prompt: x.prompt, title: x.kindLabel, generated: true, generationId: x.id });
+                    // Every image with a picture, in the list's order, for the viewer's arrow keys.
+                    viewImage({ ...shot(i), gallery: (images ?? []).filter((x) => x.previewUrl).map(shot) });
+                  }}
                   aria-label={`View ${i.kindLabel} image`}
                   className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
                 >
