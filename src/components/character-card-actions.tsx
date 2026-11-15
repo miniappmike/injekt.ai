@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronIcon, SearchIcon, TrashIcon } from "@/components/icons";
+import { ChevronIcon, EyeIcon, TrashIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { deleteCharacter } from "@/app/(app)/characters/actions";
 import { getCharacterGenerations } from "@/app/(app)/characters/media-actions";
@@ -78,14 +78,24 @@ export function CharacterImagesButton({ name, characterId }: { name: string; cha
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label={`See the images made for ${name}`}
-        className="absolute left-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-950/70 text-neutral-50 ring-1 ring-white/15 backdrop-blur transition-all hover:scale-105 hover:bg-neutral-950/90 active:scale-90 max-sm:left-2 max-sm:top-2"
-      >
-        <SearchIcon className="h-[18px] w-[18px]" />
-      </button>
+      <span className="group absolute left-3 top-3 z-10 max-sm:left-2 max-sm:top-2">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={`See the images made for ${name}`}
+          aria-describedby={`eye-tip-${characterId}`}
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-950/70 text-brand-400 ring-1 ring-brand-500/40 backdrop-blur transition-all hover:scale-105 hover:bg-neutral-950/90 hover:text-brand-300 active:scale-90"
+        >
+          <EyeIcon className="h-[18px] w-[18px]" />
+        </button>
+        <span
+          role="tooltip"
+          id={`eye-tip-${characterId}`}
+          className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-48 rounded-md border border-neutral-700 bg-neutral-900 p-2 text-xs font-normal text-neutral-200 shadow-lg group-focus-within:block group-hover:block"
+        >
+          View the active images of {name}
+        </span>
+      </span>
       {open &&
         createPortal(
           <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={`${name}'s images`}>
