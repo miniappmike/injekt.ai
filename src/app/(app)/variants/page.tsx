@@ -1,3 +1,4 @@
+import { HowItWorks } from "@/components/how-it-works";
 import { VariantsTool } from "@/components/variants-tool";
 import { CreateCharacterFirst } from "@/components/inject-tabs";
 import { requireUser } from "@/lib/auth";
@@ -30,6 +31,11 @@ export default async function VariantsPage() {
       <PageIntro title="Variants" short="New takes of an image you love, or a day of moments built from it.">
         Got an image you love? Photoshoot makes new takes of the same scene, and Moments plans shots from throughout her day, built from this one.
       </PageIntro>
+      <HowItWorks steps={[
+        { title: "Pick your character", body: "Who appears in every take." },
+        { title: "Add an image", body: "The photo you want new versions of, plus optional extras for the vibe." },
+        { title: "Choose what changes", body: "Write the takes or moments, then generate them one by one or all at once." },
+      ]} />
       {characters.length ? <VariantsTool characters={characters} /> : <CreateCharacterFirst />}
     </div>
   );
