@@ -25,6 +25,7 @@ export function ImageDrop({
   disabled,
   onPick,
   layout = "row",
+  multiple = false,
 }: {
   title: string;
   hint?: string;
@@ -32,14 +33,16 @@ export function ImageDrop({
   disabled?: boolean;
   onPick: (file: File) => void;
   layout?: "row" | "tile";
+  /** Several images at once: `onPick` is called once per image file (the parent applies any limit). */
+  multiple?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [pasteError, setPasteError] = useState<string>();
   const box = useRef<HTMLElement>(null);
   usePasteTarget(box, (f) => take(f), disabled);
   const take = (files: FileList | File[] | null) => {
-    const f = files && Array.from(files).find((x) => x.type.startsWith("image/"));
-    if (f) onPick(f);
+    const images = files ? Array.from(files).filter((x) => x.type.startsWith("image/")) : [];
+    for (const f of multiple ? images : images.slice(0, 1)) onPick(f);
   };
   const open = () => {
     if (!disabled) input.current?.click();
@@ -124,6 +127,7 @@ export function ImageDrop({
         ref={input}
         type="file"
         accept="image/jpeg,image/png,image/webp"
+        multiple={multiple}
         className="hidden"
         onClick={(e) => e.stopPropagation()}
         onChange={(e) => {
