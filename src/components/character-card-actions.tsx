@@ -6,7 +6,7 @@ import { ChevronIcon, SearchIcon, TrashIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { deleteCharacter } from "@/app/(app)/characters/actions";
 import { getCharacterGenerations } from "@/app/(app)/characters/media-actions";
-import { viewImage } from "@/lib/panel-events";
+import { GENERATION_DELETED_EVENT, viewImage } from "@/lib/panel-events";
 
 export interface CardImage {
   label: string;
@@ -45,6 +45,12 @@ export function DeleteCharacterButton({ id, name, icon = false }: { id: string; 
 export function CharacterImagesButton({ name, characterId }: { name: string; characterId: string }) {
   const [open, setOpen] = useState(false);
   const [images, setImages] = useState<CardImage[] | null>(null);
+  // An image deleted from the viewer leaves this panel too.
+  useEffect(() => {
+    const on = (e: Event) => setImages((list) => (list ? list.filter((x) => x.generationId !== (e as CustomEvent<string>).detail) : list));
+    window.addEventListener(GENERATION_DELETED_EVENT, on);
+    return () => window.removeEventListener(GENERATION_DELETED_EVENT, on);
+  }, []);
   useEffect(() => {
     if (!open) return;
     let alive = true;
@@ -120,6 +126,20 @@ function ImageStrip({ name, images }: { name: string; images: CardImage[] }) {
     return () => window.removeEventListener("resize", measure);
   }, [measure, images.length]);
   const go = (dir: 1 | -1) => row.current?.scrollBy({ left: dir * Math.max(240, row.current.clientWidth * 0.8), behavior: "smooth" });
+  // Left and right arrow keys move through her images in the panel, one card at a time. With the full-screen viewer open
+  // it takes the arrows first (and stops them here), stepping through the same images.
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if ((e.key !== "ArrowLeft" && e.key !== "ArrowRight") || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.target instanceof Element && e.target.closest("input, textarea, select")) return;
+      const el = row.current;
+      if (!el) return;
+      e.preventDefault();
+      el.scrollBy({ left: (e.key === "ArrowRight" ? 1 : -1) * ((el.querySelector("li")?.clientWidth ?? 256) + 12), behavior: "smooth" });
+    };
+    document.addEventListener("keydown", key);
+    return () => document.removeEventListener("keydown", key);
+  }, []);
   const arrow = "absolute top-[calc(50%-1.25rem)] z-10 flex h-11 w-11 items-center justify-center rounded-full bg-neutral-950/85 text-neutral-50 shadow-lg ring-1 ring-white/20 backdrop-blur transition-all hover:scale-105 hover:bg-brand-500 disabled:pointer-events-none disabled:opacity-0 max-sm:hidden";
   return (
     <div className="relative">

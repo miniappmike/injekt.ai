@@ -7,7 +7,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { checkGeneration, POLL_MS } from "@/lib/generation-check";
 
 const MAX_POLLS = 75; // about 10 minutes
-import { GENERATION_EVENT, openHistory, viewImage, type TrayGeneration } from "@/lib/panel-events";
+import { GENERATION_DELETED_EVENT, GENERATION_EVENT, openHistory, viewImage, type TrayGeneration } from "@/lib/panel-events";
 import { generationsOnPage } from "@/lib/pending-generations";
 
 // A strip along the bottom of the page with every image generated on it, newest first. It empties when you go to
@@ -34,8 +34,14 @@ export function GenerationTray() {
 
   useEffect(() => {
     const onUpdate = (e: Event) => update((e as CustomEvent<TrayGeneration>).detail);
+    // A deleted image leaves the tray too.
+    const onDeleted = (e: Event) => setItems((list) => list.filter((i) => i.generationId !== (e as CustomEvent<string>).detail));
     window.addEventListener(GENERATION_EVENT, onUpdate);
-    return () => window.removeEventListener(GENERATION_EVENT, onUpdate);
+    window.addEventListener(GENERATION_DELETED_EVENT, onDeleted);
+    return () => {
+      window.removeEventListener(GENERATION_EVENT, onUpdate);
+      window.removeEventListener(GENERATION_DELETED_EVENT, onDeleted);
+    };
   }, [update]);
 
   // A new page starts with only the jobs started on it in this tab (remembered across a reload, which a phone can do

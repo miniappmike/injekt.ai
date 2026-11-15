@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
 import { PinToReferences } from "@/components/pin-to-references";
 import { getPinTarget } from "@/app/(app)/characters/pin-actions";
-import { SEND_TO_VARIANTS_EVENT, SEND_TO_VARIANTS_KEY, VIEW_IMAGE_EVENT, type ViewableImage } from "@/lib/panel-events";
+import { deleteGeneration } from "@/app/(app)/history/actions";
+import { generationDeleted, SEND_TO_VARIANTS_EVENT, SEND_TO_VARIANTS_KEY, VIEW_IMAGE_EVENT, type ViewableImage } from "@/lib/panel-events";
 
 // Which character each generated image can be pinned to, remembered so stepping between images shows Pin It at once.
 const pinCache = new Map<string, string | null>();
@@ -76,6 +77,26 @@ export function ImageViewer() {
       const why = err instanceof Error && err.name && err.name !== "Error" ? ` (${err.name})` : err instanceof TypeError ? " (the picture's address refused the copy)" : "";
       show(`Couldn't copy the image${why}. Use Download instead.`);
     }
+  }
+
+  // Deletes this generated image from storage (after asking), then shows the next one in the gallery, or closes.
+  const [deleting, setDeleting] = useState(false);
+  async function deleteCurrent(img: ViewableImage) {
+    if (!img.generationId || !window.confirm("Delete this image? It is removed from storage everywhere and can't be brought back.")) return;
+    setDeleting(true);
+    const r = await deleteGeneration(img.generationId);
+    setDeleting(false);
+    if (!r.ok) return show(r.error);
+    generationDeleted(img.generationId);
+    pinCache.delete(img.generationId);
+    const list = img.gallery ?? [];
+    const at = list.findIndex((x) => x.url === img.url);
+    const rest = list.filter((x) => x.url !== img.url);
+    router.refresh();
+    if (!rest.length) return close();
+    setNatural(null);
+    setPos({ x: 0, y: 0 });
+    setImage({ ...rest[Math.min(Math.max(at, 0), rest.length - 1)], gallery: rest });
   }
 
   // Opens Variants with this picture in its "Generated image" slot.
@@ -353,6 +374,11 @@ export function ImageViewer() {
           </Button>
         )}
         {generationId && !pinKnown && <span aria-hidden="true" className="h-8 w-16 animate-pulse rounded-lg bg-neutral-800" />}
+        {generationId && (
+          <Button type="button" size="sm" variant="secondary" className="text-red-300" disabled={deleting} onClick={() => void deleteCurrent(image)}>
+            {deleting ? "Deleting…" : "Delete"}
+          </Button>
+        )}
         {generationId && pinCharacter && <PinToReferences key={generationId} generationId={generationId} characterId={pinCharacter} />}
         {image.generated && (
           <Button type="button" size="sm" onClick={() => sendToVariants(image)}>

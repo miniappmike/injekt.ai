@@ -55,3 +55,9 @@ export const USAGE_EVENT = "modelspawn:usage";
 export function usageChanged() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(USAGE_EVENT));
 }
+
+/** An image was deleted (from History or the viewer): every list showing it drops it. */
+export const GENERATION_DELETED_EVENT = "modelspawn:generation-deleted";
+export function generationDeleted(id: string) {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(GENERATION_DELETED_EVENT, { detail: id }));
+}

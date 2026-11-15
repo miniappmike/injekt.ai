@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { ExpiryBadge } from "@/components/expiry-badge";
 import { RetentionNotice } from "@/components/retention-notice";
 import { formatUsd } from "@/lib/pricing";
-import { viewImage } from "@/lib/panel-events";
+import { useState } from "react";
+import { deleteGeneration } from "@/app/(app)/history/actions";
+import { generationDeleted, viewImage } from "@/lib/panel-events";
 import type { GenerationItem } from "@/lib/history-types";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -36,9 +38,21 @@ export function HistoryImages({
   /** Called when a link inside the list takes you to another page, so the panel can get out of the way. */
   onNavigate: () => void;
 }) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string>();
+  async function remove(i: GenerationItem) {
+    if (!window.confirm("Delete this image? It is removed from storage and can't be brought back.")) return;
+    setBusyId(i.id);
+    setDeleteError(undefined);
+    const r = await deleteGeneration(i.id);
+    setBusyId(null);
+    if (r.ok) generationDeleted(i.id);
+    else setDeleteError(r.error);
+  }
   return (
     <div className="flex flex-col gap-3">
       <RetentionNotice />
+      {deleteError && <p role="alert" className="text-sm text-red-400">{deleteError}</p>}
       {error && <p role="alert" className="text-sm text-red-400">Couldn&apos;t load your images. Close and reopen to try again.</p>}
       {!error && images === null && <p className="text-sm text-neutral-400">Loading...</p>}
       {images && !images.length && (
@@ -91,6 +105,11 @@ export function HistoryImages({
                   )}
                   {i.prompt && (
                     <Button type="button" size="sm" variant="ghost" onClick={() => onCopy(i.prompt as string)}>Copy prompt</Button>
+                  )}
+                  {i.state !== "generating" && (
+                    <Button type="button" size="sm" variant="ghost" className="text-red-400 hover:bg-red-500/10 hover:text-red-300" disabled={busyId === i.id} onClick={() => void remove(i)}>
+                      {busyId === i.id ? "Deleting…" : "Delete"}
+                    </Button>
                   )}
                   {i.state === "ready" && (
                     <Button asChild size="sm" variant="ghost">

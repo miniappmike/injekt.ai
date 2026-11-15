@@ -17,7 +17,7 @@ type Row = {
   created_at: string;
   expires_at: string | null;
   cost_usd: string | number | null;
-  params: { free?: boolean } | null;
+  params: { free?: boolean; deleted?: boolean } | null;
 };
 
 /** Where a generation is in its life. A finished image past its 72 hours (or whose file is gone) counts as expired. */
@@ -33,7 +33,8 @@ const COLUMNS = "id, character_id, kind, status, model, prompt, error, output_pa
 export async function listGenerations(supabase: SupabaseClient, user: Actor, limit = 50): Promise<GenerationItem[]> {
   await collectPending(supabase, user);
   const { data } = await supabase.from("generations").select(COLUMNS).order("created_at", { ascending: false }).limit(limit);
-  const rows = (data ?? []) as Row[];
+  // Images the person deleted stay in the table (as a record of the spend) but are never listed.
+  const rows = ((data ?? []) as Row[]).filter((r) => r.params?.deleted !== true);
 
   // Links only for images that are still there, and they stop working when the image does.
   const storage = supabase.storage.from(GENERATIONS_BUCKET);

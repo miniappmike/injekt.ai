@@ -1,6 +1,7 @@
 "use server";
 
 import { requireUser } from "@/lib/auth";
+import { adminClient } from "@/lib/supabase/admin";
 import { HISTORY_LIMIT, historyRowImages, removeUnusedImages } from "@/lib/history";
 import type { GenerationItem, HistoryItem } from "@/lib/history-types";
 import { generationPreview, latestForHistory, listGenerations } from "@/lib/generation-list";
@@ -65,4 +66,32 @@ export async function deleteAllHistory() {
   const { data } = await supabase.from("prompt_history").select("*");
   await supabase.from("prompt_history").delete().not("id", "is", null);
   await removeUnusedImages(supabase, (data ?? []).flatMap(historyRowImages));
+}
+
+/**
+ * Deletes one generated image: the file goes from storage, and the row stays only as a record of the spend (cost, daily
+ * counts) marked deleted, so it disappears from every list and its link stops working at once. Only the owner's own
+ * finished or failed images; one still generating can't be deleted.
+ */
+export async function deleteGeneration(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { supabase, user } = await requireUser();
+    const { data } = await supabase.from("generations").select("id, status, output_path, params").eq("id", id).maybeSingle();
+    if (!data) return { ok: false, error: "That image was already removed." };
+    if (data.status !== "complete" && data.status !== "failed") return { ok: false, error: "Wait for the image to finish, then delete it." };
+    const db = adminClient();
+    if (data.output_path) {
+      const { error } = await db.storage.from("generations").remove([data.output_path as string]);
+      if (error) return { ok: false, error: "Couldn't delete the file. Try again." };
+    }
+    const { error } = await db
+      .from("generations")
+      .update({ output_path: null, params: { ...((data.params as Record<string, unknown> | null) ?? {}), deleted: true } })
+      .eq("id", id)
+      .eq("user_id", user.id);
+    if (error) return { ok: false, error: "Couldn't delete the image. Try again." };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Couldn't delete the image. Try again." };
+  }
 }

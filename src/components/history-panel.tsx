@@ -13,7 +13,7 @@ import { LockedGenerate } from "@/components/copy-open";
 import { checkGeneration, POLL_MS } from "@/lib/generation-check";
 import { deleteAllHistory, deleteHistoryEntry, getGenerationPreview, getGenerations, getHistory } from "@/app/(app)/history/actions";
 import { filterHistory, historyCharacters } from "@/lib/history-filter";
-import { GENERATION_EVENT, OPEN_HISTORY_EVENT, viewImage, type HistoryTab, type TrayGeneration } from "@/lib/panel-events";
+import { GENERATION_DELETED_EVENT, GENERATION_EVENT, OPEN_HISTORY_EVENT, viewImage, type HistoryTab, type TrayGeneration } from "@/lib/panel-events";
 import { historyGenerationKind, type GenerationItem, type HistoryItem } from "@/lib/history-types";
 import { metaForRun, readEditTarget, type InjectMeta } from "@/lib/inject-meta";
 
@@ -45,6 +45,12 @@ export function HistoryPanel() {
   const [error, setError] = useState(false);
   const [images, setImages] = useState<GenerationItem[] | null>(null);
   const [imagesError, setImagesError] = useState(false);
+  // An image deleted anywhere (the viewer, this list) leaves the list at once.
+  useEffect(() => {
+    const on = (e: Event) => setImages((list) => (list ? list.filter((x) => x.id !== (e as CustomEvent<string>).detail) : list));
+    window.addEventListener(GENERATION_DELETED_EVENT, on);
+    return () => window.removeEventListener(GENERATION_DELETED_EVENT, on);
+  }, []);
   const [query, setQuery] = useState("");
   const [characterId, setCharacterId] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
