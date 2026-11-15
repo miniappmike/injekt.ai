@@ -1,3 +1,4 @@
+import { PlanSwitch } from "@/components/admin-console";
 import Link from "next/link";
 import type { PersonDetail } from "@/lib/admin-data";
 import { AdminTokenAdjust } from "@/components/admin-token-adjust";
@@ -34,6 +35,10 @@ export function AdminPerson({ p }: { p: PersonDetail }) {
             <span className="rounded-full bg-neutral-800/70 px-2 py-0.5 text-neutral-300">Joined {day(p.createdAt)}</span>
             <span className="rounded-full bg-neutral-800/70 px-2 py-0.5 text-neutral-300">Last sign-in {day(p.lastSignIn)}</span>
           </div>
+        </div>
+        <div className="flex flex-col gap-1 text-xs text-neutral-400 sm:shrink-0">
+          Plan
+          <PlanSwitch user={{ id: p.id, email: p.email, plan: p.plan, is_admin: p.isAdmin }} />
         </div>
         {p.email && (
           <div className="flex gap-2 sm:shrink-0">

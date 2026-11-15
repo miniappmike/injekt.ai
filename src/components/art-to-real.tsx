@@ -176,13 +176,13 @@ export function ArtToReal({ characters }: { characters: ArtCharacter[] }) {
                   className="max-sm:h-11 max-sm:w-full max-sm:text-[15px]"
                   onClick={() => {
                     const n = ready.length;
-                    if (n > 1 && !window.confirm(`Make ${n} artworks real? They start one every 5 seconds; each one's price is shown on its own button below.`)) return;
+                    if (n > 1 && !window.confirm(`Make Real (${n})? They start one every 5 seconds; each one's price is shown on its own button below.`)) return;
                     setRunAll((v) => v + 1);
                   }}
                 >
                   Make Real{ready.length > 1 ? ` (${ready.length})` : ""}
                 </Button>
-                {ready.length > 1 && <p className="text-xs text-neutral-500">Starts every artwork below, one every 5 seconds. Or press Make it real on just one.</p>}
+                {ready.length > 1 && <p className="text-xs text-neutral-500">Starts every artwork below, one every 5 seconds. Or press Make Real on just one.</p>}
               </div>
               <div className="flex flex-col gap-4">
                 {ready.map((a, i) => (
@@ -199,7 +199,7 @@ export function ArtToReal({ characters }: { characters: ArtCharacter[] }) {
                       characterId={characterId || null}
                       extraPaths={[a.path!]}
                       meta={direction.trim() ? { extra: direction.trim() } : undefined}
-                      actionLabel="Make it real"
+                      actionLabel="Make Real"
                       defaultResolution="1.5k"
                       checkLikeness={!!characterId}
                       runSignal={runAll}

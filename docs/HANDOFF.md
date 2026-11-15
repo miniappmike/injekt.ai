@@ -13,6 +13,13 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Download, wizard skip, menus, plan switch (November 15; not checked in a browser; types not checked)**
+- **Download no longer navigates**: `saveImage` (`src/lib/download.ts`) fetches the file and saves it from a blob link; if the fetch is refused it opens a new tab, never this one. `DownloadLink` (`download-link.tsx`) is used by the Generate result, the viewer, History Images and the attach strip's Save image (the wizard lost progress because the plain link opened the file in the tab). Not tested against Supabase's CORS headers: if saving falls back to a new tab, check the storage bucket's CORS.
+- **Create Model**: with a face sheet (saved, uploaded or just made) the stepper's 1 to 4 are all clickable. The Fine-tune menus (Bust, Glute size, Glute shape) are `MenuSelect` like Variants' "Posting to".
+- **Home**: the Settings tile now has the pink hover border the other tiles have.
+- **Admin > People**: the plan switch (Free/Pro, `setUserPlan`) already existed in the list; it is now also on each person's page.
+- Art to Real button wording is "Make Real" everywhere (button, confirmation, hint, per-artwork buttons).
+
 **Art to Real: up to 5 artworks and "Make Real (N)" (November 15; not checked in a browser; types not checked, `node_modules` isn't installed here)**
 - The artwork box takes up to 5 images at once (`MAX_ARTWORKS` in `art-to-real.tsx`; pick several in the file dialog, drop several, or paste one at a time; `ImageDrop` has a new `multiple` prop). All 5 slots sit inside the one drop box (thumbnails with a remove button, empty slots as plus marks); at 5 the box stays and greys its buttons (`gallery`/`full` props on `ImageDrop`). Each uploaded artwork gets its own Make it real card (same size/shape/format controls, same character and "Anything to change?" for all). **Make Real (N)** (confirms when more than one) starts every card that hasn't run, one every 5 seconds (`runSignal`/`staggerDelay`, same as Generate all). With image generation off, Write prompt still gives one prompt (the same for every artwork; the attach strip shows the first artwork). Artwork is not saved between page loads (as before).
 

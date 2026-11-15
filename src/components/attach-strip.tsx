@@ -1,5 +1,6 @@
 "use client";
 
+import { DownloadLink } from "@/components/download-link";
 /** One image to attach, as the Write only prompts list them (see AttachItem in variants-run). */
 export interface AttachTile {
   tag: string;
@@ -48,7 +49,7 @@ export function AttachStrip({ items, photo, extras = [] }: { items: AttachTile[]
                 </div>
                 <figcaption className="text-xs leading-tight text-neutral-300 max-sm:text-[11px]">{x.label}</figcaption>
                 {x.downloadUrl && (
-                  <a href={x.downloadUrl} className="text-[11px] text-neutral-400 underline hover:text-neutral-200">Save image</a>
+                  <DownloadLink href={x.downloadUrl} className="text-[11px] text-neutral-400 underline hover:text-neutral-200">Save image</DownloadLink>
                 )}
               </figure>
             </li>
