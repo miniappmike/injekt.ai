@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SparkIcon } from "@/components/icons";
-import { CharacterImagesButton, DeleteCharacterButton, type CardImage } from "@/components/character-card-actions";
+import { CharacterCoverButton, CharacterImagesButton, DeleteCharacterButton, type CardImage } from "@/components/character-card-actions";
 
 export interface CharacterCardData {
   id: string;
@@ -24,7 +24,7 @@ export function CharacterCard({ c, canList = false }: { c: CharacterCardData; ca
   const [cover, ...rest] = c.thumbs;
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 max-sm:rounded-[1.25rem] shadow-[0_14px_40px_-24px_rgb(0_0_0/0.9)] transition-all duration-300 hover:-translate-y-1 hover:border-brand-500/40 hover:shadow-[0_24px_50px_-24px_rgb(232_38_94/0.45)]">
-      <Link href={`/characters/${c.id}`} tabIndex={-1} aria-hidden="true" className="relative block aspect-[4/3] isolate overflow-hidden bg-neutral-800 max-sm:aspect-[4/5]">
+      <CharacterCoverButton characterId={c.id} name={c.name} className="relative block w-full cursor-pointer text-left aspect-[4/3] isolate overflow-hidden bg-neutral-800 max-sm:aspect-[4/5]">
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={cover} alt="" className="h-full w-full object-cover object-top transition-transform duration-500 will-change-transform [mask-image:linear-gradient(to_bottom,#000_78%,transparent_100%)] group-hover:scale-105" />
@@ -49,7 +49,7 @@ export function CharacterCard({ c, canList = false }: { c: CharacterCardData; ca
             ))}
           </div>
         )}
-      </Link>
+      </CharacterCoverButton>
       <CharacterImagesButton name={c.name} characterId={c.id} />
       {/* Phones: straight into Inject with her picked. */}
       <Link

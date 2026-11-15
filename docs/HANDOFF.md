@@ -14,8 +14,9 @@ Live at injektai.vercel.app. Everything below this section is the older build hi
 section is right.
 
 **Menu order, landing and CRM polish (November 15; not checked in a browser; types not checked)**
-- Characters page: the magnifier is now a pink eye (`EyeIcon`) with a hover/focus tooltip "View the active images of <name>" (`character-card-actions.tsx`).
-- **Menu is now Dashboard, Inject, Variants, Director, Marketplace, More** on desktop and phone (`NAV`/`MORE_NAV` in `src/lib/nav.ts`; the dock reuses them). More holds Characters, Create Model, Likeness, Art to Real, Group photo. Characters and Create Model lost their own tabs, so the dashboard's links are how people reach them quickly. The Telegram /tools list follows the same lists.
+- Characters page: the magnifier is now a bright pink eye (`EyeIcon`, same gradient as Generate buttons, no tooltip). **Clicking her picture on a card opens the same images panel** (`CharacterCoverButton`, window event `modelspawn:open-character-images`); only Edit (and her name on phones) goes to her page.
+- More menu: no subtitles and no Group photo (still reachable from Characters, the footer and the dashboard Quick tools).
+- **Menu is now Dashboard, Inject, Variants, Director, Marketplace, More** on desktop and phone (`NAV`/`MORE_NAV` in `src/lib/nav.ts`; the dock reuses them). More holds Characters, Create Model, Likeness, Art to Real. Characters and Create Model lost their own tabs, so the dashboard's links are how people reach them quickly. The Telegram /tools list follows the same lists.
 - Landing: "See How It Works" in the hero now scrolls to the page's own "Three steps" section (`#how-it-works`); "See every tool" still opens `/how-it-works`. The step tiles lift and brighten on hover like the feature tiles.
 - Settings > API keys links to the API key guide (`/get-a-key`). Admin > People shows the pink Pro badge by Pro people's names (list, phone list and their page; not on admins).
 

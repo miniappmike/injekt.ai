@@ -42,6 +42,17 @@ export function DeleteCharacterButton({ id, name, icon = false }: { id: string; 
  * (kept 72 hours), newest first; tapping one opens it full screen, and the arrow keys step through them. Her reference
  * photos are a separate pack (what she has pinned) and live on her own page.
  */
+const OPEN_IMAGES_EVENT = "modelspawn:open-character-images";
+
+/** Her picture on the card: opens her images panel (the Edit button is what goes to her page). */
+export function CharacterCoverButton({ characterId, name, className, children }: { characterId: string; name: string; className?: string; children: React.ReactNode }) {
+  return (
+    <button type="button" aria-label={`See the images made for ${name}`} className={className} onClick={() => window.dispatchEvent(new CustomEvent(OPEN_IMAGES_EVENT, { detail: characterId }))}>
+      {children}
+    </button>
+  );
+}
+
 export function CharacterImagesButton({ name, characterId }: { name: string; characterId: string }) {
   const [open, setOpen] = useState(false);
   const [images, setImages] = useState<CardImage[] | null>(null);
@@ -62,6 +73,12 @@ export function CharacterImagesButton({ name, characterId }: { name: string; cha
       alive = false;
     };
   }, [open, characterId]);
+  // Clicking her picture on the card opens this same panel.
+  useEffect(() => {
+    const on = (e: Event) => (e as CustomEvent<string>).detail === characterId && setOpen(true);
+    window.addEventListener(OPEN_IMAGES_EVENT, on);
+    return () => window.removeEventListener(OPEN_IMAGES_EVENT, on);
+  }, [characterId]);
   useEffect(() => {
     if (!open) return;
     const key = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
@@ -78,24 +95,14 @@ export function CharacterImagesButton({ name, characterId }: { name: string; cha
 
   return (
     <>
-      <span className="group absolute left-3 top-3 z-10 max-sm:left-2 max-sm:top-2">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label={`See the images made for ${name}`}
-          aria-describedby={`eye-tip-${characterId}`}
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-950/70 text-brand-400 ring-1 ring-brand-500/40 backdrop-blur transition-all hover:scale-105 hover:bg-neutral-950/90 hover:text-brand-300 active:scale-90"
-        >
-          <EyeIcon className="h-[18px] w-[18px]" />
-        </button>
-        <span
-          role="tooltip"
-          id={`eye-tip-${characterId}`}
-          className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-48 rounded-md border border-neutral-700 bg-neutral-900 p-2 text-xs font-normal text-neutral-200 shadow-lg group-focus-within:block group-hover:block"
-        >
-          View the active images of {name}
-        </span>
-      </span>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={`See the images made for ${name}`}
+        className="absolute left-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-b from-brand-400 to-brand-600 text-white shadow-[0_6px_20px_-8px_rgb(232_38_94/0.7)] transition-all hover:scale-105 hover:from-brand-300 hover:to-brand-500 hover:shadow-[0_8px_28px_-8px_rgb(232_38_94/0.85)] active:scale-90 max-sm:left-2 max-sm:top-2"
+      >
+        <EyeIcon className="h-[18px] w-[18px]" />
+      </button>
       {open &&
         createPortal(
           <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={`${name}'s images`}>
