@@ -13,6 +13,9 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Several images at once from one Generate button (November 16; NOT run, types not run, not checked in a browser)**
+- `GenerateImage` (`src/components/generate-image.tsx`, used by Direct swap, Edit and the other cards) kept one `phase`/`result`, so the button stayed locked until the image finished. It now keeps a list of runs (`runs`, newest first): each press starts its own job and polls it, finished images stack under the button (nothing is cleared by the next press), and a failure shows under the button. Size/shape/format are no longer locked while something runs (the request is captured at the press). **Free plan keeps the one-at-a-time lock** (`free && busy`). Server rate limits (12 image starts a minute) still apply; Generate all still skips a card that already finished.
+
 **Likeness ignores accessories (November 16; NOT run, types and tests not run; `node_modules` isn't installed here)**
 - The quick and full likeness checks now score only the person's own visible physical features. `ACCESSORY_RULE` is in both prompts, the "Signature accessories" trait was removed from the full report, and `accessoryFix` (cuffs, jewellery, belts, hats, glasses, hair accessories and similar) drops any such fix from the quick check, the Fix prompt and the full report's traits. Piercings and tattoos still count (they are body marks). Not tested on a real check; if a worn item still shows in "To fix", add its word to `accessoryFix`.
 

@@ -24,7 +24,8 @@ import { checkGeneration, POLL_MS } from "@/lib/generation-check";
 import { forgetGeneration, latestForRequest, rememberGeneration, requestHash, waitOrWake } from "@/lib/pending-generations";
 import { tokenGate } from "@/components/out-of-tokens";
 
-type Phase = "idle" | "starting" | "running" | "done" | "failed";
+type Phase = "starting" | "running" | "done" | "failed";
+type Run = { id: string; phase: Phase; message?: string; result?: Result };
 interface Result {
   generationId: string;
   url: string;
@@ -127,9 +128,9 @@ function GenerateImageInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [price, setPrice] = useState<string | null>(null);
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [message, setMessage] = useState<string>();
-  const [result, setResult] = useState<Result | null>(null);
+  // Every press is its own run, so a second image can start while the first is still being made. Newest first.
+  const [runs, setRuns] = useState<Run[]>([]);
+  const patchRun = (id: string, p: Partial<Run>) => setRuns((l) => l.map((r) => (r.id === id ? { ...r, ...p } : r)));
   const alive = useRef(true);
 
   useEffect(() => {
@@ -170,9 +171,8 @@ function GenerateImageInner({
   }, [requestKey, free, billing, prompt, hasImages]);
 
   async function generate() {
-    setPhase("starting");
-    setMessage(undefined);
-    setResult(null);
+    const runId = crypto.randomUUID();
+    setRuns((l) => [{ id: runId, phase: "starting" as Phase }, ...l]);
     // Every press shows up in the tray at the bottom of the page.
     const tray = { key: crypto.randomUUID(), label: featureLabel(`image:${kind}`), prompt };
     reportGeneration({ ...tray, state: "generating" });
@@ -186,24 +186,26 @@ function GenerateImageInner({
       reportGeneration({ ...tray, state: "failed", error: tokenGate(started.error) });
       if (started.reason) reportModelRefused({ reason: started.reason, model: pageModel ?? null });
       if (started.redirectTo) return router.push(started.redirectTo);
-      setPhase("failed");
-      return setMessage(started.error);
+      return patchRun(runId, { phase: "failed", message: started.error });
     }
     // Started: its tokens are spent, so the header's count updates.
     reportGeneration({ ...tray, state: "generating", generationId: started.generationId });
     // Remembered for this tab, so a page the phone reloads (after switching apps) still shows the image.
     rememberGeneration({ generationId: started.generationId, key: tray.key, request: requestHash(requestKey), path: location.pathname, label: tray.label, prompt, startedAt: Date.now() });
-    await follow(started.generationId, tray);
+    await follow(started.generationId, tray, runId);
   }
 
   /**
    * Checks the job until it finishes. A check that fails (the phone was asleep, the network dropped) is tried again,
    * and coming back to the tab or app checks at once. If this panel goes away, the tray keeps checking.
    */
-  async function follow(generationId: string, tray: { key: string; label: string; prompt: string }) {
+  async function follow(generationId: string, tray: { key: string; label: string; prompt: string }, runId?: string) {
     const handOff = () => reportGeneration({ ...tray, state: "generating", generationId, detached: true });
     if (!alive.current) return handOff();
-    setPhase("running");
+    // A page that was reloaded has no run for this job yet: make one.
+    const id = runId ?? crypto.randomUUID();
+    if (!runId) setRuns((l) => [{ id, phase: "running" as Phase }, ...l]);
+    else patchRun(id, { phase: "running" });
     const deadline = Date.now() + MAX_POLLS * POLL_MS;
     let errors = 0;
     while (Date.now() < deadline) {
@@ -220,27 +222,23 @@ function GenerateImageInner({
         if (++errors < 3) continue;
         forgetGeneration(generationId);
         reportGeneration({ ...tray, state: "failed", error: status.error });
-        setPhase("failed");
-        return setMessage(status.error);
+        return patchRun(id, { phase: "failed", message: status.error });
       }
       errors = 0;
       if (status.state === "complete") {
         reportGeneration({ ...tray, state: "ready", url: status.url, downloadUrl: status.downloadUrl });
-        setResult({ generationId, url: status.url, downloadUrl: status.downloadUrl });
-        setPhase("done");
+        patchRun(id, { phase: "done", result: { generationId, url: status.url, downloadUrl: status.downloadUrl } });
         router.refresh();
         return;
       }
       if (status.state === "failed") {
         forgetGeneration(generationId);
         reportGeneration({ ...tray, state: "failed", error: status.error });
-        setPhase("failed");
-        return setMessage(status.error);
+        return patchRun(id, { phase: "failed", message: status.error });
       }
     }
     handOff();
-    setPhase("failed");
-    setMessage("Still working on it. It will show up in the tray below and in History, under Images, when it's ready.");
+    patchRun(id, { phase: "failed", message: "Still working on it. It will show up in the tray below and in History, under Images, when it's ready." });
   }
 
   // The page was reloaded (or this panel shown again) while a job it started was running or had just finished: pick
@@ -258,7 +256,10 @@ function GenerateImageInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded]);
 
-  const busy = phase === "starting" || phase === "running";
+  const busy = runs.some((r) => r.phase === "starting" || r.phase === "running");
+  const anyDone = runs.some((r) => r.phase === "done");
+  const result = runs.find((r) => r.result)?.result ?? null;
+  const latest = runs[0];
   const ready = !!prompt.trim() && hasImages;
 
   // "Generate all": start when the signal goes up, unless this one is already running or done.
@@ -266,7 +267,7 @@ function GenerateImageInner({
   // The check runs when the timer fires, with the state of that moment (it may have been started by hand meanwhile).
   const runIfIdle = useRef(() => {});
   runIfIdle.current = () => {
-    if (!busy && phase !== "done" && ready) void generate();
+    if (!busy && !anyDone && ready) void generate();
   };
   useEffect(() => {
     if (runSignal === lastSignal.current) return;
@@ -294,7 +295,7 @@ function GenerateImageInner({
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <label className="flex items-center gap-1.5 text-neutral-400">
           Size
-          <select className={select} value={free ? "1k" : resolution} disabled={free || busy} onChange={(e) => {
+          <select className={select} value={free ? "1k" : resolution} disabled={free} onChange={(e) => {
             const v = e.target.value as ImageResolution;
             setResolution(v);
             if (!lockedAspectRatio) writeLastSettings({ resolution: v });
@@ -305,7 +306,7 @@ function GenerateImageInner({
         {!lockedAspectRatio && (
           <label className="flex items-center gap-1.5 text-neutral-400">
             Shape
-            <select className={select} value={chosenAspectRatio} disabled={busy} onChange={(e) => {
+            <select className={select} value={chosenAspectRatio} onChange={(e) => {
               const v = e.target.value as ImageAspectRatio;
               setAspectRatio(v);
               writeLastSettings({ aspectRatio: v });
@@ -316,7 +317,7 @@ function GenerateImageInner({
         )}
         <label className="flex items-center gap-1.5 text-neutral-400">
           Format
-          <select className={select} value={outputFormat} disabled={busy} onChange={(e) => {
+          <select className={select} value={outputFormat} onChange={(e) => {
             const v = e.target.value as ImageOutputFormat;
             setOutputFormat(v);
             if (!lockedAspectRatio) writeLastSettings({ outputFormat: v });
@@ -329,17 +330,21 @@ function GenerateImageInner({
       {free && <p className="text-xs text-neutral-500">Your free image is made at 1k, and you can only make one.</p>}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" size="sm" className="max-sm:h-11 max-sm:w-full max-sm:text-[15px]" onClick={generate} disabled={busy || !ready}>
-          {busy && <Spinner className="h-3.5 w-3.5" />}
-          {phase === "starting" ? "Starting..." : phase === "running" ? "Generating..." : label}
+        <Button type="button" size="sm" className="max-sm:h-11 max-sm:w-full max-sm:text-[15px]" onClick={generate} disabled={(free && busy) || !ready}>
+          {free && busy && <Spinner className="h-3.5 w-3.5" />}
+          {free && busy ? "Generating..." : label}
         </Button>
-        {phase === "running" && <p className="text-xs text-neutral-500">This typically takes ~120 seconds. Once started, it can't be cancelled.</p>}
-        {message && <p role="alert" className="text-sm text-red-400">{message}</p>}
+        {busy && (
+          <p className="text-xs text-neutral-500">
+            {runs.filter((r) => r.phase === "starting" || r.phase === "running").length} generating. Each typically takes ~120 seconds and can't be cancelled once started; you can start another meanwhile.
+          </p>
+        )}
+        {latest?.phase === "failed" && latest.message && <p role="alert" className="text-sm text-red-400">{latest.message}</p>}
         {busy && <div className="progress-indeterminate w-full basis-full" aria-hidden="true" />}
       </div>
 
-      {result && (
-        <div className="flex flex-col gap-2">
+      {runs.filter((run) => run.result).map((run) => { const result = run.result!; return (
+        <div key={run.id} className="flex flex-col gap-2">
           <button
             type="button"
             onClick={() => viewImage({ url: result.url, downloadUrl: result.downloadUrl, prompt, title: featureLabel(`image:${kind}`), generated: true, generationId: result.generationId })}
@@ -365,7 +370,8 @@ function GenerateImageInner({
             <LikenessPanel characterId={characterId} image={{ generationId: result.generationId }} original={compareTo} frame={meta?.frame} />
           )}
         </div>
-      )}
+      ); })}
+
     </div>
   );
 }
