@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: vi.fn(), withDeclineFallback: vi.fn() }));
 
-import { marksOf, parseUgcPlan, ugcPlanPrompt, ugcPrompt } from "@/lib/ai/prompts/ugc";
+import { parseUgcPlan, ugcPlanPrompt, ugcPrompt } from "@/lib/ai/prompts/ugc";
 import type { RefSet } from "@/lib/ai/prompts/identity";
 import { ugcJob } from "@/lib/generation-job";
 import { injectMetaSchema } from "@/lib/inject-meta";
@@ -28,61 +28,51 @@ const shot = {
   action: "tips the brim of the bucket hat with one hand, the palm tree facing the camera",
   scene: "A wooden beach boardwalk with a surf rental stand and a bike rack behind her. She laughs, mid-step, in a selfie at arm's length. Midday sun from the upper right, short hard shadows.",
   outfit: "a white ribbed tank top and faded denim shorts",
+  frame: "face, hair, shoulders, bust, arms",
 };
 
 describe("UGC image prompt", () => {
   const t = ugcPrompt(sheets, 2, product, shot);
 
   it("gives every image one role, her sheets first and the product photos after", () => {
-    expect(t).toContain("her exact face, hair and piercings from @image1 (her face sheet)");
-    expect(t).toContain("tattoos from @image2 (her body sheet)");
-    expect(t).toContain("It is the exact product from @image3 and @image4 (the same product in each)");
+    expect(t).toContain("@image1 is her face reference sheet: take her exact face, hair and piercings.");
+    expect(t).toContain("@image2 is her full-body reference sheet: take her exact body proportions (bust, waist, hips, glutes, thighs, shoulders) and tattoos.");
+    expect(t).toContain("@image3 and @image4 show the product (the same product in each): a cream cotton bucket hat with an embroidered green palm tree.");
     expect(t).not.toContain("@image5");
   });
 
   it("keeps the product exact, with its printed words", () => {
-    expect(t).toContain('exactly as in @image3, reading "Palm Club"');
-    expect(t).toContain("a cream cotton bucket hat with an embroidered green palm tree");
+    expect(t).toContain('Keep its shape, colours, materials, logo and printed text exactly, reading "Palm Club", at its real size.');
   });
 
   it("carries the planned scene, action and outfit, and keeps the sheet outfit out", () => {
-    expect(t).toContain("She tips the brim of the bucket hat");
-    expect(t).toContain("A wooden beach boardwalk");
-    expect(t).toContain("She wears the product with a white ribbed tank top and faded denim shorts, never the plain outfit in the reference sheets.");
+    expect(t).toContain("She tips the brim of the bucket hat with one hand, the palm tree facing the camera, the product clearly visible and in focus. A wooden beach boardwalk");
+    expect(t).toContain("She wears the product with a white ribbed tank top and faded denim shorts. Take only the person from @image1 and @image2, never their grid, plain background, studio light or plain outfit (a white bandeau top and white shorts).");
   });
 
-  it("names only her marks, not her whole look", () => {
-    expect(t).toContain("Her marks: small straight nose with a ring in the left nostril; freckles across the nose; a small butterfly tattoo on the right hip.");
-    expect(t).toContain("Tattoos show only on bare skin, never on clothing.");
-    expect(t).not.toContain("almond-shaped");
+  it("puts her fixed look in its own paragraph, only for what the shot shows", () => {
+    expect(t).toContain("\n\nHER LOOK (fixed, the same in every image): Face: oval face, almond-shaped green eyes, small straight nose with a ring in the left nostril, full lips. Hair: deep auburn red, mid-back length, loose waves. Skin: fair with a warm undertone, freckles across the nose, a small butterfly tattoo on the right hip. Build: narrow shoulders, very large full bust.\n\n");
+    expect(t).not.toContain("thick thighs");
     expect(t).not.toContain("58%");
+    expect(t).toContain("Her tattoos show only on bare skin, never on clothing.");
+    // A full-body shot brings the rest of her build back.
+    expect(ugcPrompt(sheets, 1, product, { ...shot, frame: "" })).toContain("very small waist, very wide hips; thick thighs.");
   });
 
-  it("stays lean: well under a third of the image model's 5,000 characters, each rule once", () => {
-    expect(t.length).toBeLessThan(1600);
-    expect(t.match(/waxy/g)).toHaveLength(1);
-    expect(t.match(/never slimmed/g)).toHaveLength(1);
+  it("stays lean and looks like an older phone took it", () => {
+    expect(t.length).toBeLessThan(2400);
+    expect(t).toContain("Shot on an older smartphone (a 2017 iPhone look)");
+    for (const once of ["waxy", "highest priority", "plain outfit"]) expect(t.split(once)).toHaveLength(2);
   });
 
   it("works from reference photos when she has no sheet", () => {
     const p = ugcPrompt({ roles: ["a reference photo of her", "a reference photo of her"], kinds: [], anchors: null }, 1, { ...product, worn: false, label: "" }, shot);
-    expect(p).toContain("The woman is the one in @image1 and @image2, reference photos of the same woman");
-    expect(p).toContain("It is the exact product from @image3:");
-    expect(p).toContain("never the clothes in the reference photos");
-    expect(p).not.toContain("Her marks");
+    expect(p).toContain("@image1 is a reference photo of her: take her exact face, hair, body proportions");
+    expect(p).toContain("@image3 is the product: a cream cotton bucket hat");
+    expect(p).toContain("never their background, outfit, pose or lighting");
+    expect(p).not.toContain("HER LOOK");
     expect(p).not.toContain("reading");
-  });
-
-  it("a held product is not called worn", () => {
-    expect(ugcPrompt(sheets, 1, { ...product, worn: false }, shot)).toContain("She wears a white ribbed tank top");
-  });
-});
-
-describe("marksOf", () => {
-  it("picks piercings, tattoos, moles and freckles and nothing else", () => {
-    expect(marksOf(anchors)).toEqual(["small straight nose with a ring in the left nostril", "freckles across the nose", "a small butterfly tattoo on the right hip"]);
-    expect(marksOf({ face: "round face, brown eyes", skin: "olive" })).toEqual([]);
-    expect(marksOf(null)).toEqual([]);
+    expect(p).toContain("She wears a white ribbed tank top");
   });
 });
 
@@ -96,12 +86,14 @@ describe("UGC plan", () => {
     expect(t).toContain("plan something clearly different: Boardwalk at noon");
     expect(t).toContain('"shots" has exactly 3 entries');
     expect(t).toContain("Never describe her face, hair, skin, body or age");
+    expect(t).toContain("- ONLY WHAT IS IN FRAME");
+    expect(t).toContain("the depth (one thing near the lens, her in the middle, what is far behind)");
   });
 
   it("reads a reply, trims it and drops unusable shots", () => {
-    const plan = parseUgcPlan({ product: "a tub of vanilla protein powder.", label: '"FUEL"', aesthetic: "clean, sporty", worn: "yes", shots: [{ title: "", action: "She holds the tub up.", scene: "A home gym.", outfit: "a grey sports bra." }, { title: "x" }, null] }, 4);
+    const plan = parseUgcPlan({ product: "a tub of vanilla protein powder.", label: '"FUEL"', aesthetic: "clean, sporty", worn: "yes", shots: [{ title: "", action: "She holds the tub up.", scene: "A home gym.", outfit: "a grey sports bra.", frame: "Face, arms." }, { title: "x" }, null] }, 4);
     expect(plan.product).toEqual({ product: "a tub of vanilla protein powder", label: "FUEL", aesthetic: "clean, sporty", worn: false });
-    expect(plan.shots).toEqual([{ title: "UGC photo", action: "holds the tub up", scene: "A home gym.", outfit: "a grey sports bra" }]);
+    expect(plan.shots).toEqual([{ title: "UGC photo", action: "holds the tub up", scene: "A home gym.", outfit: "a grey sports bra", frame: "face, arms" }]);
   });
 
   it("keeps at most the number of shots asked for, and fails when nothing came back", () => {
@@ -114,13 +106,13 @@ describe("UGC plan", () => {
 
 describe("UGC job", () => {
   const c = { id: "c1", face_sheet_path: "u/face.jpg", body_sheet_path: "u/body.jpg", reference_paths: ["u/r1.jpg"] };
-  const ugc = { product: product.product, label: product.label, worn: true, action: shot.action, scene: shot.scene, outfit: shot.outfit };
+  const ugc = { product: product.product, label: product.label, worn: true, action: shot.action, scene: shot.scene, outfit: shot.outfit, frame: shot.frame };
 
   it("sends her sheets, then the product photos, in the order the prompt names them", () => {
     const job = ugcJob(c, null, ["u/p1.jpg", "u/p2.jpg"], ugc, 10);
     expect(job.paths).toEqual(["u/face.jpg", "u/body.jpg", "u/p1.jpg", "u/p2.jpg"]);
     expect(job.photoEdit).toBe(false);
-    expect(job.prompt).toContain("the exact product from @image3 and @image4");
+    expect(job.prompt).toContain("@image3 and @image4 show the product");
   });
 
   it("falls back to two reference photos, and refuses with no product or no references", () => {

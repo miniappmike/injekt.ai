@@ -25,6 +25,9 @@ A character has a profile photo (display only), a face sheet, a body sheet and u
 
 Sheets are made in Create Model (`src/lib/ai/prompts/sheets.ts`); several body photos are either one body from other angles or, with `blend`, different bodies combined keeping the boldest features. Image jobs send her sheets after the target (`src/lib/generation-job.ts`); a likeness fix sends the image, her face sheet and her body sheet, and changes only who she is, never the outfit (`OUTFIT_LOCK`).
 
+## Image prompts
+Every image prompt is built from `src/lib/ai/prompts/lean.ts`, in one order: each image's role by its @image tag, her fixed identity block (the same words every time, from her sheet pack), her identity above the scene, the scene or change, then one outfit guard and one realism line. Keep them short: Seedream follows a short prompt with clear image roles more closely. Art to Real and the reference sheet prompts keep their original long wording (`rules-full.ts`).
+
 ## UGC
 `/ugc`: product photos plus a character. One vision call plans the shots from the product (`src/lib/ugc-run.ts`), then each shot is an image job of kind `ugc` (`ugcJob`): her sheets, then the product photos, with a short prompt (`src/lib/ai/prompts/ugc.ts`).
 

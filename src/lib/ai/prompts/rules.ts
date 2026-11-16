@@ -1,6 +1,8 @@
 /**
- * Shared prompt rules, ported word for word from the Influencer Injector artifact. The wording was tuned over many
- * rounds and is the product: do not shorten or paraphrase it. Change only how it is used.
+ * Shared prompt rules. They began as a word-for-word port of the Influencer Injector artifact and were cut down in
+ * November 2026: the image prompts had grown to 2,600 to 6,600 characters, each rule said several times, and Seedream
+ * follows a short prompt with one clear role per image more closely. Keep every rule to one short sentence and say it
+ * once per prompt. The lean building blocks that use them are in ./lean.ts.
  */
 
 /** Opens every vision and language call. User text is only ever passed fenced in <<< >>>. */
@@ -11,21 +13,21 @@ export const SCOPE =
 export const fence = (s: unknown) => String(s ?? "").replace(/<<<|>>>/g, "");
 
 export const SKIN_ART_RULE =
-  "TATTOOS STAY ON SKIN: her tattoos and marks are part of her skin, not a print or design. Show each one only where that exact patch of bare skin is visible. Where clothing covers it (a bodysuit, catsuit, swimsuit, top, trousers, tights or any other fabric), it is hidden under the fabric: never print, draw, embroider, appliqué or show it on the outside of any garment, and never turn it into a graphic, patch or logo on her clothes. Fabric over a tattoo stays exactly as the garment is, with no added motif.";
+  "TATTOOS STAY ON SKIN: her tattoos show only where that patch of skin is bare. Where clothing covers one it stays hidden, never printed, drawn or shown on the fabric.";
 export const SKIN_ART_SHORT =
   "Her tattoos show only on bare skin; where clothing covers them they stay hidden and are never printed, drawn or shown on the fabric.";
 
 export const makeupRule = (img: string) =>
-  `MAKEUP STAYS: keep her makeup exactly as it is in ${img}: the same foundation finish, concealer, blush, bronzer and contour, highlighter, eyeshadow colours and placement, eyeliner shape, lashes, brow styling, lip liner, lip colour and finish, and nail polish. Do not remove, lighten, tone down, restyle or add makeup unless this prompt explicitly asks for a makeup change.`;
+  `MAKEUP STAYS: keep her makeup and nail polish exactly as in ${img} (eyes, brows, blush, contour, lips); never remove, lighten or add any unless this prompt asks for a makeup change.`;
 export const asksMakeup = (t: unknown) => /make-?up|bare[- ]faced|no[- ]make|lipstick|lip ?gloss|eyeliner|eyeshadow|mascara|blush|foundation/i.test(String(t || ""));
 export const skinNote = (s: string) => (s && /tattoo/i.test(s) ? s.replace(/\.?\s*$/, "") + " (tattoos only on bare skin, never on clothing)" : s);
 
 export const MODS_RULE =
-  "BODY MODIFICATIONS: her tattoos, piercings (including belly-button, nose, septum, lip, eyebrow and extra ear piercings), scars, birthmarks and moles come only from her reference and profile. Do not add any that she does not have, and never copy them from another person or the source scene. " +
+  "BODY MODIFICATIONS: her tattoos, piercings, scars, birthmarks and moles come only from her references: add none she lacks and copy none from another person or the scene. " +
   SKIN_ART_RULE;
 
 export const TEXT_RULE =
-  "TEXT AND LOGOS: any lettering in the image (clothing prints, signs, posters, screens, packaging, phone cases, mugs, tattoos) is clean, correctly spelled and legible, in clear print or neat readable cursive, using the exact words quoted in this prompt; brand names and logos named in this prompt are reproduced accurately with their real shapes and spelling; anything with no named wording or logo is a plain design. No garbled, warped, random or made-up characters, no misspelled brand names and no gibberish text.";
+  "TEXT AND LOGOS: any lettering is clean, legible and correctly spelled, using the exact words quoted in this prompt, and named brands keep their real logos; anything else is a plain design. No garbled or made-up text.";
 export const TEXT_SHORT =
   "Any lettering and brand logos stay clean, accurate, legible and correctly spelled (clear print or neat cursive); no garbled, random or made-up text.";
 
@@ -34,7 +36,7 @@ export const REALISM_FIX = {
   texture: "Fabrics and surfaces show their real texture, with visible weave and creases in the clothing and natural wear on the surroundings.",
   camera: "It has a smartphone main-camera look with slight softness and focus falloff, visible noise in the shadows, mild compression and true-to-life colour.",
   quality:
-    "IMAGE QUALITY: a real, unedited smartphone photo, not a render: slight softness and focus falloff, faint motion blur in moving hands or hair, sensor noise in the shadows, mild JPEG compression, imperfect auto white balance. LIGHT AND SHADOW: shadows follow the scene's visible light sources in one direction and softness, with soft contact shadows under feet, hands and props and warm light spilling from glowing objects onto nearby skin; with camera flash, a tight shadow sits just behind her. Skin is matte and textured: visible pores, fine peach fuzz, uneven tone, faint redness, small imperfections. No smoothing, no glossy, waxy, plastic or porcelain skin, no glow, no beauty filter, no CGI, doll or 3D-render look.",
+    "IMAGE QUALITY: a real, unedited photo from an older smartphone (a 2017 iPhone look): slight softness, sensor grain in the shadows, mild JPEG compression, imperfect white balance and natural depth. LIGHT AND SHADOW: shadows follow the scene's light sources in one direction, with soft contact shadows under feet, hands and props. Skin is matte and textured, with visible pores and small imperfections. No smoothing, no glossy, waxy or plastic skin, no beauty filter, no CGI look.",
 };
 
 /**
@@ -54,14 +56,13 @@ export const OVERLAY_RULE =
  * instruction says to keep extreme proportions at full scale.
  */
 export const PROPORTIONS_RULE =
-  "EXAGGERATED PROPORTIONS STAY: if her figure in the references is extreme or exaggerated (for example a very large bust, a very small waist, very wide hips, very large glutes or very thick thighs), reproduce it at the same scale and ratios. Never shrink, tone down, average or normalise it toward a typical body, and never make it more modest than in the references.";
+  "EXAGGERATED PROPORTIONS STAY: if her figure in the references is extreme (a very large bust, a very small waist, very wide hips, very large glutes or very thick thighs), reproduce it at the same scale; never shrink or normalise it toward a typical body.";
 /** For the text models that write prompts and profiles: name extreme proportions plainly, at full strength. */
 export const PROPORTIONS_WORDS =
   "If her proportions are extreme or exaggerated, say so plainly and at full strength (for example extremely large bust, very small waist, very wide hips, very large round glutes); never soften, downplay or scale them toward an average figure.";
 
 export const BODY_LOCK =
-  "BODY LOCK (strict): her body must match the reference exactly: the same height impression, frame, shoulder width, bust, waist, hips, glutes, thighs, leg length, arm thickness and muscle tone, and the same overall proportions. Do not slim, enlarge, lengthen, tone or idealise her figure, and do not adapt it to the pose, outfit or the original person's body. " +
-  PROPORTIONS_RULE;
+  "BODY LOCK: her body matches the reference exactly, at its real scale: the same bust, waist, hips, glutes, thighs, shoulders and height impression. Never slim, enlarge, idealise or average it, and never adapt it to the pose, outfit or the original person's body.";
 
 /** "a", "a and b", "a, b and c" */
 export const joinTags = (a: string[]) => (a.length < 2 ? a[0] || "" : a.slice(0, -1).join(", ") + " and " + a[a.length - 1]);

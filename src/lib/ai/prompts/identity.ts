@@ -3,7 +3,8 @@
  * face and body into every image prompt. Ported word for word; only the plumbing differs (crops are stored files, not
  * data URLs). Pure functions, so the server and the tests share them.
  */
-import { BODY_LOCK, hasQualityLine, fence, joinTags, MODS_RULE, OVERLAY_RULE, REALISM_FIX, SKIN_ART_SHORT, skinNote, tagList, TEXT_RULE, TEXT_SHORT } from "./rules";
+import { hasQualityLine, fence, joinTags, OVERLAY_RULE, REALISM_FIX, skinNote, tagList, TEXT_SHORT } from "./rules";
+import { identityBlock, isSheetKind, paragraphs, personOnly, priority, realKeep, refRoles, sentences, tattooLine } from "./lean";
 
 /** Bump to make every saved sheet pack rebuild. */
 export const PACK_V = 3;
@@ -315,33 +316,31 @@ export function outfitLock(refs: string, outfit: string | undefined, sheetOutfit
         : o
           ? `She wears ${o}, exactly as described in this prompt.`
           : "She wears only the outfit described in this prompt.";
-  return ` OUTFIT LOCK: use ${refs} for her face, hair and body shape only and ignore the clothing shown there. ${wear}${so ? ` Never dress her in the reference outfit (${so}).` : ""}`;
+  return ` OUTFIT LOCK: ${wear} The clothing in ${refs} is a placeholder${so ? ` (${so})` : ""}, never worn.`;
 }
 
 export function refOutfitGuard(refs: string, photo: string, so?: string): string {
-  return `Ignore the clothing shown in ${refs}, which is only a placeholder; she wears only the outfit of ${photo}, or the new outfit this edit describes.${so ? ` Never dress her in the reference outfit (${so}).` : ""}`;
+  return `Ignore the clothing in ${refs}, a placeholder${so ? ` (${so})` : ""}: she wears only the outfit of ${photo}, or the new outfit this edit describes.`;
 }
 
-/** Identity lock when there is no sheet pack: the whole sheet, or up to 3 reference photos, are the only images sent. */
+/** The outfit sentence of a prompt made from her references alone. */
+const wearLine = (outfit: string | undefined) => {
+  const o = String(outfit || "").replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 300);
+  return o ? `She wears only ${o}.` : "She wears only the outfit described in this prompt.";
+};
+
+/**
+ * Identity lock when there is no sheet pack: the whole sheet, or up to 3 reference photos, are the only images sent.
+ * `ol` is extra wording for the end (the outfit lock, the overlay rule).
+ */
 export function lockRefs(text: string, n: number, isSheet: boolean, ol: string): string {
   n = Math.max(1, Math.min(n || 1, 3));
-  let t = String(text || "").trim();
-  t = t.replace(OPENER, "");
-  t = t.replace(/\bthe\s+uploaded\s+(?:character\s+)?(?:reference\s+)?sheet\b/gi, "@image1").replace(/\bthe\s+(?:character|reference)\s+sheet\b/gi, "@image1");
-  t = t.replace(/@image(\d+)\b/gi, (_m, d) => (+d >= 1 && +d <= n ? "@image" + d : "@image1"));
-  t = t.replace(/@(?!image\d)[A-Za-z][\w-]*\b/g, "@image1");
-  const all = n === 1 ? "@image1" : n === 2 ? "@image1 and @image2" : "@image1, @image2 and @image3";
-  const head = isSheet
-    ? "Use @image1 as the strict identity reference. @image1 is the character reference sheet and the only reference image: take the person's exact face, bone structure, eyes, brows, nose, lips, skin tone, freckles, moles and marks, hair colour, length and texture, and her exact body shape and proportions from @image1. " + BODY_LOCK + " Take only the person from @image1, never its grid layout, panels, grey background, studio light or plain outfit."
-    : `Use ${all} as the strict identity reference. ${n > 1 ? "They are reference photos of one and the same person" : "@image1 is a reference photo of the person"}: take the person's exact face, bone structure, eyes, brows, nose, lips, skin tone, freckles, moles and marks, hair colour, length and texture, and her exact body shape and proportions from ${all}. ${BODY_LOCK} Take only the person from ${n > 1 ? "them" : "@image1"}, never ${n > 1 ? "their" : "its"} background, outfit, pose or lighting.`;
-  const tail =
-    (ol || "") +
-    (hasQualityLine(t) ? "" : " " + REALISM_FIX.quality) +
-    (/gibberish|garbled/i.test(t) ? "" : " " + TEXT_RULE) +
-    " " +
-    MODS_RULE +
-    " Final identity check: the person in this image is the exact same person as in @image1, with an identical face, features, skin, hair, body shape and proportions.";
-  return head + "\n\n" + t + tail;
+  const t = sceneText(text, n);
+  const tags = tagList(n);
+  const R = { roles: tags.map(() => (isSheet ? "her character reference sheet" : "a reference photo of her")), kinds: tags.map(() => (isSheet ? "body" : "photo")) };
+  const head = sentences(refRoles(R, tags), n > 1 && "They all show the same woman.", priority());
+  const tail = sentences((ol || "").trim(), personOnly(tags, isSheet), !hasQualityLine(t) && REALISM_FIX.quality, !/gibberish|garbled/i.test(t) && TEXT_SHORT);
+  return paragraphs(head, t, tail);
 }
 
 /**
@@ -368,68 +367,36 @@ export interface RefSet {
  * Recreate: the new image keeps the image quality and shading the written prompt describes (from the target), and she is
  * lit by the scene, never by the reference sheets' flat studio light.
  */
-export const QUALITY_SHADING_MATCH =
-  "Keep the image quality and shading described above, and light her with the scene's light, never the references' flat studio light or a cleaner, sharper look.";
-
-/**
- * Inject's BODY LOCK, short enough that the whole framed prompt fits the image model's 5,000 characters with room for
- * the scene. It leads the identity framing: her body is the first thing the model is told to keep.
- */
-export const bodyLockTop = (tag: string) =>
-  `BODY LOCK (top priority): her body matches ${tag} exactly: the same height impression, frame, shoulder width, bust, waist, hips, glutes, thighs, leg length, arm thickness and muscle tone. Never slim, enlarge, tone, idealise or normalise her toward a typical body, never adapt her figure to the pose, outfit or the original person, and keep extreme proportions at the same scale.`;
-
-/** The body-modification rule in one line, for Inject's framing. */
-export const MODS_SHORT = "Her tattoos, piercings, scars and moles come only from her references and profile: add none she lacks and copy none from the scene. " + SKIN_ART_SHORT;
+export const QUALITY_SHADING_MATCH = "Light her with the scene's own light, as described above, never the references' flat studio light.";
 
 /** Edit: the edited photo keeps @image1's own image quality and shading, and she is lit by its light. */
 export const QUALITY_SHADING_KEEP =
   "She is lit and shaded by @image1's own light: the same direction, contrast, shadow depth and softness, and colour of light on her skin, hair and clothes as on everything around her. Keep @image1's image quality exactly: the same sharpness, noise or grain, compression and colour grade; never make it cleaner, sharper or more evenly lit.";
 
 export function framePrompt(
-  mk: ModelFamily,
+  _mk: ModelFamily,
   text: string,
   R: RefSet,
   frame: string | undefined,
   ox: { outfit?: string; clean?: boolean; realism?: boolean } = {},
 ): string {
+  // One framing for every image model: the lean order (image roles, her fixed block, priority, scene, guards).
   const n = R.roles.length;
   const tags = tagList(n);
-  const all = joinTags(tags);
-  const bodyTag = bodyRefTags(R.kinds, tags) || all;
-  const roles = R.roles.map((role, i) => `${tags[i]} is ${role}`).join(", ");
-  const t = bodyScrub(sceneText(text, n), R.anchors);
-  const an = pickAnchors(R.anchors, frame);
-  const avoid = (an.avoid || []).map((x) => x.replace(/^not\s+/i, ""));
-  const body = [an.upper, an.mid, an.legs].filter(Boolean).join("; ");
-  const outfit = String(ox.outfit || "").replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 300);
-  const so = String(R.anchors?.sheetOutfit || "").replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 140);
-  // Every rule once, in as few words as hold it: the scene the writer made keeps most of the 5,000 characters.
-  const tail =
-    ` OUTFIT LOCK: she wears only ${outfit || "the outfit described in this prompt"}, never the clothing in the references${so ? ` (${so})` : ""}.` +
-    (ox.clean ? " " + OVERLAY_RULE : "") +
+  const block = identityBlock(R.anchors, frame);
+  // The written scene may already carry her block (Inject shows it in the prompt): it is said once, up here.
+  const t = bodyScrub(sceneText(text, n), R.anchors).replace(block || "\u0000", "").replace(/\n{3,}/g, "\n\n").trim();
+  const sheet = R.kinds.some(isSheetKind);
+  const head = sentences(refRoles(R, tags), n > 1 && "They all show the same woman.");
+  const tail = sentences(
+    wearLine(ox.outfit),
+    personOnly(tags, sheet, R.anchors?.sheetOutfit),
+    ox.clean && OVERLAY_RULE,
     // Realism off (Director): the scene's own look stands, with no photo-quality lines added.
-    (ox.realism === false ? " Keep the look, light and style described above." : " " + QUALITY_SHADING_MATCH + (hasQualityLine(t) ? "" : " " + REALISM_FIX.quality)) +
-    (/gibberish|garbled/i.test(t) ? "" : " " + TEXT_SHORT) +
-    " " + MODS_SHORT;
-  const lock = bodyLockTop(bodyTag);
-  const notThe = "Take only the person from the references, never their grid, panels, plain background, studio light or placeholder outfit.";
-  if (mk === "nb") {
-    const imgs = R.roles.map((role, i) => `Image ${i + 1} (${tags[i]}) shows ${role}.`).join(" ");
-    const head = `The woman in this photo is the woman in the reference images. ${imgs} They all show the same woman. ${lock}${body ? ` Her body: ${body}.` : ""} Copy her face exactly from the reference images.${an.face ? ` Her face: ${an.face}.` : ""}${an.hair ? ` Copy her hair exactly: ${an.hair}.` : ""}${an.skin ? ` Her skin: ${an.skin}.` : ""}${avoid.length ? ` Do not give her: ${avoid.join("; ")}.` : ""} ${notThe}`;
-    return head + "\n\n" + t + tail + " She must look exactly like the woman in the reference images: the same face, hair, skin, body shape and proportions.";
-  }
-  const head = `Use ${all} as the strict identity reference. They show one and the same woman: ${roles}. ${lock} Take her exact face, bone structure, eyes, brows, nose, lips, skin tone, freckles, moles and marks, and her hair colour, length and texture from ${all}. ${notThe}`;
-  const end = `${tail} Final identity check: the exact same woman as in ${all}, with an identical face, hair, skin, body shape and proportions.`;
-  if (mk === "pro") {
-    // Her body leads the IDENTITY words, so the first thing the model reads is her build.
-    const words = [body && `body: ${body}`, an.hair && `hair: ${an.hair}`, an.face && `face: ${an.face}`, an.skin && `skin: ${an.skin}`].filter(Boolean).join(". ");
-    const first = words ? `IDENTITY (follow exactly; where any description below differs, follow this and the reference images): ${words}.${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""}\n\n` : "";
-    const key = [an.mid || an.upper, an.hair].filter(Boolean);
-    const again = key.length ? ` Identity again: ${key.join("; ")}.` : "";
-    return first + head + "\n\n" + t + again + end;
-  }
-  const look = [body && `body: ${body}`, an.hair && `hair: ${an.hair}`].filter(Boolean).join("; ");
-  return head + "\n\n" + t + (look ? ` Her look from the reference: ${look}.${avoid.length ? ` Not: ${avoid.slice(0, 3).join("; ")}.` : ""}` : "") + end;
+    ox.realism === false ? "Keep the look, light and style described above." : sentences(QUALITY_SHADING_MATCH, !hasQualityLine(t) && REALISM_FIX.quality),
+    !/gibberish|garbled/i.test(t) && TEXT_SHORT,
+  );
+  return paragraphs(head, block, sentences(priority(), tattooLine(block)), t, tail);
 }
 
 /** What a photo edit may change; everything else in the target is kept. */
@@ -442,32 +409,39 @@ export interface Changes {
   clean?: boolean;
 }
 
-/** The photo-edit instruction: @image1 is the target photo, @image2 onwards are her references. */
-export function basePrompt(R: RefSet, edit: string | undefined, frame: string | undefined, chg: Changes = {}): string {
+/**
+ * A swap into a photo: @image1 is the photo, @image2 onwards are her references. Direct swap and Inject's "Swap into
+ * photo" both use it; `change` is what an Inject version alters, and `keep` lists what stays.
+ */
+export function swapCore(R: RefSet, o: { who?: string; frame?: string; keep: string[]; change?: string; outfitChanges?: boolean; outfitText?: string; clean?: boolean; poseChanges?: boolean }): string {
   const tags = R.roles.map((_, i) => "@image" + (i + 2));
-  const ref = joinTags(tags);
-  const roles = tags.map((t, i) => `${t} is ${R.roles[i]}`).join(", ");
-  const bodyRef = bodyRefTags(R.kinds, tags) || ref;
-  const an = R.anchors ? pickAnchors(R.anchors, frame) : null;
-  const body = an ? [an.upper, an.mid, an.legs].filter(Boolean).join("; ") : "";
-  const avoid = an ? (an.avoid || []).map((x) => x.replace(/^not\s+/i, "")) : [];
-  const ch = String(edit || "").replace(/\s+/g, " ").trim().replace(/^none\.?$/i, "");
-  const keep = [
-    "expression and gaze",
-    "makeup and nail polish",
-    !chg.pose && "pose and hand placement",
-    !chg.outfit && "outfit and accessories",
-    !chg.hair && "hairstyle",
-    "props",
-    "background",
-    "light and colour",
-    "shading and shadows",
-    "framing",
-    "camera look",
-    "image quality",
-  ].filter(Boolean);
-  const who = chg.who?.trim() ? ` ${fence(chg.who).trim().slice(0, 60)}` : "";
-  return `Replace the person${who} in @image1 with the woman from ${ref}. ${roles}${tags.length > 1 ? "; they all show the same woman" : ""}. Copy her exact face, features, skin tone, freckles and marks, and her hair colour, length and texture${an && an.hair ? ` (${an.hair})` : ""}. Her body comes only from ${bodyRef}${body ? ` (${body})` : ""}. ${BODY_LOCK} Never keep the original person's body shape, tattoos, piercings or marks; she has only her own. ${SKIN_ART_SHORT}${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""}${outfitLock(ref, chg.outfitText, R.anchors?.sheetOutfit, chg.outfit ? "change" : "target")}${chg.clean ? " " + OVERLAY_RULE : ""}${ch ? ` Change: ${ch.replace(/\.?$/, ".")}` : ""} Keep everything ${ch ? "the change does not mention" : "else"} exactly as in @image1: ${keep.join(", ")}.${chg.pose ? " Adjust the framing only as much as the new pose needs." : ""} ${QUALITY_SHADING_KEEP} Take only the person from ${ref}, never ${tags.length > 1 ? "their" : "its"} layout, panels, plain background, studio light or plain outfit. It must look like a real unedited photo: matte textured skin with pores and small imperfections, slight softness and noise like a real camera; never glossy, waxy, airbrushed or plastic. If @image1 is a drawing or render, make it a real photograph. ${TEXT_SHORT} Garbled or unreadable text in @image1 becomes short, clean generic wording or a plain design.`;
+  const block = identityBlock(R.anchors, o.frame);
+  const sheet = R.kinds.some(isSheetKind);
+  const who = o.who?.trim() ? ` ${fence(o.who).replace(/\s+/g, " ").trim().slice(0, 60)}` : "";
+  const ch = String(o.change || "").replace(/\s+/g, " ").trim().replace(/^none\.?$/i, "");
+  const outfit = String(o.outfitText || "").replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 300);
+  const wear = o.outfitChanges
+    ? `She wears ${outfit || "the outfit the change describes"}, not the outfit in @image1.`
+    : `She wears exactly the outfit in @image1${outfit ? ` (${outfit})` : ""}, garment for garment.`;
+  return paragraphs(
+    sentences(
+      `Replace the person${who} in @image1 with the woman from ${joinTags(tags)}.`,
+      `@image1 is the photo to keep: its ${o.keep.join(", ")} stay exactly as they are${ch ? ", apart from the change below" : ""}.`,
+      refRoles(R, tags),
+    ),
+    block,
+    sentences(priority("the photo"), "Her body replaces the original person's completely, with none of that person's tattoos, piercings or marks.", tattooLine(block)),
+    sentences(ch && `Change: ${ch.replace(/\.?$/, ".")}`, o.poseChanges && "Adjust the framing only as much as the new pose needs.", wear, personOnly(tags, sheet, R.anchors?.sheetOutfit)),
+    sentences(realKeep("@image1"), "A drawing or render becomes a real photograph, and garbled text becomes short, clean wording.", o.clean && OVERLAY_RULE),
+  );
+}
+
+/** Inject's photo edit: the target is @image1, her references follow, and only the version's EDIT line changes. */
+export function basePrompt(R: RefSet, edit: string | undefined, frame: string | undefined, chg: Changes = {}): string {
+  const keep = ["expression and gaze", "makeup", !chg.pose && "pose and hand placement", !chg.outfit && "outfit and accessories", !chg.hair && "hairstyle", "props", "background", "light and shadows", "framing", "camera look"].filter(
+    (x): x is string => !!x,
+  );
+  return swapCore(R, { who: chg.who, frame, keep, change: edit, outfitChanges: chg.outfit, outfitText: chg.outfitText, clean: chg.clean, poseChanges: chg.pose });
 }
 
 /** Points every @imageN in a prompt at an image that is actually sent (out-of-range tags become @image1). */

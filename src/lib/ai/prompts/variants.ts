@@ -3,9 +3,10 @@
  * where they are: her sheets can be two images (face and body), the person may add up to 2 extra images for the vibe or
  * outfit, and the carousel's nudity sentence is left out (no app-level screening).
  */
-import { asksMakeup, hasQualityLine, BODY_LOCK, fence, joinTags, makeupRule, MODS_RULE, REALISM_FIX, SKIN_ART_SHORT, TEXT_RULE } from "./rules";
+import { asksMakeup, hasQualityLine, fence, joinTags, makeupRule, REALISM_FIX, SKIN_ART_SHORT, TEXT_SHORT } from "./rules";
+import { identityBlock, isSheetKind, paragraphs, personOnly, priority, realKeep, refRoles, sentences, tattooLine } from "./lean";
 import { harness } from "./harness";
-import { pickAnchors, refOutfitGuard, type Anchors } from "./identity";
+import { refOutfitGuard, type Anchors } from "./identity";
 import type { CarouselTypeId, PlatformId, SlidePerson, VariantDimId } from "@/lib/variants-meta";
 
 const DIM_TEXT: Record<VariantDimId, string> = {
@@ -131,7 +132,8 @@ export function finishVariant(prompt: string, vt: VariantTags | null, so: string
   if (vt) t = t.replace(/\s*$/, " ") + refOutfitGuard(vt.ref, vt.photo, so) + " " + SKIN_ART_SHORT;
   if (!asksMakeup(extra) && !/MAKEUP STAYS/.test(t)) t = t.replace(/\s*$/, " ") + makeupRule(vt ? vt.photo : "the photo being edited");
   // ModelSpawn's standing rule: every prompt carries the realism line (the artifact relied on "keep the realism").
-  if (!hasQualityLine(t)) t = t.replace(/\s*$/, " ") + REALISM_FIX.quality;
+  // An edit keeps the photo's own look, so it gets the keep line, not the new-photo camera line.
+  if (!hasQualityLine(t)) t = t.replace(/\s*$/, " ") + realKeep(vt ? vt.photo : "the photo");
   return t;
 }
 
@@ -150,8 +152,8 @@ export function sceneLine(raw: unknown): string {
 export function outfitKeep(outfit: string, photo: string, recoloured = false): string {
   const o = fence(String(outfit)).replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 400);
   return recoloured
-    ? `SAME OUTFIT, NEW COLOURS: she wears the outfit from ${photo} recoloured exactly like this: ${o}. Every garment, shoe and accessory keeps its type, cut, fabric, finish and fit from ${photo} and takes exactly these colours, which replace its colours in ${photo}; nothing is added, removed or swapped.`
-    : `SAME OUTFIT: she wears exactly the outfit from ${photo}: ${o}. Every garment, shoe and accessory stays the same, with the same colours, fabrics, finish and fit; nothing is added, removed, swapped or recoloured.`;
+    ? `SAME OUTFIT, NEW COLOURS: she wears the outfit from ${photo} recoloured exactly like this: ${o}. Every garment keeps its type, cut, fabric and fit and takes these colours; nothing is added, removed or swapped.`
+    : `SAME OUTFIT: she wears exactly the outfit from ${photo}: ${o}. Nothing is added, removed, swapped or recoloured.`;
 }
 
 // ---------- carousel ----------
@@ -324,18 +326,25 @@ export function carouselSlidePrompt(
     .replace(/\{EXTRA(\d)\}/g, (_m, d) => (Number(d) >= 1 && Number(d) <= extraCount ? "@image" + (rt.length + 1 + Number(d)) : pt));
   let head: string;
   if (withHer && rt.length) {
-    const an = pickAnchors(refs.anchors, slide.person === "partial" ? "shoulders, arms, waist, hips, glutes, thighs, legs" : "");
-    const body = [an.upper, an.mid, an.legs].filter(Boolean).join("; ");
-    const so = refs.anchors?.sheetOutfit || "";
-    const og = ` Use ${R} for her face, hair and body only and ignore the clothing shown there; her outfit and accessories come only from ${pt}.${so ? ` Never dress her in the reference outfit (${so}).` : ""}`;
+    const kinds = refs.roles.map((r) => (/face/i.test(r) ? "faces" : /body|sheet/i.test(r) ? "body" : "photo"));
+    const block = identityBlock(refs.anchors, slide.person === "partial" ? "shoulders, arms, waist, hips, glutes, thighs, legs" : "");
+    const only = personOnly(rt, kinds.some(isSheetKind), refs.anchors?.sheetOutfit);
     head =
       slide.person === "full"
-        ? `Use ${R} as the strict identity reference for the woman: ${rt.map((x, k) => `${x} is ${refs.roles[k]}`).join(", ")}. Take her exact face, hair, skin, freckles and marks, and her exact body shape and proportions from them.${an.hair ? ` Hair: ${an.hair}.` : ""}${body ? ` Body: ${body}.` : ""} ${BODY_LOCK} ${pt} is the cover photo from the same shoot: match its outfit, accessories, colour grade, light and camera look, but this is a different photo. Use the new pose, camera angle and framing described below and never copy the cover's pose or composition. Take only the person from ${R}, never their grid layout, panels, plain backgrounds or plain outfit.${og}`
-        : `${pt} is the source photo from the same shoot. The partly visible woman is the same woman as in ${R}: match her skin tone, freckles, marks, nails and body proportions${body ? ` (${body})` : ""}, and her outfit and accessories from ${pt}. Take only the person from ${R}, never their grid layout, panels or plain outfit.${og}`;
+        ? paragraphs(
+            sentences(refRoles({ roles: refs.roles, kinds }, rt), `${pt} is the cover photo from the same shoot: match its outfit, accessories, colour grade, light and camera look, but this is a different photo, with the new pose, camera angle and framing described below.`),
+            block,
+            sentences(priority("the cover photo"), tattooLine(block), `Her outfit and accessories come only from ${pt}.`, only),
+          )
+        : paragraphs(
+            sentences(`${pt} is the source photo from the same shoot. The partly visible woman is the same woman as in ${R}: match her skin tone, marks, nails and body proportions, and her outfit and accessories from ${pt}.`),
+            block,
+            only,
+          );
   } else if (withHer)
     head = `${pt} is the cover photo from the same shoot. She is the same woman as in ${pt}, with the same face, hair, skin and body, but this is a different photo: use the new pose, camera angle and framing described below and never copy the cover's pose or composition.`;
   else head = `${pt} is the source photo from the same shoot. Use it only as the reference for the place, objects, colour grade, light and camera look. No people in the frame.`;
   const t2 = withHer ? t : t.replace(/^\s*No people in the frame\.\s*/i, "");
   const quality = withHer ? REALISM_FIX.quality : REALISM_FIX.quality.split(" Skin is")[0];
-  return head + "\n\n" + t2 + " " + quality + " " + TEXT_RULE + (withHer ? " " + MODS_RULE + (asksMakeup(t2) ? "" : " " + makeupRule(pt)) : "");
+  return head + "\n\n" + t2 + " " + quality + " " + TEXT_SHORT + (withHer && !asksMakeup(t2) ? " " + makeupRule(pt) : "");
 }

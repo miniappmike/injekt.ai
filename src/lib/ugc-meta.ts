@@ -16,6 +16,8 @@ export interface UgcShot {
   /** The place, her pose, who holds the phone, and the light. */
   scene: string;
   outfit: string;
+  /** The parts of her the shot shows ("face, hair, shoulders, bust, arms"), so only those are described. */
+  frame: string;
 }
 
 /** What was read from the product photos, shared by every shot. */

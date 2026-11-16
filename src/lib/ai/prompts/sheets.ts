@@ -1,6 +1,8 @@
 /** Reference sheet prompts. The face sheet is deliberately short and plain: a 2 by 3 grid, no accessories. */
-import { fence, PROPORTIONS_RULE } from "./rules";
+import { fence } from "./rules";
 
+// The original, full wording: the sheet prompts were left out of the shortening (see ./rules-full.ts).
+import { PROPORTIONS_RULE } from "./rules-full";
 const SH_GLUTE_SIZE: Record<string, string> = {smaller:'noticeably smaller glutes than in the body photos',ssmaller:'slightly smaller glutes than in the body photos',slarger:'slightly fuller, larger glutes than in the body photos',larger:'noticeably fuller, larger glutes than in the body photos',xlarger:'much fuller, larger glutes than in the body photos',xxlarger:'extremely large, exaggerated glutes, far bigger than in the body photos, at full scale and never toned down'};
 const SH_GLUTE_SHAPE: Record<string, string> = {round:'a round, full glute shape',heart:'a heart-shaped glute shape, fuller at the lower curve',lifted:'a lifted, toned, firm glute shape',athletic:'athletic, muscular glutes with visible muscle definition, like a regular gym-goer',soft:'a soft, natural glute shape with little muscle definition'};
 const CUPS = ["A", "B", "C", "D", "DD", "E", "F", "G", "H", "I", "J"];

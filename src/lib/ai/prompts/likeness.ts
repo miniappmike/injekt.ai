@@ -2,7 +2,8 @@
  * The likeness system from the artifact (A10, A17, A18, A19), word for word: the full report, the quick score that runs
  * on generated images, the likeness fix (repaint the person) and the face fix (repaint only the face).
  */
-import { asksMakeup, BODY_LOCK, PROPORTIONS_WORDS, fence, joinTags, makeupRule, MODS_RULE, REALISM_FIX, TEXT_SHORT } from "./rules";
+import { asksMakeup, PROPORTIONS_WORDS, fence, joinTags } from "./rules";
+import { identityBlock, paragraphs, personOnly, priority, realKeep, refRoles, sentences, tattooLine } from "./lean";
 import { pickAnchors, type Anchors, type ModelFamily } from "./identity";
 
 /**
@@ -218,29 +219,38 @@ const bodyRefTags = (kinds: string[], tags: string[]) => joinTags(kinds.map((k, 
 
 /** A likeness fix corrects who she is, never what she wears. */
 export const OUTFIT_LOCK =
-  "OUTFIT LOCK (strict): every garment, shoe and accessory in @image1 stays exactly as it is: the same type, length, coverage, colour, fabric, wash, rips, layering and how it is worn. Full-length trousers stay full-length, sleeves keep their length, and nothing is shortened, cropped, removed, swapped, tucked differently or made more revealing; no skin is shown that @image1 covers. The references show her in plain sheet clothing only so her shape is visible; never take any clothing from them.";
+  "OUTFIT LOCK: every garment, shoe and accessory in @image1 stays exactly as it is, with the same type, length, coverage, colour and fabric; nothing is shortened, removed, swapped or made more revealing.";
 
 /**
  * The sheets show her in a plain white tube top and shorts (or a black bikini). That clothing was leaking into fixed
  * photos even when the pack had no outfit note, so it is always named, whatever the pack says.
  */
 export const SHEET_CLOTHES_RULE =
-  "The reference sheets show her in plain white or black sheet clothing (a plain tube top, shorts or bikini) and nothing else: do not put a white top, white shorts, a bikini or any other sheet clothing on her. Her top and bottom are the ones in @image1, nothing else; the new body only fills them.";
+  "The references show her in plain white or black sheet clothing (a tube top, shorts or a bikini) only so her shape is visible: never put any of it on her; the new body only fills the clothes in @image1.";
 
-/** Repaints the person in @image1 from her references (artifact fixParts). */
-export function likenessFixPrompt(R: FixRefs, fixes: string[], frame: string | undefined, family: ModelFamily, outfit?: string): string {
+/** Repaints the person in @image1 from her references. */
+export function likenessFixPrompt(R: FixRefs, fixes: string[], frame: string | undefined, _family: ModelFamily, outfit?: string): string {
   const tags = R.roles.map((_, i) => "@image" + (i + 2));
-  const an = pickAnchors(R.usePack ? R.anchors : null, frame);
-  const body = [an.upper, an.mid, an.legs].filter(Boolean).join("; ");
-  const bodyRef = (R.usePack && bodyRefTags(R.kinds, tags)) || joinTags(tags);
-  const avoid = (an.avoid || []).map((x) => x.replace(/^not\s+/i, ""));
-  const words = [an.hair && `hair: ${an.hair}`, an.face && `face: ${an.face}`, an.skin && `skin: ${an.skin}`, body && `body: ${body}`].filter(Boolean).join(". ");
-  const first = family === "pro" && words ? `IDENTITY (follow exactly): ${words}.${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""}\n\n` : "";
-  const sheetOutfit = R.usePack && R.anchors?.sheetOutfit;
+  const block = identityBlock(R.usePack ? R.anchors : null, frame);
+  const sheetOutfit = R.usePack ? R.anchors?.sheetOutfit : "";
   const who = (fixes ?? []).filter((f) => !clothingFix(f) && !accessoryFix(f));
   const keep = (outfit ?? "").replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 300);
-  const keepLine = keep ? ` OUTFIT TO KEEP, exactly as @image1 shows it: ${keep}.` : "";
-  return `${first}@image1 is the PHOTO TO EDIT: its pose, outfit, props, background, light and framing stay. ${tags.map((t, i) => `${t} is ${R.roles[i]}`).join(", ")}; ${tags.length > 1 ? "these are REFERENCE PHOTOS of the same woman" : "this is a REFERENCE PHOTO of her"}, used only for who she is. Replace the woman in @image1 with the woman from ${joinTags(tags)}, copying only her face, hair, skin tone and body from ${tags.length > 1 ? "them" : "it"}, nothing she wears. Rebuild only who she is: her facial structure, hair, skin tone and body proportions must be the reference woman's, not those of the woman currently in @image1. ${who.length ? `In particular: ${who.join("; ")}.` : ""}${an.face ? ` Face: ${an.face}.` : ""}${an.hair ? ` Hair: ${an.hair}.` : ""}${an.skin ? ` Skin: ${an.skin}.` : ""}${body ? ` Her body must match ${bodyRef} exactly: ${body}; her clothes only re-drape over that shape.` : ""}${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""} Keep everything else from @image1: the pose, expression, outfit, props, background, light, framing and camera look.${keepLine} ${OUTFIT_LOCK} ${BODY_LOCK} Take only the person from ${joinTags(tags)}, never their layout, panels, backgrounds or outfit.${sheetOutfit ? ` Never dress her in the reference outfit (${sheetOutfit}).` : ""} ${SHEET_CLOTHES_RULE} ${MODS_RULE} ${makeupRule("@image1")} ${REALISM_FIX.quality} ${TEXT_SHORT}`;
+  return paragraphs(
+    sentences(
+      "@image1 is the PHOTO TO EDIT: its pose, expression, outfit, props, background, light and framing stay exactly as they are.",
+      refRoles(R, tags),
+      `${tags.length > 1 ? "These are REFERENCE PHOTOS of the same woman" : "This is a REFERENCE PHOTO of her"}, used only for who she is.`,
+    ),
+    block,
+    sentences(
+      `Rebuild only who she is: the woman in @image1 becomes the woman from ${joinTags(tags)}, with her facial structure, hair, skin tone and body proportions, not those of the woman currently in @image1.`,
+      who.length > 0 && `Fix in particular: ${who.join("; ")}.`,
+      priority("the photo"),
+      tattooLine(block),
+    ),
+    sentences(keep && `OUTFIT TO KEEP, exactly as @image1 shows it: ${keep}.`, OUTFIT_LOCK, SHEET_CLOTHES_RULE, personOnly(tags, true, sheetOutfit || ""), "Keep the makeup from @image1 and add no tattoos or piercings she lacks."),
+    realKeep("@image1"),
+  );
 }
 
 // ---------- A19: face fix ----------
@@ -249,15 +259,25 @@ export function faceFixPrompt(R: { roles: string[]; anchors: Anchors | null }, o
   const tags = R.roles.map((_, i) => "@image" + (i + 2));
   const ref = joinTags(tags);
   const roles = tags.map((t, i) => `${t} is ${R.roles[i]}`).join(", ");
-  const an = pickAnchors(R.anchors, o.hair ? "face, hair" : "face");
-  const avoid = (an.avoid || [])
-    .filter((x) => !/slim|thin|hip|glute|waist|curv|figure|body|bust|chest|leg|thigh|athletic|skinny|narrow|build/i.test(x) && (o.hair || !/hair/i.test(x)))
-    .map((x) => x.replace(/^not\s+/i, ""));
+  const block = identityBlock(R.anchors, o.hair ? "face, hair" : "face").replace(/ Hair: [^.]*\./, (m) => (o.hair ? m : ""));
   const hairLine = o.hair
-    ? `Also match her hair colour and hairline${an.hair ? ` (${an.hair})` : ""}, but keep the hairstyle, length, parting and how the hair falls exactly as in @image1.`
-    : "Keep the hair exactly as in @image1: the same style, colour, length, parting, flyaways and how it falls around the face.";
-  return `FACE-ONLY EDIT of @image1. ${roles}${tags.length > 1 ? "; they all show the same woman" : ""}. Replace only the face of the woman in @image1 with her face from ${ref}, so she is unmistakably the reference woman. Copy her exact facial identity: face shape, bone structure, forehead, cheekbones, jaw and chin, eye shape, eye colour, eye spacing, eyelids and lashes, brows, nose, lips and mouth shape, ears if visible, facial skin tone and undertone, and only the freckles, moles, marks and face piercings she has${an.face ? `. Her face: ${an.face}` : ""}${an.skin ? `. Her skin: ${an.skin}` : ""}.${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""} ${hairLine}
-Keep the face's pose from @image1: the same head position, tilt and turn, gaze direction and expression (the same smile or mouth position, eye openness and brow movement), rebuilt with her features. Match @image1's light on the new face: the same light direction, shadows, highlights, colour temperature, colour grade, sharpness, focus, grain and noise, and blend the face seamlessly into the neck, ears and hairline with no visible edge, halo, seam or colour shift. If part of her face is hidden or out of frame in @image1, change only what is visible and add nothing that is not in frame.
-Change nothing else: her body and its proportions, the skin on her body, the outfit, accessories, hands, pose, props, background, framing, crop and camera angle stay exactly as in @image1. Take only her face from ${ref}, never its grid, panels, background, studio light, hairstyle or clothing.
-It must look like a real, unedited photo: matte, textured facial skin with visible pores, fine peach fuzz, slightly uneven tone and small natural imperfections; no smoothing, beauty filter, glow, waxy, plastic, doll or CGI look. Keep the makeup from @image1 exactly, rebuilt on her features: the same eyeshadow colours and placement, eyeliner shape, lashes, brow styling, blush, contour, highlighter and lip colour and finish; do not remove, lighten or add makeup${o.note && asksMakeup(o.note) ? " except as the note below asks" : ""}. Do not add tattoos or piercings she does not have.${o.note ? ` Note: ${fence(o.note).slice(0, 160)}` : ""}`;
+    ? "Also match her hair colour and hairline, but keep the hairstyle, length, parting and how the hair falls exactly as in @image1."
+    : "Keep the hair exactly as in @image1: the same style, colour, length and parting.";
+  return paragraphs(
+    sentences(
+      `FACE-ONLY EDIT of @image1. ${roles}${tags.length > 1 ? "; they all show the same woman" : ""}.`,
+      `Replace only the face of the woman in @image1 with her face from ${ref}, so she is unmistakably the reference woman: the same face shape and bone structure, eyes and eye colour, brows, nose, lips, facial skin tone and face marks.`,
+    ),
+    block,
+    sentences(
+      hairLine,
+      "Keep the head position, gaze and expression from @image1, and match its light, colour, sharpness and grain on the new face, blended into the neck and hairline with no visible edge. If part of her face is hidden in @image1, change only what is visible.",
+    ),
+    sentences(
+      `Change nothing else: her body, outfit, hands, pose, props, background and framing stay exactly as in @image1. Take only her face from ${ref}, never ${tags.length > 1 ? "their" : "its"} grid, background, hairstyle or clothing.`,
+      `Keep the makeup from @image1, rebuilt on her features${o.note && asksMakeup(o.note) ? ", except as the note below asks" : ""}, and add no tattoos or piercings she lacks.`,
+      "Realistic facial skin texture with pores and small imperfections; no smoothing, glossy, waxy or CGI look.",
+      o.note && `Note: ${fence(o.note).slice(0, 160)}`,
+    ),
+  );
 }

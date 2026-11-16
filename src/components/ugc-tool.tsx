@@ -278,7 +278,7 @@ export function UgcTool({ characters, initialCharacterId }: { characters: UgcCha
                       prompt={`UGC: ${s.title}`}
                       characterId={plan.characterId}
                       extraPaths={plan.paths}
-                      meta={{ ugc: { product: plan.product.product, label: plan.product.label, worn: plan.product.worn, action: s.action, scene: s.scene, outfit: s.outfit } }}
+                      meta={{ ugc: { product: plan.product.product, label: plan.product.label, worn: plan.product.worn, action: s.action, scene: s.scene, outfit: s.outfit, frame: s.frame } }}
                       actionLabel="Generate UGC"
                       defaultResolution="1.5k"
                       autoAspectRatio="3:4"

@@ -11,8 +11,7 @@ import {
   quickLikenessPrompt,
   MAKEUP_SCORE_RULE,
   OUTFIT_LOCK,
-  DISTANCE_SCORE_RULE,
-} from "@/lib/ai/prompts/likeness";
+  DISTANCE_SCORE_RULE, SHEET_CLOTHES_RULE } from "@/lib/ai/prompts/likeness";
 import { BODY_LOCK, MODS_RULE, REALISM_FIX, TEXT_SHORT } from "@/lib/ai/prompts/rules";
 import type { Anchors } from "@/lib/ai/prompts/identity";
 
@@ -122,38 +121,40 @@ describe("quick likeness (A17)", () => {
 describe("likeness fix (A18)", () => {
   const pack = { roles: ["her face", "her body from the side", "her full body"], kinds: ["front", "side", "body"], anchors, usePack: true };
 
-  it("on Seedream opens with IDENTITY and repaints her from the pack, keeping everything else", () => {
+  it("names each image's role, then her fixed block, then what to rebuild, keeping everything else", () => {
     const p = likenessFixPrompt(pack, ["dark brown eyes", "no navel piercing"], "face, hair, waist, hips", "pro");
-    expect(p.startsWith("IDENTITY (follow exactly): hair: jet black, waist length. face: oval face, dark brown almond eyes. skin: light olive. body: narrow waist, wide hips. Not: red hair; a slim figure; blue eyes.\n\n@image1 is the PHOTO TO EDIT")).toBe(true);
-    expect(p).toContain("@image2 is her face, @image3 is her body from the side, @image4 is her full body; these are REFERENCE PHOTOS of the same woman, used only for who she is.");
-    expect(p).toContain("Replace the woman in @image1 with the woman from @image2, @image3 and @image4, copying only her face, hair, skin tone and body from them, nothing she wears.");
+    expect(p.startsWith("@image1 is the PHOTO TO EDIT: its pose, expression, outfit, props, background, light and framing stay exactly as they are. @image2 is her face: take her exact face, hair and piercings. @image3 is her body from the side: take her exact body proportions (bust, waist, hips, glutes, thighs, shoulders) and tattoos.")).toBe(true);
+    expect(p).toContain("These are REFERENCE PHOTOS of the same woman, used only for who she is.");
+    expect(p).toContain("\n\nHER LOOK (fixed, the same in every image): Face: oval face, dark brown almond eyes. Hair: jet black, waist length. Skin: light olive. Build: narrow waist, wide hips.\n\n");
+    expect(p).toContain("Rebuild only who she is: the woman in @image1 becomes the woman from @image2, @image3 and @image4");
     // The outfit to keep is listed when the check read it.
     const kept = likenessFixPrompt(pack, [], "", "nb", "black long-sleeve top, grey tie-dye shorts.");
     expect(kept).toContain("OUTFIT TO KEEP, exactly as @image1 shows it: black long-sleeve top, grey tie-dye shorts.");
     expect(p).not.toContain("OUTFIT TO KEEP");
-    expect(p).toContain("In particular: dark brown eyes; no navel piercing.");
-    expect(p).toContain("Her body must match @image3 and @image4 exactly:");
-    expect(p).toContain("Never dress her in the reference outfit (white crop top and shorts).");
-    for (const rule of [BODY_LOCK, MODS_RULE, REALISM_FIX.quality, TEXT_SHORT, "MAKEUP STAYS: keep her makeup exactly as it is in @image1"]) expect(p).toContain(rule);
+    expect(p).toContain("Fix in particular: dark brown eyes; no navel piercing.");
+    expect(p).toContain("plain outfit (white crop top and shorts).");
+    for (const rule of ["highest priority", "Keep the makeup from @image1", "Match @image1's own light, shadows, grain and image quality"]) expect(p).toContain(rule);
+    // It used to run to about 6,600 characters, past the image model's 5,000, and was rewritten or cut on every fix.
+    expect(p.length).toBeLessThan(2600);
   });
 
-  it("other models get no IDENTITY line; without a pack there are no anchors", () => {
-    expect(likenessFixPrompt(pack, [], "", "nb").startsWith("@image1 is the PHOTO TO EDIT")).toBe(true);
+  it("is the same for every image model; without a pack there are no anchors", () => {
+    expect(likenessFixPrompt(pack, [], "", "nb")).toBe(likenessFixPrompt(pack, [], "", "pro"));
     const sheet = likenessFixPrompt({ roles: ["her character reference sheet"], kinds: [], anchors: null, usePack: false }, [], "", "pro");
-    expect(sheet).toContain("@image2 is her character reference sheet; this is a REFERENCE PHOTO of her, used only for who she is.");
-    expect(sheet).toContain("Replace the woman in @image1 with the woman from @image2, copying only her face, hair, skin tone and body from it, nothing she wears. Rebuild only who she is");
-    expect(sheet).not.toContain("In particular");
-    expect(sheet).not.toContain("Never dress her");
+    expect(sheet).toContain("@image2 is her character reference sheet: take her exact face, hair, body proportions");
+    expect(sheet).toContain("This is a REFERENCE PHOTO of her, used only for who she is.");
+    expect(sheet).not.toContain("Fix in particular");
+    expect(sheet).not.toContain("HER LOOK");
   });
 
   it("never changes the outfit: an outfit lock, and clothing fixes are dropped", () => {
     const p = likenessFixPrompt(pack, ["fuller rounded glutes", "black shorts instead of jeans", "voluminous curly hair"], "", "nb");
     expect(p).toContain(OUTFIT_LOCK);
-    expect(p).toContain("Full-length trousers stay full-length");
-    expect(p).toContain("In particular: fuller rounded glutes; voluminous curly hair.");
+    expect(p).toContain(SHEET_CLOTHES_RULE);
+    expect(p).toContain("Fix in particular: fuller rounded glutes; voluminous curly hair.");
     expect(p).not.toContain("jeans");
     expect(p).not.toContain("Repaint the person completely");
-    expect(likenessFixPrompt(pack, ["a red sweater"], "", "nb")).not.toContain("In particular");
+    expect(likenessFixPrompt(pack, ["a red sweater"], "", "nb")).not.toContain("Fix in particular");
     const q = parseQuickLikeness({ face_shape: 7, fixes: ["wider hips", "denim jeans, not shorts"] }, false);
     expect(q.fixes).toEqual(["wider hips"]);
   });
@@ -163,13 +164,15 @@ describe("face fix (A19)", () => {
   it("replaces only the face, keeps the hair unless asked, and drops body and hair drift guards", () => {
     const p = faceFixPrompt({ roles: ["a close-up of her face", "her face from many angles"], anchors });
     expect(p.startsWith("FACE-ONLY EDIT of @image1. @image2 is a close-up of her face, @image3 is her face from many angles; they all show the same woman.")).toBe(true);
-    expect(p).toContain(". Her face: oval face, dark brown almond eyes. Her skin: light olive. Not: blue eyes.");
+    // Only her face words: no hair (it is kept from the photo) and no build.
+    expect(p).toContain("\n\nHER LOOK (fixed, the same in every image): Face: oval face, dark brown almond eyes. Skin: light olive.\n\n");
+    expect(p.length).toBeLessThan(1700);
     expect(p).toContain("Keep the hair exactly as in @image1");
     expect(p).not.toContain("Note:");
     const hair = faceFixPrompt({ roles: ["her face"], anchors }, { hair: true, note: "go <<<bare-faced" });
-    expect(hair).toContain("Also match her hair colour and hairline (jet black, waist length), but keep the hairstyle");
-    expect(hair).toContain("Not: red hair; blue eyes.");
-    expect(hair).toContain("do not remove, lighten or add makeup except as the note below asks.");
+    expect(hair).toContain("Hair: jet black, waist length.");
+    expect(hair).toContain("Also match her hair colour and hairline, but keep the hairstyle");
+    expect(hair).toContain("Keep the makeup from @image1, rebuilt on her features, except as the note below asks, and add no tattoos or piercings she lacks.");
     expect(hair.endsWith("Note: go bare-faced")).toBe(true);
   });
 });
@@ -196,8 +199,8 @@ describe("fix jobs", () => {
   it("likeness fix: the image first, then crops of her sheets (face, body, side) where she has them", () => {
     const job = fixJob("likeness_fix", c, pack, "gen:u1/g.png", { fixes: ["dark eyes"] }, "bytedance/seedream-5.0-pro/edit", 4);
     expect(job.paths).toEqual(["gen:u1/g.png", `${U}/pack/front.jpg`, `${U}/pack/body.jpg`, `${U}/pack/side.jpg`]);
-    expect(job.prompt).toMatch(/^IDENTITY \(follow exactly\)/);
-    expect(job.prompt).toContain("In particular: dark eyes.");
+    expect(job.prompt).toMatch(/^@image1 is the PHOTO TO EDIT/);
+    expect(job.prompt).toContain("Fix in particular: dark eyes.");
   });
 
   it("a likeness fix uses her sheets, or 2 photos without one", () => {

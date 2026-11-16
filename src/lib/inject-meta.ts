@@ -49,6 +49,7 @@ export const injectMetaSchema = z.object({
       action: z.string().min(1).max(220),
       scene: z.string().min(1).max(700),
       outfit: z.string().max(250).optional(),
+      frame: z.string().max(200).optional(),
     })
     .optional(),
   /** Reference sheet: which sheet, whether @image1 is a face sheet (or a face photo), and the outfit and body options. */

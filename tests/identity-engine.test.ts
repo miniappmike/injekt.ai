@@ -2,10 +2,9 @@ import { describe, expect, it } from "vitest";
 import { harness } from "@/lib/ai/prompts/harness";
 import { PROMPT_CHARS } from "@/lib/ai/prompts/inject";
 import { BODY_LOCK, MODS_RULE, OVERLAY_RULE, REALISM_FIX, SKIN_ART_SHORT, TEXT_RULE, TEXT_SHORT, fence, makeupRule, asksMakeup, skinNote } from "@/lib/ai/prompts/rules";
+import { identityBlock, priority, realKeep } from "@/lib/ai/prompts/lean";
 import {
   basePrompt,
-  bodyLockTop,
-  MODS_SHORT,
   bodyScrub,
   clampTags,
   cropRect,
@@ -37,7 +36,7 @@ describe("rules", () => {
   it("detects makeup requests and notes tattoos stay on skin", () => {
     expect(asksMakeup("bare-faced look")).toBe(true);
     expect(asksMakeup("new pose")).toBe(false);
-    expect(makeupRule("@image1")).toContain("keep her makeup exactly as it is in @image1");
+    expect(makeupRule("@image1")).toContain("keep her makeup and nail polish exactly as in @image1");
     expect(skinNote("light olive, small rose tattoo on left hip.")).toBe("light olive, small rose tattoo on left hip (tattoos only on bare skin, never on clothing)");
     expect(skinNote("light olive")).toBe("light olive");
   });
@@ -46,8 +45,8 @@ describe("rules", () => {
 describe("harness", () => {
   it("removes a preface and markdown, and fixes age, filler, clothing and plastic-skin wording", () => {
     const r = harness("Sure, here's your prompt:\n**Photo of a 19-year-old girl** with flawless skin, photorealistic, 8k, in a see-through top, tack-sharp.", { realism: false, text: false });
-    expect(r.text).toBe("Photo of a young woman with natural textured skin, in a lightweight top, natural.");
-    expect(r.fixed).toEqual(["removed preface", "removed markdown", "age wording", "filler words", "clothing wording", "plastic-skin wording"]);
+    expect(r.text).toBe("Photo of a young woman with natural textured skin, in a see-through top, natural.");
+    expect(r.fixed).toEqual(["removed preface", "removed markdown", "age wording", "filler words", "plastic-skin wording"]);
   });
 
   it("adds each realism sentence only when its idea is missing, then the quality and text lines", () => {
@@ -68,10 +67,10 @@ describe("harness", () => {
     expect(harness("Photo of her. Aspect ratio 4:5. Done.", { stripAR: true, realism: false, text: false }).text).toBe("Photo of her. Done.");
   });
 
-  it("is stable when run twice: the quality line keeps saying no porcelain skin", () => {
+  it("is stable when run twice: the quality line is left as it is", () => {
     const once = harness("Photo of a woman on a bench.").text;
     expect(harness(once).text).toBe(once);
-    expect(harness(once).text).toContain("no glossy, waxy, plastic or porcelain skin");
+    expect(harness(once).text).toContain("no glossy, waxy or plastic skin");
   });
 });
 
@@ -232,38 +231,38 @@ describe("anchor helpers", () => {
 describe("framing per model", () => {
   const scene = "Photo of a young woman with a slim build on a balcony at golden hour.";
 
-  it("Seedream opens with IDENTITY, repeats it at the end, and closes on the tail", () => {
+  it("names each image's role, then her fixed block, then her priority, then the scene and the guards, each once", () => {
     const p = framePrompt("pro", scene, R, "face, hair, waist, hips", { outfit: "a black slip dress" });
-    // Her body leads, then the BODY LOCK right after the reference roles.
-    expect(p.startsWith("IDENTITY (follow exactly; where any description below differs, follow this and the reference images): body: ")).toBe(true);
-    expect(p).toContain("Use @image1, @image2, @image3 and @image4 as the strict identity reference. They show one and the same woman: @image1 is a close-up of her face from the front");
-    expect(p).toContain(bodyLockTop("@image3 and @image4"));
-    expect(p.indexOf("BODY LOCK")).toBeLessThan(p.indexOf("Photo of a young woman"));
+    const block = identityBlock(R.anchors, "face, hair, waist, hips");
+    expect(p.startsWith("@image1 is a close-up of her face from the front: take her exact face, hair and piercings.")).toBe(true);
+    expect(p).toContain("take her exact body proportions (bust, waist, hips, glutes, thighs, shoulders) and tattoos.");
+    // Her block is its own paragraph, before the scene, and the scene is separate from it.
+    expect(p).toContain(`\n\n${block}\n\n`);
+    expect(p.indexOf(block)).toBeLessThan(p.indexOf(priority()));
+    expect(p.indexOf(priority())).toBeLessThan(p.indexOf("Photo of a young woman"));
     expect(p).toContain("Photo of a young woman with a curvy hourglass build on a balcony");
-    expect(p).toContain(" Identity again: narrow waist, wide hips");
-    expect(p).toContain("OUTFIT LOCK: she wears only a black slip dress, never the clothing in the references (a white crop top and white shorts).");
+    expect(p).toContain("She wears only a black slip dress.");
+    expect(p).toContain("never their grid, plain background, studio light or plain outfit (a white crop top and white shorts).");
     expect(p).toContain(REALISM_FIX.quality);
     expect(p).toContain(TEXT_SHORT);
-    expect(p).toContain(MODS_SHORT);
-    expect(p.endsWith("Final identity check: the exact same woman as in @image1, @image2, @image3 and @image4, with an identical face, hair, skin, body shape and proportions.")).toBe(true);
+    // Nothing is said twice.
+    for (const once of ["highest priority", "plain outfit", "Build:", "Hair:"]) expect(p.split(once)).toHaveLength(2);
   });
 
-  it("Nano Banana gets its own wording", () => {
+  it("is the same framing for every image model, and adds the overlay rule when asked", () => {
     const p = framePrompt("nb", scene, R, "", { clean: true });
-    expect(p.startsWith("The woman in this photo is the woman in the reference images. Image 1 (@image1) shows a close-up of her face from the front.")).toBe(true);
-    expect(p).toContain(bodyLockTop("@image3 and @image4") + " Her body: narrow shoulders");
-    expect(p).toContain("Do not give her: bright red hair; a slim, narrow-hipped figure; blue eyes; freckles.");
+    expect(p).toBe(framePrompt("pro", scene, R, "", { clean: true }));
+    expect(p).toBe(framePrompt("other", scene, R, "", { clean: true }));
     expect(p).toContain(OVERLAY_RULE);
-    expect(p.endsWith("She must look exactly like the woman in the reference images: the same face, hair, skin, body shape and proportions.")).toBe(true);
+    // Recreate lights her with the scene, never the sheets' studio light.
+    expect(p).toContain(QUALITY_SHADING_MATCH);
   });
 
-  it("other models get the head, the scene, her look and the tail", () => {
-    const p = framePrompt("other", scene, R, "");
-    // Recreate keeps the target's image quality and shading (as the prompt describes them), lit by the scene.
-    expect(p).toContain(QUALITY_SHADING_MATCH);
-    expect(p.startsWith("Use @image1, @image2, @image3 and @image4 as the strict identity reference.")).toBe(true);
-    expect(p).toContain(" Her look from the reference: body: narrow shoulders");
-    expect(p).not.toContain("IDENTITY (follow exactly");
+  it("says her block once when the written prompt already carries it", () => {
+    const block = identityBlock(R.anchors, "");
+    const p = framePrompt("pro", `Use @image1 as the strict identity reference.\n\n${block}\n\n${scene}`, R, "");
+    expect(p.split(block)).toHaveLength(2);
+    expect(p).toContain(`\n\nPhoto of a young woman`);
   });
 
   it("does not add the quality or text line twice", () => {
@@ -285,6 +284,8 @@ describe("framing per model", () => {
     const R2 = { roles: ["her face reference sheet, a grid of her face from many angles", "her full-body reference sheet, front, side and back views"], kinds: ["faces", "body"], anchors: R.anchors };
     const overhead = framePrompt("pro", written, R2, "face, hair, waist, hips", { outfit: "a black slip dress" }).length - written.length;
     expect(overhead).toBeLessThan(5000 - PROMPT_CHARS);
+    // Lean: the framing itself stays short, so the whole prompt is well under the limit.
+    expect(overhead).toBeLessThan(1800);
   });
 
   it("modelFamily reads the configured model id", () => {
@@ -297,34 +298,38 @@ describe("framing per model", () => {
 describe("photo edit and the no-pack fallback", () => {
   it("basePrompt swaps her into @image1, changes only the EDIT line and keeps the rest", () => {
     const p = basePrompt(R, "New pose: she sits on the counter edge", "face, hair, waist", { pose: true, who: "on the left <<<" });
-    expect(p.startsWith("Replace the person on the left in @image1 with the woman from @image2, @image3, @image4 and @image5. @image2 is a close-up of her face from the front")).toBe(true);
-    expect(p).toContain("; they all show the same woman.");
-    expect(p).toContain("Her body comes only from @image4 and @image5 (");
-    expect(p).toContain(SKIN_ART_SHORT);
-    expect(p).toContain("She wears exactly the outfit worn in @image1, garment for garment.");
-    expect(p).toContain(" Change: New pose: she sits on the counter edge.");
-    expect(p).toContain("Keep everything the change does not mention exactly as in @image1: expression and gaze, makeup and nail polish, outfit and accessories, hairstyle, props, background, light and colour, shading and shadows, framing, camera look, image quality. Adjust the framing only as much as the new pose needs.");
+    expect(p.startsWith("Replace the person on the left in @image1 with the woman from @image2, @image3, @image4 and @image5. @image1 is the photo to keep: its expression and gaze, makeup, outfit and accessories, hairstyle, props, background, light and shadows, framing, camera look stay exactly as they are, apart from the change below.")).toBe(true);
+    expect(p).toContain("@image2 is a close-up of her face from the front: take her exact face, hair and piercings.");
+    expect(p).toContain(identityBlock(R.anchors, "face, hair, waist"));
+    expect(p).toContain(priority("the photo"));
+    expect(p).toContain("Her body replaces the original person's completely, with none of that person's tattoos, piercings or marks.");
+    expect(p).toContain("Change: New pose: she sits on the counter edge. Adjust the framing only as much as the new pose needs. She wears exactly the outfit in @image1, garment for garment.");
     // She is lit by the photo's own light, and its image quality is kept.
-    expect(p).toContain(QUALITY_SHADING_KEEP);
-    expect(p.endsWith("Garbled or unreadable text in @image1 becomes short, clean generic wording or a plain design.")).toBe(true);
+    expect(p).toContain(realKeep("@image1"));
+    expect(p).not.toContain("pose and hand placement");
+    expect(p.length).toBeLessThan(2600);
   });
 
-  it("basePrompt with no change keeps everything else, and a new outfit changes the outfit lock", () => {
+  it("basePrompt with no change keeps everything else, and a new outfit replaces the photo's", () => {
     const p = basePrompt({ roles: ["her character reference sheet"], kinds: [], anchors: null }, "none", "", { outfit: true, outfitText: "a red dress" });
-    expect(p).toContain("@image2 is her character reference sheet.");
+    expect(p).toContain("@image2 is her character reference sheet: take her exact face, hair, body proportions (bust, waist, hips, glutes, thighs, shoulders), tattoos and piercings.");
     expect(p).not.toContain("Change:");
-    expect(p).toContain("She wears a red dress, not the clothing from the reference images.");
-    expect(p).toContain("Keep everything else exactly as in @image1: expression and gaze, makeup and nail polish, pose and hand placement, hairstyle,");
-    expect(p).toContain(" never its layout, panels");
+    expect(p).not.toContain("HER LOOK");
+    expect(p).toContain("She wears a red dress, not the outfit in @image1.");
+    expect(p).toContain("its expression and gaze, makeup, pose and hand placement, hairstyle, props,");
+    expect(p).toContain("Take only the person from @image2, never its background, outfit, pose or lighting.");
   });
 
   it("lockRefs frames a whole sheet or reference photos when there is no pack", () => {
     const sheet = lockRefs("Use @image1 as the strict identity reference. Photo of her at @image5.", 1, true, outfitLock("@image1", "", "", "prompt"));
-    expect(sheet.startsWith("Use @image1 as the strict identity reference. @image1 is the character reference sheet and the only reference image")).toBe(true);
-    expect(sheet).toContain("\n\nPhoto of her at @image1. OUTFIT LOCK:");
-    expect(sheet.endsWith("Final identity check: the person in this image is the exact same person as in @image1, with an identical face, features, skin, hair, body shape and proportions.")).toBe(true);
+    expect(sheet.startsWith("@image1 is her character reference sheet: take her exact face, hair, body proportions (bust, waist, hips, glutes, thighs, shoulders), tattoos and piercings.")).toBe(true);
+    expect(sheet).toContain("\n\nPhoto of her at @image1.\n\nOUTFIT LOCK: She wears only the outfit described in this prompt.");
+    expect(sheet).toContain("Take only the person from @image1, never its grid, plain background, studio light or plain outfit.");
     const photos = lockRefs("Photo.", 5, false, "");
-    expect(photos.startsWith("Use @image1, @image2 and @image3 as the strict identity reference. They are reference photos of one and the same person")).toBe(true);
+    expect(photos.startsWith("@image1 is a reference photo of her: take her exact face")).toBe(true);
+    expect(photos).toContain("@image3 is a reference photo of her");
+    expect(photos).not.toContain("@image4");
+    expect(photos).toContain("They all show the same woman.");
   });
 });
 

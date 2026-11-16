@@ -68,18 +68,20 @@ describe("finishVariant", () => {
     const t = finishVariant("Change the pose: she sits.", vt, "white shorts", "");
     expect(t.startsWith("Edit @image2. Keep the person exactly as she looks in @image1: same face, features, skin, hair, body shape and proportions. Change the pose: she sits.")).toBe(true);
     expect(t).toContain(TEXT_SHORT);
-    expect(t).toContain("Ignore the clothing shown in @image1, which is only a placeholder; she wears only the outfit of @image2, or the new outfit this edit describes. Never dress her in the reference outfit (white shorts).");
+    expect(t).toContain("Ignore the clothing in @image1, a placeholder (white shorts): she wears only the outfit of @image2, or the new outfit this edit describes.");
     expect(t).toContain(SKIN_ART_SHORT);
-    expect(t).toContain("MAKEUP STAYS: keep her makeup exactly as it is in @image2");
-    expect(t.endsWith(REALISM_FIX.quality)).toBe(true);
+    expect(t).toContain("MAKEUP STAYS: keep her makeup and nail polish exactly as in @image2");
+    // An edit keeps the photo's own look: no new-photo camera line.
+    expect(t.endsWith("Match @image2's own light, shadows, grain and image quality, never cleaner or sharper. Realistic skin texture with pores and small imperfections; no glossy, waxy or airbrushed skin.")).toBe(true);
+    expect(t).not.toContain("older smartphone");
   });
   it("keeps an existing opener, skips the makeup rule when asked for makeup, and works with no character", () => {
     const t = finishVariant("Edit @image2. Keep her as in @image1. New lipstick.", vt, "", "red lipstick");
     expect(t.startsWith("Edit @image2. Keep her as in @image1.")).toBe(true);
     expect(t).not.toContain("MAKEUP STAYS");
-    expect(t).not.toContain("Never dress her");
+    expect(t).not.toContain("a placeholder (");
     const solo = finishVariant("Keep the same person. New pose.", null, "", "");
-    expect(solo).toContain("MAKEUP STAYS: keep her makeup exactly as it is in the photo being edited");
+    expect(solo).toContain("MAKEUP STAYS: keep her makeup and nail polish exactly as in the photo being edited");
     expect(solo).not.toContain("placeholder");
   });
 });
@@ -132,13 +134,13 @@ describe("carousel (A20, A20b)", () => {
     const p = carouselSlidePrompt({ person: "full", prompt: "Same woman as {REF}, from a low angle, bag from {EXTRA1}." }, refs, 1);
     // A placeholder for an extra image that wasn't attached points at the cover instead.
     expect(carouselSlidePrompt({ person: "none", prompt: "Shoes from {EXTRA2}." }, { roles: [], anchors: null }, 1)).toContain("Shoes from @image1.");
-    expect(p.startsWith("Use @image1 and @image2 as the strict identity reference for the woman: @image1 is a close-up of her face, @image2 is her full body. Take her exact face")).toBe(true);
-    expect(p).toContain(" Hair: jet black.");
-    expect(p).toContain(BODY_LOCK);
+    expect(p.startsWith("@image1 is a close-up of her face: take her exact face, hair and piercings. @image2 is her full body: take her exact body proportions (bust, waist, hips, glutes, thighs, shoulders) and tattoos.")).toBe(true);
+    expect(p).toContain("Hair: jet black.");
+    expect(p).toContain("Her identity from the references is the highest priority");
     expect(p).toContain("@image3 is the cover photo from the same shoot");
-    expect(p).toContain("Never dress her in the reference outfit (white shorts).");
+    expect(p).toContain("plain outfit (white shorts).");
     expect(p).toContain("\n\nSame woman as @image1 and @image2, from a low angle, bag from @image4.");
-    for (const r of [REALISM_FIX.quality, TEXT_RULE, MODS_RULE, "MAKEUP STAYS: keep her makeup exactly as it is in @image3"]) expect(p).toContain(r);
+    for (const r of [REALISM_FIX.quality, TEXT_SHORT, "MAKEUP STAYS: keep her makeup and nail polish exactly as in @image3"]) expect(p).toContain(r);
   });
 
   it("a slide without her uses the cover only for the place, with no skin realism or body rules", () => {
@@ -225,7 +227,7 @@ describe("runVariants", () => {
     expect(task.prompt).toContain("- The user also attached @image3 after the photo");
     expect(r.variants).toHaveLength(1);
     expect(r.variants[0]).toMatchObject({ label: "Low angle laugh", changes: "pose, angle" });
-    expect(r.variants[0].prompt).toContain("Never dress her in the reference outfit (white shorts).");
+    expect(r.variants[0].prompt).toContain("a placeholder (white shorts)");
     expect(r.attach).toEqual(["@image1: face sheet (identity reference)", "@image2: the image to edit", "@image3: extra image"]);
     expect(h.saveHistory.mock.calls[0][2][0]).toMatchObject({ kind: "variant", label: "Photoshoot · Low angle laugh", imagePath: `${U}/t.jpg`, extraPaths: [`${U}/x.jpg`] });
     expect((writes[0].prefs as { recentPoses: string[] }).recentPoses).toEqual(["old pose", "Low angle laugh"]);
@@ -296,10 +298,10 @@ describe("runCarousel", () => {
     expect(h.run.mock.calls[0][0].prompt).toContain("Plan 8 NEW slides");
     const [her, room] = r.slides;
     expect(her.attach).toEqual(["@image1: Holly's face sheet", "@image2: Holly's body sheet", "@image3: your photo", "@image4: extra image 1"]);
-    expect(her.copy.startsWith("Use @image1 and @image2 as the strict identity reference for the woman: @image1 is her face reference sheet, @image2 is her body reference sheet.")).toBe(true);
+    expect(her.copy.startsWith("@image1 is her face reference sheet: take her exact face, hair and piercings. @image2 is her body reference sheet: take her exact body proportions")).toBe(true);
     expect(her.copy).toContain("Hair: jet black waves.");
     expect(her.copy).toContain("Same woman as @image1 and @image2, low angle, outfit from @image3 and @image4.");
-    expect(her.copy).toContain("Never dress her in the reference outfit (white shorts).");
+    expect(her.copy).toContain("plain outfit (white shorts).");
     expect(her.copy).toContain("beauty filter");
     expect(her.copy).not.toMatch(/\{(REF|PHOTO|EXTRA\d)\}/);
     // A slide without her needs only the photo (and extras).

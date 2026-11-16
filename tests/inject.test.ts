@@ -35,7 +35,7 @@ describe("buildInjectPrompt", () => {
   it("has no nudity screening: no filter, no strict safe mode, no NUDITY line; revealing clothing stays as worn", () => {
     const p = build({ poseMode: "social", pose: true, recolor: true, hair: true }, { n: 2 });
     for (const banned of ["NUDITY", "SAFE-SWAP", "STRICT SAFE MODE", "nude"]) expect(p).not.toContain(banned);
-    expect(p).toContain("- REVEALING CLOTHING IS FINE: bikinis, lingerie, bodysuits");
+    expect(p).toContain("- DESCRIBE WHAT YOU SEE, EXACTLY: the prompt has to match the target, so never soften, euphemise, swap or leave out anything visible.");
     expect(p).toContain("exactly as the prompt dresses her (after any recolour or new outfit).\n- Then one line that starts with EDIT:");
     expect(p).toContain("Always describe the character as an adult");
   });
@@ -75,7 +75,7 @@ describe("buildInjectPrompt", () => {
   it("matches the style: Sectioned never mentions ratio; Narrative and Short state it", () => {
     expect(build()).toContain("- Do not mention aspect ratio or image dimensions.");
     expect(build()).toContain("FORMAT: each prompt has an identity paragraph first, then labelled sections");
-    expect(build({ len: "narrative" })).toContain("FORMAT: each prompt is one long flowing narrative paragraph of roughly 380 to 430 words");
+    expect(build({ len: "narrative" })).toContain("FORMAT: each prompt is one flowing narrative paragraph of roughly 250 to 290 words");
     expect(build({ len: "short" })).toContain('- State the aspect ratio you believe the target has.');
   });
 
@@ -208,7 +208,9 @@ describe("runInject", () => {
     expect(r.characterName).toBe("Juno");
     expect(r.versions).toHaveLength(2);
     const v = r.versions[0]!;
-    expect(v.text.startsWith("Use @image1 as the strict identity reference. Photo 1 of a young woman.")).toBe(true);
+    // Her fixed block sits in its own paragraph between the opener and the written scene.
+    expect(v.text.startsWith("Use @image1 as the strict identity reference.\n\nHER LOOK (fixed, the same in every image): Hair: jet black, waist length.\n\nPhoto 1 of a young woman.")).toBe(true);
+    expect(task.prompt).toContain("HER LOOK IS FIXED TEXT");
     expect(v.fixed).toEqual(expect.arrayContaining(["age wording", "removed aspect ratio", "added image quality line", "added @image1"]));
     expect(v.text).not.toContain("Aspect ratio");
     expect(v.tags).toEqual(["Pose: pose 1", "New outfit"]);
@@ -271,9 +273,27 @@ describe("refusals are never prompts", () => {
 });
 
 import { PROMPT_CHARS } from "@/lib/ai/prompts/inject";
+describe("her fixed identity block", () => {
+  const o = { ...(injectOptionsSchema.parse({}) as object), pose: false, twoSheets: true } as never;
+  it("with a read sheet the writer leaves her look out, and without one it writes it", () => {
+    const fixed = buildInjectPrompt({ name: "A", profile: {} } as never, "", { ...(o as object), fixedIdentity: true } as never, [{ palette: "", hair: "" }], 0, [], []);
+    expect(fixed).toContain("- HER LOOK IS FIXED TEXT (this overrides every rule below that asks you to describe her)");
+    expect(fixed).toContain('then go straight to the scene.');
+    expect(fixed).not.toContain("the specific identity features to preserve");
+    const written = buildInjectPrompt({ name: "A", profile: {} } as never, "", o, [{ palette: "", hair: "" }], 0, [], []);
+    expect(written).not.toContain("HER LOOK IS FIXED TEXT");
+    expect(written).toContain("the specific identity features to preserve");
+  });
+  it("asks for depth and an older phone's look", () => {
+    const t = buildInjectPrompt({ name: "A", profile: {} } as never, "", o, [{ palette: "", hair: "" }], 0, [], []);
+    expect(t).toContain("- DEPTH: say what is nearest the lens, where she is, and what is far behind her");
+    expect(t).toContain("an older smartphone's main camera (around 2017)");
+  });
+});
+
 describe("prompt length", () => {
-  it("asks the writer to use the room up to the limit, not to stay under it", () => {
+  it("asks the writer for a short, dense prompt within the limit", () => {
     const t = buildInjectPrompt({ name: "A", profile: {} } as never, "", injectOptionsSchema.parse({}) as never, [{ palette: "", hair: "" }], 0, [], []);
-    expect(t).toContain(`LENGTH: use the room. Write each finished prompt at roughly ${PROMPT_CHARS - 500} to ${PROMPT_CHARS} characters`);
+    expect(t).toContain(`LENGTH: short and dense. Write each finished prompt at roughly ${PROMPT_CHARS - 500} to ${PROMPT_CHARS} characters`);
   });
 });

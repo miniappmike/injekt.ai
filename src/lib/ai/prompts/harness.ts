@@ -28,7 +28,6 @@ const SUBS: [RegExp, string, string][] = [
   [/\bboy\b/gi, "young man", "age wording"],
   [/\bphoto-?realis(?:tic|m)\b,?\s*/gi, "", "filler words"],
   [/\b(?:8k|4k|16k|ultra[- ]?hd|uhd|hyper[- ]?(?:detailed|realistic)|highly detailed|masterpiece|best quality)\b,?\s*/gi, "", "filler words"],
-  [/\b(?:see[- ]through|underwear[- ]like)\b/gi, "lightweight", "clothing wording"],
   [
     /\b(?:flawless|airbrushed|porcelain|poreless|glass|dewy|luminous|radiant|glowing|silky[- ]smooth|smooth|glossy|shiny|polished|perfect)\s+(?=(?:skin|complexion|face|finish|look)\b)/gi,
     "natural textured ",

@@ -21,6 +21,7 @@ import { asksMakeup, makeupRule } from "@/lib/ai/prompts/rules";
 import { artToRealPrompt } from "@/lib/ai/prompts/art-to-real";
 import { groupPhotoPrompt, MAX_GROUP, MIN_GROUP, type GroupMember } from "@/lib/ai/prompts/group";
 import { ugcPrompt } from "@/lib/ai/prompts/ugc";
+import { identityBlock } from "@/lib/ai/prompts/lean";
 import { MAX_PRODUCT_PHOTOS } from "@/lib/ugc-meta";
 
 /** The image provider's prompt limit; longer prompts are condensed by the person's own text model. */
@@ -232,7 +233,7 @@ export function ugcJob(c: JobCharacter, pack: SheetPack | null, products: string
     s.R,
     products.length,
     { product: ugc.product, label: ugc.label ?? "", aesthetic: "", worn: !!ugc.worn },
-    { title: "", action: ugc.action, scene: ugc.scene, outfit: ugc.outfit ?? "" },
+    { title: "", action: ugc.action, scene: ugc.scene, outfit: ugc.outfit ?? "", frame: ugc.frame ?? "" },
   );
   return { prompt, paths: [...s.paths, ...products], photoEdit: false };
 }
@@ -379,7 +380,7 @@ async function directorJob(
     "profile, always_keep, height, weight",
   );
   const { client, model } = await getUserTextClient(supabase, userId, "llm", "prompt");
-  const directorTask = { prompt: buildDirectorPrompt({ ...row, profile: row?.profile ?? {} }, sheetLines(pack), dir, realism) };
+  const directorTask = { prompt: buildDirectorPrompt({ ...row, profile: row?.profile ?? {} }, sheetLines(pack), dir, realism, !!identityBlock(pack?.anchors)) };
   const reply = String(await withDeclineFallback(supabase, userId, "prompt", { client, model }, "vision", (cl) => cl.run(directorTask)));
   const v = parseVersions(reply)[0];
   if (!v?.text) throw new UserFacingError("Couldn't plan that shot. Try again, or describe it a little differently.");
