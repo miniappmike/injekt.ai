@@ -4,7 +4,8 @@ import { usageChanged } from "@/lib/panel-events";
 import { TokenCost } from "@/components/token-icon";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useId, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,6 +57,10 @@ export function CharacterForm({
   const [submitting, startSubmit] = useTransition();
   const pending = pendingAction || submitting;
   const [dirty, setDirty] = useState(false);
+  const formId = useId();
+  // createPortal needs document.body, which only exists after the first render in the browser.
+  const [portalReady, setPortalReady] = useState(false);
+  useEffect(() => setPortalReady(true), []);
   // New-character page only: images uploaded before the character exists, attached on save.
   const [draft, setDraft] = useState<{ profile_photo: SlotImage[]; face_sheet: SlotImage[]; body_sheet: SlotImage[]; reference: SlotImage[] }>({
     profile_photo: [],
@@ -116,6 +121,7 @@ export function CharacterForm({
 
   return (
     <form
+      id={formId}
       // Any typing or choice inside the form (inputs bubble up) marks it as changed.
       onInput={() => setDirty(true)}
       onChange={() => setDirty(true)}
@@ -232,14 +238,17 @@ export function CharacterForm({
       {!characterId && buildsLeft !== null && buildsTotal !== undefined && (
         <p className="text-xs text-neutral-500">Free plan: {buildsLeft} of {buildsTotal} profile generations left.</p>
       )}
-      {characterId && dirty && (
+      {characterId && dirty && portalReady && createPortal(
         // Floating save: appears after the first change and stays on screen while scrolling (above the phone dock).
+        // Portalled to <body> because a parent on this page (transform/filter/blur) traps `position: fixed` inside it;
+        // the button reaches the form through its `form` attribute.
         <div className="pointer-events-none fixed inset-x-0 bottom-20 z-40 flex justify-center px-4 lg:bottom-6">
           <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-neutral-700 bg-neutral-900/95 py-2 pl-4 pr-2 shadow-2xl backdrop-blur">
             <span className="text-sm text-neutral-300">Unsaved changes</span>
-            <Button type="submit" disabled={pending}>{pending ? "Saving..." : submitLabel}</Button>
+            <Button type="submit" form={formId} disabled={pending}>{pending ? "Saving..." : submitLabel}</Button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
       <div className="flex flex-wrap gap-2">
         {!characterId && <Button type="submit" disabled={pending}>{pending ? "Saving..." : submitLabel}</Button>}
