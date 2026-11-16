@@ -10,10 +10,16 @@ export const metadata = { title: "Characters" };
 
 export default async function CharactersPage() {
   const { supabase, user } = await requireUser();
-  const { data: allCharacters } = await supabase
+  const cols = "id, name, profile, profile_photo_path, face_sheet_path, body_sheet_path, reference_paths, created_at, updated_at";
+  let { data: allCharacters, error } = await supabase
     .from("characters")
-    .select("id, name, profile, profile_photo_path, face_sheet_path, body_sheet_path, reference_paths")
+    .select(`${cols}, sort_order`)
     .order("created_at", { ascending: false });
+  // Until migration 0034 is run there is no sort_order column: load without it (custom order then follows newest first).
+  if (error) {
+    const plain = await supabase.from("characters").select(cols).order("created_at", { ascending: false });
+    allCharacters = (plain.data ?? []).map((c) => ({ ...c, sort_order: null }));
+  }
 
   // The free-plan limit counts every character she has, listed or not.
   const atLimit = !(await entitlements.isUnlimited(user.id)) && (allCharacters?.length ?? 0) >= FREE_LIMITS.characters;
@@ -55,6 +61,9 @@ export default async function CharactersPage() {
         thumbs: thumbs(c).map((p) => urls[p]).filter((u): u is string => !!u),
         refCount: c.reference_paths.length,
         hasSheet: !!(c.face_sheet_path || c.body_sheet_path),
+        createdAt: c.created_at,
+        updatedAt: c.updated_at,
+        sortOrder: c.sort_order ?? null,
         images: labelled(c).flatMap((x) => (urls[x.path] ? [{ label: x.label, url: urls[x.path] }] : [])),
       }))}
     />

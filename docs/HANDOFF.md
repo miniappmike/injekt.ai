@@ -13,6 +13,12 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Characters page: sort and custom order (November 16; types clean; checked on the stand-in backend in desktop Chromium: sort, drag, arrows, Done; not on a phone; migration 0034 must be run)**
+- A **Sort** dropdown (Custom order / Last edited / Latest created, default Latest created) sits by Rearrange, Group photo and New character (`CharactersBoard` in `group-photo.tsx`). The choice is remembered per browser (localStorage `ms.characterSort`). Last edited uses `updated_at` (set by saves, uploads, pins and photo reordering).
+- **Rearrange** switches to Custom order and overlays each card with its number: drag a card onto another, or use the ‹ › arrows (for touch screens); Done saves via `reorderCharacters` (`characters/order-actions.ts`, writes `sort_order` 0..n, doesn't touch `updated_at`), Cancel puts it back. Characters never arranged (e.g. new ones) show first in Custom order, newest first.
+- **Run `supabase/migrations/0034_character_sort_order.sql`** (adds `characters.sort_order`). Until then the page still loads (it retries without the column) but Done shows "Custom order isn't set up yet".
+- The stand-in backend's characters now have different created/updated dates.
+
 **Build fix (November 16)**: the first merge failed the Vercel type check (my edit also made `deleteCharacter` return instead of redirect, and `createCharacter` lost `provenance`). Fixed; `npx tsc --noEmit` is now clean here (`npm ci` was run).
 
 **Reference photos: drag to reorder, first is the cover (November 16; NOT run, types not run, not checked in a browser)**

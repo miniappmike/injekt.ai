@@ -17,6 +17,11 @@ export interface CharacterCardData {
   hasSheet?: boolean;
   /** How many reference photos she has now (of MAX_REFERENCE_PHOTOS), for Pin in the images panel. */
   refCount?: number;
+  /** For sorting on the Characters page. */
+  createdAt?: string;
+  updatedAt?: string;
+  /** Her place in the custom order (null: never arranged). */
+  sortOrder?: number | null;
 }
 
 /**
