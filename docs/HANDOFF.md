@@ -13,6 +13,9 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Likeness ignores accessories (November 16; NOT run, types and tests not run; `node_modules` isn't installed here)**
+- The quick and full likeness checks now score only the person's own visible physical features. `ACCESSORY_RULE` is in both prompts, the "Signature accessories" trait was removed from the full report, and `accessoryFix` (cuffs, jewellery, belts, hats, glasses, hair accessories and similar) drops any such fix from the quick check, the Fix prompt and the full report's traits. Piercings and tattoos still count (they are body marks). Not tested on a real check; if a worn item still shows in "To fix", add its word to `accessoryFix`.
+
 **Build profile scroll and Director link (November 16; NOT run or checked in a browser)**
 - Build profile on a character's page no longer jumps to the top: `build()` in `character-form.tsx` remembers the scroll position and restores it several times after the save (the server action's revalidate re-renders the page; the cause of the jump was not reproduced), and its extra `router.refresh()` was removed. If it still jumps, look at what remounts on revalidate.
 - The "No reference photos yet?" note on a character's page now also links to Director (`/director?character=<id>`).
