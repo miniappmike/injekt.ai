@@ -20,7 +20,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * little thinking.
  */
 const SHORT_ANSWER: ReadonlySet<TextFeature> = new Set(["cleanup", "pin"]);
-const WRITING: ReadonlySet<TextFeature> = new Set(["prompt", "variants", "carousel", "outfit", "condense", "test"]);
+const WRITING: ReadonlySet<TextFeature> = new Set(["prompt", "variants", "carousel", "outfit", "condense", "test", "ugc"]);
 
 // `feature` says what the call is for, which is how spend is broken down. Returns the guarded client for a role plus the
 // image size the provider can take. A role with no setup of its own falls back to the other one, and with neither, to

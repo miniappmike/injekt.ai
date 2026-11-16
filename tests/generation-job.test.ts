@@ -45,7 +45,8 @@ describe("injectJob", () => {
     expect(job.paths.some((p) => p.includes("/pack/"))).toBe(false);
     expect(job.prompt).toMatch(/^Replace the person in @image1 with the woman from @image2 and @image3\./);
     expect(job.prompt).toContain("@image2 is her face reference sheet");
-    expect(job.prompt).toContain("Her body comes only from @image3");
+    expect(job.prompt).toContain("@image3 is her full-body reference sheet, front, side and back views: take her exact body proportions");
+    expect(job.prompt).toContain("HER LOOK (fixed, the same in every image): Hair: jet black.");
     expect(job.prompt).toContain("Change: New pose: sitting.");
     expect(job.prompt).not.toContain("LONG SCENE PROMPT");
   });
@@ -60,17 +61,19 @@ describe("injectJob", () => {
     const job = injectJob(c, pack, "Photo of her on a balcony.", { frame: "", outfit: "a red dress" }, SEEDREAM, 10);
     expect(job.photoEdit).toBe(false);
     expect(job.paths).toEqual([`${U}/face.jpg`, `${U}/body.jpg`]);
-    expect(job.prompt).toMatch(/^IDENTITY \(follow exactly/);
-    expect(job.prompt).toContain("OUTFIT LOCK: she wears only a red dress, never the clothing in the references (white shorts).");
-    expect(job.prompt).toContain("BODY LOCK (top priority): her body matches @image2 exactly");
-    expect(injectJob(c, pack, "Photo.", {}, "google/nano-banana-2.1/edit", 10).prompt).toMatch(/^The woman in this photo is the woman in the reference images/);
+    expect(job.prompt).toMatch(/^@image1 is her face reference sheet, a grid of her face from many angles: take her exact face, hair and piercings\. @image2 is her full-body reference sheet/);
+    expect(job.prompt).toContain("\n\nHER LOOK (fixed, the same in every image): Hair: jet black. Build: wide hips.\n\n");
+    expect(job.prompt).toContain("She wears only a red dress. Take only the person from @image1 and @image2, never their grid, plain background, studio light or plain outfit (white shorts).");
+    expect(job.prompt).toContain("Her identity from the references is the highest priority");
+    // One framing for every image model.
+    expect(injectJob(c, pack, "Photo.", {}, "google/nano-banana-2.1/edit", 10).prompt).toBe(injectJob(c, pack, "Photo.", {}, SEEDREAM, 10).prompt);
   });
 
   it("without sheets falls back to up to 3 reference photos", () => {
     expect(injectJob(c, null, "Photo.", {}, SEEDREAM, 10)).toMatchObject({ paths: [`${U}/face.jpg`, `${U}/body.jpg`], photoEdit: false });
     const photos = injectJob({ ...c, face_sheet_path: null, body_sheet_path: null }, null, "Photo.", { clean: true }, SEEDREAM, 10);
     expect(photos.paths).toEqual(c.reference_paths);
-    expect(photos.prompt).toMatch(/^Use @image1, @image2 and @image3 as the strict identity reference\. They are reference photos/);
+    expect(photos.prompt).toMatch(/^@image1 is a reference photo of her: take her exact face.*@image3 is a reference photo of her/);
     expect(photos.prompt).toContain("no app interface elements");
     expect(() => injectJob({ ...c, face_sheet_path: null, body_sheet_path: null, reference_paths: [] }, null, "Photo.", {}, SEEDREAM, 10)).toThrow(UserFacingError);
   });
@@ -112,7 +115,7 @@ describe("Director", () => {
   const ask = (opts: { forQuote?: boolean } = {}, row: Partial<JobCharacter> = c) =>
     buildJob(userClient(row), U, { kind: "inject", characterId: "c1", extraPaths: [], prompt: "Her on a balcony at sunset in a red dress.", meta: { direct: true } } as never, { model: SEEDREAM, max: 10, ...opts });
 
-  it("writes the scene from the direction, then sends her face sheet as @image1 and body sheet as @image2 under the BODY LOCK", async () => {
+  it("writes the scene from the direction, then sends her face sheet as @image1 and body sheet as @image2 with her identity first", async () => {
     h.ensureSheetPack.mockResolvedValue(pack);
     h.run.mockResolvedValue("===VERSION 1===\nIN FRAME: face, hair, waist, hips, legs\nOUTFIT: a red satin slip dress\nPhoto of a woman on a balcony at sunset in a red satin slip dress.");
     const job = await ask();
@@ -121,9 +124,12 @@ describe("Director", () => {
     expect(job.paths).toEqual([`${U}/face.jpg`, `${U}/body.jpg`]);
     expect(job.prompt).toContain("@image1 is her face reference sheet");
     expect(job.prompt).toContain("@image2 is her full-body reference sheet");
-    expect(job.prompt).toContain("BODY LOCK (top priority): her body matches @image2 exactly");
+    expect(job.prompt).toContain("Her identity from the references is the highest priority");
     expect(job.prompt).toContain("Photo of a woman on a balcony at sunset in a red satin slip dress.");
-    expect(job.prompt).toContain("OUTFIT LOCK: she wears only a red satin slip dress");
+    expect(job.prompt).toContain("She wears only a red satin slip dress.");
+    // With a read sheet her look is the app's fixed block, so the writer is told to leave it out.
+    expect(h.run.mock.calls[0][0].prompt).toContain("HER LOOK IS FIXED TEXT");
+    expect(h.run.mock.calls[0][0].prompt).toContain("- DEPTH: give the image real depth");
     expect(job.prompt).not.toContain("IN FRAME");
   });
 
@@ -138,7 +144,7 @@ describe("Director", () => {
     expect(job.prompt).not.toContain(REALISM_FIX.quality);
     expect(job.prompt).not.toContain(REALISM_FIX.skin);
     expect(job.prompt).not.toContain(QUALITY_SHADING_MATCH);
-    expect(job.prompt).toContain("BODY LOCK (top priority)");
+    expect(job.prompt).toContain("highest priority");
     expect(job.prompt).toContain("@image2 is her full-body reference sheet");
   });
 
@@ -162,7 +168,7 @@ describe("Director", () => {
 });
 
 describe("buildJob for Inject", () => {
-  it("shortens only the scene when the framed prompt is too long, keeping both sheets and the BODY LOCK whole", async () => {
+  it("shortens only the scene when the framed prompt is too long, keeping both sheets and her identity whole", async () => {
     h.ensureSheetPack.mockResolvedValue(pack);
     h.run.mockResolvedValue("Photo of her on a balcony, shortened.");
     const long = "Photo of her on a balcony. " + "Soft light on the railing. ".repeat(200);
@@ -171,7 +177,7 @@ describe("buildJob for Inject", () => {
     expect(job.prompt.length).toBeLessThanOrEqual(PROMPT_LIMIT);
     expect(job.prompt).toContain("Photo of her on a balcony, shortened.");
     expect(job.prompt).toContain("@image2 is her full-body reference sheet");
-    expect(job.prompt).toContain("BODY LOCK (top priority)");
+    expect(job.prompt).toContain("highest priority");
   });
 });
 

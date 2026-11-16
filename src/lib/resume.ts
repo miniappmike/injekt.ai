@@ -14,7 +14,7 @@ export const LAST_PAGE_COOKIE = "ms_last";
 export const LAST_PAGE_HOURS = 24;
 
 /** Signed-in pages a launch may go back to (Admin is left out on purpose). */
-const RESUMABLE = ["/home", "/characters", "/inject", "/director", "/variants", "/library", "/likeness", "/reference-sheet", "/art-to-real", "/tokens", "/upgrade", "/settings", "/ledger", "/marketplace"];
+const RESUMABLE = ["/home", "/characters", "/inject", "/director", "/variants", "/library", "/likeness", "/reference-sheet", "/art-to-real", "/ugc", "/tokens", "/upgrade", "/settings", "/ledger", "/marketplace"];
 
 /**
  * The cookie's value as a page on this site, or null. Only a plain path under one of the pages above is accepted, so

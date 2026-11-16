@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
-import { Brush, ChevronRight, Coins, Gift, Images, KeyRound, LayoutDashboard, ReceiptText, Settings, Sparkles } from "lucide-react";
+import { Brush, ChevronRight, Coins, Gift, Images, KeyRound, LayoutDashboard, Package2, ReceiptText, Settings, Sparkles } from "lucide-react";
 import { useApp } from "@/components/app-context";
 import { useSheetDrag } from "@/lib/sheet-drag";
 import { CONTACT_EMAIL, DISCORD_URL, GET_KEY_PATH } from "@/lib/links";
@@ -24,6 +24,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "/reference-sheet": CreateModelIcon,
   "/marketplace": StoreIcon,
   "/art-to-real": Brush,
+  "/ugc": Package2,
   "/characters#group": GroupIcon,
 };
 /** The tool tiles in the More sheet: the rest of the menu, plus Group photo (a mode of the Characters page). */
@@ -53,6 +54,7 @@ const TITLES: [RegExp, string][] = [
   [/^\/likeness/, "Likeness"],
   [/^\/reference-sheet/, "Create Model"],
   [/^\/art-to-real/, "Art to Real"],
+  [/^\/ugc/, "UGC"],
   [/^\/tokens/, "Tokens"],
   [/^\/upgrade/, "Upgrade to Pro"],
   [/^\/get-a-key/, "API key guide"],

@@ -8,7 +8,7 @@ import { MODEL_ID_RE, MODEL_REFUSED_EVENT, usePageModel, type ModelRefused } fro
 import { cn } from "@/lib/utils";
 
 /** Pages whose Generate buttons get the box at the bottom. Characters gets it inside the group photo panel instead. */
-const GENERATION_PAGES = [/^\/inject/, /^\/variants/, /^\/likeness/, /^\/reference-sheet/, /^\/art-to-real/];
+const GENERATION_PAGES = [/^\/inject/, /^\/variants/, /^\/likeness/, /^\/reference-sheet/, /^\/art-to-real/, /^\/ugc/];
 
 /** Whether the box is open, remembered in this browser and shared by every page. */
 const OPEN_KEY = "ms.pageModelOpen";

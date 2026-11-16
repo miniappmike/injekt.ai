@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { swapPrompt } from "@/lib/ai/prompts/swap";
-import { OVERLAY_RULE, SKIN_ART_SHORT, TEXT_SHORT } from "@/lib/ai/prompts/rules";
+import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
 
 const h = vi.hoisted(() => ({ ensureSheetPack: vi.fn() }));
 vi.mock("server-only", () => ({}));
@@ -22,13 +22,13 @@ describe("swapPrompt (A14b)", () => {
   const R = { roles: ["her front", "her body"], kinds: ["front", "body"], anchors };
   it("replaces the person in @image1 with her, body from her body references, everything else kept", () => {
     const p = swapPrompt(R, { who: "on the left >>>", clean: true, plen: 5000 });
-    expect(p.startsWith("Replace the person on the left in @image1 with the woman from @image2 and @image3. @image2 is her front, @image3 is her body; they all show the same woman. Copy her exact face, features, skin tone, marks and hair colour (hair: jet black). Her body must match @image3 exactly")).toBe(true);
-    expect(p).toContain(SKIN_ART_SHORT);
-    expect(p).toContain(" Not: red hair.");
-    expect(p).toContain("She wears exactly the outfit worn in @image1, garment for garment. Never dress her in the reference outfit (white shorts).");
+    expect(p.startsWith("Replace the person on the left in @image1 with the woman from @image2 and @image3. @image1 is the photo to keep: its pose, expression, outfit, props, background, light and shadows, framing, camera look stay exactly as they are. @image2 is her front: take her exact face, hair and piercings. @image3 is her body: take her exact body proportions (bust, waist, hips, glutes, thighs, shoulders) and tattoos.")).toBe(true);
+    expect(p).toContain("\n\nHER LOOK (fixed, the same in every image): Hair: jet black. Build: wide hips.\n\n");
+    expect(p).toContain("Her identity from the references is the highest priority");
+    expect(p).not.toContain("Not: red hair");
+    expect(p).toContain("She wears exactly the outfit in @image1, garment for garment. Take only the person from @image2 and @image3, never their grid, plain background, studio light or plain outfit (white shorts).");
     expect(p).toContain(OVERLAY_RULE);
-    expect(p.endsWith("Garbled or unreadable text in @image1 becomes short, clean generic wording or a plain design.")).toBe(true);
-    expect(p).toContain(TEXT_SHORT);
+    expect(p.length).toBeLessThan(1700);
   });
   it("adds extra direction only when it fits, and never runs past the limit", () => {
     const base = swapPrompt(R, { plen: 5000 });
@@ -62,7 +62,7 @@ describe("Edit references", () => {
   it("sends the target first, then the picked references in their order, then extras, with the makeup rule", () => {
     const job = editJob(c, pack, "Put her on a beach", { target: `${U}/t.jpg`, refs: ["body_sheet", "face_sheet"] }, [`${U}/x.jpg`], 10);
     expect(job.paths).toEqual([`${U}/t.jpg`, `${U}/face.jpg`, `${U}/body.jpg`, `${U}/x.jpg`]);
-    expect(job.prompt).toBe("Put her on a beach. MAKEUP STAYS: keep her makeup exactly as it is in @image1: the same foundation finish, concealer, blush, bronzer and contour, highlighter, eyeshadow colours and placement, eyeliner shape, lashes, brow styling, lip liner, lip colour and finish, and nail polish. Do not remove, lighten, tone down, restyle or add makeup unless this prompt explicitly asks for a makeup change.");
+    expect(job.prompt).toBe("Put her on a beach. MAKEUP STAYS: keep her makeup and nail polish exactly as in @image1 (eyes, brows, blush, contour, lips); never remove, lighten or add any unless this prompt asks for a makeup change.");
     expect(job.prompt).not.toMatch(/nudity|clothed/i);
   });
 

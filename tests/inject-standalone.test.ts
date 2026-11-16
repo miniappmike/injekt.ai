@@ -22,14 +22,13 @@ describe("Inject Write only", () => {
   it("with the target: the photo edit, her sheets first (face @image1, body @image2) then the target, changing only the EDIT line", () => {
     const p = injectStandalone(refs, anchors, "Photo of her on a red sofa.", meta, {});
     expect(p.attach).toEqual(["@image1: Holly's face sheet", "@image2: Holly's body sheet", "@image3: your target photo"]);
-    expect(p.copy.startsWith("Replace the person in @image3 with the woman from @image1 and @image2. @image1 is her face reference sheet, @image2 is her body reference sheet;")).toBe(true);
-    expect(p.copy).toContain("Her body comes only from @image2");
-    expect(p.copy).toContain("exactly as in @image3:");
-    expect(p.copy).toContain("If @image3 is a drawing or render");
+    expect(p.copy.startsWith("Replace the person in @image3 with the woman from @image1 and @image2. @image3 is the photo to keep:")).toBe(true);
+    expect(p.copy).toContain("@image1 is her face reference sheet: take her exact face, hair and piercings. @image2 is her body reference sheet: take her exact body proportions");
+    expect(p.copy).toContain("Match @image3's own light, shadows, grain and image quality");
     expect(p.copy).not.toMatch(/@image[4-9]/);
-    expect(p.copy).toContain("(jet black waves)");
+    expect(p.copy).toContain("Hair: jet black waves.");
     expect(p.copy).toContain("Change: new pose: seated on the sofa arm.");
-    expect(p.copy).toContain("Never dress her in the reference outfit (white shorts).");
+    expect(p.copy).toContain("plain outfit (white shorts).");
     expect(p.attachItems[2]).toMatchObject({ source: "target", tag: "@image3" });
   });
 
@@ -37,20 +36,19 @@ describe("Inject Write only", () => {
     expect(injectStandalone(refs, anchors, "x", meta, { cleanedPath: `${U}/clean.jpg` }).attachItems[2]).toMatchObject({ label: "your target photo (cleaned copy)", path: `${U}/clean.jpg` });
     const p = injectStandalone(refs, anchors, "Photo of her on a red sofa, black pinstripe shirt.", meta, null);
     expect(p.attach).toEqual(["@image1: Holly's face sheet", "@image2: Holly's body sheet"]);
-    // Framed for Seedream 5: her sheet's words lead as the IDENTITY block, then the identity reference.
-    expect(p.copy.startsWith("IDENTITY (follow exactly;")).toBe(true);
-    expect(p.copy).toContain("hair: jet black waves");
-    expect(p.copy).toContain("Use @image1 and @image2 as the strict identity reference.");
+    // Each sheet's role first, then her fixed block in its own paragraph.
+    expect(p.copy.startsWith("@image1 is her face reference sheet: take her exact face, hair and piercings.")).toBe(true);
+    expect(p.copy).toContain("\n\nHER LOOK (fixed, the same in every image): Hair: jet black waves."); 
     expect(p.copy).toContain("Photo of her on a red sofa, black pinstripe shirt.");
     expect(p.copy).toContain("beauty filter");
-    expect(p.copy).toContain("Final identity check");
+    expect(p.copy).toContain("highest priority");
   });
 
   it("Direct swap as a prompt: her sheets first, the target photo last", () => {
     const p = swapStandalone(refs, anchors, { who: "on the left" });
     expect(p.attach).toEqual(["@image1: Holly's face sheet", "@image2: Holly's body sheet", "@image3: your target photo"]);
     expect(p.copy.startsWith("Replace the person on the left in @image3 with the woman from @image1 and @image2.")).toBe(true);
-    expect(p.copy).toContain("Keep everything else in @image3 exactly");
+    expect(p.copy).toContain("@image3 is the photo to keep: its pose, expression, outfit,");
     expect(p.copy).not.toMatch(/@image[4-9]/);
     expect(() => swapStandalone([], null, {})).toThrow(/needs a reference/);
   });
@@ -59,7 +57,7 @@ describe("Inject Write only", () => {
     const photo = standaloneRefs({ ...holly, face_sheet_path: null, body_sheet_path: null });
     const p = injectStandalone(photo, null, "Photo of her.", meta, null);
     expect(p.attach).toEqual(["@image1: Holly's reference photo 1"]);
-    expect(p.copy.startsWith("Use @image1 as the strict identity reference. @image1 is a reference photo of the person")).toBe(true);
+    expect(p.copy.startsWith("@image1 is a reference photo of her: take her exact face, hair, body proportions")).toBe(true);
     expect(() => injectStandalone([], null, "x", meta, null)).toThrow(/needs a reference/);
   });
 

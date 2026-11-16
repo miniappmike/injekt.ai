@@ -37,6 +37,7 @@ const TOOL_LINES: Record<string, string> = {
   "/library": "every active image you have made",
   "/likeness": "score how close an image is to her",
   "/art-to-real": "turn artwork into a realistic photo",
+  "/ugc": "your model showing off a product photo",
 };
 
 const stars = (n: number) => `⭐ ${n.toLocaleString("en-US")}`;

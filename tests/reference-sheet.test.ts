@@ -237,10 +237,9 @@ describe("attachGeneratedSheet", () => {
 describe("exaggerated proportions", () => {
   it("the body sheet keeps an extreme figure at full scale; neutral means pose and framing only", async () => {
     const { sheetPrompts } = await import("@/lib/ai/prompts/sheets");
-    const { PROPORTIONS_RULE, BODY_LOCK } = await import("@/lib/ai/prompts/rules");
     const body = sheetPrompts(true, 2).body;
-    expect(body).toContain(PROPORTIONS_RULE);
+    // The sheet prompts keep the original, full wording (they were left out of the November 2026 shortening).
+    expect(body).toContain("EXAGGERATED PROPORTIONS STAY: if her figure in the references is extreme or exaggerated (for example a very large bust, a very small waist, very wide hips, very large glutes or very thick thighs), reproduce it at the same scale and ratios. Never shrink, tone down, average or normalise it toward a typical body, and never make it more modest than in the references.");
     expect(body).toContain("never smaller or more modest proportions");
-    expect(BODY_LOCK).toContain(PROPORTIONS_RULE);
   });
 });

@@ -3,8 +3,10 @@
  * With a character picked, her references follow as @image2 onwards and she becomes the woman in it. Pure, so the
  * server and the tests share it.
  */
-import { BODY_LOCK, fence, joinTags, MODS_RULE, PROPORTIONS_RULE, REALISM_FIX } from "./rules";
-import { outfitLock, pickAnchors, type RefSet } from "./identity";
+// The full, original rule wording: this prompt was deliberately left out of the shortening (see ./rules-full.ts).
+import { fence, joinTags } from "./rules";
+import { BODY_LOCK, MODS_RULE, outfitLock, PROPORTIONS_RULE, REALISM_FIX } from "./rules-full";
+import { pickAnchors, type RefSet } from "./identity";
 
 const SKIN =
   "Real skin with real complexion, texture and detail: visible pores, fine peach fuzz, slight unevenness in tone and small natural imperfections. No shiny, glossy, waxy, plastic or airbrushed skin.";

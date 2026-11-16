@@ -3,9 +3,10 @@
  * where they are: her sheets can be two images (face and body), the person may add up to 2 extra images for the vibe or
  * outfit, and the carousel's nudity sentence is left out (no app-level screening).
  */
-import { asksMakeup, hasQualityLine, BODY_LOCK, fence, joinTags, makeupRule, MODS_RULE, REALISM_FIX, SKIN_ART_SHORT, TEXT_RULE } from "./rules";
+import { asksMakeup, hasQualityLine, fence, joinTags, makeupRule, REALISM_FIX, SKIN_ART_SHORT, TEXT_SHORT } from "./rules";
+import { identityBlock, isSheetKind, paragraphs, personOnly, priority, realKeep, refRoles, sentences, tattooLine } from "./lean";
 import { harness } from "./harness";
-import { pickAnchors, refOutfitGuard, type Anchors } from "./identity";
+import { refOutfitGuard, type Anchors } from "./identity";
 import type { CarouselTypeId, PlatformId, SlidePerson, VariantDimId } from "@/lib/variants-meta";
 
 const DIM_TEXT: Record<VariantDimId, string> = {
@@ -88,7 +89,7 @@ The photo tells the image model who she is, what she wears and how the shot look
 ${o.platform ? `${platformBrief(o.platform, o.platformOther)}\nApply the platform's tone only to what may change above (pose, expression and so on): never change anything that is not in that list.\n` : ""}${o.traits ? `The person is this character; restate their 3 to 5 most recognisable traits that are visible in this image (skip any that are out of frame or hidden) in each edit so the face does not drift: ${fence(o.traits)}` : ""}
 RULES
 - ${two ? `Start every edit with "Edit ${vt.photo}. Keep the person exactly as she looks in ${vt.ref}: same face, features, skin, hair, body shape and proportions. Keep the outfit and photo style of ${vt.photo}." then the change.` : 'Start every edit with "Keep the same person, outfit and photo style." then the change.'}
-- Read the image's vibe (setting, props, mood, camera position) so each change fits it. ${o.platform && SPICY.has(o.platform) ? "Poses are fresh, confident, flirtatious and teasing as the platform above calls for, physically plausible and never explicit." : "Poses are fresh, eye-catching social media poses: confident, playful or candid, physically plausible and non-sexual."} Describe a new pose limb by limb with left and right, plus expression and gaze.
+- Read the image's vibe (setting, props, mood, camera position) so each change fits it. ${o.platform && SPICY.has(o.platform) ? "Poses are fresh, confident, flirtatious and teasing as the platform above calls for, and physically plausible." : "Poses are fresh, eye-catching social media poses: confident, playful or candid, and physically plausible."} Describe a new pose limb by limb with left and right, plus expression and gaze.
 - Put the change first and make it concrete: right after the opening line, state it in one specific sentence that says it replaces the photo's (for a pose: "Her pose is completely different from the photo: ..." naming where her torso, both arms, both legs, head and gaze go; for an angle: the exact camera position, height and framing). Never write a change so small that the result could pass for the original, such as a slight head tilt, a shifted hand or a slightly different smile: those are not a new pose or expression.
 - No two edits in the set share a pose, camera position or framing. They read as different frames from one photoshoot, and a pose or angle edit never repeats the photo's own pose or framing.
 - A camera angle change names the new position and framing (for example low angle from hip height, high angle from above, profile from the left, tighter head-and-shoulders crop, wider full-body shot).
@@ -131,7 +132,8 @@ export function finishVariant(prompt: string, vt: VariantTags | null, so: string
   if (vt) t = t.replace(/\s*$/, " ") + refOutfitGuard(vt.ref, vt.photo, so) + " " + SKIN_ART_SHORT;
   if (!asksMakeup(extra) && !/MAKEUP STAYS/.test(t)) t = t.replace(/\s*$/, " ") + makeupRule(vt ? vt.photo : "the photo being edited");
   // ModelSpawn's standing rule: every prompt carries the realism line (the artifact relied on "keep the realism").
-  if (!hasQualityLine(t)) t = t.replace(/\s*$/, " ") + REALISM_FIX.quality;
+  // An edit keeps the photo's own look, so it gets the keep line, not the new-photo camera line.
+  if (!hasQualityLine(t)) t = t.replace(/\s*$/, " ") + realKeep(vt ? vt.photo : "the photo");
   return t;
 }
 
@@ -150,8 +152,8 @@ export function sceneLine(raw: unknown): string {
 export function outfitKeep(outfit: string, photo: string, recoloured = false): string {
   const o = fence(String(outfit)).replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 400);
   return recoloured
-    ? `SAME OUTFIT, NEW COLOURS: she wears the outfit from ${photo} recoloured exactly like this: ${o}. Every garment, shoe and accessory keeps its type, cut, fabric, finish and fit from ${photo} and takes exactly these colours, which replace its colours in ${photo}; nothing is added, removed or swapped.`
-    : `SAME OUTFIT: she wears exactly the outfit from ${photo}: ${o}. Every garment, shoe and accessory stays the same, with the same colours, fabrics, finish and fit; nothing is added, removed, swapped or recoloured.`;
+    ? `SAME OUTFIT, NEW COLOURS: she wears the outfit from ${photo} recoloured exactly like this: ${o}. Every garment keeps its type, cut, fabric and fit and takes these colours; nothing is added, removed or swapped.`
+    : `SAME OUTFIT: she wears exactly the outfit from ${photo}: ${o}. Nothing is added, removed, swapped or recoloured.`;
 }
 
 // ---------- carousel ----------
@@ -187,28 +189,28 @@ export interface CarouselPromptInput {
   platformOther?: string;
 }
 
-/** Subscription and bolder platforms: the poses may be flirtatious and teasing (never explicit). */
+/** Subscription and bolder platforms: the poses are flirtatious and teasing. */
 const SPICY: ReadonlySet<PlatformId> = new Set(["x", "reddit", "fanvue", "onlyfans"]);
 
 /** ModelSpawn addition: what the platform asks of the set. */
 export function platformBrief(platform: PlatformId | undefined, other = ""): string {
   const teaser = (name: string) =>
-    `PLATFORM: ${name}, a subscription platform; these are teaser shots for her subscribers. Make them intimate, flirtatious and sultry, with a personal "just for you" feel: direct eye contact with the camera, bedroom, bathroom, bed and boudoir settings, lingerie, bodysuits, swimwear and revealing outfits, and teasing poses that show off her figure. Suggestive and implied, never explicit: no visible nipples or genitals and no sexual acts.`;
+    `PLATFORM: ${name}, a subscription platform; these are teaser shots for her subscribers. Make them intimate, flirtatious and sultry, with a personal "just for you" feel: direct eye contact with the camera, bedroom, bathroom, bed and boudoir settings, lingerie, bodysuits, swimwear and revealing outfits, and teasing poses that show off her figure.`;
   switch (platform) {
     case "instagram":
       return "PLATFORM: Instagram. Feed-ready and social-safe: fashionable, confident and aspirational, flirty at most. Swimwear and fitted or revealing outfits are fine, but poses and framing stay within Instagram's guidelines.";
     case "tiktok":
       return "PLATFORM: TikTok. Playful, energetic and trend-aware, framed vertically for the feed, and social-safe like Instagram: flirty at most.";
     case "x":
-      return "PLATFORM: X (Twitter). Bolder and more attention-grabbing than Instagram: confident, sultry looks at the camera, revealing outfits, and cheeky, teasing poses. Suggestive, never explicit.";
+      return "PLATFORM: X (Twitter). Bolder and more attention-grabbing than Instagram: confident, sultry looks at the camera, revealing outfits, and cheeky, teasing poses.";
     case "reddit":
-      return "PLATFORM: Reddit. It must look like a real person posted it: amateur, candid phone photos, mirror selfies and casual home settings rather than a polished shoot. Flirty and bolder than Instagram, with teasing poses and revealing outfits where they fit. Suggestive, never explicit.";
+      return "PLATFORM: Reddit. It must look like a real person posted it: amateur, candid phone photos, mirror selfies and casual home settings rather than a polished shoot. Flirty and bolder than Instagram, with teasing poses and revealing outfits where they fit.";
     case "fanvue":
       return teaser("Fanvue");
     case "onlyfans":
       return teaser("OnlyFans");
     case "other":
-      return other.trim() ? `PLATFORM: <<<${fence(other.trim())}>>>. Match the tone, style and level of spice that fits where it will be posted, suggestive at most, never explicit.` : "";
+      return other.trim() ? `PLATFORM: <<<${fence(other.trim())}>>>. Match the tone, style and level of spice that fits where it will be posted.` : "";
     default:
       return "";
   }
@@ -243,7 +245,7 @@ RULES
 - Slides without her (flatlay, object, environment, food, ambient): start with "No people in the frame." and use {PHOTO} only as the reference for the place, objects, colour grade, light and camera look (person "none").
 - Name the camera and framing for each slide (phone main camera, 0.5x wide, close-up, top-down, mirror, flash at night) and the light with its source and direction, plus which way the shadows fall and, if something glows, that it tints the nearby skin and surfaces. Describe only light the scene would really have. Real, unretouched social-media phone-photo quality, never glossy or CGI.
 - Real brands and logos seen in the image stay accurate and named (for example a black quilted Chanel flap bag with the gold CC turn-lock). Quote any readable text exactly; never invent gibberish lettering.
-- ${o.platform && SPICY.has(o.platform) ? "Poses are confident, flirtatious and teasing as the platform above calls for, never explicit." : "Poses are natural, confident or candid, and non-sexual."} Always an adult woman.
+- ${o.platform && SPICY.has(o.platform) ? "Poses are confident, flirtatious and teasing as the platform above calls for." : "Poses are natural, confident or candid."} Always an adult woman.
 - VARIETY: every slide with her uses a clearly different body position from the cover and from each other (mix standing, sitting, lying down, kneeling, leaning, walking, crouching, from behind), with a different camera height and distance each time. Avoid the default poses every set falls back on (hand on hip facing the camera, one hand in the hair, the plain mirror selfie) unless the creative direction asks for them.
 ${o.recent?.length ? `- Avoid these recently used poses: ${o.recent.join("; ")}.\n` : ""}${o.inspo?.length ? `- For pose inspiration only, never copy: ${o.inspo.join("; ")}.\n` : ""}${extraNames.length ? `- The next attached image${extraNames.length > 1 ? "s are" : " is"} extra from the user, showing the vibe, an outfit or styling they want; the edit model receives ${extraNames.length > 1 ? "them" : "it"} as ${joinTags(extraNames)}. Use ${extraNames.length > 1 ? "them" : "it"} where it fits the creative direction, by placeholder.\n` : ""}${c ? `- Her recognisable traits, only where visible: ${fence(o.traits)}\n` : ""}${extra && !o.directionFirst ? `- Creative direction from the user, only as it applies to the image: <<<${fence(extra)}>>>\n` : ""}${extra && o.directionFirst ? "- Before you reply, check every slide against the user's creative direction above and rewrite any slide that does not clearly carry it out.\n" : ""}
 Reply with only JSON: {"theme": "one short line naming the carousel's aesthetic", "slides": [{"type": "pose", "label": "2 to 4 word name", "person": "full", "pose": "her pose in at most 12 words, empty when she is not in it", "prompt": "..."}]}`;
@@ -324,18 +326,25 @@ export function carouselSlidePrompt(
     .replace(/\{EXTRA(\d)\}/g, (_m, d) => (Number(d) >= 1 && Number(d) <= extraCount ? "@image" + (rt.length + 1 + Number(d)) : pt));
   let head: string;
   if (withHer && rt.length) {
-    const an = pickAnchors(refs.anchors, slide.person === "partial" ? "shoulders, arms, waist, hips, glutes, thighs, legs" : "");
-    const body = [an.upper, an.mid, an.legs].filter(Boolean).join("; ");
-    const so = refs.anchors?.sheetOutfit || "";
-    const og = ` Use ${R} for her face, hair and body only and ignore the clothing shown there; her outfit and accessories come only from ${pt}.${so ? ` Never dress her in the reference outfit (${so}).` : ""}`;
+    const kinds = refs.roles.map((r) => (/face/i.test(r) ? "faces" : /body|sheet/i.test(r) ? "body" : "photo"));
+    const block = identityBlock(refs.anchors, slide.person === "partial" ? "shoulders, arms, waist, hips, glutes, thighs, legs" : "");
+    const only = personOnly(rt, kinds.some(isSheetKind), refs.anchors?.sheetOutfit);
     head =
       slide.person === "full"
-        ? `Use ${R} as the strict identity reference for the woman: ${rt.map((x, k) => `${x} is ${refs.roles[k]}`).join(", ")}. Take her exact face, hair, skin, freckles and marks, and her exact body shape and proportions from them.${an.hair ? ` Hair: ${an.hair}.` : ""}${body ? ` Body: ${body}.` : ""} ${BODY_LOCK} ${pt} is the cover photo from the same shoot: match its outfit, accessories, colour grade, light and camera look, but this is a different photo. Use the new pose, camera angle and framing described below and never copy the cover's pose or composition. Take only the person from ${R}, never their grid layout, panels, plain backgrounds or plain outfit.${og}`
-        : `${pt} is the source photo from the same shoot. The partly visible woman is the same woman as in ${R}: match her skin tone, freckles, marks, nails and body proportions${body ? ` (${body})` : ""}, and her outfit and accessories from ${pt}. Take only the person from ${R}, never their grid layout, panels or plain outfit.${og}`;
+        ? paragraphs(
+            sentences(refRoles({ roles: refs.roles, kinds }, rt), `${pt} is the cover photo from the same shoot: match its outfit, accessories, colour grade, light and camera look, but this is a different photo, with the new pose, camera angle and framing described below.`),
+            block,
+            sentences(priority("the cover photo"), tattooLine(block), `Her outfit and accessories come only from ${pt}.`, only),
+          )
+        : paragraphs(
+            sentences(`${pt} is the source photo from the same shoot. The partly visible woman is the same woman as in ${R}: match her skin tone, marks, nails and body proportions, and her outfit and accessories from ${pt}.`),
+            block,
+            only,
+          );
   } else if (withHer)
     head = `${pt} is the cover photo from the same shoot. She is the same woman as in ${pt}, with the same face, hair, skin and body, but this is a different photo: use the new pose, camera angle and framing described below and never copy the cover's pose or composition.`;
   else head = `${pt} is the source photo from the same shoot. Use it only as the reference for the place, objects, colour grade, light and camera look. No people in the frame.`;
   const t2 = withHer ? t : t.replace(/^\s*No people in the frame\.\s*/i, "");
   const quality = withHer ? REALISM_FIX.quality : REALISM_FIX.quality.split(" Skin is")[0];
-  return head + "\n\n" + t2 + " " + quality + " " + TEXT_RULE + (withHer ? " " + MODS_RULE + (asksMakeup(t2) ? "" : " " + makeupRule(pt)) : "");
+  return head + "\n\n" + t2 + " " + quality + " " + TEXT_SHORT + (withHer && !asksMakeup(t2) ? " " + makeupRule(pt) : "");
 }

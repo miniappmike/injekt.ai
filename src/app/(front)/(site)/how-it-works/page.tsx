@@ -1,5 +1,6 @@
 import {
   Brush,
+  Package2,
   Camera,
   Check,
   Clapperboard,
@@ -52,6 +53,7 @@ const TOOLS = [
   { icon: Layers, title: "Variants", body: "Got an image you love? Photoshoot makes new takes of the same scene, and Moments plans shots from throughout her day." },
   { icon: ScanFace, title: "Likeness", body: "Score any image against your model, trait by trait, and get a fixed prompt to try again." },
   { icon: Brush, title: "Art to Real", body: "Turn anime, a drawing or a render into a realistic photo, or put one of your own models into it." },
+  { icon: Package2, title: "UGC", body: "Drop a product photo and pick a model. She shows it off in a setting that fits the product, in one click." },
   { icon: Users, title: "Group photo", body: "Put several of your models in one picture. Each keeps her own face and body." },
   { icon: Pin, title: "Pin It", body: "Pin your best generated images to a model as reference photos, up to ten each, so she keeps getting more consistent." },
   { icon: History, title: "History", body: "Every prompt and image you have made, ready to copy, rerun or check again." },

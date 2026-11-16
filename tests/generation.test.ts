@@ -210,7 +210,7 @@ describe("startGeneration: opt-in generation", () => {
     const call = h.submit.mock.calls[0][0];
     expect(call.input.imageUrls).toEqual([`https://signed.test/gen/${U}/${G}.png`, `https://signed.test/${U}/characters/${C}/face.jpg`]);
     expect(call.input.prompt).toMatch(/^@image1 is the PHOTO TO EDIT.*@image2 is her face reference sheet/);
-    expect(call.input.prompt).toContain("In particular: dark brown eyes.");
+    expect(call.input.prompt).toContain("Fix in particular: dark brown eyes.");
   });
 
   it("is refused while generation is turned off, and nothing is started or paid for by the platform", async () => {

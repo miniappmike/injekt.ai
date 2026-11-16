@@ -1,4 +1,5 @@
 import "server-only";
+import { identityBlock } from "@/lib/ai/prompts/lean";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { UserFacingError } from "@/lib/errors";
 import { isOwnPath } from "@/lib/uploads";
@@ -93,6 +94,8 @@ export async function runInject(
   const { client, imageMaxEdge, model } = await getUserTextClient(supabase, userId, "vision", "prompt");
   // Her sheet's words go in as the source of truth; the sheet is read once on first use.
   const pack = await ensureSheetPack(supabase, userId, c);
+  // With a read sheet, her look is one fixed block the app adds: the writer leaves it out, so it never varies.
+  o.fixedIdentity = o.mode === "ref" && !!identityBlock(pack?.anchors);
 
   const pals = shuffleArr(PALETTES, random);
   const hs = shuffleArr(HAIRSTYLES, random);
@@ -136,6 +139,7 @@ export async function runInject(
     const v = parsedVersions[i];
     if (!v || !v.text) return null;
     const h = harness(o.twoSheets ? withBothSheets(v.text) : v.text, { tag: o.mode === "ref" ? o.tag : "", stripAR: o.len === "full" });
+    if (o.fixedIdentity) h.text = withIdentityBlock(h.text, identityBlock(pack?.anchors, v.frame));
     const tags = [v.pose ? "Pose: " + v.pose : o.pose && "New pose", o.newOutfit && "New outfit", o.recolor && "Colours: " + plan.palette, o.hair && "Hair: " + plan.hair].filter(
       (x): x is string => !!x,
     );
@@ -164,6 +168,16 @@ export async function runInject(
   for (const v of versions) if (v) v.historyId = historyIds[k++] ?? null;
   await rememberPoses(supabase, userId, parsedVersions.map((v) => v.pose).filter(Boolean));
   return { versions, truncated, characterName: c.name };
+}
+
+/**
+ * Puts her fixed identity block in its own paragraph, right after the opening sentence. Generate and Write only move it
+ * to the top of their framing (framePrompt), so it is said once either way.
+ */
+export function withIdentityBlock(text: string, block: string): string {
+  if (!block || text.includes(block)) return text;
+  const m = /^\s*(?:Use|Using)\s[^.]*?identity\s+reference\.\s*/i.exec(text);
+  return m ? `${m[0].trim()}\n\n${block}\n\n${text.slice(m[0].length).trim()}` : `${block}\n\n${text.trim()}`;
 }
 
 /** A prompt that still opens on @image1 alone gets the two-sheet opener, and its body line points at @image2. */

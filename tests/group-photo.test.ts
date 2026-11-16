@@ -51,7 +51,10 @@ describe("group photo", () => {
     expect(job.prompt).toContain("PERSON 4, Dee: @image7 and @image8");
     expect(job.prompt).toContain("Ava on the left in a red dress, rooftop at night.");
     expect(job.prompt).toContain("a hair");
-    expect(job.prompt).toContain("Never dress Ava in the reference outfit (white shorts)");
+    expect(job.prompt).toContain("Take Ava's exact face, hair, skin and body proportions from these only.");
+    expect(job.prompt).toContain("never their grids, plain backgrounds, studio light or plain outfits");
+    // Eight sheets and four people still fit comfortably.
+    expect(job.prompt.length).toBeLessThan(3600);
     expect(job.photoEdit).toBe(false);
   });
 

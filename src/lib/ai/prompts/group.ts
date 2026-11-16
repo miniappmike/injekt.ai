@@ -3,8 +3,8 @@
  * a block of @image tags; the person's own creative direction sets the scene and is followed closely. Pure, so the
  * server and the tests share it.
  */
-import { fence, joinTags, MODS_RULE, PROPORTIONS_RULE, REALISM_FIX, TEXT_SHORT } from "./rules";
-import { pickAnchors, type Anchors } from "./identity";
+import { fence, joinTags, REALISM_FIX, TEXT_SHORT } from "./rules";
+import type { Anchors } from "./identity";
 
 export const MIN_GROUP = 2;
 export const MAX_GROUP = 4;
@@ -28,15 +28,11 @@ export function groupPhotoPrompt(members: GroupMember[], direction: string): str
     const tags = m.roles.map(() => "@image" + at++);
     const name = fence(m.name).replace(/\s+/g, " ").trim().slice(0, 40) || `Person ${i + 1}`;
     const roles = tags.map((t, k) => `${t} is ${m.roles[k]}`).join(", ");
-    const a = m.anchors ? pickAnchors(m.anchors, "") : null;
+    const a = m.anchors;
     const look = a
-      ? [a.hair && `hair: ${short(a.hair, 120)}`, a.face && `face: ${short(a.face, 160)}`, a.skin && `skin: ${short(a.skin, 100)}`, (a.mid || a.upper) && `body: ${short([a.upper, a.mid].filter(Boolean).join("; "), 180)}`]
-          .filter(Boolean)
-          .join("; ")
+      ? [a.hair && `hair: ${short(a.hair, 100)}`, a.face && `face: ${short(a.face, 140)}`, (a.mid || a.upper) && `build: ${short([a.upper, a.mid].filter(Boolean).join("; "), 140)}`].filter(Boolean).join("; ")
       : "";
-    const avoid = a?.avoid?.length ? ` Not: ${a.avoid.slice(0, 3).map((x) => x.replace(/^not\s+/i, "")).join("; ")}.` : "";
-    const outfit = m.anchors?.sheetOutfit ? ` Never dress ${name} in the reference outfit (${short(m.anchors.sheetOutfit, 100)}).` : "";
-    return `PERSON ${i + 1}, ${name}: ${joinTags(tags)} (${roles}${tags.length > 1 ? "; all the same woman" : ""}). Copy ${name}'s exact face, bone structure, eyes, brows, nose, lips, skin tone, freckles, moles and marks, hair colour, length and texture, and her exact body shape and proportions from ${joinTags(tags)} only.${look ? ` ${name}'s look: ${look}.` : ""}${avoid}${outfit}`;
+    return `PERSON ${i + 1}, ${name}: ${joinTags(tags)} (${roles}). Take ${name}'s exact face, hair, skin and body proportions from ${tags.length > 1 ? "these" : "this"} only.${look ? ` ${name}'s look: ${look}.` : ""}`;
   });
 
   const d = fence(direction).replace(/\s+/g, " ").trim().slice(0, MAX_DIRECTION);
@@ -47,12 +43,12 @@ export function groupPhotoPrompt(members: GroupMember[], direction: string): str
   const head = `A single new photograph of exactly ${n} women together in one scene: ${joinTags(members.map((m, i) => fence(m.name).trim().slice(0, 40) || `Person ${i + 1}`))}. Each woman's reference images show only her, so build each person only from her own references and never mix features between them. Every person is clearly visible with her face shown, and no extra people appear.`;
 
   const rules = [
-    "IDENTITY LOCK (strict): each woman is the exact same person as in her own references, with an identical face, features, skin, hair, body shape and proportions. Do not average, blend or swap faces, hair or bodies between them, and do not make them look alike. Do not slim, enlarge, lengthen, tone or idealise any figure. " + PROPORTIONS_RULE.replace("her figure", "a woman's figure"),
-    "OUTFITS: use the references for face, hair and body shape only and ignore the clothing shown there; each woman wears only what the creative direction describes, or, where it says nothing, an outfit that suits the scene.",
-    "Take only the people from the references, never their grid layout, panels, plain backgrounds, studio light or plain outfits. Lighting, colour and perspective are consistent across everyone, so they look photographed together in the same moment, at true relative scale.",
+    "Each woman's identity from her own references is the highest priority: an identical face, hair, skin and body at its real scale. Never blend, swap or average faces or bodies between them, and never slim or idealise a figure.",
+    "Take only the people from the references, never their grids, plain backgrounds, studio light or plain outfits: each woman wears what the creative direction describes, or an outfit that suits the scene.",
+    "Light, colour and perspective are consistent across everyone, at true relative scale.",
     REALISM_FIX.quality,
     TEXT_SHORT,
-    MODS_RULE,
+    "No tattoos or piercings a woman does not have in her references.",
   ];
   return [head, blocks.join("\n"), scene, rules.join(" ")].join("\n\n");
 }

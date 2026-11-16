@@ -6,7 +6,7 @@ vi.mock("@/lib/sheet-pack", () => ({ currentPack: vi.fn(), ensureSheetPack: vi.f
 
 import { artToRealJob, type JobCharacter } from "@/lib/generation-job";
 import { artToRealPrompt } from "@/lib/ai/prompts/art-to-real";
-import { PROPORTIONS_RULE } from "@/lib/ai/prompts/rules";
+import { PROPORTIONS_RULE } from "@/lib/ai/prompts/rules-full";
 import { UserFacingError } from "@/lib/errors";
 
 const U = "u1";
