@@ -14,7 +14,8 @@ Live at injektai.vercel.app. Everything below this section is the older build hi
 section is right.
 
 **Reference photos: drag to reorder, first is the cover (November 16; NOT run, types not run, not checked in a browser)**
-- `ImageSlot` (reference box only) uses HTML5 drag and drop: drag a photo onto another to move it; the first tile has a pink ring and a "Cover" badge. Saved characters call `reorderReferences` (`media-actions.ts`, checks it's the same set of paths); the new-character draft just reorders in the form. **Touch screens can't drag with HTML5 DnD**, so reorder is desktop only for now.
+- `ImageSlot` (reference box only) uses HTML5 drag and drop: drag a photo onto another to move it; the first tile has a pink ring and a "Cover" badge. Saved characters call `reorderReferences` (`media-actions.ts`, checks it's the same set of paths); the new-character draft just reorders in the form. **Touch screens** (`pointer: coarse`) get buttons on each tile instead of dragging: ★ makes it the cover, ‹ › move it one place (mouse users see none of them).
+- **Dashboard**: the big picture uses her cover (`DashCharacter.cover`, first reference photo), the small circles use the profile photo (`characterAvatars(..., "profile")`).
 - **Cover = `reference_paths[0]`**, now ahead of the profile photo on the Characters card (`characters/page.tsx` `photo`) and in `character-avatars.ts` (pickers). The profile photo still shows if she has no reference photos. Other pages that read `profile_photo_path` directly (marketplace, dashboard) were not changed. Reordering also changes which photos prompts use (they take the first 2-3 references).
 
 **Floating Save on the edit-character page (November 16; NOT run, types not run, not checked in a browser)**

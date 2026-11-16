@@ -43,9 +43,9 @@ export function Studio({ characters, focusId, heroClass, dropClass }: { characte
     <>
       <section aria-label="Your model" className={cn("panel flex flex-col overflow-hidden", heroClass)}>
         <div className="relative min-h-[15rem] flex-1 bg-gradient-to-br from-neutral-800 to-neutral-950">
-          {focus.photo && (
+          {focus.cover && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={focus.id} src={focus.photo} alt="" className="absolute inset-0 h-full w-full animate-fade-in object-cover object-top" />
+            <img key={focus.id} src={focus.cover} alt="" className="absolute inset-0 h-full w-full animate-fade-in object-cover object-top" />
           )}
           <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-neutral-950 via-neutral-950/70 to-transparent" />
           <span className={cn("absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur-md", focus.ready ? "border-white/20 bg-neutral-950/70 text-white" : "border-amber-400/40 bg-neutral-950/75 text-amber-200")}>

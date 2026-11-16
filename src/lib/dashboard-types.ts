@@ -2,7 +2,10 @@
 export interface DashCharacter {
   id: string;
   name: string;
+  /** Profile photo: the small circles. */
   photo: string | null;
+  /** Cover (first reference photo): the big picture. */
+  cover: string | null;
   /** Has both sheets, so every tool can use her. */
   ready: boolean;
   refs: number;

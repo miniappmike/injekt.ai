@@ -158,7 +158,7 @@ export function ImageSlot({
         onChange={(e) => add(e.target.files)}
       />
       {hint && <p className="text-xs text-neutral-500 max-sm:hidden">{hint}</p>}
-      {sortable && <p className="text-xs text-neutral-500">Drag to reorder. The first photo is her cover.</p>}
+      {sortable && <p className="text-xs text-neutral-500">Drag to reorder (or use the buttons on a touch screen). The first photo is her cover.</p>}
       {current.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {current.map((img, idx) => (
@@ -208,8 +208,21 @@ export function ImageSlot({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={img.url} alt={label} className={`thumb h-24 w-24 animate-pop-in object-cover object-top max-sm:h-[4.5rem] max-sm:w-[4.5rem] 2xl:h-28 2xl:w-28 ${slot === "reference" && idx === 0 ? "ring-2 ring-brand-400 shadow-[0_0_18px_-2px_rgb(244_63_94/0.6)]" : "ring-1 ring-white/10"}`} draggable={false} />
               </button>
+              {/* Touch screens can't drag: buttons instead (hidden for a mouse). */}
+              {sortable && idx > 0 && (
+                <>
+                  <button type="button" aria-label="Make cover photo" disabled={busy} onClick={() => move(img.path, current[0].path)} className="absolute left-1 top-1 hidden h-7 w-7 items-center justify-center rounded-full bg-black/65 text-sm text-white [@media(pointer:coarse)]:flex">★</button>
+                  <button type="button" aria-label="Move earlier" disabled={busy} onClick={() => move(img.path, current[idx - 1].path)} className="absolute bottom-1 left-1 hidden h-8 w-8 items-center justify-center rounded-full bg-black/70 text-lg leading-none text-white [@media(pointer:coarse)]:flex">‹</button>
+                </>
+              )}
+              {sortable && idx > 0 && idx < current.length - 1 && (
+                <button type="button" aria-label="Move later" disabled={busy} onClick={() => move(img.path, current[idx + 1].path)} className="absolute bottom-1 right-1 hidden h-8 w-8 items-center justify-center rounded-full bg-black/70 text-lg leading-none text-white [@media(pointer:coarse)]:flex">›</button>
+              )}
+              {sortable && idx === 0 && (
+                <button type="button" aria-label="Move later" disabled={busy} onClick={() => move(img.path, current[1].path)} className="absolute bottom-1 right-1 z-10 hidden h-8 w-8 items-center justify-center rounded-full bg-black/70 text-lg leading-none text-white [@media(pointer:coarse)]:flex">›</button>
+              )}
               {slot === "reference" && idx === 0 && (
-                <span className="pointer-events-none absolute inset-x-1 bottom-1 rounded-md bg-brand-500/90 px-1 py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-white">Cover</span>
+                <span className="pointer-events-none absolute inset-x-1 top-1 rounded-md bg-brand-500/90 px-1 py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-white">Cover</span>
               )}
               <button
                 type="button"

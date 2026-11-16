@@ -55,11 +55,12 @@ export async function loadDashboard(supabase: SupabaseClient, user: Actor & { em
   ]);
 
   const rows = chars.data ?? [];
-  const photos = await characterAvatars(supabase, rows);
+  const [photos, covers] = await Promise.all([characterAvatars(supabase, rows, "profile"), characterAvatars(supabase, rows, "cover")]);
   const characters: DashCharacter[] = rows.map((c) => ({
     id: c.id,
     name: c.name,
     photo: photos.get(c.id) ?? null,
+    cover: covers.get(c.id) ?? null,
     ready: !!c.face_sheet_path && !!c.body_sheet_path,
     refs: Math.min(MAX_REFERENCE_PHOTOS, (c.reference_paths ?? []).length),
     maxRefs: MAX_REFERENCE_PHOTOS,
