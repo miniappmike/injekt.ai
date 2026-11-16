@@ -17,28 +17,43 @@ const pinCache = new Map<string, string | null>();
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 8;
 const clamp = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
-// Room kept for the toolbar at the bottom and the buttons at the top when fitting the image.
-const FIT_MARGIN = { x: 48, y: 176 };
+// Room kept around the picture when fitting it: the buttons at the top lie over the stage, and the same again below
+// keeps it centred. Phones get a thinner side margin.
+const fitMargin = (w: number) => ({ x: w < 640 ? 16 : 48, y: 112 });
+// How much of the picture always stays on screen, so it can't be dragged or flicked out of reach.
+const KEEP_VISIBLE = 80;
+// Touch: how far a finger may wander and still count as a tap, how close two taps must be to be a double tap, and how
+// far a sideways swipe must go to step to the next picture.
+const TAP_SLOP = 10;
+const DOUBLE_TAP_MS = 300;
+const DOUBLE_TAP_SLOP = 32;
+const SWIPE_DISTANCE = 64;
+const DOUBLE_TAP_ZOOM = 2.5;
 
-// Full-screen image viewer, opened with viewImage(). Drag to move, scroll or pinch to zoom, double-click to switch
-// between fitting the screen and actual size.
+type View = { s: number; x: number; y: number };
+
+// Full-screen image viewer, opened with viewImage(). Mouse: drag to move, scroll to zoom, double-click to switch
+// between fitting the screen and actual size. Touch: pinch to zoom, drag to move, double tap to recentre (or zoom in
+// when it is already centred), swipe sideways to step through the gallery, tap outside the picture to close.
 export function ImageViewer() {
   const [image, setImage] = useState<ViewableImage | null>(null);
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
-  const [scale, setScaleState] = useState(1);
-  // The current scale, readable synchronously so a zoom can work out how far to move the image.
-  const scaleRef = useRef(1);
-  const setScale = useCallback((next: number) => {
-    scaleRef.current = next;
-    setScaleState(next);
-  }, []);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
+  // Scale and position together, also readable synchronously so a gesture can build on the last frame.
+  const [view, setViewState] = useState<View>({ s: 1, x: 0, y: 0 });
+  const viewRef = useRef(view);
+  // Glides to the new view (fit, double tap, snapping back) instead of jumping; off while a finger is down.
+  const [smooth, setSmooth] = useState(false);
+  // True while the picture sits fitted and centred: a sideways swipe then steps through the gallery.
+  const atFit = useRef(true);
+  const scale = view.s;
   const [fullscreen, setFullscreen] = useState(false);
   const overlay = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const naturalRef = useRef(natural);
+  naturalRef.current = natural;
   const { toast, show } = useToast(2000);
   // The character this image was made for, so Pin It can be offered wherever the image is opened from.
   const router = useRouter();
@@ -96,7 +111,6 @@ export function ImageViewer() {
     router.refresh();
     if (!rest.length) return close();
     setNatural(null);
-    setPos({ x: 0, y: 0 });
     setImage({ ...rest[Math.min(Math.max(at, 0), rest.length - 1)], gallery: rest });
   }
 
@@ -118,28 +132,72 @@ export function ImageViewer() {
       if (!detail?.url) return;
       returnFocus.current = document.activeElement as HTMLElement | null;
       setNatural(null);
-      setPos({ x: 0, y: 0 });
       setImage(detail);
     };
     window.addEventListener(VIEW_IMAGE_EVENT, onView);
     return () => window.removeEventListener(VIEW_IMAGE_EVENT, onView);
   }, []);
 
+  // Keeps part of the picture on screen whatever the gesture asked for.
+  const setView = useCallback((next: View, glide = false) => {
+    const n = naturalRef.current;
+    const r = stage.current?.getBoundingClientRect();
+    let { x, y } = next;
+    if (n && r) {
+      const limX = Math.max(0, (n.w * next.s + r.width) / 2 - KEEP_VISIBLE);
+      const limY = Math.max(0, (n.h * next.s + r.height) / 2 - KEEP_VISIBLE);
+      x = Math.min(limX, Math.max(-limX, x));
+      y = Math.min(limY, Math.max(-limY, y));
+    }
+    const v = { s: next.s, x, y };
+    viewRef.current = v;
+    setSmooth(glide);
+    setViewState(v);
+  }, []);
+
   const fitScale = useCallback(() => {
     if (!natural) return 1;
-    const w = window.innerWidth - FIT_MARGIN.x;
-    const h = window.innerHeight - FIT_MARGIN.y;
-    return clamp(Math.min(w / natural.w, h / natural.h));
+    const r = stage.current?.getBoundingClientRect();
+    const w = r?.width || window.innerWidth;
+    const h = r?.height || window.innerHeight;
+    const m = fitMargin(w);
+    return clamp(Math.min((w - m.x) / natural.w, (h - m.y) / natural.h));
   }, [natural]);
 
-  const fit = useCallback(() => {
-    setScale(fitScale());
-    setPos({ x: 0, y: 0 });
-  }, [fitScale, setScale]);
+  const fit = useCallback(
+    (glide = false) => {
+      atFit.current = true;
+      setView({ s: fitScale(), x: 0, y: 0 }, glide);
+    },
+    [fitScale, setView],
+  );
 
   useEffect(() => {
     if (natural) fit();
   }, [natural, fit]);
+
+  // Turning the phone or resizing the window refits a picture that was fitted.
+  useEffect(() => {
+    if (!natural) return;
+    const onResize = () => {
+      if (atFit.current) fit();
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [natural, fit]);
+
+  // Steps to the next (1) or previous (-1) picture of the gallery, wrapping round.
+  const step = useCallback(
+    (dir: 1 | -1) => {
+      const list = image?.gallery;
+      if (!image || !list || list.length < 2) return false;
+      const at = Math.max(0, list.findIndex((x) => x.url === image.url));
+      setNatural(null);
+      setImage({ ...list[(at + dir + list.length) % list.length], gallery: list });
+      return true;
+    },
+    [image],
+  );
 
   const generationId = image?.generated ? image.generationId : null;
   // Looked up for this image and, in the background, for the others in its gallery, so the button is already there
@@ -177,9 +235,13 @@ export function ImageViewer() {
     document.body.style.overflow = "hidden";
     const onFs = () => setFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", onFs);
+    // Safari's own two-finger page zoom would fight the viewer's pinch.
+    const noPageZoom = (e: Event) => e.preventDefault();
+    document.addEventListener("gesturestart", noPageZoom);
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener("fullscreenchange", onFs);
+      document.removeEventListener("gesturestart", noPageZoom);
     };
   }, [image]);
 
@@ -189,15 +251,10 @@ export function ImageViewer() {
     if (!image) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.altKey && !e.ctrlKey && !e.metaKey) {
-        const list = image.gallery;
-        if (!list || list.length < 2 || (e.target instanceof Element && e.target.closest("input, textarea, select"))) return;
-        const at = Math.max(0, list.findIndex((x) => x.url === image.url));
-        const next = list[(at + (e.key === "ArrowRight" ? 1 : -1) + list.length) % list.length];
+        if (e.target instanceof Element && e.target.closest("input, textarea, select")) return;
+        if (!step(e.key === "ArrowRight" ? 1 : -1)) return;
         e.preventDefault();
         e.stopPropagation();
-        setNatural(null);
-        setPos({ x: 0, y: 0 });
-        setImage({ ...next, gallery: list });
         return;
       }
       if (e.key !== "Escape") return;
@@ -209,18 +266,18 @@ export function ImageViewer() {
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [image, close]);
+  }, [image, close, step]);
 
   // Zooms by `factor`, keeping the point under (cx, cy) (relative to the stage centre) still.
   const zoomAt = useCallback(
-    (factor: number, cx = 0, cy = 0) => {
-      const s = scaleRef.current;
-      const next = clamp(s * factor);
-      const ratio = next / s;
-      setScale(next);
-      setPos((p) => ({ x: cx - (cx - p.x) * ratio, y: cy - (cy - p.y) * ratio }));
+    (factor: number, cx = 0, cy = 0, glide = false) => {
+      const v = viewRef.current;
+      const next = clamp(v.s * factor);
+      const ratio = next / v.s;
+      atFit.current = false;
+      setView({ s: next, x: cx - (cx - v.x) * ratio, y: cy - (cy - v.y) * ratio }, glide);
     },
-    [setScale],
+    [setView],
   );
 
   const fromCentre = (clientX: number, clientY: number) => {
@@ -241,12 +298,42 @@ export function ImageViewer() {
     return () => el.removeEventListener("wheel", onWheel);
   }, [image, zoomAt]);
 
-  // A click (press and release without dragging) outside the picture closes the viewer.
-  const press = useRef<{ x: number; y: number; onImage: boolean } | null>(null);
+  // The gesture in progress: where the first finger went down, whether it was on the picture, whether the picture was
+  // fitted then, and whether a second finger joined (a pinch is never a tap or a swipe).
+  const press = useRef<{ x: number; y: number; onImage: boolean; touch: boolean; wasFit: boolean; pinched: boolean } | null>(null);
+  const lastTap = useRef<{ t: number; x: number; y: number } | null>(null);
+  const lastPointerType = useRef("mouse");
+
+  // Closing on a tap leaves the browser's follow-up click with nothing under the finger but the page, where it would
+  // open whatever is there (often the same picture again). That one click is swallowed.
+  function closeFromTap() {
+    const swallow = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      done();
+    };
+    const done = () => window.removeEventListener("click", swallow, true);
+    window.addEventListener("click", swallow, true);
+    window.setTimeout(done, 400);
+    close();
+  }
 
   function onPointerDown(e: React.PointerEvent) {
-    // Read before capture: once captured, every event's target is the stage.
-    press.current = pointers.current.size === 0 ? { x: e.clientX, y: e.clientY, onImage: (e.target as HTMLElement).tagName === "IMG" } : null;
+    lastPointerType.current = e.pointerType;
+    setSmooth(false);
+    if (pointers.current.size === 0) {
+      // Read before capture: once captured, every event's target is the stage.
+      press.current = {
+        x: e.clientX,
+        y: e.clientY,
+        onImage: (e.target as HTMLElement).tagName === "IMG",
+        touch: e.pointerType === "touch",
+        wasFit: atFit.current,
+        pinched: false,
+      };
+    } else if (press.current) {
+      press.current.pinched = true;
+    }
     stage.current?.setPointerCapture(e.pointerId);
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
   }
@@ -255,17 +342,26 @@ export function ImageViewer() {
     const all = pointers.current;
     const prev = all.get(e.pointerId);
     if (!prev) return;
-    if (all.size > 1) press.current = null;
+    const v = viewRef.current;
     if (all.size === 1) {
-      setPos((p) => ({ x: p.x + e.clientX - prev.x, y: p.y + e.clientY - prev.y }));
+      const p = press.current;
+      // A finger resting on the glass jitters; don't let that nudge a fitted picture off centre.
+      if (p && !p.pinched && Math.hypot(e.clientX - p.x, e.clientY - p.y) < TAP_SLOP) return;
+      atFit.current = false;
+      setView({ s: v.s, x: v.x + e.clientX - prev.x, y: v.y + e.clientY - prev.y });
     } else if (all.size === 2) {
-      // Pinch: zoom by how much the distance between the two fingers changed, around their midpoint.
+      // Pinch: zoom by how much the two fingers moved apart, around their midpoint, and follow the midpoint as it
+      // moves, so two fingers can zoom and pan in one motion.
       const other = [...all.entries()].find(([id]) => id !== e.pointerId)![1];
       const before = Math.hypot(prev.x - other.x, prev.y - other.y);
       const after = Math.hypot(e.clientX - other.x, e.clientY - other.y);
-      if (before > 0) {
-        const c = fromCentre((e.clientX + other.x) / 2, (e.clientY + other.y) / 2);
-        zoomAt(after / before, c.x, c.y);
+      if (before > 0 && after > 0) {
+        const c0 = fromCentre((prev.x + other.x) / 2, (prev.y + other.y) / 2);
+        const c1 = fromCentre((e.clientX + other.x) / 2, (e.clientY + other.y) / 2);
+        const next = clamp(v.s * (after / before));
+        const ratio = next / v.s;
+        atFit.current = false;
+        setView({ s: next, x: c1.x - (c0.x - v.x) * ratio, y: c1.y - (c0.y - v.y) * ratio });
       }
     }
     all.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -273,14 +369,44 @@ export function ImageViewer() {
 
   function onPointerUp(e: React.PointerEvent) {
     pointers.current.delete(e.pointerId);
+    if (pointers.current.size > 0) return;
     const p = press.current;
     press.current = null;
-    if (e.type === "pointerup" && p && !p.onImage && pointers.current.size === 0 && Math.hypot(e.clientX - p.x, e.clientY - p.y) < 6) close();
+    if (!p || e.type !== "pointerup") return p?.touch && viewRef.current.s < fitScale() ? fit(true) : undefined;
+    const dx = e.clientX - p.x;
+    const dy = e.clientY - p.y;
+    const tap = !p.pinched && Math.hypot(dx, dy) < TAP_SLOP;
+
+    if (tap && !p.onImage) return p.touch ? closeFromTap() : close();
+    if (!p.touch) return;
+
+    if (tap) {
+      const now = Date.now();
+      const last = lastTap.current;
+      if (last && now - last.t < DOUBLE_TAP_MS && Math.hypot(e.clientX - last.x, e.clientY - last.y) < DOUBLE_TAP_SLOP) {
+        lastTap.current = null;
+        // Double tap: back to fitted and centred; from there, zoom in on the spot that was tapped.
+        if (!atFit.current) return fit(true);
+        const c = fromCentre(e.clientX, e.clientY);
+        return zoomAt(DOUBLE_TAP_ZOOM, c.x, c.y, true);
+      }
+      lastTap.current = { t: now, x: e.clientX, y: e.clientY };
+      return;
+    }
+    lastTap.current = null;
+
+    // A fitted picture swiped sideways steps through the gallery; otherwise it settles back in the centre.
+    if (p.wasFit && !p.pinched) {
+      if (Math.abs(dx) > SWIPE_DISTANCE && Math.abs(dx) > Math.abs(dy) * 1.5 && step(dx < 0 ? 1 : -1)) return;
+      return fit(true);
+    }
+    // Pinched smaller than the screen: spring back to fitted.
+    if (viewRef.current.s <= fitScale() * 1.02) fit(true);
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "+" || e.key === "=") zoomAt(1.25);
-    else if (e.key === "-") zoomAt(0.8);
+    if (e.key === "+" || e.key === "=") zoomAt(1.25, 0, 0, true);
+    else if (e.key === "-") zoomAt(0.8, 0, 0, true);
     else if (e.key === "0") fit();
   }
 
@@ -295,6 +421,11 @@ export function ImageViewer() {
 
   if (!image) return null;
 
+  const gallery = image.gallery && image.gallery.length > 1 ? image.gallery : null;
+  const canFullscreen = typeof document !== "undefined" && document.fullscreenEnabled;
+  // Phones: every action is a full-height button sharing the row evenly, so the bar is tidy rows of big targets.
+  const action = "max-sm:h-11 max-sm:min-w-[30%] max-sm:flex-1";
+
   return createPortal(
     <div
       ref={overlay}
@@ -306,59 +437,73 @@ export function ImageViewer() {
       onClick={(e) => {
         if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.viewerBar !== undefined) close();
       }}
-      className="fixed inset-0 z-50 flex animate-fade-in flex-col bg-black/90 text-neutral-100 backdrop-blur-md"
+      // Solid backdrop: blurring the page behind a picture that is being zoomed left stale strips of it on phones.
+      className="fixed inset-0 z-50 flex animate-fade-in flex-col overscroll-contain bg-black text-neutral-100 sm:bg-black/95"
     >
-      <div data-viewer-bar className="absolute right-3 top-3 z-10 flex flex-wrap justify-end gap-2">
-        <Button type="button" size="sm" variant="secondary" onClick={fit}>Fit to screen</Button>
-        <Button type="button" size="sm" variant="secondary" onClick={toggleFullscreen}>{fullscreen ? "Exit full screen" : "Full screen"}</Button>
-        <Button ref={closeButton} type="button" size="sm" variant="secondary" onClick={close} aria-label="Close image">Close ✕</Button>
+      <div data-viewer-bar className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-wrap justify-end gap-2">
+        <Button type="button" size="sm" variant="secondary" className="max-sm:hidden" onClick={() => fit(true)}>Fit to screen</Button>
+        {canFullscreen && (
+          <Button type="button" size="sm" variant="secondary" className="max-sm:hidden" onClick={toggleFullscreen}>{fullscreen ? "Exit full screen" : "Full screen"}</Button>
+        )}
+        <Button ref={closeButton} type="button" size="sm" variant="secondary" className="max-sm:h-11 max-sm:px-4" onClick={close} aria-label="Close image">Close ✕</Button>
       </div>
 
       <div
         ref={stage}
         className="relative flex-1 cursor-grab touch-none select-none overflow-hidden active:cursor-grabbing"
+        style={{ WebkitTouchCallout: "none" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onDoubleClick={(e) => {
-          if (Math.abs(scale - fitScale()) > 0.01) return fit();
+          // Touch has its own double tap (above).
+          if (lastPointerType.current === "touch") return;
+          if (Math.abs(scale - fitScale()) > 0.01) return fit(true);
           const c = fromCentre(e.clientX, e.clientY);
-          zoomAt(1 / scale, c.x, c.y);
+          zoomAt(1 / scale, c.x, c.y, true);
         }}
       >
+        {/* Sized in real pixels and only moved by the transform: a picture scaled by a transform was drawn from
+            stale tiles on phones, which left lines where its edges had been. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={image.url}
           alt={image.title ?? ""}
           draggable={false}
           onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
-          className="absolute left-1/2 top-1/2 max-w-none"
+          className={`absolute left-1/2 top-1/2 max-w-none will-change-transform ${smooth ? "transition-[transform,width,height] duration-200 ease-out motion-reduce:transition-none" : ""}`}
           style={{
-            transform: `translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y}px)) scale(${scale})`,
+            width: natural ? natural.w * scale : undefined,
+            height: natural ? natural.h * scale : undefined,
+            transform: `translate3d(calc(-50% + ${view.x}px), calc(-50% + ${view.y}px), 0)`,
             visibility: natural ? "visible" : "hidden",
           }}
         />
         {!natural && <p className="absolute inset-0 flex items-center justify-center text-sm text-neutral-400">Loading...</p>}
       </div>
 
-      <div data-viewer-bar className="flex flex-wrap items-center justify-center gap-2 p-3">
-        <div className="flex items-center gap-1 rounded-full border border-neutral-800 bg-neutral-900/90 px-2 py-1 shadow-lg backdrop-blur">
-          <Button type="button" size="sm" variant="ghost" onClick={() => zoomAt(0.8)} aria-label="Zoom out">−</Button>
+      <div data-viewer-bar className="flex flex-wrap items-center justify-center gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="flex items-center gap-1 rounded-full border border-neutral-800 bg-neutral-900/90 px-2 py-1 shadow-lg max-sm:hidden">
+          <Button type="button" size="sm" variant="ghost" onClick={() => zoomAt(0.8, 0, 0, true)} aria-label="Zoom out">−</Button>
           <span className="w-12 text-center text-sm tabular-nums" aria-live="polite">{natural ? `${Math.round(scale * 100)}%` : ""}</span>
-          <Button type="button" size="sm" variant="ghost" onClick={() => zoomAt(1.25)} aria-label="Zoom in">+</Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => zoomAt(1.25, 0, 0, true)} aria-label="Zoom in">+</Button>
         </div>
-        {image.gallery && image.gallery.length > 1 && (
-          <span className="rounded-full border border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-xs tabular-nums text-neutral-300" aria-live="polite" title="Left and right arrow keys">
-            {Math.max(0, image.gallery.findIndex((x) => x.url === image.url)) + 1} / {image.gallery.length}
-          </span>
+        {gallery && (
+          <div data-viewer-bar className="flex items-center justify-center gap-1 max-sm:basis-full">
+            <Button type="button" size="sm" variant="ghost" className="max-sm:h-11 max-sm:w-11 max-sm:text-lg" onClick={() => step(-1)} aria-label="Previous image">‹</Button>
+            <span className="rounded-full border border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-xs tabular-nums text-neutral-300" aria-live="polite" title="Left and right arrow keys, or swipe">
+              {Math.max(0, gallery.findIndex((x) => x.url === image.url)) + 1} / {gallery.length}
+            </span>
+            <Button type="button" size="sm" variant="ghost" className="max-sm:h-11 max-sm:w-11 max-sm:text-lg" onClick={() => step(1)} aria-label="Next image">›</Button>
+          </div>
         )}
         {image.downloadUrl && (
-          <Button asChild size="sm" variant="secondary">
+          <Button asChild size="sm" variant="secondary" className={action}>
             <DownloadLink href={image.downloadUrl}>Download</DownloadLink>
           </Button>
         )}
-        <Button type="button" size="sm" variant="secondary" onClick={() => void copyImage([image.url, image.downloadUrl])}>
+        <Button type="button" size="sm" variant="secondary" className={action} onClick={() => void copyImage([image.url, image.downloadUrl])}>
           Copy image
         </Button>
         {image.prompt && (
@@ -366,6 +511,7 @@ export function ImageViewer() {
             type="button"
             size="sm"
             variant="secondary"
+            className={action}
             onClick={async () => {
               await navigator.clipboard.writeText(image.prompt as string);
               show("Prompt copied");
@@ -374,15 +520,15 @@ export function ImageViewer() {
             Copy prompt
           </Button>
         )}
-        {generationId && !pinKnown && <span aria-hidden="true" className="h-8 w-16 animate-pulse rounded-lg bg-neutral-800" />}
+        {generationId && !pinKnown && <span aria-hidden="true" className={`h-8 w-16 animate-pulse rounded-lg bg-neutral-800 ${action}`} />}
+        {generationId && pinCharacter && <PinToReferences key={generationId} generationId={generationId} characterId={pinCharacter} className="max-sm:min-w-[30%] max-sm:flex-1" buttonClassName="max-sm:h-11 max-sm:w-full" />}
         {generationId && (
-          <Button type="button" size="sm" variant="secondary" className="text-red-300" disabled={deleting} onClick={() => void deleteCurrent(image)}>
+          <Button type="button" size="sm" variant="secondary" className={`text-red-300 ${action}`} disabled={deleting} onClick={() => void deleteCurrent(image)}>
             {deleting ? "Deleting…" : "Delete"}
           </Button>
         )}
-        {generationId && pinCharacter && <PinToReferences key={generationId} generationId={generationId} characterId={pinCharacter} />}
         {image.generated && (
-          <Button type="button" size="sm" onClick={() => sendToVariants(image)}>
+          <Button type="button" size="sm" className={action} onClick={() => sendToVariants(image)}>
             Variants
           </Button>
         )}
