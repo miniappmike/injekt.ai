@@ -56,8 +56,9 @@ export default async function CharactersPage() {
         id: c.id,
         name: c.name,
         identityLine: (c.profile as CharacterProfile).identity_line ?? null,
-        // Her cover is the first reference photo; the profile photo is only used when she has none.
-        photo: (c.reference_paths[0] ?? c.profile_photo_path) ? (urls[(c.reference_paths[0] ?? c.profile_photo_path) as string] ?? null) : null,
+        // The small circle: her profile photo (the big picture is her cover, thumbs[0], the first reference photo).
+        // Falls back to the cover only when she has no profile photo.
+        photo: (c.profile_photo_path ?? c.reference_paths[0]) ? (urls[(c.profile_photo_path ?? c.reference_paths[0]) as string] ?? null) : null,
         thumbs: thumbs(c).map((p) => urls[p]).filter((u): u is string => !!u),
         refCount: c.reference_paths.length,
         hasSheet: !!(c.face_sheet_path || c.body_sheet_path),
