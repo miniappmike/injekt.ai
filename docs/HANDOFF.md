@@ -13,6 +13,9 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Blur toggle on the dashboard's Recent images (November 16; NOT run, types not run, not checked in a browser)**
+- A branded pink eye button sits top-left of each Recent images tile (`RecentImages` in `dashboard/tiles.tsx`): on hover on a computer, always on touch screens. Click it: the eye gets a diagonal slash (`EyeOffIcon`) and the picture blurs (and the button stays visible). Remembered per browser in localStorage `ms.blurredRecent` (ids of images still shown), not on the account, so it doesn't follow them to another device. Opening a blurred tile still shows it clear in the viewer.
+
 **Likeness page fixes (November 16; NOT run, types not run, not checked in a browser)**
 - Removed "Generate with revised prompt" under the Revised prompt (it made a new image of the scene, not an edit); the Revised prompt card keeps Copy and "Use for next round", and the "Fix this image" card is the way to fix (it edits the checked image).
 - `FixRun` no longer auto-starts: Fix / Fix the likeness / Fix only her face now show Size, Shape and Format first, then the pink button starts it.

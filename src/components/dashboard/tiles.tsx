@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowRight, Brush, Check } from "lucide-react";
-import { GroupIcon, LikenessIcon, VariantsIcon } from "@/components/icons";
+import { EyeIcon, EyeOffIcon, GroupIcon, LikenessIcon, VariantsIcon } from "@/components/icons";
 import { setGeneration } from "@/app/(app)/settings/api-keys/actions";
 import { STEP_ORDER, type DashImage, type StepKey } from "@/lib/dashboard-types";
 import { openHistory, viewImage } from "@/lib/panel-events";
@@ -81,6 +81,17 @@ function QuickTools({ className }: { className?: string }) {
   );
 }
 
+/** Images the person blurred on the dashboard, remembered in this browser. */
+const BLURRED_KEY = "ms.blurredRecent";
+function readBlurred(): Set<string> {
+  try {
+    const v = JSON.parse(localStorage.getItem(BLURRED_KEY) || "[]");
+    return new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
 /** The newest images still on the site, each with the time it has left. Tap one to view, save, or pin it. */
 export function RecentImages({ images, className }: { images: DashImage[]; className?: string }) {
   // The countdown is worked out in the browser, so the server and the first paint can't disagree about "now".
@@ -90,6 +101,21 @@ export function RecentImages({ images, className }: { images: DashImage[]; class
     const t = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(t);
   }, []);
+  const [blurred, setBlurred] = useState<Set<string>>(new Set());
+  useEffect(() => setBlurred(readBlurred()), []);
+  const toggleBlur = (id: string) =>
+    setBlurred((cur) => {
+      const next = new Set(cur);
+      if (!next.delete(id)) next.add(id);
+      try {
+        // Only ids still shown are kept, so the list can't grow forever.
+        const keep = [...next].filter((x) => images.some((i) => i.id === x));
+        localStorage.setItem(BLURRED_KEY, JSON.stringify(keep));
+      } catch {
+        // Private windows can refuse storage; the blur then lasts until reload.
+      }
+      return next;
+    });
   return (
     <section aria-label="Recent images" className={cn("panel flex flex-col gap-3 p-4 sm:p-5", className)}>
       <div className="flex items-baseline justify-between gap-3">
@@ -108,7 +134,7 @@ export function RecentImages({ images, className }: { images: DashImage[]; class
             const left = now ? timeLeft(i.expiresAt, now) : null;
             const soon = !!now && new Date(i.expiresAt).getTime() - now.getTime() < 12 * 3_600_000;
             return (
-              <li key={i.id} className="w-[30%] min-w-[6.25rem] shrink-0 sm:w-auto sm:min-w-0 sm:flex-1">
+              <li key={i.id} className="group relative w-[30%] min-w-[6.25rem] shrink-0 sm:w-auto sm:min-w-0 sm:flex-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -120,10 +146,24 @@ export function RecentImages({ images, className }: { images: DashImage[]; class
                   className="thumb relative block aspect-[3/4] w-full overflow-hidden bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/70"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={i.url} alt="" loading="lazy" className="h-full w-full object-cover object-top" />
+                  <img src={i.url} alt="" loading="lazy" className={cn("h-full w-full object-cover object-top transition-[filter,transform] duration-200", blurred.has(i.id) && "scale-110 blur-xl")} />
                   {left && (
                     <span className={cn("absolute bottom-1.5 left-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md", soon ? "bg-brand-500" : "bg-neutral-950/75")}>{left.label}</span>
                   )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleBlur(i.id)}
+                  aria-pressed={blurred.has(i.id)}
+                  aria-label={blurred.has(i.id) ? "Show image" : "Blur image"}
+                  title={blurred.has(i.id) ? "Show image" : "Blur image"}
+                  className={cn(
+                    "absolute left-1.5 top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-b from-brand-400 to-brand-600 text-white shadow-[0_6px_20px_-8px_rgb(232_38_94/0.7)] transition-all hover:scale-105 hover:from-brand-300 hover:to-brand-500 active:scale-90 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
+                    // Shown on hover on a computer, always on a touch screen, and always while the image is blurred.
+                    blurred.has(i.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
+                  )}
+                >
+                  {blurred.has(i.id) ? <EyeOffIcon className="h-[17px] w-[17px]" /> : <EyeIcon className="h-[17px] w-[17px]" />}
                 </button>
               </li>
             );
