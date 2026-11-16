@@ -150,9 +150,9 @@ export const GUIDE_PHASES: GuidePhase[] = [
 /** Model IDs to copy, with what each is for. */
 export const GUIDE_MODELS = {
   vision: [
-    { name: "Claude Haiku 5.5", id: "anthropic/claude-haiku-5.5/chat", note: "Latest Iteration" },
-    { name: "Claude Sonnet 5.5", id: "anthropic/claude-sonnet-5.5/chat", note: "Original setup" },
-    { name: "Kimi K3.1 Pro", id: "moonshot/kimi-k3.1-pro/chat", note: "Tested" },
+    { name: "DeepSeek V4.1 Flash", id: "deepseek/v4.1-flash/chat", note: "Recommended", href: "https://spicyapi.ai/models/deepseek-v4-1-flash" },
+    { name: "Claude Sonnet 5.5", id: "anthropic/claude-sonnet-5.5/chat", note: "More expensive" },
+    { name: "Claude Haiku 5.5", id: "anthropic/claude-haiku-5.5/chat", note: "Most affordable" },
   ],
   image: [
     { name: "Seedream 5.5", id: "bytedance/seedream-5.5/edit", note: "Latest Iteration" },
@@ -162,7 +162,7 @@ export const GUIDE_MODELS = {
 
 /** Which models the guide was made with, and what the developer uses now. */
 export const GUIDE_MODELS_NOTE =
-  "All testing and site setup was done with **Claude Sonnet 5.5** and **Seedream 5**. Since then the developer has switched to **Claude Haiku 5.5** with **Seedream 5.5**, which saves a lot on text tokens. Those two are marked **Latest Iteration**.";
+  "For text, we recommend **DeepSeek V4.1 Flash**. **Claude Sonnet 5.5** is what the site was first set up and tested with (more expensive), and **Claude Haiku 5.5** is the most affordable. For images, **Seedream 5.5** is the latest iteration.";
 export const LATEST_TIP = "What the developer has been testing with lately.";
 
 export const GUIDE_BALANCE_NOTE =

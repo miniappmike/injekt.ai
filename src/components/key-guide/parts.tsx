@@ -155,7 +155,7 @@ function CopyId({ id }: { id: string }) {
 
 /** Our model picks for the Vision and Image keys, with IDs to copy. */
 export function ModelPicks() {
-  const group = (label: string, what: string, list: readonly { name: string; id: string; note: string }[]) => (
+  const group = (label: string, what: string, list: readonly { name: string; id: string; note: string; href?: string }[]) => (
     <div className="flex flex-col gap-2 rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
       <div>
         <p className="text-sm font-semibold text-neutral-100">{label}</p>
@@ -164,8 +164,8 @@ export function ModelPicks() {
       {list.map((m) => (
         <div key={m.id} className="flex flex-col gap-1">
           <p className="flex items-center gap-2 text-sm text-neutral-200">
-            {m.name}
-            <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-semibold", m.note === "Latest Iteration" ? "bg-brand-500/15 text-brand-300" : "bg-neutral-800 text-neutral-400")}>{m.note}</span>
+            {m.href ? <a href={m.href} target="_blank" rel="noreferrer" className={LINK}>{m.name}</a> : m.name}
+            <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-semibold", m.note === "Latest Iteration" || m.note === "Recommended" ? "bg-brand-500/15 text-brand-300" : m.note === "Most affordable" ? "bg-emerald-500/15 text-emerald-300" : "bg-neutral-800 text-neutral-400")}>{m.note}</span>
             {m.note === "Latest Iteration" && <InfoTip label="About Latest Iteration">{LATEST_TIP}</InfoTip>}
           </p>
           <CopyId id={m.id} />
