@@ -13,6 +13,9 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Director button hover (November 16; class change only, not checked in a browser)**
+- The dashboard's Director button (`dashboard/studio.tsx`) now gets an iris (purple) outline on hover, matching its icon, like the Discord tile's `hover:border-iris-500/50` but a touch stronger (`/70`) since the button is small.
+
 **Blur toggle on the dashboard's Recent images (November 16; NOT run, types not run, not checked in a browser)**
 - A branded pink eye button sits top-left of each Recent images tile (`RecentImages` in `dashboard/tiles.tsx`): on hover on a computer, always on touch screens. Click it: the eye gets a diagonal slash (`EyeOffIcon`) and the picture blurs (and the button stays visible). Remembered per browser in localStorage `ms.blurredRecent` (ids of images still shown), not on the account, so it doesn't follow them to another device. Opening a blurred tile still shows it clear in the viewer.
 
