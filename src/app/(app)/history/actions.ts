@@ -41,6 +41,22 @@ export async function getHistory(): Promise<HistoryItem[]> {
   }));
 }
 
+/** Links to the images made from several prompts at once (for the Library's prompt previews); expired ones are left out. */
+export async function getPromptPreviews(ids: string[]): Promise<Record<string, { url: string; downloadUrl: string; prompt: string | null }>> {
+  const { supabase } = await requireUser();
+  const out: Record<string, { url: string; downloadUrl: string; prompt: string | null }> = {};
+  await Promise.all(
+    ids
+      .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
+      .slice(0, 20)
+      .map(async (id) => {
+        const p = await generationPreview(supabase, id);
+        if (p) out[id] = { url: p.url, downloadUrl: p.downloadUrl, prompt: p.prompt };
+      }),
+  );
+  return out;
+}
+
 // "Preview generation": fresh links to the image made from a prompt, or null once it has expired.
 export async function getGenerationPreview(id: string) {
   const { supabase } = await requireUser();

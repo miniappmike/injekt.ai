@@ -1,15 +1,19 @@
 import { PageIntro } from "@/components/page-intro";
 import { Library } from "@/components/library";
+import { LibraryTabs } from "@/components/library-tabs";
+import { PromptLibrary } from "@/components/prompt-library";
 
 export const metadata = { title: "Library" };
 
-export default function LibraryPage() {
+export default async function LibraryPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const tab = (await searchParams).tab === "prompts" ? "prompts" : "images";
   return (
     <div>
-      <PageIntro title="Library" short="Every image you've made that is still active.">
-        Every image you&apos;ve made that is still active (kept 72 hours). Tick images to download, pin, send to Variants or delete them.
+      <PageIntro title="Library" short="Your images and prompts.">
+        Every image you&apos;ve made that is still active (kept 72 hours), and every prompt you&apos;ve saved.
       </PageIntro>
-      <Library />
+      <LibraryTabs tab={tab} />
+      {tab === "images" ? <Library /> : <PromptLibrary />}
     </div>
   );
 }

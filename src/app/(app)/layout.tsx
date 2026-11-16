@@ -7,7 +7,7 @@ import { ImageViewer } from "@/components/image-viewer";
 import { OutOfTokens } from "@/components/out-of-tokens";
 import { PasteRouter } from "@/components/paste-router";
 import { MobileDock } from "@/components/mobile-nav";
-import { HistoryPanel } from "@/components/history-panel";
+import { HistoryLauncher } from "@/components/history-launcher";
 import { requireUser } from "@/lib/auth";
 import { AppProvider } from "@/components/app-context";
 import { entitlements, loadProfile } from "@/lib/entitlements";
@@ -43,7 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <AppFooter />
         <ModelRefusedToast />
         <MobileDock />
-        <HistoryPanel />
+        <HistoryLauncher />
         {generation && <GenerationTray />}
         <ImageViewer />
         <PasteRouter />

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { deleteGeneration } from "@/app/(app)/history/actions";
 import { pinToReferences } from "@/app/(app)/characters/pin-actions";
@@ -80,6 +81,7 @@ export function ImageBulkBar({
   slots,
   onPinned,
   className,
+  floating = false,
 }: {
   items: BulkItem[];
   picked: string[];
@@ -92,10 +94,20 @@ export function ImageBulkBar({
   /** Called after images were pinned to a character, so her free slots update. */
   onPinned: (characterId: string, count: number) => void;
   className?: string;
+  /** Actions float at the bottom of the page (and appear only while something is ticked) instead of sitting in the bar. */
+  floating?: boolean;
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ text: string; bad?: boolean }>();
+  // A result message fades after a few seconds.
+  useEffect(() => {
+    if (!note) return;
+    const t = setTimeout(() => setNote(undefined), 6000);
+    return () => clearTimeout(t);
+  }, [note]);
   const chosen = items.filter((i) => picked.includes(i.id));
   const n = chosen.length;
 
@@ -172,6 +184,52 @@ export function ImageBulkBar({
   }
 
   const allTicked = items.length > 0 && n === items.length;
+  const actions = (
+    <>
+      <Button type="button" size="sm" variant="secondary" onClick={() => void download()} disabled={!!busy}>Download</Button>
+      <Button type="button" size="sm" variant="secondary" onClick={() => void pin()} disabled={!!busy || !!pinBlock} title={pinBlock ?? "Pin these to her reference photos"}>Pin</Button>
+      <Button type="button" size="sm" variant="secondary" onClick={toVariants} disabled={!!busy || n !== 1} title={n === 1 ? "Open this image in Variants" : "Variants takes one image: tick just one"}>Variants</Button>
+      <Button type="button" size="sm" variant="ghost" className="text-red-400 hover:bg-red-500/10 hover:text-red-300" onClick={() => void remove()} disabled={!!busy}>Delete</Button>
+    </>
+  );
+  const messages = (
+    <>
+      {n > 0 && pinBlock && <p className="text-xs text-neutral-400">Pin is off: {pinBlock}</p>}
+      {note && <p role="status" className={cn("text-xs", note.bad ? "text-red-400" : "text-emerald-400")}>{note.text}</p>}
+    </>
+  );
+
+  if (floating) {
+    return (
+      <>
+        <div className={cn("flex flex-wrap items-center gap-2", className)}>
+          <Button type="button" size="sm" variant="ghost" onClick={allTicked ? onClear : onSelectAll} disabled={!items.length || !!busy}>
+            {allTicked ? "Clear" : "Select all"}
+          </Button>
+          <span className="text-xs text-neutral-500">Tick images to download, pin or delete them.</span>
+        </div>
+        {mounted &&
+          (n > 0 || note) &&
+          createPortal(
+            // Drawn on the page body so it floats over the page whatever scrolls; above the phone dock and the image tray.
+            <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--tray-h,0px)+6rem)] z-30 flex justify-center px-3 sm:bottom-[calc(var(--tray-h,0px)+1.5rem)]">
+              <div className="pointer-events-auto flex max-w-full animate-pop-in flex-col items-center gap-1 rounded-2xl border border-neutral-700/80 bg-neutral-900/95 px-3 py-2 shadow-[0_18px_50px_-12px_rgb(0_0_0/0.95)] backdrop-blur-xl">
+                {n > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    <span className="px-1 text-sm font-semibold text-neutral-100" aria-live="polite">{busy ?? `${n} selected`}</span>
+                    {actions}
+                    <Button type="button" size="sm" variant="ghost" onClick={onClear} disabled={!!busy} aria-label="Clear selection">✕</Button>
+                  </div>
+                )}
+                {messages}
+              </div>
+            </div>,
+            document.body,
+          )}
+      </>
+    );
+  }
+
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       <div className="flex flex-wrap items-center gap-2">
@@ -183,17 +241,13 @@ export function ImageBulkBar({
             <span className="text-sm font-semibold text-neutral-100" aria-live="polite">{busy ?? `${n} selected`}</span>
             <Button type="button" size="sm" variant="ghost" onClick={onClear} disabled={!!busy}>Clear</Button>
             <span className="mx-1 h-5 w-px bg-neutral-800 max-sm:hidden" aria-hidden="true" />
-            <Button type="button" size="sm" variant="secondary" onClick={() => void download()} disabled={!!busy}>Download</Button>
-            <Button type="button" size="sm" variant="secondary" onClick={() => void pin()} disabled={!!busy || !!pinBlock} title={pinBlock ?? "Pin these to her reference photos"}>Pin</Button>
-            <Button type="button" size="sm" variant="secondary" onClick={toVariants} disabled={!!busy || n !== 1} title={n === 1 ? "Open this image in Variants" : "Variants takes one image: tick just one"}>Variants</Button>
-            <Button type="button" size="sm" variant="ghost" className="text-red-400 hover:bg-red-500/10 hover:text-red-300" onClick={() => void remove()} disabled={!!busy}>Delete</Button>
+            {actions}
           </>
         ) : (
           <span className="text-xs text-neutral-500">Tick images to download, pin or delete them.</span>
         )}
       </div>
-      {n > 0 && pinBlock && <p className="text-xs text-neutral-500">Pin is off: {pinBlock}</p>}
-      {note && <p role="status" className={cn("text-xs", note.bad ? "text-red-400" : "text-emerald-400")}>{note.text}</p>}
+      {messages}
     </div>
   );
 }

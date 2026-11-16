@@ -82,6 +82,7 @@ export function Library() {
     <div className="mt-5 flex flex-col gap-4">
       <div className="panel p-3 sm:p-4">
         <ImageBulkBar
+          floating
           items={images.map((i) => ({ id: i.id, url: i.url, downloadUrl: i.downloadUrl, characterId: i.characterId, kind: i.kind }))}
           picked={sel.picked}
           onSelectAll={sel.selectAll}
