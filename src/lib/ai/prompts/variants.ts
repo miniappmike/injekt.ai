@@ -89,7 +89,7 @@ The photo tells the image model who she is, what she wears and how the shot look
 ${o.platform ? `${platformBrief(o.platform, o.platformOther)}\nApply the platform's tone only to what may change above (pose, expression and so on): never change anything that is not in that list.\n` : ""}${o.traits ? `The person is this character; restate their 3 to 5 most recognisable traits that are visible in this image (skip any that are out of frame or hidden) in each edit so the face does not drift: ${fence(o.traits)}` : ""}
 RULES
 - ${two ? `Start every edit with "Edit ${vt.photo}. Keep the person exactly as she looks in ${vt.ref}: same face, features, skin, hair, body shape and proportions. Keep the outfit and photo style of ${vt.photo}." then the change.` : 'Start every edit with "Keep the same person, outfit and photo style." then the change.'}
-- Read the image's vibe (setting, props, mood, camera position) so each change fits it. ${o.platform && SPICY.has(o.platform) ? "Poses are fresh, confident, flirtatious and teasing as the platform above calls for, physically plausible and never explicit." : "Poses are fresh, eye-catching social media poses: confident, playful or candid, physically plausible and non-sexual."} Describe a new pose limb by limb with left and right, plus expression and gaze.
+- Read the image's vibe (setting, props, mood, camera position) so each change fits it. ${o.platform && SPICY.has(o.platform) ? "Poses are fresh, confident, flirtatious and teasing as the platform above calls for, and physically plausible." : "Poses are fresh, eye-catching social media poses: confident, playful or candid, and physically plausible."} Describe a new pose limb by limb with left and right, plus expression and gaze.
 - Put the change first and make it concrete: right after the opening line, state it in one specific sentence that says it replaces the photo's (for a pose: "Her pose is completely different from the photo: ..." naming where her torso, both arms, both legs, head and gaze go; for an angle: the exact camera position, height and framing). Never write a change so small that the result could pass for the original, such as a slight head tilt, a shifted hand or a slightly different smile: those are not a new pose or expression.
 - No two edits in the set share a pose, camera position or framing. They read as different frames from one photoshoot, and a pose or angle edit never repeats the photo's own pose or framing.
 - A camera angle change names the new position and framing (for example low angle from hip height, high angle from above, profile from the left, tighter head-and-shoulders crop, wider full-body shot).
@@ -189,28 +189,28 @@ export interface CarouselPromptInput {
   platformOther?: string;
 }
 
-/** Subscription and bolder platforms: the poses may be flirtatious and teasing (never explicit). */
+/** Subscription and bolder platforms: the poses are flirtatious and teasing. */
 const SPICY: ReadonlySet<PlatformId> = new Set(["x", "reddit", "fanvue", "onlyfans"]);
 
 /** ModelSpawn addition: what the platform asks of the set. */
 export function platformBrief(platform: PlatformId | undefined, other = ""): string {
   const teaser = (name: string) =>
-    `PLATFORM: ${name}, a subscription platform; these are teaser shots for her subscribers. Make them intimate, flirtatious and sultry, with a personal "just for you" feel: direct eye contact with the camera, bedroom, bathroom, bed and boudoir settings, lingerie, bodysuits, swimwear and revealing outfits, and teasing poses that show off her figure. Suggestive and implied, never explicit: no visible nipples or genitals and no sexual acts.`;
+    `PLATFORM: ${name}, a subscription platform; these are teaser shots for her subscribers. Make them intimate, flirtatious and sultry, with a personal "just for you" feel: direct eye contact with the camera, bedroom, bathroom, bed and boudoir settings, lingerie, bodysuits, swimwear and revealing outfits, and teasing poses that show off her figure.`;
   switch (platform) {
     case "instagram":
       return "PLATFORM: Instagram. Feed-ready and social-safe: fashionable, confident and aspirational, flirty at most. Swimwear and fitted or revealing outfits are fine, but poses and framing stay within Instagram's guidelines.";
     case "tiktok":
       return "PLATFORM: TikTok. Playful, energetic and trend-aware, framed vertically for the feed, and social-safe like Instagram: flirty at most.";
     case "x":
-      return "PLATFORM: X (Twitter). Bolder and more attention-grabbing than Instagram: confident, sultry looks at the camera, revealing outfits, and cheeky, teasing poses. Suggestive, never explicit.";
+      return "PLATFORM: X (Twitter). Bolder and more attention-grabbing than Instagram: confident, sultry looks at the camera, revealing outfits, and cheeky, teasing poses.";
     case "reddit":
-      return "PLATFORM: Reddit. It must look like a real person posted it: amateur, candid phone photos, mirror selfies and casual home settings rather than a polished shoot. Flirty and bolder than Instagram, with teasing poses and revealing outfits where they fit. Suggestive, never explicit.";
+      return "PLATFORM: Reddit. It must look like a real person posted it: amateur, candid phone photos, mirror selfies and casual home settings rather than a polished shoot. Flirty and bolder than Instagram, with teasing poses and revealing outfits where they fit.";
     case "fanvue":
       return teaser("Fanvue");
     case "onlyfans":
       return teaser("OnlyFans");
     case "other":
-      return other.trim() ? `PLATFORM: <<<${fence(other.trim())}>>>. Match the tone, style and level of spice that fits where it will be posted, suggestive at most, never explicit.` : "";
+      return other.trim() ? `PLATFORM: <<<${fence(other.trim())}>>>. Match the tone, style and level of spice that fits where it will be posted.` : "";
     default:
       return "";
   }
@@ -245,7 +245,7 @@ RULES
 - Slides without her (flatlay, object, environment, food, ambient): start with "No people in the frame." and use {PHOTO} only as the reference for the place, objects, colour grade, light and camera look (person "none").
 - Name the camera and framing for each slide (phone main camera, 0.5x wide, close-up, top-down, mirror, flash at night) and the light with its source and direction, plus which way the shadows fall and, if something glows, that it tints the nearby skin and surfaces. Describe only light the scene would really have. Real, unretouched social-media phone-photo quality, never glossy or CGI.
 - Real brands and logos seen in the image stay accurate and named (for example a black quilted Chanel flap bag with the gold CC turn-lock). Quote any readable text exactly; never invent gibberish lettering.
-- ${o.platform && SPICY.has(o.platform) ? "Poses are confident, flirtatious and teasing as the platform above calls for, never explicit." : "Poses are natural, confident or candid, and non-sexual."} Always an adult woman.
+- ${o.platform && SPICY.has(o.platform) ? "Poses are confident, flirtatious and teasing as the platform above calls for." : "Poses are natural, confident or candid."} Always an adult woman.
 - VARIETY: every slide with her uses a clearly different body position from the cover and from each other (mix standing, sitting, lying down, kneeling, leaning, walking, crouching, from behind), with a different camera height and distance each time. Avoid the default poses every set falls back on (hand on hip facing the camera, one hand in the hair, the plain mirror selfie) unless the creative direction asks for them.
 ${o.recent?.length ? `- Avoid these recently used poses: ${o.recent.join("; ")}.\n` : ""}${o.inspo?.length ? `- For pose inspiration only, never copy: ${o.inspo.join("; ")}.\n` : ""}${extraNames.length ? `- The next attached image${extraNames.length > 1 ? "s are" : " is"} extra from the user, showing the vibe, an outfit or styling they want; the edit model receives ${extraNames.length > 1 ? "them" : "it"} as ${joinTags(extraNames)}. Use ${extraNames.length > 1 ? "them" : "it"} where it fits the creative direction, by placeholder.\n` : ""}${c ? `- Her recognisable traits, only where visible: ${fence(o.traits)}\n` : ""}${extra && !o.directionFirst ? `- Creative direction from the user, only as it applies to the image: <<<${fence(extra)}>>>\n` : ""}${extra && o.directionFirst ? "- Before you reply, check every slide against the user's creative direction above and rewrite any slide that does not clearly carry it out.\n" : ""}
 Reply with only JSON: {"theme": "one short line naming the carousel's aesthetic", "slides": [{"type": "pose", "label": "2 to 4 word name", "person": "full", "pose": "her pose in at most 12 words, empty when she is not in it", "prompt": "..."}]}`;

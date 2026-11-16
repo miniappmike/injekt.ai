@@ -72,7 +72,7 @@ export const ANALYZE_SHEET_PROMPT = `The attached image is a character reference
 - "body": one box around all the full-body views together, head to feet, or null if there are none.
 - "side": one box around the single full-body side-profile view (head to feet), or null if there is none.
 - "faces": the grid of face or head-and-shoulders portraits: "box" around the whole grid, its "rows" and "cols", and "front" as [row, col] counted from 0 for the panel that shows her face most directly from the front with a neutral or soft expression. null if there are no face portraits.
-2. HER LOOK IN WORDS, from what the sheet shows. One definitive value per attribute, no ranges, no hedging, neutral fashion-catalogue wording for the body, always an adult woman, never explicit. If her figure is extreme or exaggerated, say so plainly at full strength ("extremely large bust", "very wide hips", "tiny waist", "very large round glutes"); never soften it toward an average body:
+2. HER LOOK IN WORDS, from what the sheet shows. One definitive value per attribute, no ranges, no hedging, plain, concrete wording for the body, always an adult woman. If her figure is extreme or exaggerated, say so plainly at full strength ("extremely large bust", "very wide hips", "tiny waist", "very large round glutes"); never soften it toward an average body:
 - "hair": one named shade plus length, cut, texture and parting
 - "face": face shape, eye shape and one named eye colour, brows, nose, lips, any distinctive feature
 - "skin": tone with undertone, freckles, moles and marks with where they are

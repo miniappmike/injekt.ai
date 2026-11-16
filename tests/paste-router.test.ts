@@ -40,6 +40,6 @@ describe("profile builder keeps exaggerated proportions", () => {
     const text = JSON.stringify(t);
     expect(text).toContain(PROPORTIONS_WORDS.slice(0, 60));
     expect(text).not.toContain("use mild");
-    expect(text).toContain("Neutral wording never means smaller");
+    expect(text).toContain("Plain wording never means smaller");
   });
 });

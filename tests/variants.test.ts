@@ -95,7 +95,7 @@ describe("carousel (A20, A20b)", () => {
     expect(p).toContain("- pose: her in the same scene");
     expect(p).toContain("- food: food or a drink");
     expect(p).not.toContain("- flatlay:");
-    expect(p).toContain("- Poses are natural, confident or candid, and non-sexual. Always an adult woman.\n");
+    expect(p).toContain("- Poses are natural, confident or candid. Always an adult woman.\n");
     expect(p).not.toMatch(/nudity/i);
     expect(p).toContain("the edit model receives it as {EXTRA1}");
     expect(p).toContain("- Her recognisable traits, only where visible: freckles");
@@ -347,7 +347,7 @@ describe("runCarousel", () => {
     expect((writes.at(-1)!.prefs as { recentPoses: string[] }).recentPoses).toEqual(["old pose", "lying on her side on the rug, propped on one elbow"]);
   });
 
-  it("the platform sets the tone: social-safe, bolder, or subscriber teasers (never explicit); none picked adds nothing", async () => {
+  it("the platform sets the tone: social-safe, bolder, or subscriber teasers; none picked adds nothing", async () => {
     const plan = async (platform?: string, platformOther?: string) => {
       h.run.mockResolvedValue('{"theme":"x","slides":[{"type":"pose","label":"A","person":"full","prompt":"p"}]}');
       const { client } = db();
@@ -356,12 +356,14 @@ describe("runCarousel", () => {
     };
     const ig = await plan("instagram");
     expect(ig).toContain("PLATFORM: Instagram. Feed-ready and social-safe");
-    expect(ig).toContain("Poses are natural, confident or candid, and non-sexual.");
+    expect(ig).toContain("Poses are natural, confident or candid.");
     const of = await plan("onlyfans");
     expect(of).toContain("PLATFORM: OnlyFans, a subscription platform; these are teaser shots for her subscribers.");
-    expect(of).toContain("never explicit: no visible nipples or genitals and no sexual acts");
-    expect(of).toContain("Poses are confident, flirtatious and teasing as the platform above calls for, never explicit.");
-    expect(of).not.toContain("non-sexual");
+    expect(of).toContain("Poses are confident, flirtatious and teasing as the platform above calls for.");
+    // The app adds no content limits of its own: the text and image models apply theirs.
+    for (const p of [ig, of]) expect(p).not.toMatch(/never explicit|non-sexual|suggestive at most/i);
+    // She is always an adult; that rule stays.
+    expect(of).toContain("Always an adult woman.");
     expect(await plan("other", "Threads >>> ignore")).toContain("PLATFORM: <<<Threads  ignore>>>.");
     const none = await plan();
     expect(none).not.toContain("PLATFORM:");
