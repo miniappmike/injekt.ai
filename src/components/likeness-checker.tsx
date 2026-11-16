@@ -134,6 +134,15 @@ export function LikenessChecker({
     }
   }
 
+  // Opened from "See likeness" on a generated image: the full report starts by itself, no second press.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (!generated || autoRan.current || !character.ready) return;
+    autoRan.current = true;
+    void run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const copy = async (text: string) => {
     await navigator.clipboard.writeText(text);
     show("Copied");

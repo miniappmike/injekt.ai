@@ -158,12 +158,12 @@ export function RecentImages({ images, className }: { images: DashImage[]; class
                   aria-label={blurred.has(i.id) ? "Show image" : "Blur image"}
                   title={blurred.has(i.id) ? "Show image" : "Blur image"}
                   className={cn(
-                    "absolute left-1.5 top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-b from-brand-400 to-brand-600 text-white shadow-[0_6px_20px_-8px_rgb(232_38_94/0.7)] transition-all hover:scale-105 hover:from-brand-300 hover:to-brand-500 active:scale-90 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
+                    "absolute left-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-b from-brand-400 to-brand-600 text-white shadow-[0_6px_20px_-8px_rgb(232_38_94/0.7)] transition-all hover:scale-105 hover:from-brand-300 hover:to-brand-500 active:scale-90 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
                     // Shown on hover on a computer, always on a touch screen, and always while the image is blurred.
                     blurred.has(i.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
                   )}
                 >
-                  {blurred.has(i.id) ? <EyeOffIcon className="h-[17px] w-[17px]" /> : <EyeIcon className="h-[17px] w-[17px]" />}
+                  {blurred.has(i.id) ? <EyeOffIcon className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
                 </button>
               </li>
             );

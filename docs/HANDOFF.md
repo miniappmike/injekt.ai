@@ -13,6 +13,11 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**See likeness runs the full report by itself; smaller blur eyes (November 16; NOT run, types not run, not checked in a browser)**
+- `/likeness?generation=<id>` (from "See likeness" under an image) now starts the full report as soon as the page opens (`autoRan` effect in `likeness-checker.tsx`), instead of waiting for Check likeness. It costs one full check each time that page is opened that way.
+- **Why 86 then 58 (not fixed):** the quick score under an image and the full report are two separate model calls with different instructions (the quick one scores face, hair, skin, upper and lower body and skips what's hidden; the full one scores ~13 traits with an overall that weights the body heavily when visible), so their numbers can differ a lot. If they should agree, the next step is to run one scoring pass and show it in both places.
+- The Recent images blur eye button is smaller (24px, 14px icon).
+
 **Director button hover (November 16; class change only, not checked in a browser)**
 - The dashboard's Director button (`dashboard/studio.tsx`) now gets an iris (purple) outline on hover, matching its icon, like the Discord tile's `hover:border-iris-500/50` but a touch stronger (`/70`) since the button is small.
 
