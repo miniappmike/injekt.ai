@@ -1,5 +1,5 @@
 import { zoneDay } from "@/lib/zone";
-import { viewerTz } from "@/lib/tz-server";
+import { accountTz } from "@/lib/tz-server";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { adminClient } from "@/lib/supabase/admin";
@@ -41,7 +41,7 @@ export async function useDaily(supabase: SupabaseClient, userId: string, key: Da
   if (plan !== "free") return NOOP;
   const { caps } = await getAppConfig();
   const limit = caps[plan][key];
-  const tz = await viewerTz();
+  const tz = await accountTz(userId);
   const { data, error } = await adminClient().rpc("consume_daily", { p_user: userId, p_key: key, p_limit: limit, p_tz: tz });
   if (error) {
     if (missing(error)) {
@@ -102,7 +102,7 @@ export async function dailyStatus(supabase: SupabaseClient, userId: string, opts
   const counted = plan === "free";
   const used: Record<string, number> = {};
   if (counted) {
-    const today = zoneDay(Date.now(), await viewerTz());
+    const today = zoneDay(Date.now(), await accountTz(userId));
     const { data } = await supabase.from("daily_usage").select("key, count").eq("user_id", userId).eq("day", today);
     for (const r of data ?? []) used[r.key as string] = r.count as number;
   }
