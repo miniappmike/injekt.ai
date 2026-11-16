@@ -64,6 +64,7 @@ export async function listGenerations(supabase: SupabaseClient, user: Actor, lim
     return {
       id: r.id,
       kindLabel: featureLabel(`image:${r.kind}`),
+      kind: r.kind,
       model: r.model,
       prompt: r.prompt,
       // A file whose link could not be made is treated as unavailable rather than shown broken.

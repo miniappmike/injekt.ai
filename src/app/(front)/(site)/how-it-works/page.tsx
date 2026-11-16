@@ -53,7 +53,7 @@ const TOOLS = [
   { icon: ScanFace, title: "Likeness", body: "Score any image against your model, trait by trait, and get a fixed prompt to try again." },
   { icon: Brush, title: "Art to Real", body: "Turn anime, a drawing or a render into a realistic photo, or put one of your own models into it." },
   { icon: Users, title: "Group photo", body: "Put several of your models in one picture. Each keeps her own face and body." },
-  { icon: Pin, title: "Pin It", body: "Pin your best generated images to a model as reference photos, up to five each, so she keeps getting more consistent." },
+  { icon: Pin, title: "Pin It", body: "Pin your best generated images to a model as reference photos, up to ten each, so she keeps getting more consistent." },
   { icon: History, title: "History", body: "Every prompt and image you have made, ready to copy, rerun or check again." },
   { icon: Store, title: "Marketplace", body: "Browse ready-made personas with their own looks and backstories." },
 ];

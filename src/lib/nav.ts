@@ -16,6 +16,7 @@ export type NavHref = (typeof NAV)[number]["href"];
 export const MORE_NAV = [
   { href: "/characters", label: "Characters" },
   { href: "/reference-sheet", label: "Create Model" },
+  { href: "/library", label: "Library" },
   { href: "/likeness", label: "Likeness" },
   { href: "/art-to-real", label: "Art to Real" },
 ] as const;

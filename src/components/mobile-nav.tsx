@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
-import { Brush, LayoutDashboard } from "lucide-react";
+import { Brush, Images, LayoutDashboard } from "lucide-react";
 import { BackIcon, CharactersIcon, CreateModelIcon, GridIcon, GroupIcon, InjectIcon, LikenessIcon, SparkIcon, StoreIcon, VariantsIcon } from "@/components/icons";
 import { DOCK_MORE, DOCK_NAV } from "@/lib/nav";
 
@@ -15,6 +15,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "/inject": InjectIcon,
   "/director": SparkIcon,
   "/variants": VariantsIcon,
+  "/library": Images,
   "/likeness": LikenessIcon,
   "/reference-sheet": CreateModelIcon,
   "/marketplace": StoreIcon,
@@ -33,6 +34,7 @@ const TITLES: [RegExp, string][] = [
   [/^\/inject/, "Inject"],
   [/^\/director/, "Director"],
   [/^\/variants/, "Variants"],
+  [/^\/library/, "Library"],
   [/^\/likeness/, "Likeness"],
   [/^\/reference-sheet/, "Create Model"],
   [/^\/art-to-real/, "Art to Real"],

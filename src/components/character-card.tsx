@@ -1,3 +1,4 @@
+import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SparkIcon } from "@/components/icons";
@@ -14,6 +15,8 @@ export interface CharacterCardData {
   images: CardImage[];
   /** She has a face or body reference sheet (group photos use only sheets). */
   hasSheet?: boolean;
+  /** How many reference photos she has now (of MAX_REFERENCE_PHOTOS), for Pin in the images panel. */
+  refCount?: number;
 }
 
 /**
@@ -50,7 +53,7 @@ export function CharacterCard({ c, canList = false }: { c: CharacterCardData; ca
           </div>
         )}
       </CharacterCoverButton>
-      <CharacterImagesButton name={c.name} characterId={c.id} />
+      <CharacterImagesButton name={c.name} characterId={c.id} refCount={c.refCount ?? MAX_REFERENCE_PHOTOS} />
       {/* Phones: straight into Inject with her picked. */}
       <Link
         href={`/inject?character=${c.id}`}

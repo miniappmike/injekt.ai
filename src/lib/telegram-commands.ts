@@ -34,6 +34,7 @@ const TOOL_LINES: Record<string, string> = {
   "/inject": "put your model into any photo",
   "/director": "describe a photo and get it made",
   "/variants": "many versions of one good photo",
+  "/library": "every active image you have made",
   "/likeness": "score how close an image is to her",
   "/art-to-real": "turn artwork into a realistic photo",
 };
