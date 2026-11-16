@@ -13,6 +13,10 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Build profile scroll and Director link (November 16; NOT run or checked in a browser)**
+- Build profile on a character's page no longer jumps to the top: `build()` in `character-form.tsx` remembers the scroll position and restores it several times after the save (the server action's revalidate re-renders the page; the cause of the jump was not reproduced), and its extra `router.refresh()` was removed. If it still jumps, look at what remounts on revalidate.
+- The "No reference photos yet?" note on a character's page now also links to Director (`/director?character=<id>`).
+
 **Reference sheets never expire (November 16; test added in `tests/retention.test.ts`; types and tests NOT run (`node_modules` isn't installed here); not checked in a browser; migration 0033 must be run)**
 - A finished `reference_sheet` generation now gets `expires_at` 100 years out instead of +72h (`generationExpiry(from, kind)` and `KEPT_KINDS` in `src/lib/retention.ts`; used by `collectGeneration` and the webhook route). A far-future date, not NULL, so the storage policy, signed links, `generationState`, the Library query and the nightly cleanup (`lte expires_at`) all work unchanged and never delete them. `timeLeft`/`shortTimeLeft` show "Never expires" for anything over 50 years out (Library tiles, a character's images panel, the dashboard and History badge). Deleting a sheet by hand still works.
 - **Run `supabase/migrations/0033_keep_reference_sheets.sql`**: moves sheets that already exist and haven't expired. Sheets already past their 72 hours were deleted by the cleanup and can't come back (make them again).

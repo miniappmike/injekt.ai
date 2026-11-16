@@ -88,8 +88,12 @@ export function CharacterForm({
     if (hasText && !window.confirm("Replace the current profile text with a new one built from the images? It is saved right away.")) return;
     setBuilding(true);
     setBuildError(undefined);
+    // The page re-renders when the build is saved (the server action revalidates it) and the browser jumps to the top: put it back.
+    const scrollY = window.scrollY;
     const result = await buildProfile(characterId);
     setBuilding(false);
+    const restore = () => window.scrollTo({ top: scrollY, behavior: "instant" });
+    for (const ms of [0, 50, 150, 400, 800]) setTimeout(restore, ms);
     if (result.ok) {
       setProfile(result.profile);
       show("Profile saved. You can generate it again if you want a different take.");
@@ -100,7 +104,6 @@ export function CharacterForm({
       setBuildError(tokenGate(result.error));
     }
     usageChanged(); // the tokens in the header
-    router.refresh();
   }
 
   return (
