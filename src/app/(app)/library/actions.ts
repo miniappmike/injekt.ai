@@ -36,7 +36,6 @@ export async function listLibrary(input: { offset: number; limit: number }): Pro
       .eq("status", "complete")
       .not("output_path", "is", null)
       .gt("expires_at", now)
-      .not("params->>deleted", "eq", "true")
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1),
     supabase.from("characters").select("id, name, reference_paths"),

@@ -1,3 +1,4 @@
+import { pacificDay } from "@/lib/pacific";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { adminClient } from "@/lib/supabase/admin";
@@ -99,7 +100,7 @@ export async function dailyStatus(supabase: SupabaseClient, userId: string, opts
   const counted = plan === "free";
   const used: Record<string, number> = {};
   if (counted) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = pacificDay(Date.now());
     const { data } = await supabase.from("daily_usage").select("key, count").eq("user_id", userId).eq("day", today);
     for (const r of data ?? []) used[r.key as string] = r.count as number;
   }

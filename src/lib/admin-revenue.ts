@@ -2,6 +2,7 @@
  * Money received, for Admin → Orders. "Verified" means a payment provider confirmed it (Telegram Stars or
  * NOWPayments); orders marked paid by hand are counted separately. Pure functions, so they can be tested.
  */
+import { PACIFIC, nextPacificMonth, pacificDay, pacificMonthStart, pacificStartAgo } from "@/lib/pacific";
 
 /** What Telegram pays out per Star (approximately; Stars reach you as TON through Fragment). */
 export const STAR_PAYOUT_USD = 0.013;
@@ -45,14 +46,11 @@ export interface Revenue {
   unit: "day" | "week" | "month";
 }
 
-const DAY = 86_400_000;
-const ymd = (d: Date) => d.toISOString().slice(0, 10);
-const startOfDay = (t: number) => new Date(new Date(t).toISOString().slice(0, 10) + "T00:00:00Z").getTime();
 
 /** When the range begins, or null for all time. */
 export function rangeStart(range: RevenueRange, now = Date.now()): Date | null {
   const days = REVENUE_RANGES.find((r) => r.id === range)?.days ?? null;
-  return days === null ? null : new Date(startOfDay(now) - (days - 1) * DAY);
+  return days === null ? null : new Date(pacificStartAgo(now, days - 1));
 }
 
 /** Totals and bar-chart buckets (days up to 30 days, weeks for 6 months, months for all time). */
@@ -65,34 +63,27 @@ export function summarizeRevenue(orders: PaidOrder[], range: RevenueRange, now =
   const manual = orders.filter((o) => o.provider !== "telegram" && o.provider !== "nowpayments").reduce((n, o) => n + o.amount_cents / 100, 0);
 
   const unit: Revenue["unit"] = range === "6m" ? "week" : range === "all" ? "month" : "day";
-  const today = startOfDay(now);
   const starts: number[] = [];
   if (unit === "day") {
     const n = REVENUE_RANGES.find((r) => r.id === range)?.days ?? 30;
-    for (let i = n - 1; i >= 0; i--) starts.push(today - i * DAY);
+    for (let i = n - 1; i >= 0; i--) starts.push(pacificStartAgo(now, i));
   } else if (unit === "week") {
-    for (let i = 25; i >= 0; i--) starts.push(today - (i * 7 + 6) * DAY);
+    for (let i = 25; i >= 0; i--) starts.push(pacificStartAgo(now, i * 7 + 6));
   } else {
     const first = verified.length ? Math.min(...verified.map((o) => Date.parse(o.paid_at))) : now;
-    const d = new Date(first);
-    let m = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
-    const last = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), 1);
-    // At least 6 months on screen, so a new site's chart isn't one fat bar.
-    const min = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth() - 5, 1);
-    if (m > min) m = min;
-    while (m <= last) {
-      starts.push(m);
-      const x = new Date(m);
-      m = Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 1);
-    }
+    // At least 6 months on screen, so a new site's chart isn't one fat bar. Months start at midnight Pacific.
+    const [fy, fm] = pacificDay(first).split("-").map(Number);
+    const [ny, nm] = pacificDay(now).split("-").map(Number);
+    const monthsBack = Math.max(5, (ny * 12 + nm) - (fy * 12 + fm));
+    for (let m = pacificMonthStart(now, monthsBack); m <= now; m = nextPacificMonth(m)) starts.push(m);
   }
   const label = (t: number) => {
     const d = new Date(t);
     return unit === "month"
-      ? d.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" })
-      : d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+      ? d.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: PACIFIC })
+      : d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: PACIFIC });
   };
-  const buckets: RevenueBucket[] = starts.map((t) => ({ start: ymd(new Date(t)), label: label(t), crypto: 0, telegram: 0 }));
+  const buckets: RevenueBucket[] = starts.map((t) => ({ start: pacificDay(t + 12 * 3_600_000), label: label(t), crypto: 0, telegram: 0 }));
   for (const o of verified) {
     const t = Date.parse(o.paid_at);
     let i = -1;
