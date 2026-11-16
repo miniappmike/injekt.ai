@@ -40,6 +40,17 @@ export const injectMetaSchema = z.object({
   refs: z.array(z.string().max(20)).max(12).optional(),
   /** Group photo: the characters in it, in order (2 to 4). The prompt text is the person's creative direction. */
   group: z.array(z.string().uuid()).min(2).max(4).optional(),
+  /** UGC: what was read from the product photos, and the one shot to make (see src/lib/ai/prompts/ugc.ts). */
+  ugc: z
+    .object({
+      product: z.string().max(300),
+      label: z.string().max(80).optional(),
+      worn: z.boolean().optional(),
+      action: z.string().min(1).max(220),
+      scene: z.string().min(1).max(700),
+      outfit: z.string().max(250).optional(),
+    })
+    .optional(),
   /** Reference sheet: which sheet, whether @image1 is a face sheet (or a face photo), and the outfit and body options. */
   sheet: z
     .object({

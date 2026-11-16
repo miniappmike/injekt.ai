@@ -25,6 +25,9 @@ A character has a profile photo (display only), a face sheet, a body sheet and u
 
 Sheets are made in Create Model (`src/lib/ai/prompts/sheets.ts`); several body photos are either one body from other angles or, with `blend`, different bodies combined keeping the boldest features. Image jobs send her sheets after the target (`src/lib/generation-job.ts`); a likeness fix sends the image, her face sheet and her body sheet, and changes only who she is, never the outfit (`OUTFIT_LOCK`).
 
+## UGC
+`/ugc`: product photos plus a character. One vision call plans the shots from the product (`src/lib/ugc-run.ts`), then each shot is an image job of kind `ugc` (`ugcJob`): her sheets, then the product photos, with a short prompt (`src/lib/ai/prompts/ugc.ts`).
+
 ## Tokens and plans
 Numbers in `src/lib/plans.ts`. Tokens are lots in `credit_lots`, spent soonest-expiring first by `spend_credits`, given back by `refund_credits`; `credit_balance` reads the total. Pro is `profiles.plan = 'pro'` (set by hand) or `profiles.pro_until` in the future (a paid pass). Own keys are Pro-only (`canUseOwnKeys`); the free plan uses `SPICY_API_KEY` with daily caps from Admin → Limits. See `docs/PRICING.md`.
 

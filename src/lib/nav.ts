@@ -19,6 +19,7 @@ export const MORE_NAV = [
   { href: "/library", label: "Library" },
   { href: "/likeness", label: "Likeness" },
   { href: "/art-to-real", label: "Art to Real" },
+  { href: "/ugc", label: "UGC" },
 ] as const;
 
 /**

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Brush, Images } from "lucide-react";
+import { Brush, Images, Package2 } from "lucide-react";
 import { CharactersIcon, CreateModelIcon, LikenessIcon, ChevronIcon } from "@/components/icons";
 import { MORE_NAV, NAV as TABS } from "@/lib/nav";
 
@@ -51,7 +51,7 @@ export function MainNav() {
   );
 }
 
-const MORE_ICONS = { "/characters": CharactersIcon, "/reference-sheet": CreateModelIcon, "/library": Images, "/likeness": LikenessIcon, "/art-to-real": Brush } as const;
+const MORE_ICONS = { "/characters": CharactersIcon, "/reference-sheet": CreateModelIcon, "/library": Images, "/likeness": LikenessIcon, "/art-to-real": Brush, "/ugc": Package2 } as const;
 
 /** The tools that have no tab of their own. It sits outside the scrolling row of tabs so the menu isn't clipped. */
 function MoreMenu({ pathname }: { pathname: string }) {

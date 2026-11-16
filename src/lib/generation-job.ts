@@ -20,6 +20,8 @@ import { MAX_BODY_PHOTOS } from "@/lib/sheet-options";
 import { asksMakeup, makeupRule } from "@/lib/ai/prompts/rules";
 import { artToRealPrompt } from "@/lib/ai/prompts/art-to-real";
 import { groupPhotoPrompt, MAX_GROUP, MIN_GROUP, type GroupMember } from "@/lib/ai/prompts/group";
+import { ugcPrompt } from "@/lib/ai/prompts/ugc";
+import { MAX_PRODUCT_PHOTOS } from "@/lib/ugc-meta";
 
 /** The image provider's prompt limit; longer prompts are condensed by the person's own text model. */
 export const PROMPT_LIMIT = 5000;
@@ -27,7 +29,7 @@ export const PROMPT_LIMIT = 5000;
 /** A path in the generations bucket (a generated image used as an input), told apart from character media paths. */
 export const GEN_PREFIX = "gen:";
 /** Kinds whose prompt the server writes from meta; the browser's prompt text is only a label for them. */
-export const SERVER_PROMPT_KINDS = ["likeness_fix", "face_fix", "direct_swap", "reference_sheet"] as const;
+export const SERVER_PROMPT_KINDS = ["likeness_fix", "face_fix", "direct_swap", "reference_sheet", "ugc"] as const;
 
 export interface JobCharacter {
   id: string;
@@ -217,6 +219,24 @@ export function artToRealJob(c: JobCharacter | null, pack: SheetPack | null, art
   return { prompt: artToRealPrompt(R, direction), paths: [artwork, ...paths], photoEdit: true };
 }
 
+/**
+ * UGC: her references first (her two sheets, else up to 2 reference photos), then the product photos, with the short
+ * prompt for the planned shot. Nothing is written here: the plan came from the UGC page's one vision call.
+ */
+export function ugcJob(c: JobCharacter, pack: SheetPack | null, products: string[], ugc: NonNullable<InjectMeta["ugc"]>, max: number): BuiltJob {
+  if (!products.length) throw new UserFacingError("Add a photo of the product first.");
+  if (products.length > MAX_PRODUCT_PHOTOS) throw new UserFacingError(`Use at most ${MAX_PRODUCT_PHOTOS} product photos.`);
+  const s = sheetRefs(c, pack, max - products.length);
+  if (!s.paths.length) throw new UserFacingError("This character needs a reference sheet or photo first.");
+  const prompt = ugcPrompt(
+    s.R,
+    products.length,
+    { product: ugc.product, label: ugc.label ?? "", aesthetic: "", worn: !!ugc.worn },
+    { title: "", action: ugc.action, scene: ugc.scene, outfit: ugc.outfit ?? "" },
+  );
+  return { prompt, paths: [...s.paths, ...products], photoEdit: false };
+}
+
 export interface JobRequest {
   kind: string;
   characterId?: string | null;
@@ -258,6 +278,12 @@ export async function buildJob(
       }),
     );
     return groupJob(members, request.prompt, opts.max);
+  }
+
+  if (request.kind === "ugc") {
+    if (!c) throw new UserFacingError("Pick the character who shows the product.");
+    if (!request.meta?.ugc) throw new UserFacingError("Plan the photo first.");
+    return ugcJob(c, await packOf(c), request.extraPaths, request.meta.ugc, opts.max);
   }
 
   if (request.kind === "art_to_real") {
