@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clipboardImages, usePasteTarget } from "@/components/paste-router";
 import { Button } from "@/components/ui/button";
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { requestUpload, removeCharacterImage, removePendingImage } from "@/app/(app)/characters/media-actions";
+import { requestUpload, removeCharacterImage, removePendingImage, reorderReferences } from "@/app/(app)/characters/media-actions";
 import type { UploadSlot } from "@/lib/images";
 import { viewImage } from "@/lib/panel-events";
 
@@ -61,7 +61,32 @@ export function ImageSlot({
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const current = draft ? draft.images : (images ?? []);
+  // Reference photos can be dragged into a new order; the first one is her cover. `local` shows the new order at once, until the saved one arrives.
+  const [local, setLocal] = useState<SlotImage[] | null>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [over, setOver] = useState<string | null>(null);
+  const savedOrder = (images ?? []).map((i) => i.path).join("|");
+  useEffect(() => setLocal(null), [savedOrder]);
+  const current = draft ? draft.images : (local ?? images ?? []);
+  const sortable = slot === "reference" && max > 1 && current.length > 1;
+
+  async function move(from: string, to: string) {
+    if (from === to) return;
+    const next = [...current];
+    const a = next.findIndex((i) => i.path === from);
+    const b = next.findIndex((i) => i.path === to);
+    if (a < 0 || b < 0) return;
+    const [item] = next.splice(a, 1);
+    next.splice(b, 0, item);
+    if (draft) return draft.onChange(next);
+    if (!characterId) return;
+    setLocal(next);
+    const res = await reorderReferences(characterId, next.map((i) => i.path));
+    if (res?.error) {
+      setLocal(null);
+      setError(res.error);
+    } else router.refresh();
+  }
 
   async function add(files: FileList | File[] | null) {
     if (!files?.length) return;
@@ -111,6 +136,7 @@ export function ImageSlot({
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();
+        if (dragging) return; // moving one of her photos, not adding a file
         add(e.dataTransfer.files);
       }}
       tabIndex={0}
@@ -132,10 +158,39 @@ export function ImageSlot({
         onChange={(e) => add(e.target.files)}
       />
       {hint && <p className="text-xs text-neutral-500 max-sm:hidden">{hint}</p>}
+      {sortable && <p className="text-xs text-neutral-500">Drag to reorder. The first photo is her cover.</p>}
       {current.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {current.map((img) => (
-            <div key={img.path} className="relative">
+          {current.map((img, idx) => (
+            <div
+              key={img.path}
+              className={`relative rounded-xl transition ${sortable ? "cursor-grab active:cursor-grabbing" : ""} ${dragging === img.path ? "opacity-40" : ""} ${over === img.path && dragging !== img.path ? "ring-2 ring-white/60" : ""}`}
+              draggable={sortable && !busy}
+              onDragStart={(e) => {
+                setDragging(img.path);
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", img.path);
+              }}
+              onDragOver={(e) => {
+                if (dragging) {
+                  e.preventDefault();
+                  setOver(img.path);
+                }
+              }}
+              onDrop={(e) => {
+                if (!dragging) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const from = dragging;
+                setDragging(null);
+                setOver(null);
+                void move(from, img.path);
+              }}
+              onDragEnd={() => {
+                setDragging(null);
+                setOver(null);
+              }}
+            >
               {/* Opens full size in the viewer. */}
               <button
                 type="button"
@@ -151,8 +206,11 @@ export function ImageSlot({
                 className="block cursor-zoom-in rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img.url} alt={label} className="thumb h-24 w-24 animate-pop-in object-cover object-top ring-1 ring-white/10 max-sm:h-[4.5rem] max-sm:w-[4.5rem] 2xl:h-28 2xl:w-28" />
+                <img src={img.url} alt={label} className={`thumb h-24 w-24 animate-pop-in object-cover object-top max-sm:h-[4.5rem] max-sm:w-[4.5rem] 2xl:h-28 2xl:w-28 ${slot === "reference" && idx === 0 ? "ring-2 ring-brand-400 shadow-[0_0_18px_-2px_rgb(244_63_94/0.6)]" : "ring-1 ring-white/10"}`} draggable={false} />
               </button>
+              {slot === "reference" && idx === 0 && (
+                <span className="pointer-events-none absolute inset-x-1 bottom-1 rounded-md bg-brand-500/90 px-1 py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-white">Cover</span>
+              )}
               <button
                 type="button"
                 aria-label="Remove image"

@@ -48,6 +48,22 @@ export async function removeCharacterImage(
   revalidatePath(`/characters/${characterId}`);
 }
 
+/** Saves a new order for her reference photos (the first is her cover). Must be exactly the photos she has. */
+export async function reorderReferences(characterId: string, paths: string[]): Promise<{ error?: string }> {
+  const { supabase } = await requireUser();
+  const { data: c } = await supabase.from("characters").select("reference_paths").eq("id", characterId).maybeSingle();
+  if (!c) return { error: "Character not found" };
+  const have = c.reference_paths as string[];
+  if (paths.length !== have.length || new Set(paths).size !== paths.length || !paths.every((p) => have.includes(p))) {
+    return { error: "Her photos changed. Reload the page and try again." };
+  }
+  const { error } = await supabase.from("characters").update({ reference_paths: paths, updated_at: new Date().toISOString() }).eq("id", characterId);
+  if (error) return { error: error.message };
+  revalidatePath("/characters");
+  revalidatePath(`/characters/${characterId}`);
+  return {};
+}
+
 // Removes an image uploaded on the new-character page that was never attached to a character.
 export async function removePendingImage(path: string) {
   const { supabase, user } = await requireUser();

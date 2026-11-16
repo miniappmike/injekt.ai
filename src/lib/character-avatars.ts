@@ -9,9 +9,9 @@ interface AvatarSource {
   body_sheet_path?: string | null;
 }
 
-/** The picture the character picker shows for each character: her profile photo, else her first reference, else a sheet. */
+/** The picture the character picker shows for each character: her cover (first reference photo), else her profile photo, else a sheet. */
 export async function characterAvatars(supabase: SupabaseClient, rows: AvatarSource[]): Promise<Map<string, string>> {
-  const pick = (c: AvatarSource) => c.profile_photo_path || c.reference_paths?.[0] || c.face_sheet_path || c.body_sheet_path || null;
+  const pick = (c: AvatarSource) => c.reference_paths?.[0] || c.profile_photo_path || c.face_sheet_path || c.body_sheet_path || null;
   const urls = await signedUrlMap(supabase, rows.map(pick));
   const out = new Map<string, string>();
   for (const c of rows) {

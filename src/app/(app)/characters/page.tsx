@@ -39,7 +39,7 @@ export default async function CharactersPage() {
     { label: "Profile photo", path: c.profile_photo_path },
     ...c.reference_paths.map((path, i) => ({ label: `Reference ${i + 1}`, path })),
   ].filter((x): x is { label: string; path: string } => !!x.path);
-  const urls = await signedUrlMap(supabase, (characters ?? []).flatMap((c) => [c.profile_photo_path, ...thumbs(c), ...labelled(c).map((x) => x.path)]));
+  const urls = await signedUrlMap(supabase, (characters ?? []).flatMap((c) => [c.profile_photo_path, c.reference_paths[0], ...thumbs(c), ...labelled(c).map((x) => x.path)]));
 
   return (
     <CharactersBoard
@@ -50,7 +50,8 @@ export default async function CharactersPage() {
         id: c.id,
         name: c.name,
         identityLine: (c.profile as CharacterProfile).identity_line ?? null,
-        photo: c.profile_photo_path ? (urls[c.profile_photo_path] ?? null) : null,
+        // Her cover is the first reference photo; the profile photo is only used when she has none.
+        photo: (c.reference_paths[0] ?? c.profile_photo_path) ? (urls[(c.reference_paths[0] ?? c.profile_photo_path) as string] ?? null) : null,
         thumbs: thumbs(c).map((p) => urls[p]).filter((u): u is string => !!u),
         refCount: c.reference_paths.length,
         hasSheet: !!(c.face_sheet_path || c.body_sheet_path),
