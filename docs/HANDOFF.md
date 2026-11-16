@@ -13,6 +13,9 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Face sheet prompt: white background, whole hair in frame (November 16; reference-sheet tests updated and passing; not tried on a real generation)**
+- `sheetPrompts().face` (`prompts/sheets.ts`) now asks for "a plain, clean white background" and "her whole hair fully in frame and uncropped in every portrait, including the top of her head and the full length of her hair". The body sheet is unchanged (still mid-grey). If very long hair still gets cut off, the next step is asking for a little more space above and below each portrait.
+
 **Library filters and page box (November 16; types clean; checked on the stand-in backend in desktop Chromium, not on a phone)**
 - Images tab (`library.tsx`): a **character** dropdown (All characters / each character with active images, with counts / "No character"), **tool chips** that toggle on and off (several at once; "All tools" clears them; only tools with active images show, with counts), and **Clear filters**. Changing a filter goes back to page 1. Filters aren't remembered after leaving the page.
 - The page bar's "Page N of M" is now a box: type a number and press Enter (or click away) to jump there (`PageJump`).
