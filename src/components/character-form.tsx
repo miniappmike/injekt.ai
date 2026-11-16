@@ -55,6 +55,7 @@ export function CharacterForm({
   const [state, formAction, pendingAction] = useActionState(action, {});
   const [submitting, startSubmit] = useTransition();
   const pending = pendingAction || submitting;
+  const [dirty, setDirty] = useState(false);
   // New-character page only: images uploaded before the character exists, attached on save.
   const [draft, setDraft] = useState<{ profile_photo: SlotImage[]; face_sheet: SlotImage[]; body_sheet: SlotImage[]; reference: SlotImage[] }>({
     profile_photo: [],
@@ -108,6 +109,9 @@ export function CharacterForm({
 
   return (
     <form
+      // Any typing or choice inside the form (inputs bubble up) marks it as changed.
+      onInput={() => setDirty(true)}
+      onChange={() => setDirty(true)}
       // Submitting through a transition keeps what was typed if the save is refused (React would otherwise clear the form).
       onSubmit={(e) => {
         e.preventDefault();
@@ -219,8 +223,17 @@ export function CharacterForm({
       {!characterId && buildsLeft !== null && buildsTotal !== undefined && (
         <p className="text-xs text-neutral-500">Free plan: {buildsLeft} of {buildsTotal} profile generations left.</p>
       )}
+      {characterId && dirty && (
+        // Floating save: appears after the first change and stays on screen while scrolling (above the phone dock).
+        <div className="pointer-events-none fixed inset-x-0 bottom-20 z-40 flex justify-center px-4 lg:bottom-6">
+          <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-neutral-700 bg-neutral-900/95 py-2 pl-4 pr-2 shadow-2xl backdrop-blur">
+            <span className="text-sm text-neutral-300">Unsaved changes</span>
+            <Button type="submit" disabled={pending}>{pending ? "Saving..." : submitLabel}</Button>
+          </div>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={pending}>{pending ? "Saving..." : submitLabel}</Button>
+        {!characterId && <Button type="submit" disabled={pending}>{pending ? "Saving..." : submitLabel}</Button>}
         {!characterId && (
           <Button type="submit" name="build" value="1" variant="secondary" disabled={pending || !canBuildDraft || buildsLeft === 0}>
             {pending ? "Working..." : <>Save and build profile{buildCredits ? <TokenCost n={buildCredits} /> : null}</>}

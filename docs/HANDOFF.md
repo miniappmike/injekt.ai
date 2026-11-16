@@ -13,6 +13,9 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Floating Save on the edit-character page (November 16; NOT run, types not run, not checked in a browser)**
+- `character-form.tsx`: on a character's edit page the Save button is gone from the bottom of the form; once anything in the form changes (`dirty`, set by the form's `onInput`/`onChange`) a floating "Unsaved changes" pill with Save sits fixed at the bottom centre (above the phone dock). The New character page keeps its inline Save buttons. Notes: the "I own or license" checkbox is still required, so Save may scroll to it; `dirty` is not cleared after a save (the page normally redirects); image uploads and Build profile save on their own and don't trigger it.
+
 **See likeness runs the full report by itself; smaller blur eyes (November 16; NOT run, types not run, not checked in a browser)**
 - `/likeness?generation=<id>` (from "See likeness" under an image) now starts the full report as soon as the page opens (`autoRan` effect in `likeness-checker.tsx`), instead of waiting for Check likeness. It costs one full check each time that page is opened that way.
 - **Characters page: the pink eye button on each card is gone (November 16; not checked in a browser)**
