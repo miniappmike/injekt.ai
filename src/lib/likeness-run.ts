@@ -5,6 +5,7 @@ import { isOwnPath } from "@/lib/uploads";
 import { MEDIA_BUCKET, shrinkForVision, toDataUri } from "@/lib/images";
 import { currentPack, selectCharacter } from "@/lib/sheet-pack";
 import { saveHistory } from "@/lib/history";
+import { adminClient } from "@/lib/supabase/admin";
 import { getUserTextClient } from "@/lib/ai/text-client";
 import { askJson } from "@/lib/ai/json";
 import { profileBlock } from "@/lib/ai/tasks/profile-builder";
@@ -81,6 +82,27 @@ const loadRefs = (supabase: SupabaseClient, refs: { path: string }[], maxEdge?: 
   Promise.all(refs.map(async (r) => toDataUri(await shrinkForVision(await download(supabase, MEDIA_BUCKET, r.path), maxEdge))));
 
 /**
+ * One scoring pass per image: the quick check's result is kept on the generation, and the full report reads it, so the
+ * badge under an image and the report on the Likeness page always show the same number.
+ */
+async function cachedQuick(supabase: SupabaseClient, userId: string, generationId: string, characterId: string): Promise<QuickLikeness | null> {
+  const { data } = await supabase.from("generations").select("params").eq("id", generationId).eq("user_id", userId).maybeSingle();
+  const l = (data?.params as { likeness?: { characterId?: string; result?: QuickLikeness } } | null)?.likeness;
+  return l?.characterId === characterId && l.result && typeof l.result === "object" ? l.result : null;
+}
+
+async function storeQuick(userId: string, generationId: string, characterId: string, result: QuickLikeness): Promise<void> {
+  try {
+    const db = adminClient();
+    const { data } = await db.from("generations").select("params").eq("id", generationId).eq("user_id", userId).maybeSingle();
+    if (!data) return;
+    await db.from("generations").update({ params: { ...((data.params as object | null) ?? {}), likeness: { characterId, result } } }).eq("id", generationId).eq("user_id", userId);
+  } catch {
+    // Best effort: without it the full report just runs the scoring pass itself.
+  }
+}
+
+/**
  * The quick likeness score (artifact quickLike) for a generated image of her. With `original`, it is a fix being
  * checked: the original goes second to last and a verdict says whether the fix is closer to her.
  */
@@ -102,7 +124,9 @@ export async function runQuickLikeness(
     loadSource(supabase, userId, input.image, edge(1024)),
   ]);
   const reply = await askJson(client, { prompt: quickLikenessPrompt(refs.map((r) => r.role), cmp), images: [...refUris, ...(orig ? [orig] : []), gen] });
-  return parseQuickLikeness(reply, cmp);
+  const result = parseQuickLikeness(reply, cmp);
+  if (input.image.generationId) await storeQuick(userId, input.image.generationId, input.characterId, result);
+  return result;
 }
 
 /** The full likeness report (artifact checkLikeness), saved to History as a round. */
@@ -123,8 +147,13 @@ export async function runLikenessReport(
     loadSource(supabase, userId, input.image, Math.min(1280, imageMaxEdge ?? 1280)),
   ]);
   const used = String(input.promptUsed ?? "").trim();
-  const prompt = likenessReportPrompt({ profile: profileBlock({ ...c, profile: c.profile ?? {} }), refCount: refUris.length, isSheet: !!sheet, used });
+  // The one scoring pass: reuse the quick score already made for this image, or make it now.
+  const anchor =
+    (input.image.generationId ? await cachedQuick(supabase, userId, input.image.generationId, c.id) : null) ??
+    (await runQuickLikeness(supabase, userId, { characterId: c.id, image: input.image }).catch(() => null));
+  const prompt = likenessReportPrompt({ profile: profileBlock({ ...c, profile: c.profile ?? {} }), refCount: refUris.length, isSheet: !!sheet, used, anchor: anchor ?? undefined });
   const report = parseLikenessReport(await askJson(client, { prompt, images: [...refUris, gen] }));
+  if (anchor?.score != null) report.overall = anchor.score;
   await saveHistory(supabase, userId, [
     {
       characterId: c.id,

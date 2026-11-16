@@ -35,14 +35,21 @@ const ACCESSORY_RULE =
 
 // ---------- A10: full report ----------
 
-export function likenessReportPrompt(o: { profile: string; refCount: number; isSheet: boolean; used: string }): string {
+/** The measured scores the full report must agree with (the one scoring pass, shared with the quick badge). */
+function anchorBlock(a?: QuickLikeness): string {
+  if (!a || a.score == null) return "";
+  const t = (n: number | null) => (n == null ? "not visible" : `${Math.round(n * 10) / 10}/10`);
+  return `\nMEASURED SCORES (already decided by the main scoring pass; do not re-score or contradict them): match ${a.score}/100; face ${t(a.sc.face)}, hair ${t(a.sc.hair)}, skin ${t(a.sc.skin)}, body ${t(a.sc.body)}${a.hidden.length ? `; not scored (hidden): ${a.hidden.join(", ")}` : ""}. Set "overall" to ${a.score}. Give each trait a score in line with these (face traits near the face score, hair traits near the hair score, build and body proportions near the body score). Your job here is to explain: what the reference shows, what the generated image shows, the fix, the edit prompt and the revised prompt.\n`;
+}
+
+export function likenessReportPrompt(o: { profile: string; refCount: number; isSheet: boolean; used: string; anchor?: QuickLikeness }): string {
   const { refCount, used } = o;
   return `You are a strict likeness checker for an AI character workflow. The first ${refCount} attached image${refCount > 1 ? "s are" : " is"} the REFERENCE for the character${o.isSheet ? " (a character reference sheet)" : ""}. The LAST attached image is a newly GENERATED image that is meant to show the same character.
 
 CHARACTER PROFILE (ground truth):
 ${o.profile}
 
-Compare the face and identity of the person in the generated image with the reference. Ignore differences in pose, outfit, setting, lighting, camera and expression unless they hide a trait. Do not name or identify anyone.
+Compare the face and identity of the person in the generated image with the reference. Ignore differences in pose, outfit, setting, lighting, camera and expression unless they hide a trait. Do not name or identify anyone.${anchorBlock(o.anchor)}
 ${MAKEUP_SCORE_RULE}
 ${DISTANCE_SCORE_RULE}
 
