@@ -34,6 +34,9 @@ const TOOL_LINES: Record<string, string> = {
   "/inject": "put your model into any photo",
   "/director": "describe a photo and get it made",
   "/variants": "many versions of one good photo",
+  "/library": "every active image you have made",
+  "/likeness": "score how close an image is to her",
+  "/art-to-real": "turn artwork into a realistic photo",
 };
 
 const stars = (n: number) => `⭐ ${n.toLocaleString("en-US")}`;
@@ -71,7 +74,7 @@ export function commandReply(command: string, site: string): Reply | null {
       const lines = tools.flatMap((t) => {
         if (seen.has(t.href)) return [];
         seen.add(t.href);
-        const hint = TOOL_LINES[t.href] ?? ("hint" in t ? t.hint.charAt(0).toLowerCase() + t.hint.slice(1) : "");
+        const hint = TOOL_LINES[t.href] ?? "";
         return [`• ${t.label}${hint ? `: ${hint}` : ""}`];
       });
       return { text: `The tools:\n${lines.join("\n")}`, buttons: [open, { text: "Create a model", url: `${site}/reference-sheet` }] };

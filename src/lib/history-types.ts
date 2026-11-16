@@ -27,6 +27,8 @@ export function historyGenerationKind(kind: string) {
 export interface GenerationItem {
   id: string;
   kindLabel: string;
+  /** The generation kind (for example "inject" or "reference_sheet"). */
+  kind?: string;
   model: string | null;
   prompt: string | null;
   /** generating: still being made. ready: can be viewed and downloaded. expired: past its 72 hours. failed: did not work. */

@@ -30,7 +30,7 @@ export function toFailure(e: unknown): AiFailure {
 export function dailyLimitMessage(e: Pick<DailyLimitError, "key" | "plan" | "limit" | "proLimit">): string {
   const one = e.limit === 1;
   const what = e.key === "runs" ? `prompt${one ? "" : "s"}` : e.key === "images" ? `image${one ? "" : "s"}` : `likeness check${one ? "" : "s"}`;
-  return `You've used today's ${e.limit} ${what} on the free plan. They reset at midnight UTC. Pro has no daily limits: open your profile menu and choose Upgrade to Pro.`;
+  return `You've used today's ${e.limit} ${what} on the free plan. They reset at midnight. Pro has no daily limits: open your profile menu and choose Upgrade to Pro.`;
 }
 
 export { creditsMessage };

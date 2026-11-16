@@ -50,7 +50,7 @@ describe("verified revenue", () => {
 
   it("all time has no start; 30 days starts 29 days before today", () => {
     expect(rangeStart("all", NOW)).toBeNull();
-    expect(rangeStart("30d", NOW)?.toISOString()).toBe("2026-10-14T00:00:00.000Z");
+    expect(rangeStart("30d", NOW)?.toISOString()).toBe("2026-10-14T07:00:00.000Z");
   });
 });
 

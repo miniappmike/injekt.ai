@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalTime } from "@/components/local-time";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getDailyUsage } from "@/app/(app)/usage/actions";
@@ -11,7 +12,7 @@ import { ProGem } from "@/components/pro-badge";
 import { TokenIcon } from "@/components/token-icon";
 
 const left = (x: { used: number; limit: number | null }) => (x.limit == null ? null : Math.max(0, x.limit - x.used));
-const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const day = (iso: string | null | undefined) => <LocalTime iso={iso} o={{ month: "short", day: "numeric" }} />;
 
 /**
  * Tokens in the header: the token and a white count, with the plan. Opens a card with what things cost, the free plan's daily limits (with bars
@@ -139,7 +140,7 @@ export function UsageMeterView({ s, startOpen = false }: { s: DailyStatus; start
                 {bar("Prompts", s.runs)}
                 {bar("Images", s.images)}
                 {bar("Likeness checks", s.likeness)}
-                <li className="text-xs text-neutral-500">Resets at midnight UTC. Pro has no daily limits.</li>
+                <li className="text-xs text-neutral-500">Resets at midnight. Pro has no daily limits.</li>
               </ul>
             </>
           )}

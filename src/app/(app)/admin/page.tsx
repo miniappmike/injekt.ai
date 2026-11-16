@@ -11,6 +11,7 @@ import { AdminPeople } from "@/components/admin-people";
 import { AdminRevenue } from "@/components/admin-revenue";
 import { AdminTabs, parseTab } from "@/components/admin-tabs";
 import { parseRange, rangeStart, summarizeRevenue } from "@/lib/admin-revenue";
+import { viewerTz } from "@/lib/tz-server";
 import { showOrder } from "@/lib/cleanup";
 
 export const metadata = { title: "Admin" };
@@ -60,11 +61,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 }
 
 async function OrdersTab({ range }: { range: ReturnType<typeof parseRange> }) {
-  const since = rangeStart(range);
+  const tz = await viewerTz();
+  const since = rangeStart(range, Date.now(), tz);
   const [paid, orders] = await Promise.all([loadPaidOrders(since), loadOrders(since)]);
   return (
     <>
-      <AdminRevenue r={summarizeRevenue(paid, range)} />
+      <AdminRevenue r={summarizeRevenue(paid, range, Date.now(), tz)} />
       <AdminOrders orders={orders} />
       <AdminPayments />
     </>

@@ -1,3 +1,4 @@
+import { HowItWorks } from "@/components/how-it-works";
 import { ArtToReal } from "@/components/art-to-real";
 import { requireUser } from "@/lib/auth";
 import { referenceList } from "@/lib/character-images";
@@ -17,6 +18,11 @@ export default async function ArtToRealPage() {
         Turn anime, a drawing, a render or any artwork into a realistic photo of a real woman: real skin, natural proportions, a real room, real clothes.
         Import one of your characters to put her in it instead.
       </PageIntro>
+      <HowItWorks steps={[
+        { title: "Add your artwork", body: "Anime, a drawing or a render. Up to 5 at once." },
+        { title: "Pick a character", body: "Optional. Leave it empty to make the drawn woman real as she is." },
+        { title: "Make Real", body: "Each artwork becomes a realistic photo." },
+      ]} />
       <ArtToReal characters={characters} />
     </div>
   );

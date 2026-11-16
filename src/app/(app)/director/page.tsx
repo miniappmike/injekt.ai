@@ -1,3 +1,4 @@
+import { HowItWorks } from "@/components/how-it-works";
 import { DirectorTool } from "@/components/director-tool";
 import { CreateCharacterFirst } from "@/components/inject-tabs";
 import { requireUser } from "@/lib/auth";
@@ -26,6 +27,11 @@ export default async function DirectorPage({ searchParams }: { searchParams: Pro
       <PageIntro title="Director" short="Describe the shot in your own words. We write the prompt.">
         Pick a character and say what you want to see, in your own words. The prompt is written for you behind the scenes, with her face and body sheets locked in.
       </PageIntro>
+      <HowItWorks steps={[
+        { title: "Pick your character", body: "Who is in the shot." },
+        { title: "Describe the shot", body: "Say what you want in your own words: the pose, outfit, place and mood." },
+        { title: "Write, then generate", body: "Get the prompt, then generate it or copy it to use anywhere." },
+      ]} />
       {characters.length ? <DirectorTool characters={characters} initialCharacterId={characters.some((c) => c.id === character && c.ready) ? character : undefined} /> : <CreateCharacterFirst />}
     </div>
   );

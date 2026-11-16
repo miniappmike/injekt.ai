@@ -3,8 +3,8 @@ import { parsePinCheck, PIN_CHECK_PROMPT } from "@/lib/ai/prompts/pin";
 import { isPinnedPath, MAX_REFERENCE_PHOTOS, pinnedFolder } from "@/lib/uploads";
 
 describe("pinning generated images to a character", () => {
-  it("allows up to 5 reference photos", () => {
-    expect(MAX_REFERENCE_PHOTOS).toBe(5);
+  it("allows up to 10 reference photos", () => {
+    expect(MAX_REFERENCE_PHOTOS).toBe(10);
   });
 
   it("only pins when the check clearly says there is no nudity", () => {

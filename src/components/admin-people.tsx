@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalTime } from "@/components/local-time";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { PlanSwitch } from "@/components/admin-console";
@@ -19,7 +20,7 @@ const ago = (iso: string | null | undefined) => {
   const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
   return m < 60 ? `${Math.max(1, m)}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`;
 };
-const day = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" }) : "—");
+const day = (iso: string | null | undefined) => <LocalTime iso={iso} o={{ month: "short", day: "numeric", year: "2-digit" }} />;
 
 /** Admin → People: everyone, with what they've paid, their tokens and what they cost your key. Click a row for more. */
 export function AdminPeople({ users, extras, freeRunCap }: { users: UserStats[]; extras: Extras; freeRunCap: number }) {

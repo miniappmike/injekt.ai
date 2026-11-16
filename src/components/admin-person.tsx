@@ -1,3 +1,4 @@
+import { LocalTime } from "@/components/local-time";
 import { ProBadge } from "@/components/pro-badge";
 import { PlanSwitch } from "@/components/admin-console";
 import Link from "next/link";
@@ -7,8 +8,8 @@ import { TokenIcon } from "@/components/token-icon";
 import { featureLabel } from "@/lib/ledger-types";
 import { AdminCopy } from "@/components/admin-copy";
 
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—");
-const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—");
+const when = (iso: string | null | undefined) => <LocalTime iso={iso} o={{ month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }} />;
+const day = (iso: string | null | undefined) => <LocalTime iso={iso} o={{ month: "short", day: "numeric", year: "numeric" }} />;
 const usd = (n: number) => (n === 0 ? "$0" : n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`);
 const amount = (o: { provider: string | null; amount_stars: number | null; amount_cents: number }) =>
   o.provider === "telegram" && o.amount_stars ? `⭐ ${o.amount_stars}` : `$${(o.amount_cents / 100).toFixed(2)}`;

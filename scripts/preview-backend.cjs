@@ -7,9 +7,11 @@ const user = { id: '11111111-1111-4111-8111-111111111111', aud: 'authenticated',
 const ch = (i, name, sheets = true) => ({ id: `2222222${i}-2222-4222-8222-222222222222`, user_id: user.id, name, profile: { face: 'Oval face, green eyes', hair: 'Long auburn hair', body: 'Athletic' }, profile_photo_path: `u/p${i}.png`, face_sheet_path: sheets ? `u/f${i}.png` : null, body_sheet_path: sheets ? `u/b${i}.png` : null, reference_paths: [`u/r${i}a.png`, `u/r${i}b.png`], sheet_pack: null, created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z' });
 const MODE = process.env.MOCK || 'mid';
 const gen = (i, hours) => ({ id: `3333333${i}-3333-4333-8333-333333333333`, character_id: '22222221-2222-4222-8222-222222222222', kind: 'inject', status: 'complete', model: 'seedream', prompt: 'A photo', error: null, output_path: `u/g${i}.png`, created_at: new Date(Date.now() - i * 3600e3).toISOString(), expires_at: new Date(Date.now() + hours * 3600e3).toISOString(), cost_usd: null, params: {} });
+const hist = (i) => ({ id: `6666666${String(i).padStart(2, '0')}-6666-4666-8666-666666666666`.slice(0, 36), character_id: '22222221-2222-4222-8222-222222222222', kind: ['inject', 'variant', 'carousel'][i % 3], label: ['Inject: bedroom mirror selfie', 'Variants: new outfit takes', 'Carousel: weekend slides'][i % 3], prompt: 'A candid smartphone photo of the woman from @image1 sitting on a sunlit window seat in a cream knit sweater, one knee pulled up, soft morning light from the left, natural skin texture, slight film grain, shallow depth of field, relaxed expression looking just off camera, casual and unposed.', image_path: `u/t${i}.png`, extra_image_paths: [], meta: {}, created_at: new Date(Date.now() - i * 5400e3).toISOString() });
 const LID = '44444444-4444-4444-8444-444444444444';
 const tables = {
-  generations: MODE === 'new' ? [] : [gen(1, 2), gen(2, 9), gen(3, 30), gen(4, 50), gen(5, 70)],
+  generations: MODE === 'new' ? [] : Array.from({ length: 30 }, (_, k) => gen(k + 1, 2 + k * 2.2)),
+  prompt_history: MODE === 'new' ? [] : Array.from({ length: 13 }, (_, k) => hist(k + 1)),
   marketplace_listings: [{ id: LID, name: 'Nova', price_cents: 14900, currency: 'usd', status: 'available', reserved_until: null, published_at: '2026-11-01T00:00:00Z', sold_at: null, public_profile: { tagline: 'Sunset-chasing travel creator with a film camera.', bio: '', tags: [] } }],
   listing_images: [{ id: '55555555-5555-4555-8555-555555555555', listing_id: LID, storage_path: `${LID}/cover.png`, sort_order: 0 }],
   api_ledger: MODE === 'done' ? [{ id: 1 }] : [],
@@ -35,6 +37,7 @@ http.createServer((req, res) => {
     if (p.startsWith('/rest/v1/')) {
       const t = p.slice('/rest/v1/'.length); let rows = tables[t] ?? [];
       const id = u.searchParams.get('id'); if (id && id.startsWith('eq.')) rows = rows.filter((r) => r.id === id.slice(3));
+      if (t === 'generations' && u.search.includes('expires_at=gt.')) { const off = Number(u.searchParams.get('offset') || 0); const lim = Number(u.searchParams.get('limit') || 1000); const total = rows.length; rows = rows.slice(off, off + lim); if ((req.headers.prefer || '').includes('count=exact')) { res.writeHead(200, { 'content-type': 'application/json', 'content-range': `${off}-${off + rows.length - 1}/${total}` }); return res.end(JSON.stringify(rows)); } }
       const st = u.searchParams.get('status') || ''; if (t === 'generations' && (st.startsWith('in.') || u.search.includes('output_path=is.null'))) rows = [];
       if (req.method === 'HEAD' || (req.headers.prefer || '').includes('count=exact')) { const n = t === 'generations' ? (rows.length ? (u.search.includes('created_at=gte') ? (u.search.includes('-01T00') ? 48 : 12) : 60) : 0) : rows.length; res.writeHead(200, { 'content-type': 'application/json', 'content-range': `0-0/${n}` }); return res.end(req.method === 'HEAD' ? undefined : '[]'); }
       if ((req.headers.accept || '').includes('vnd.pgrst.object')) return rows[0] ? send(200, rows[0]) : send(406, { code: 'PGRST116', details: 'The result contains 0 rows', hint: null, message: 'none' });

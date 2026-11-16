@@ -5,7 +5,7 @@ import { ImageViewer } from "@/components/image-viewer";
 import { OutOfTokens } from "@/components/out-of-tokens";
 import { SiteHeader } from "@/components/front/site-header";
 import { MobileDock } from "@/components/mobile-nav";
-import { HistoryPanel } from "@/components/history-panel";
+import { HistoryLauncher } from "@/components/history-launcher";
 import { entitlements } from "@/lib/entitlements";
 import { loadGenerationState } from "@/lib/generation-access";
 import { createUserClient } from "@/lib/supabase/server";
@@ -38,7 +38,7 @@ export default async function PublicLayout({ children }: { children: React.React
         <AppHeader email={user.email ?? "Account"} admin={plan === "admin"} />
         <main className="mx-auto max-w-6xl 2xl:max-w-[88rem] p-4 pb-44 max-sm:pt-1 sm:p-6 sm:pb-28">{children}</main>
         <MobileDock />
-        <HistoryPanel />
+        <HistoryLauncher />
         {generation && <GenerationTray />}
         <ImageViewer />
         <OutOfTokens />

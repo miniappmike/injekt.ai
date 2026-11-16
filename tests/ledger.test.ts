@@ -201,8 +201,8 @@ describe("ledgerCsv", () => {
 
   it("has a header and one readable row per entry", () => {
     const lines = ledgerCsv([entry()]).split("\n");
-    expect(lines[0]).toBe("Time (UTC),Platform,Job,What,Model,Input tokens,Output tokens,Cost (USD),Cost known,Cost source,Status,Paid by");
-    expect(lines[1]).toBe(`2026-10-24T10:00:00Z,SpicyAPI,Image,Inject,bytedance/seedream-5.0-pro/edit,,,0.04,yes,${COST_SOURCE_LABELS.provider},succeeded,You`);
+    expect(lines[0]).toBe("Time (your time zone),Platform,Job,What,Model,Input tokens,Output tokens,Cost (USD),Cost known,Cost source,Status,Paid by");
+    expect(lines[1]).toBe(`${new Date("2026-10-24T10:00:00Z").toLocaleString("sv-SE")},SpicyAPI,Image,Inject,bytedance/seedream-5.0-pro/edit,,,0.04,yes,${COST_SOURCE_LABELS.provider},succeeded,You`);
   });
 
   it("leaves the cost blank when it is unknown, and says who paid", () => {
@@ -214,6 +214,6 @@ describe("ledgerCsv", () => {
     const row = ledgerCsv([entry({ model: '=HYPERLINK("http://x","y"),z' })]).split("\n")[1];
     expect(row).toContain(`"'=HYPERLINK(""http://x"",""y""),z"`);
     expect(ledgerCsv([entry({ model: "+1" })])).toContain(",'+1,");
-    expect(ledgerCsv([])).toBe("Time (UTC),Platform,Job,What,Model,Input tokens,Output tokens,Cost (USD),Cost known,Cost source,Status,Paid by");
+    expect(ledgerCsv([])).toBe("Time (your time zone),Platform,Job,What,Model,Input tokens,Output tokens,Cost (USD),Cost known,Cost source,Status,Paid by");
   });
 });

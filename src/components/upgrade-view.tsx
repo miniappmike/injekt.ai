@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalTime } from "@/components/local-time";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
@@ -16,7 +17,7 @@ import { TokenIcon } from "@/components/token-icon";
 
 type Choice = "free" | "pro";
 
-const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+const day = (iso: string | null | undefined) => <LocalTime iso={iso} o={{ month: "long", day: "numeric", year: "numeric" }} />;
 
 const INCLUDED: { icon: React.ReactNode; label: string }[] = [
   { icon: "🔑", label: "Your own API keys" },

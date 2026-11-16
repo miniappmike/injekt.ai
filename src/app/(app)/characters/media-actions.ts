@@ -63,6 +63,7 @@ export interface CharacterGeneration {
   downloadUrl: string | null;
   prompt: string | null;
   expiresAt: string;
+  kind?: string;
 }
 
 /**
@@ -74,5 +75,5 @@ export async function getCharacterGenerations(characterId: string): Promise<Char
   const all = await listGenerations(supabase, user, 200);
   return all
     .filter((g) => g.characterId === characterId && g.state === "ready" && g.previewUrl)
-    .map((g) => ({ id: g.id, label: g.kindLabel, url: g.previewUrl as string, downloadUrl: g.downloadUrl, prompt: g.prompt, expiresAt: g.expiresAt ?? new Date().toISOString() }));
+    .map((g) => ({ id: g.id, label: g.kindLabel, url: g.previewUrl as string, downloadUrl: g.downloadUrl, prompt: g.prompt, kind: g.kind, expiresAt: g.expiresAt ?? new Date().toISOString() }));
 }

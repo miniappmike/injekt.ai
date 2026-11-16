@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalTime } from "@/components/local-time";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { cancelOrder, markOrderPaid } from "@/app/(app)/admin/actions";
@@ -24,7 +25,7 @@ export interface AdminOrder {
 }
 
 const PROVIDER_LABEL: Record<string, string> = { telegram: "Telegram", nowpayments: "crypto", manual: "manual", admin: "admin" };
-const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const when = (iso: string | null | undefined) => <LocalTime iso={iso} o={{ month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }} />;
 const TONE: Record<AdminOrder["status"], string> = {
   pending: "bg-amber-400/15 text-amber-300 ring-amber-400/40",
   paid: "bg-emerald-400/15 text-emerald-300 ring-emerald-400/40",

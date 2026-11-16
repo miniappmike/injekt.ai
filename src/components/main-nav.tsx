@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Brush } from "lucide-react";
-import { CharactersIcon, CreateModelIcon, LikenessIcon, GroupIcon, ChevronIcon } from "@/components/icons";
+import { Brush, Images } from "lucide-react";
+import { CharactersIcon, CreateModelIcon, LikenessIcon, ChevronIcon } from "@/components/icons";
 import { MORE_NAV, NAV as TABS } from "@/lib/nav";
 
 export function MainNav() {
@@ -51,7 +51,7 @@ export function MainNav() {
   );
 }
 
-const MORE_ICONS = { "/characters": CharactersIcon, "/reference-sheet": CreateModelIcon, "/likeness": LikenessIcon, "/art-to-real": Brush, "/characters#group": GroupIcon } as const;
+const MORE_ICONS = { "/characters": CharactersIcon, "/reference-sheet": CreateModelIcon, "/library": Images, "/likeness": LikenessIcon, "/art-to-real": Brush } as const;
 
 /** The tools that have no tab of their own. It sits outside the scrolling row of tabs so the menu isn't clipped. */
 function MoreMenu({ pathname }: { pathname: string }) {
@@ -93,10 +93,7 @@ function MoreMenu({ pathname }: { pathname: string }) {
             return (
               <Link key={m.href} href={m.href} role="menuitem" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/30"><Icon className="h-5 w-5" /></span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-neutral-50">{m.label}</span>
-                  <span className="block truncate text-xs text-neutral-400">{m.hint}</span>
-                </span>
+                <span className="text-sm font-semibold text-neutral-50">{m.label}</span>
               </Link>
             );
           })}

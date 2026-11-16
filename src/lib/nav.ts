@@ -12,13 +12,13 @@ export const NAV = [
 ] as const;
 export type NavHref = (typeof NAV)[number]["href"];
 
-/** The rest of the menu, under "More". Group photo is a mode of the Characters page. */
+/** The rest of the menu, under "More". (Group photo is a mode of the Characters page, reached from there.) */
 export const MORE_NAV = [
-  { href: "/characters", label: "Characters", hint: "Your models and their reference photos" },
-  { href: "/reference-sheet", label: "Create Model", hint: "Build a new model from your photos" },
-  { href: "/likeness", label: "Likeness", hint: "Score how close an image is to her" },
-  { href: "/art-to-real", label: "Art to Real", hint: "Turn artwork into a realistic photo" },
-  { href: "/characters#group", label: "Group photo", hint: "Several characters in one picture" },
+  { href: "/characters", label: "Characters" },
+  { href: "/reference-sheet", label: "Create Model" },
+  { href: "/library", label: "Library" },
+  { href: "/likeness", label: "Likeness" },
+  { href: "/art-to-real", label: "Art to Real" },
 ] as const;
 
 /** The phone dock is the same menu: the five tabs, then More. */

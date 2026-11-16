@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalTime } from "@/components/local-time";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,7 @@ const PAGE = 50;
 const select = "h-10 rounded-lg border border-neutral-700/80 bg-neutral-950/60 px-2 text-sm";
 const tz = () => new Date().getTimezoneOffset();
 const tokens = (n: number | null) => (n === null ? "" : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
-const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "medium" });
+const when = (iso: string | null | undefined) => <LocalTime iso={iso} o={{ dateStyle: "medium", timeStyle: "medium" }} />;
 
 function Tile({ label, value, note }: { label: string; value: number; note?: string }) {
   return (

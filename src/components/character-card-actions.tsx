@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { deleteCharacter } from "@/app/(app)/characters/actions";
 import { getCharacterGenerations } from "@/app/(app)/characters/media-actions";
 import { GENERATION_DELETED_EVENT, viewImage } from "@/lib/panel-events";
+import { ImageBulkBar, SelectBox, useSelection } from "@/components/image-bulk-bar";
+import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
 
 export interface CardImage {
   label: string;
@@ -15,6 +17,7 @@ export interface CardImage {
   generationId?: string;
   downloadUrl?: string | null;
   prompt?: string | null;
+  kind?: string;
 }
 
 /** Delete with a confirmation. Deleting also removes her stored images, so it asks first. */
@@ -42,8 +45,21 @@ export function DeleteCharacterButton({ id, name, icon = false }: { id: string; 
  * (kept 72 hours), newest first; tapping one opens it full screen, and the arrow keys step through them. Her reference
  * photos are a separate pack (what she has pinned) and live on her own page.
  */
-export function CharacterImagesButton({ name, characterId }: { name: string; characterId: string }) {
+const OPEN_IMAGES_EVENT = "modelspawn:open-character-images";
+
+/** Her picture on the card: opens her images panel (the Edit button is what goes to her page). */
+export function CharacterCoverButton({ characterId, name, className, children }: { characterId: string; name: string; className?: string; children: React.ReactNode }) {
+  return (
+    <button type="button" aria-label={`See the images made for ${name}`} className={className} onClick={() => window.dispatchEvent(new CustomEvent(OPEN_IMAGES_EVENT, { detail: characterId }))}>
+      {children}
+    </button>
+  );
+}
+
+export function CharacterImagesButton({ name, characterId, refCount = MAX_REFERENCE_PHOTOS }: { name: string; characterId: string; refCount?: number }) {
   const [open, setOpen] = useState(false);
+  // Reference photos she has now: starts from the card, goes up as images are pinned from this panel.
+  const [pinned, setPinned] = useState(0);
   const [images, setImages] = useState<CardImage[] | null>(null);
   // An image deleted from the viewer leaves this panel too.
   useEffect(() => {
@@ -56,12 +72,18 @@ export function CharacterImagesButton({ name, characterId }: { name: string; cha
     let alive = true;
     setImages(null);
     void getCharacterGenerations(characterId)
-      .then((list) => alive && setImages(list.map((g) => ({ label: `${g.label} · ${new Date(g.expiresAt).getTime() - Date.now() < 3_600_000 ? "under 1h" : `${Math.max(1, Math.round((new Date(g.expiresAt).getTime() - Date.now()) / 3_600_000))}h`} left`, url: g.url, generationId: g.id, downloadUrl: g.downloadUrl, prompt: g.prompt }))))
+      .then((list) => alive && setImages(list.map((g) => ({ label: `${g.label} · ${new Date(g.expiresAt).getTime() - Date.now() < 3_600_000 ? "under 1h" : `${Math.max(1, Math.round((new Date(g.expiresAt).getTime() - Date.now()) / 3_600_000))}h`} left`, url: g.url, generationId: g.id, downloadUrl: g.downloadUrl, prompt: g.prompt, kind: g.kind }))))
       .catch(() => alive && setImages([]));
     return () => {
       alive = false;
     };
   }, [open, characterId]);
+  // Clicking her picture on the card opens this same panel.
+  useEffect(() => {
+    const on = (e: Event) => (e as CustomEvent<string>).detail === characterId && setOpen(true);
+    window.addEventListener(OPEN_IMAGES_EVENT, on);
+    return () => window.removeEventListener(OPEN_IMAGES_EVENT, on);
+  }, [characterId]);
   useEffect(() => {
     if (!open) return;
     const key = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
@@ -78,24 +100,14 @@ export function CharacterImagesButton({ name, characterId }: { name: string; cha
 
   return (
     <>
-      <span className="group absolute left-3 top-3 z-10 max-sm:left-2 max-sm:top-2">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label={`See the images made for ${name}`}
-          aria-describedby={`eye-tip-${characterId}`}
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-950/70 text-brand-400 ring-1 ring-brand-500/40 backdrop-blur transition-all hover:scale-105 hover:bg-neutral-950/90 hover:text-brand-300 active:scale-90"
-        >
-          <EyeIcon className="h-[18px] w-[18px]" />
-        </button>
-        <span
-          role="tooltip"
-          id={`eye-tip-${characterId}`}
-          className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-48 rounded-md border border-neutral-700 bg-neutral-900 p-2 text-xs font-normal text-neutral-200 shadow-lg group-focus-within:block group-hover:block"
-        >
-          View the active images of {name}
-        </span>
-      </span>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={`See the images made for ${name}`}
+        className="absolute left-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-b from-brand-400 to-brand-600 text-white shadow-[0_6px_20px_-8px_rgb(232_38_94/0.7)] transition-all hover:scale-105 hover:from-brand-300 hover:to-brand-500 hover:shadow-[0_8px_28px_-8px_rgb(232_38_94/0.85)] active:scale-90 max-sm:left-2 max-sm:top-2"
+      >
+        <EyeIcon className="h-[18px] w-[18px]" />
+      </button>
       {open &&
         createPortal(
           <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={`${name}'s images`}>
@@ -111,7 +123,7 @@ export function CharacterImagesButton({ name, characterId }: { name: string; cha
                 ) : images.length === 0 ? (
                   <p className="py-10 text-center text-sm text-neutral-400">No images made for {name} in the last 72 hours. Her reference photos are on her page.</p>
                 ) : (
-                  <ImageStrip name={name} images={images} />
+                  <ImageStrip name={name} images={images} characterId={characterId} freeSlots={Math.max(0, MAX_REFERENCE_PHOTOS - refCount - pinned)} onPinned={(n) => setPinned((p) => p + n)} />
                 )}
               </div>
             </div>
@@ -123,7 +135,9 @@ export function CharacterImagesButton({ name, characterId }: { name: string; cha
 }
 
 /** The images in one sideways-scrolling row, with arrow buttons on wide screens (phones just swipe). */
-function ImageStrip({ name, images }: { name: string; images: CardImage[] }) {
+function ImageStrip({ name, images, characterId, freeSlots, onPinned }: { name: string; images: CardImage[]; characterId: string; freeSlots: number; onPinned: (n: number) => void }) {
+  const ids = images.flatMap((i) => (i.generationId ? [i.generationId] : []));
+  const sel = useSelection(ids);
   const row = useRef<HTMLUListElement>(null);
   const [edge, setEdge] = useState({ start: true, end: false });
   const measure = useCallback(() => {
@@ -152,7 +166,18 @@ function ImageStrip({ name, images }: { name: string; images: CardImage[] }) {
   }, []);
   const arrow = "absolute top-[calc(50%-1.25rem)] z-10 flex h-11 w-11 items-center justify-center rounded-full bg-neutral-950/85 text-neutral-50 shadow-lg ring-1 ring-white/20 backdrop-blur transition-all hover:scale-105 hover:bg-brand-500 disabled:pointer-events-none disabled:opacity-0 max-sm:hidden";
   return (
-    <div className="relative">
+    <div>
+      <ImageBulkBar
+        className="mb-3"
+        items={images.flatMap((i) => (i.generationId ? [{ id: i.generationId, url: i.url, downloadUrl: i.downloadUrl, characterId, kind: i.kind }] : []))}
+        picked={sel.picked}
+        onSelectAll={sel.selectAll}
+        onClear={sel.clear}
+        onDeleted={sel.drop}
+        slots={() => freeSlots}
+        onPinned={(_, n) => onPinned(n)}
+      />
+      <div className="relative">
       <button type="button" aria-label="Scroll left" disabled={edge.start} onClick={() => go(-1)} className={arrow + " -left-3"}>
         <ChevronIcon className="h-5 w-5 rotate-180" />
       </button>
@@ -161,7 +186,8 @@ function ImageStrip({ name, images }: { name: string; images: CardImage[] }) {
       </button>
       <ul ref={row} onScroll={measure} className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-3 [scrollbar-width:thin]" aria-label="Scroll sideways for more">
         {images.map((img) => (
-          <li key={img.label + img.url} className="w-[62vw] max-w-[18rem] shrink-0 snap-start sm:w-64">
+          <li key={img.label + img.url} className="relative w-[62vw] max-w-[18rem] shrink-0 snap-start sm:w-64">
+            {img.generationId && <SelectBox checked={sel.has(img.generationId)} onChange={() => sel.toggle(img.generationId as string)} label={`Select ${img.label}`} />}
             <button
               type="button"
               onClick={() => {
@@ -177,6 +203,7 @@ function ImageStrip({ name, images }: { name: string; images: CardImage[] }) {
           </li>
         ))}
       </ul>
+      </div>
     </div>
   );
 }

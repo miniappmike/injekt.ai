@@ -18,6 +18,7 @@ import { CopyOpen } from "@/components/copy-open";
 import { MobileSheet } from "@/components/mobile-sheet";
 import { SlidersIcon } from "@/components/icons";
 import { AttachStrip, TaggedPrompt, type AttachTile } from "@/components/attach-strip";
+import { InfoTip } from "@/components/info-tip";
 import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
@@ -371,7 +372,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
       </div>
 
       <section className="panel flex flex-col gap-3 p-4">
-        <Step n={1} title="Add your images" hint={`Your main image, plus up to ${MAX_EXTRA_IMAGES} extras for the vibe or an outfit.`} />
+        <Step n={1} title="Add your images" hint={`Your main image, plus up to ${MAX_EXTRA_IMAGES} extras for the vibe or an outfit.`} aside={<InfoTip label="About your image">Best with an image already made of your character. Any image works: she is added either way.</InfoTip>} />
         <div className="grid grid-cols-3 gap-2 sm:gap-3 [&>*]:min-w-0">
           <ImageDrop
             layout="tile"

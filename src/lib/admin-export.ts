@@ -75,7 +75,7 @@ export function snapshotMarkdown(s: AdminSnapshot): string {
       : "",
     financeMd("Platform key and admin testing", s.realCosts.withAdminTesting),
     financeMd("Platform key only", s.realCosts.platformKeyOnly),
-    "## Daily spend on the platform key (last 14 days, UTC)",
+    "## Daily spend on the platform key (last 14 days, your time zone)",
     "",
     mdTable(["Day", "Cost", "Calls"], st.daily.map((d) => [d.day, usd(d.cost), d.calls])),
     "## People",
@@ -142,7 +142,7 @@ export function snapshotCsv(s: AdminSnapshot): string {
     ]),
     ...fin("platform key and admin testing", s.realCosts.withAdminTesting),
     ...fin("platform key only", s.realCosts.platformKeyOnly),
-    csvBlock("Daily spend on the platform key (UTC)", ["Day", "Cost (USD)", "Calls"], st.daily.map((d) => [d.day, round(d.cost), d.calls])),
+    csvBlock("Daily spend on the platform key (your time zone)", ["Day", "Cost (USD)", "Calls"], st.daily.map((d) => [d.day, round(d.cost), d.calls])),
     csvBlock(
       "People",
       ["Person", "Plan", "Own key", "Prompts today", "Likeness today", "Prompts 7d", "Your cost 7d (USD)", "Your cost 30d (USD)", "Their own-key spend 30d (USD)", "Last active"],

@@ -1,3 +1,4 @@
+import { TimezoneSync } from "@/components/timezone-sync";
 import { AppHeader } from "@/components/app-header";
 import { AppFooter } from "@/components/app-footer";
 import { ModelRefusedToast, PageModelBox } from "@/components/page-model";
@@ -6,7 +7,7 @@ import { ImageViewer } from "@/components/image-viewer";
 import { OutOfTokens } from "@/components/out-of-tokens";
 import { PasteRouter } from "@/components/paste-router";
 import { MobileDock } from "@/components/mobile-nav";
-import { HistoryPanel } from "@/components/history-panel";
+import { HistoryLauncher } from "@/components/history-launcher";
 import { requireUser } from "@/lib/auth";
 import { AppProvider } from "@/components/app-context";
 import { entitlements, loadProfile } from "@/lib/entitlements";
@@ -33,6 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppProvider value={{ generation, imageKey: hasImageKey, generationConfirmed: confirmed, pro: plan !== "free", billing: plan !== "free" && hasImageKey ? "own" : "credits" }}>
       <div className="min-h-screen">
+        <TimezoneSync />
         <AppHeader email={user.email ?? "Account"} admin={plan === "admin"} />
         <RenewBanner proUntil={profile?.proUntil ?? null} manualPro={profile?.manualPro ?? false} autoRenews={autoRenews} />
         {/* The footer below leaves the room for the phone dock and the generation tray. */}
@@ -41,7 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <AppFooter />
         <ModelRefusedToast />
         <MobileDock />
-        <HistoryPanel />
+        <HistoryLauncher />
         {generation && <GenerationTray />}
         <ImageViewer />
         <PasteRouter />
