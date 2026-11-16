@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { EyeIcon } from "@/components/icons";
 import { useToast } from "@/components/toast";
 import { PinToReferences } from "@/components/pin-to-references";
 import { getPinTarget } from "@/app/(app)/characters/pin-actions";
@@ -43,6 +44,11 @@ export function ImageViewer() {
   const viewRef = useRef(view);
   // Glides to the new view (fit, double tap, snapping back) instead of jumping; off while a finger is down.
   const [smooth, setSmooth] = useState(false);
+  // Blurred pictures stay blurred here until Show is pressed (per picture, only while the viewer is open).
+  const [shown, setShown] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!image) setShown(new Set());
+  }, [image]);
   // True while the picture sits fitted and centred: a sideways swipe then steps through the gallery.
   const atFit = useRef(true);
   const scale = view.s;
@@ -474,6 +480,7 @@ export function ImageViewer() {
           onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
           className={`absolute left-1/2 top-1/2 max-w-none will-change-transform ${smooth ? "transition-[transform,width,height] duration-200 ease-out motion-reduce:transition-none" : ""}`}
           style={{
+            filter: image.blurred && !shown.has(image.url) ? "blur(28px)" : undefined,
             width: natural ? natural.w * scale : undefined,
             height: natural ? natural.h * scale : undefined,
             transform: `translate3d(calc(-50% + ${view.x}px), calc(-50% + ${view.y}px), 0)`,
@@ -481,6 +488,25 @@ export function ImageViewer() {
           }}
         />
         {!natural && <p className="absolute inset-0 flex items-center justify-center text-sm text-neutral-400">Loading...</p>}
+        {natural && image.blurred && !shown.has(image.url) && (
+          <button
+            type="button"
+            data-viewer-bar
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShown((cur) => new Set(cur).add(image.url));
+            }}
+            className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-xl bg-gradient-to-b from-brand-400 to-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_6px_20px_-8px_rgb(232_38_94/0.7)] transition-all hover:from-brand-300 hover:to-brand-500 active:scale-95"
+          >
+            <EyeIcon className="h-[18px] w-[18px]" />
+            Show image
+          </button>
+        )}
       </div>
 
       <div data-viewer-bar className="flex flex-wrap items-center justify-center gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">

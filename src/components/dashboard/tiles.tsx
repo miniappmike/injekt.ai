@@ -138,7 +138,7 @@ export function RecentImages({ images, className }: { images: DashImage[]; class
                 <button
                   type="button"
                   onClick={() => {
-                    const shot = (x: typeof i) => ({ url: x.url, downloadUrl: x.downloadUrl, prompt: x.prompt, generated: true, generationId: x.id });
+                    const shot = (x: typeof i) => ({ url: x.url, downloadUrl: x.downloadUrl, prompt: x.prompt, generated: true, generationId: x.id, blurred: blurred.has(x.id) });
                     // The recent images in order, so the viewer's arrow keys step through them.
                     viewImage({ ...shot(i), gallery: images.map(shot) });
                   }}
