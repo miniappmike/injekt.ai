@@ -36,7 +36,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   const db = adminClient();
   const { data: gen } = await db
     .from("generations")
-    .select("id,user_id,status")
+    .select("id,user_id,status,kind")
     .eq("provider", provider)
     .eq("provider_job_id", event.jobId)
     .maybeSingle();
@@ -55,7 +55,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
         status: "complete",
         output_path: path,
         completed_at: new Date().toISOString(),
-        expires_at: generationExpiry().toISOString(),
+        expires_at: generationExpiry(new Date(), gen.kind).toISOString(),
       })
       .eq("id", gen.id);
   } else {

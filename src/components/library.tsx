@@ -5,16 +5,14 @@ import { Button } from "@/components/ui/button";
 import { ImageBulkBar, SelectBox, useSelection } from "@/components/image-bulk-bar";
 import { listLibrary, type LibraryPage } from "@/app/(app)/library/actions";
 import { GENERATION_DELETED_EVENT, viewImage } from "@/lib/panel-events";
+import { shortTimeLeft } from "@/lib/retention";
 import { cn } from "@/lib/utils";
 
 /** 5 x 5 on a computer, 2 x 5 on a phone. */
 const DESKTOP_SIZE = 25;
 const MOBILE_SIZE = 10;
 
-function hoursLeft(iso: string) {
-  const ms = new Date(iso).getTime() - Date.now();
-  return ms < 3_600_000 ? "under 1h left" : `${Math.max(1, Math.round(ms / 3_600_000))}h left`;
-}
+const hoursLeft = (iso: string) => shortTimeLeft(iso);
 
 /** The Library: every active image in a grid, a page at a time, with the same multi-image tools as a character's panel. */
 export function Library() {

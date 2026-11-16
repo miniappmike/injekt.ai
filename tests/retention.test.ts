@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { GENERATION_RETENTION_HOURS, generationExpiry, RETENTION_NOTICE, timeLeft } from "@/lib/retention";
+import { GENERATION_RETENTION_HOURS, generationExpiry, neverExpires, RETENTION_NOTICE, shortTimeLeft, timeLeft } from "@/lib/retention";
 import { cleanupExpiredGenerations, isAuthorizedCron } from "@/lib/cleanup";
 
 const NOW = new Date("2026-10-23T12:00:00Z");
@@ -10,6 +10,18 @@ describe("retention", () => {
     expect(GENERATION_RETENTION_HOURS).toBe(72);
     expect(generationExpiry(NOW).toISOString()).toBe("2026-10-26T12:00:00.000Z");
     expect(RETENTION_NOTICE).toContain("72 hours");
+  });
+
+  it("keeps reference sheets forever and says so", () => {
+    const sheet = generationExpiry(NOW, "reference_sheet");
+    expect(sheet.getFullYear()).toBe(NOW.getFullYear() + 100);
+    expect(generationExpiry(NOW, "inject").toISOString()).toBe("2026-10-26T12:00:00.000Z");
+    expect(neverExpires(sheet, NOW)).toBe(true);
+    expect(neverExpires(inHours(72), NOW)).toBe(false);
+    expect(timeLeft(sheet, NOW)).toEqual({ expired: false, label: "Never expires" });
+    expect(shortTimeLeft(sheet, NOW)).toBe("Never expires");
+    expect(shortTimeLeft(inHours(71), NOW)).toBe("71h left");
+    expect(shortTimeLeft(new Date(NOW.getTime() + 600_000), NOW)).toBe("under 1h left");
   });
 
   it("describes time left in days, hours and minutes, and flags expiry", () => {

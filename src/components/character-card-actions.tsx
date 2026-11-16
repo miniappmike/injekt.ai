@@ -9,6 +9,7 @@ import { getCharacterGenerations } from "@/app/(app)/characters/media-actions";
 import { GENERATION_DELETED_EVENT, viewImage } from "@/lib/panel-events";
 import { ImageBulkBar, SelectBox, useSelection } from "@/components/image-bulk-bar";
 import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
+import { shortTimeLeft } from "@/lib/retention";
 
 export interface CardImage {
   label: string;
@@ -72,7 +73,7 @@ export function CharacterImagesButton({ name, characterId, refCount = MAX_REFERE
     let alive = true;
     setImages(null);
     void getCharacterGenerations(characterId)
-      .then((list) => alive && setImages(list.map((g) => ({ label: `${g.label} · ${new Date(g.expiresAt).getTime() - Date.now() < 3_600_000 ? "under 1h" : `${Math.max(1, Math.round((new Date(g.expiresAt).getTime() - Date.now()) / 3_600_000))}h`} left`, url: g.url, generationId: g.id, downloadUrl: g.downloadUrl, prompt: g.prompt, kind: g.kind }))))
+      .then((list) => alive && setImages(list.map((g) => ({ label: `${g.label} · ${shortTimeLeft(g.expiresAt)}`, url: g.url, generationId: g.id, downloadUrl: g.downloadUrl, prompt: g.prompt, kind: g.kind }))))
       .catch(() => alive && setImages([]));
     return () => {
       alive = false;

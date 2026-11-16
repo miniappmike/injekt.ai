@@ -13,6 +13,11 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Reference sheets never expire (November 16; test added in `tests/retention.test.ts`; types and tests NOT run (`node_modules` isn't installed here); not checked in a browser; migration 0033 must be run)**
+- A finished `reference_sheet` generation now gets `expires_at` 100 years out instead of +72h (`generationExpiry(from, kind)` and `KEPT_KINDS` in `src/lib/retention.ts`; used by `collectGeneration` and the webhook route). A far-future date, not NULL, so the storage policy, signed links, `generationState`, the Library query and the nightly cleanup (`lte expires_at`) all work unchanged and never delete them. `timeLeft`/`shortTimeLeft` show "Never expires" for anything over 50 years out (Library tiles, a character's images panel, the dashboard and History badge). Deleting a sheet by hand still works.
+- **Run `supabase/migrations/0033_keep_reference_sheets.sql`**: moves sheets that already exist and haven't expired. Sheets already past their 72 hours were deleted by the cleanup and can't come back (make them again).
+- The History `ExpiryBadge` tooltip still says images are deleted after 72 hours (sheets show "Never expires" next to it); reword if that confuses.
+
 **Image viewer on phones (November 16; type check clean; gestures checked with emulated touch in a phone-sized Chromium on the stand-in backend, NOT on a real iPhone)**
 - `src/components/image-viewer.tsx`, touch: **pinch** zooms around the fingers and follows them (zoom and pan in one motion), one finger **pans**, **double tap** glides back to fitted and centred (from fitted it zooms 2.5x on the tapped spot), a **sideways swipe** on a fitted picture steps through the gallery, pinching smaller than the screen springs back, and a **tap outside the picture closes**. Part of the picture always stays on screen (`KEEP_VISIBLE`). Mouse behaviour is unchanged (drag, wheel, double-click fit / actual size).
 - **Tap outside did not seem to close** because it closed on finger-up and the browser's follow-up click then landed on the page underneath, often reopening the same tile. `closeFromTap` swallows that one click.

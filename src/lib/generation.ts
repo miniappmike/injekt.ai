@@ -346,7 +346,7 @@ export async function collectGeneration(supabase: SupabaseClient, user: Actor, g
   // next check if that fails), so nobody waits for the download and upload.
   const outputUrl = job.outputUrl as string;
   const params = { ...(row.params ?? {}), output_url: outputUrl, ...(job.mime ? { output_mime: job.mime } : {}) };
-  const won = await finish("succeeded", { status: "complete", params, expires_at: generationExpiry().toISOString() });
+  const won = await finish("succeeded", { status: "complete", params, expires_at: generationExpiry(new Date(), row.kind).toISOString() });
   if (won) {
     const save = () => storeOutput(db, user.id, row.id, outputUrl, job.mime).catch(() => null);
     try {
