@@ -20,14 +20,19 @@ const optionalText = z
   .transform((v) => (v === "" ? null : v))
   .nullable();
 
-export const characterInput = z.object({
+const characterFields = z.object({
   name: z.string().trim().min(1, "Name is required").max(80),
   always_keep: optionalText,
   height: optionalText,
   weight: optionalText,
   lore: optionalText,
+});
+
+// New characters must confirm where the photos come from; editing one that already did doesn't ask again.
+export const characterInput = characterFields.extend({
   provenance: z.literal("on", { error: "Confirm you own or license the references, or that the character is invented" }),
 });
+export const characterEditInput = characterFields;
 
 export function parseProfile(formData: FormData): CharacterProfile {
   const profile: CharacterProfile = {};

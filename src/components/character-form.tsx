@@ -68,6 +68,13 @@ export function CharacterForm({
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string>();
   const { toast, show } = useToast();
+  // An edit saved in place: green toast, and the floating Save goes away until the next change.
+  useEffect(() => {
+    if (!state.saved) return;
+    setDirty(false);
+    show("Save successful!");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.saved]);
   // From the wizard: a toast and a glowing Build profile button (until it's pressed), scrolled into view.
   const wizardToast = useToast(8000);
   const [nudge, setNudge] = useState(false);
@@ -211,10 +218,12 @@ export function CharacterForm({
         </details>
       </fieldset>
 
-      <label className="flex items-start gap-2 text-sm text-neutral-300">
-        <input type="checkbox" name="provenance" className="mt-1" required />
-        I own or license any photos used for this character, or the character is invented.
-      </label>
+      {!characterId && (
+        <label className="flex items-start gap-2 text-sm text-neutral-300">
+          <input type="checkbox" name="provenance" className="mt-1" required />
+          I own or license any photos used for this character, or the character is invented.
+        </label>
+      )}
 
       {state.error && <p role="alert" className="text-sm text-red-400">{state.error}</p>}
       {!characterId && !canBuildDraft && (

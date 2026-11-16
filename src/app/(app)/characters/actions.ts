@@ -8,12 +8,13 @@ import { limitMessage } from "@/lib/limits";
 import { runProfileBuild } from "@/lib/ai/build-profile";
 import { isOwnPath, pinnedFolder, readDraftImages } from "@/lib/uploads";
 import { MEDIA_BUCKET } from "@/lib/images";
-import { characterInput, parseProfile } from "@/lib/characters";
+import { characterEditInput, characterInput, parseProfile } from "@/lib/characters";
 
-export type CharacterFormState = { error?: string };
+/** `saved` changes on every successful in-place save (edit page), so the form can show a toast. */
+export type CharacterFormState = { error?: string; saved?: number };
 
-function parseForm(formData: FormData) {
-  const parsed = characterInput.safeParse({
+function parseForm(formData: FormData, asksConsent = true) {
+  const parsed = (asksConsent ? characterInput : characterEditInput).safeParse({
     name: formData.get("name") ?? "",
     always_keep: formData.get("always_keep") ?? "",
     height: formData.get("height") ?? "",
@@ -55,10 +56,10 @@ export async function createCharacter(_: CharacterFormState, formData: FormData)
 
 export async function updateCharacter(id: string, _: CharacterFormState, formData: FormData): Promise<CharacterFormState> {
   const { supabase } = await requireUser();
-  const parsed = parseForm(formData);
+  const parsed = parseForm(formData, false);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  const { provenance: _p, ...fields } = parsed.data;
+  const fields = parsed.data;
   const profile = parseProfile(formData);
 
   const { error } = await supabase
@@ -68,7 +69,7 @@ export async function updateCharacter(id: string, _: CharacterFormState, formDat
   if (error) return { error: error.message };
 
   revalidatePath("/characters");
-  redirect("/characters");
+  return { saved: Date.now() };
 }
 
 export async function deleteCharacter(id: string) {
@@ -93,5 +94,5 @@ export async function deleteCharacter(id: string) {
   const remove = [...new Set(files)];
   if (remove.length) await supabase.storage.from(MEDIA_BUCKET).remove(remove);
   revalidatePath("/characters");
-  redirect("/characters");
+  return { saved: Date.now() };
 }
