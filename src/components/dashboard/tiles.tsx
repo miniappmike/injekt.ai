@@ -6,53 +6,82 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Brush, Check } from "lucide-react";
 import { EyeIcon, EyeOffIcon, GroupIcon, LikenessIcon, VariantsIcon } from "@/components/icons";
 import { setGeneration } from "@/app/(app)/settings/api-keys/actions";
-import { STEP_ORDER, type DashImage, type StepKey } from "@/lib/dashboard-types";
+import type { DashImage, StepKey } from "@/lib/dashboard-types";
 import { openHistory, viewImage } from "@/lib/panel-events";
 import { timeLeft } from "@/lib/retention";
 import { cn } from "@/lib/utils";
 
 const LABEL = "font-mono text-[11px] font-semibold uppercase tracking-[0.18em]";
 
+const GUIDE = "/guides/getting-started";
+
 /**
- * The first five things a new account does. Nobody ticks these off: each one is read from the account (a model
- * exists, she has her sheets, an image was made, a likeness check ran, an image was pinned). Once all five are done
- * the tile is replaced by the quick tools for good.
+ * Getting started, as three things in plain words: make her, put her in a photo, pin your best one. Nobody ticks these
+ * off: each is read from the account (she exists with both sheets, an image was made, an image was pinned). All three
+ * show at once, so the whole path is visible; the one to do now is opened with exactly what to press. Once they are
+ * done the tile is replaced by the quick tools for good. (A likeness check is no longer a required step.)
  */
 export function NextStep({ steps, focusId, className }: { steps: Record<StepKey, boolean>; focusId: string | null; className?: string }) {
   const q = focusId ? `?character=${focusId}` : "";
-  const copy: Record<StepKey, { title: string; body: string; cta: string; href?: string }> = {
-    model: { title: "Create your first model", body: "Start with one clear photo of her face.", cta: "Open Create Model", href: "/reference-sheet" },
-    sheets: { title: "Build her face and body sheets", body: "They keep her the same in every picture.", cta: "Continue in Create Model", href: `/reference-sheet${q}` },
-    image: { title: "Make your first image", body: "Add a photo you like and put her in it.", cta: "Open Inject", href: `/inject${q}` },
-    likeness: { title: "Check an image for likeness", body: "See how close it is to her, trait by trait.", cta: "Open Likeness", href: `/likeness${q}` },
-    pin: { title: "Pin your best image", body: "Pin It on any image adds it to her reference photos.", cta: "Open your images" },
-  };
-  const key = STEP_ORDER.find((k) => !steps[k]);
-  if (!key) return <QuickTools className={className} />;
-  const doneCount = STEP_ORDER.filter((k) => steps[k]).length;
-  const step = copy[key];
-  const cta = "mt-auto inline-flex items-center gap-1.5 self-start rounded-md text-sm font-semibold text-iris-400 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-iris-500/60";
+  const list: { done: boolean; title: string; body: string; cta: string; href?: string }[] = [
+    {
+      done: steps.model && steps.sheets,
+      title: "Make her",
+      body: steps.model ? "She needs her face sheet and body sheet. Open Create Model and finish the steps." : "Add one clear photo of her face. Create Model builds the rest in about 5 minutes.",
+      cta: steps.model ? "Finish in Create Model" : "Open Create Model",
+      href: `/reference-sheet${steps.model ? q : ""}`,
+    },
+    { done: steps.image, title: "Put her in a photo", body: "Drop in any photo you like, press Write prompts, then Generate image.", cta: "Open Inject", href: `/inject${q}` },
+    { done: steps.pin, title: "Pin your best one", body: "Open an image you love and press Pin It, so the next ones look even more like her.", cta: "Open your images" },
+  ];
+  const at = list.findIndex((x) => !x.done);
+  if (at === -1) return <QuickTools className={className} />;
+  const cta = "glow-brand inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg bg-brand-500 px-3 text-sm font-semibold text-white transition-colors hover:bg-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60";
   return (
-    <section aria-label="Getting started" className={cn("panel flex flex-col gap-2.5 border-iris-500/30 bg-[linear-gradient(150deg,rgb(91_91_246/0.14),transparent_55%)] p-4 sm:p-5", className)}>
-      <p className={cn(LABEL, "text-iris-400")}>Next step · {doneCount + 1} of {STEP_ORDER.length}</p>
-      <h2 className="font-display text-lg font-bold leading-snug text-neutral-50">{step.title}</h2>
-      <p className="text-sm text-neutral-400">{step.body}</p>
-      <ol aria-label={`${doneCount} of ${STEP_ORDER.length} done`} className="my-1 flex gap-1.5">
-        {STEP_ORDER.map((k) => (
-          <li key={k} className={cn("flex h-1.5 flex-1 rounded-full", steps[k] ? "bg-iris-500" : k === key ? "bg-iris-500/40" : "bg-neutral-700")} />
+    <section aria-label={`Getting started, step ${at + 1} of ${list.length}`} className={cn("panel flex flex-col gap-3 border-iris-500/30 bg-[linear-gradient(150deg,rgb(91_91_246/0.14),transparent_55%)] p-4 sm:p-5", className)}>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className={cn(LABEL, "text-iris-400")}>Getting started</p>
+        <Link href={GUIDE} className="shrink-0 whitespace-nowrap text-xs font-semibold text-iris-400 underline-offset-4 hover:underline">
+          Show me how
+        </Link>
+      </div>
+      <ol className="flex flex-col gap-2">
+        {list.map((x, i) => (
+          <li key={x.title} className={cn("flex gap-3 rounded-xl", i === at && "bg-neutral-950/40 p-3 ring-1 ring-iris-500/30")}>
+            <span
+              aria-hidden="true"
+              className={cn(
+                "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                x.done ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/40" : i === at ? "bg-brand-500 text-white" : "bg-neutral-800 text-neutral-500",
+              )}
+            >
+              {x.done ? <Check className="h-3.5 w-3.5" /> : i + 1}
+            </span>
+            <div className="flex min-w-0 flex-col gap-2">
+              <p className={cn("font-display font-bold leading-snug", i === at ? "text-base text-neutral-50" : x.done ? "text-sm text-neutral-400 line-through decoration-neutral-600" : "text-sm text-neutral-500")}>
+                {x.title}
+                {x.done && <span className="sr-only"> (done)</span>}
+              </p>
+              {i === at && (
+                <>
+                  <p className="text-sm leading-relaxed text-neutral-300">{x.body}</p>
+                  {x.href ? (
+                    <Link href={x.href} className={cn(cta, "self-start")}>
+                      {x.cta}
+                      <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                    </Link>
+                  ) : (
+                    <button type="button" onClick={() => openHistory("images")} className={cn(cta, "self-start")}>
+                      {x.cta}
+                      <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </li>
         ))}
       </ol>
-      {step.href ? (
-        <Link href={step.href} className={cta}>
-          {step.cta}
-          <ArrowRight aria-hidden="true" className="h-4 w-4" />
-        </Link>
-      ) : (
-        <button type="button" onClick={() => openHistory("images")} className={cta}>
-          {step.cta}
-          <ArrowRight aria-hidden="true" className="h-4 w-4" />
-        </button>
-      )}
     </section>
   );
 }
