@@ -49,7 +49,6 @@ export function FixRun({
       kind={kind}
       meta={{ ...(source.generationId ? { sourceGeneration: source.generationId } : {}), fixes, outfit, frame, matchHair, note }}
       actionLabel={kind === "face_fix" ? "Fix her face" : "Fix the likeness"}
-      autoStart
       compareTo={source}
     />
   );

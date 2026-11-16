@@ -70,6 +70,9 @@ export const SearchIcon = ({ className }: P) => (
 export const EyeIcon = ({ className }: P) => (
   <svg {...base(className)}><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3" /></svg>
 );
+export const EyeOffIcon = ({ className }: P) => (
+  <svg {...base(className)}><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3" /><path d="M4 4l16 16" /></svg>
+);
 export const TrashIcon = ({ className }: P) => (
   <svg {...base(className)}><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4L17.5 7M10 11v6M14 11v6" /></svg>
 );

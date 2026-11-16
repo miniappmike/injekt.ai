@@ -70,7 +70,7 @@ export function Studio({ characters, focusId, heroClass, dropClass }: { characte
                 <InjectIcon className="h-[18px] w-[18px]" />
                 Inject
               </Link>
-              <Link href={`/director?character=${focus.id}`} className={cn(ACTION, "border border-neutral-700 bg-neutral-800 text-neutral-50 hover:border-neutral-600 hover:bg-neutral-700")}>
+              <Link href={`/director?character=${focus.id}`} className={cn(ACTION, "border border-neutral-700 bg-neutral-800 text-neutral-50 hover:border-iris-500/70 hover:bg-neutral-700")}>
                 <Clapperboard aria-hidden="true" className="h-[18px] w-[18px] text-iris-400" />
                 Director
               </Link>

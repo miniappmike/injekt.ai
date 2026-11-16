@@ -11,7 +11,7 @@ import { askJson } from "@/lib/ai/json";
 import { parsePinCheck, PIN_CHECK_PROMPT } from "@/lib/ai/prompts/pin";
 
 /** `slot` is the 1-based reference photo that was (or, when full, would be) replaced. */
-export type PinResult = { ok: true; count: number; replaced: boolean; slot?: number } | { ok: false; full: true; count: number; slot: number } | AiFailure;
+export type PinResult = { ok: true; count: number; replaced: boolean; slot?: number; path?: string } | { ok: false; full: true; count: number; slot: number } | AiFailure;
 
 /** The character a generated image was made for, if it can be pinned to her (reference sheets have their own Save). */
 export async function getPinTarget(generationId: string): Promise<string | null> {
@@ -77,7 +77,30 @@ export async function pinToReferences(input: { generationId: string; characterId
     }
     revalidatePath(`/characters/${input.characterId}`);
     revalidatePath("/characters");
-    return { ok: true, count: next.length, replaced: full, slot: slot + 1 };
+    return { ok: true, count: next.length, replaced: full, slot: slot + 1, path };
+  } catch (e) {
+    return toFailure(e);
+  }
+}
+
+/**
+ * Takes a pinned image back off a character's reference photos. `path` is the copy that Pin It made; it must be one of
+ * her current reference photos. The file stays in storage (like a replaced pin) until she is deleted.
+ */
+export async function unpinFromReferences(input: { characterId: string; path: string }): Promise<{ ok: true; count: number } | AiFailure> {
+  try {
+    const { supabase, user } = await requireUser();
+    await enforceRateLimit(user.id, "upload", 30, 60);
+    const { data: c } = await supabase.from("characters").select("reference_paths").eq("id", input.characterId).maybeSingle();
+    if (!c) return { ok: false, error: "Character not found." };
+    const refs = c.reference_paths as string[];
+    if (!refs.includes(input.path) || !input.path.startsWith(`${user.id}/`)) return { ok: false, error: "That image isn't one of her reference photos any more." };
+    const next = refs.filter((r) => r !== input.path);
+    const { error } = await supabase.from("characters").update({ reference_paths: next, updated_at: new Date().toISOString() }).eq("id", input.characterId);
+    if (error) return { ok: false, error: "Couldn't unpin it. Try again." };
+    revalidatePath(`/characters/${input.characterId}`);
+    revalidatePath("/characters");
+    return { ok: true, count: next.length };
   } catch (e) {
     return toFailure(e);
   }

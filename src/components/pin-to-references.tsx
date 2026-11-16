@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { pinToReferences } from "@/app/(app)/characters/pin-actions";
+import { pinToReferences, unpinFromReferences } from "@/app/(app)/characters/pin-actions";
 import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
 
 // What each image's Pin It is doing lives outside the component, so stepping to another image with the arrow keys while
 // the nudity check runs doesn't lose it: the check carries on, and its result is there when you come back.
-type PinState = { busy?: boolean; done?: string; error?: string };
+type PinState = { busy?: boolean; done?: string; error?: string; path?: string };
 const pinStates = new Map<string, PinState>();
 const pinListeners = new Set<() => void>();
 function setPinState(id: string, s: PinState) {
@@ -52,7 +52,7 @@ export function PinToReferences({
     const r = await pinToReferences({ generationId, characterId, replaceLast });
     if (r.ok) {
       setConfirm(false);
-      setState({ done: r.replaced ? `Pinned. It replaced her reference photo ${r.slot}.` : `Pinned to her reference photos (${r.count} of ${MAX_REFERENCE_PHOTOS}).` });
+      setState({ path: r.path, done: r.replaced ? `Pinned. It replaced her reference photo ${r.slot}.` : `Pinned to her reference photos (${r.count} of ${MAX_REFERENCE_PHOTOS}).` });
       router.refresh();
     } else if ("full" in r) {
       setAgreed(false);
@@ -65,12 +65,32 @@ export function PinToReferences({
     }
   }
 
+  async function unpin() {
+    if (!state.path) return;
+    const path = state.path;
+    setState({ ...state, busy: true, error: undefined });
+    const r = await unpinFromReferences({ characterId, path });
+    if (r.ok) {
+      setState({});
+      router.refresh();
+    } else if ("redirectTo" in r && r.redirectTo) {
+      router.push(r.redirectTo);
+    } else {
+      setState({ ...state, error: "error" in r ? r.error : "Couldn't unpin it." });
+    }
+  }
+
   return (
     <div className={`flex flex-col gap-2 text-sm ${className ?? ""}`}>
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" size="sm" variant="secondary" className={buttonClassName} disabled={state.busy || !!state.done} onClick={() => void pin()}>
           {state.busy ? "Checking…" : state.done ? "Pinned" : "Pin It"}
         </Button>
+        {state.done && state.path && (
+          <Button type="button" size="sm" variant="secondary" className={buttonClassName} disabled={state.busy} onClick={() => void unpin()}>
+            {state.busy ? "Unpinning…" : "Unpin"}
+          </Button>
+        )}
         {state.done && <span role="status" className="text-emerald-300">{state.done}</span>}
         {state.error && <span role="alert" className="text-red-400">{state.error}</span>}
       </div>

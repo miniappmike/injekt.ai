@@ -18,6 +18,8 @@ export interface ViewableImage {
   generationId?: string | null;
   /** The images it was opened from, in order (the page's tray): the arrow keys step through them. */
   gallery?: ViewableImage[];
+  /** The person blurred it (dashboard's Recent images): the viewer opens it blurred until they press Show. */
+  blurred?: boolean;
 }
 
 /** The image the viewer's Variants button hands to the Variants page ({ generationId, url } as JSON, this tab only). */

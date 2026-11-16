@@ -26,20 +26,34 @@ const makeupFix = (f: string) => asksMakeup(f) || /\blip(s)?\b[^;,.]*\b(colou?r|
 const clothingFix = (f: string) =>
   /\b(outfit|cloth(es|ing)|garment|wearing|dress|skirt|shorts|jeans|trousers|pants|leggings|top|shirt|t-shirt|tee|blouse|sweater|jumper|hoodie|jacket|coat|bra|bikini|lingerie|underwear|panties|thong|briefs|bodysuit|sleeve|hem|neckline|shoes?|boots?|sneakers|trainers|heels|socks)\b/i.test(f);
 
+/** Worn items (not the person's body): never a likeness difference, so never a fix. */
+const accessoryFix = (f: string) =>
+  /\b(accessor(y|ies)|cuffs?|bracelets?|wristbands?|chokers?|collars?|necklaces?|chains?|pendants?|earrings?|rings?|watch(es)?|jewel(l)?ery|belts?|gloves?|hats?|caps?|beanies?|scarf|scarves|headbands?|hair\s?(clips?|ties?|bands?|pins?|bows?)|ribbons?|sunglasses|glasses|spiked|studded|harness|garter)\b/i.test(f);
+
+const ACCESSORY_RULE =
+  "Compare only the person's own visible physical features. Never score, mention or list anything she wears or carries: no accessories, jewellery, cuffs, bracelets, chokers, belts, hats, glasses, hair accessories or clothing, whether or not the reference shows them.";
+
 // ---------- A10: full report ----------
 
-export function likenessReportPrompt(o: { profile: string; refCount: number; isSheet: boolean; used: string }): string {
+/** The measured scores the full report must agree with (the one scoring pass, shared with the quick badge). */
+function anchorBlock(a?: QuickLikeness): string {
+  if (!a || a.score == null) return "";
+  const t = (n: number | null) => (n == null ? "not visible" : `${Math.round(n * 10) / 10}/10`);
+  return `\nMEASURED SCORES (already decided by the main scoring pass; do not re-score or contradict them): match ${a.score}/100; face ${t(a.sc.face)}, hair ${t(a.sc.hair)}, skin ${t(a.sc.skin)}, body ${t(a.sc.body)}${a.hidden.length ? `; not scored (hidden): ${a.hidden.join(", ")}` : ""}. Set "overall" to ${a.score}. Give each trait a score in line with these (face traits near the face score, hair traits near the hair score, build and body proportions near the body score). Your job here is to explain: what the reference shows, what the generated image shows, the fix, the edit prompt and the revised prompt.\n`;
+}
+
+export function likenessReportPrompt(o: { profile: string; refCount: number; isSheet: boolean; used: string; anchor?: QuickLikeness }): string {
   const { refCount, used } = o;
   return `You are a strict likeness checker for an AI character workflow. The first ${refCount} attached image${refCount > 1 ? "s are" : " is"} the REFERENCE for the character${o.isSheet ? " (a character reference sheet)" : ""}. The LAST attached image is a newly GENERATED image that is meant to show the same character.
 
 CHARACTER PROFILE (ground truth):
 ${o.profile}
 
-Compare the face and identity of the person in the generated image with the reference. Ignore differences in pose, outfit, setting, lighting, camera and expression unless they hide a trait. Do not name or identify anyone.
+Compare the face and identity of the person in the generated image with the reference. Ignore differences in pose, outfit, setting, lighting, camera and expression unless they hide a trait. Do not name or identify anyone.${anchorBlock(o.anchor)}
 ${MAKEUP_SCORE_RULE}
 ${DISTANCE_SCORE_RULE}
 
-Score each of these traits from 0 to 10, where 10 means indistinguishable from the reference, and skip any trait that cannot be seen in the generated image: Face shape, Eyes (colour and shape), Brows, Nose, Lips, Jaw and cheekbones, Skin tone, Freckles moles and marks, Hair colour, Hair texture length and hairline, Build, Body proportions (shoulders, bust, waist, hips, glutes, legs), Signature accessories.
+Score each of these traits from 0 to 10, where 10 means indistinguishable from the reference, and skip any trait that cannot be seen in the generated image: Face shape, Eyes (colour and shape), Brows, Nose, Lips, Jaw and cheekbones, Skin tone, Freckles moles and marks, Hair colour, Hair texture length and hairline, Build, Body proportions (shoulders, bust, waist, hips, glutes, legs). ${ACCESSORY_RULE}
 Give an overall likeness score from 0 to 100 for whether a viewer would see the same person, weighting eyes, nose, face shape and marks most, and body proportions heavily whenever the body is visible. Be honest; do not inflate.
 For every trait under 9, write "fix": a short, concrete, positive phrase that describes the reference version of that trait (for example "deep hazel almond-shaped eyes with a slight upturn at the outer corners").
 Write "edit_prompt": 2 to 4 sentences for an image-editing model that has the generated image and the reference sheet loaded: keep the pose, outfit, setting, light, framing and expression exactly, and change only the drifted face and hair traits to match the reference, naming each fix.
@@ -75,8 +89,8 @@ export function parseLikenessReport(raw: unknown): LikenessReport {
   const traits = (Array.isArray(r.traits) ? r.traits : [])
     .filter((t): t is Record<string, unknown> => !!t && typeof t === "object")
     .map((t) => ({ name: str(t.trait ?? t.name, 60), score: Number(t.score), reference: str(t.reference, 300), generated: str(t.generated, 300), fix: str(t.fix, 200) }))
-    .filter((t) => t.name && Number.isFinite(t.score))
-    .map((t) => ({ ...t, score: clamp(t.score, 0, 10), fix: makeupFix(t.fix) ? "" : t.fix }))
+    .filter((t) => t.name && Number.isFinite(t.score) && !accessoryFix(t.name))
+    .map((t) => ({ ...t, score: clamp(t.score, 0, 10), fix: makeupFix(t.fix) || accessoryFix(t.fix) ? "" : t.fix }))
     .slice(0, 16);
   return { overall: clamp(overall, 0, 100), verdict: str(r.verdict, 400), traits, editPrompt: str(r.edit_prompt, 3000), revisedPrompt: str(r.revised_prompt, 12000) };
 }
@@ -99,7 +113,7 @@ export function likenessReportText(r: LikenessReport): string {
 
 export function quickLikenessPrompt(roles: string[], cmp: boolean): string {
   const n = roles.length;
-  return `The first ${n} attached image${n > 1 ? "s show" : " shows"} one adult woman, the identity reference: ${roles.map((role, i) => `image ${i + 1} is ${role}`).join("; ")}. ${cmp ? "The SECOND-TO-LAST image is the ORIGINAL photo before a likeness fix. " : ""}The LAST image is a newly generated photo that should show the same woman${cmp ? " (the fixed version of the original)" : ""}. Compare identity only. Ignore pose, outfit, setting, light, camera and expression. Do not name or identify anyone. ${MAKEUP_SCORE_RULE}
+  return `The first ${n} attached image${n > 1 ? "s show" : " shows"} one adult woman, the identity reference: ${roles.map((role, i) => `image ${i + 1} is ${role}`).join("; ")}. ${cmp ? "The SECOND-TO-LAST image is the ORIGINAL photo before a likeness fix. " : ""}The LAST image is a newly generated photo that should show the same woman${cmp ? " (the fixed version of the original)" : ""}. Compare identity only. Ignore pose, outfit, setting, light, camera and expression. Do not name or identify anyone. ${MAKEUP_SCORE_RULE} ${ACCESSORY_RULE}
 ${DISTANCE_SCORE_RULE}
 First list the concrete differences you can see between the reference and the generated woman (face shape, eyes, nose, mouth, hair colour, hair cut and length, skin tone and freckles, tattoos and piercings, and the body shape and proportions that are visible: shoulders, bust, waist, hips, glutes, thighs). Then score each trait on its own from 0 to 10 with this scale: 10 indistinguishable, 8 clearly the same person with small differences, 6 the same type but noticeably different, 4 or less a different person. Use the full scale and score each trait independently; do not give the same number to everything.
 ONLY SCORE WHAT YOU CAN SEE in the generated image. If a trait is mostly hidden (for example the face or eyes behind a phone, hands, hair or sunglasses, a back view, hips and glutes hidden by a seated pose, a table or loose clothing, legs out of frame), set it to null instead of guessing or marking it down. If a trait is only partly visible, score just the visible part and do not penalise what is hidden. Never lower a score because something cannot be seen. ${DISTANCE_SCORE_RULE}
@@ -177,7 +191,7 @@ export function parseQuickLikeness(r: unknown, cmp: boolean): QuickLikeness {
   const o = (r && typeof r === "object" ? r : {}) as Record<string, unknown>;
   const { score, sc } = scoreTraits(o);
   const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
-  const fixes = strings(o.fixes).filter((x) => x.trim() && !makeupFix(x) && !clothingFix(x)).map((x) => x.trim().slice(0, 160)).slice(0, 6);
+  const fixes = strings(o.fixes).filter((x) => x.trim() && !makeupFix(x) && !clothingFix(x) && !accessoryFix(x)).map((x) => x.trim().slice(0, 160)).slice(0, 6);
   const diffs = strings(o.differences).map((x) => x.slice(0, 160)).slice(0, 8);
   const hidden = strings(o.hidden).filter((x) => x.trim()).map((x) => x.trim().replace(/_/g, " ").slice(0, 30)).slice(0, 6);
   const said = cmp && (["better", "same", "worse"] as const).includes(o.verdict as never) ? (o.verdict as "better" | "same" | "worse") : null;
@@ -223,7 +237,7 @@ export function likenessFixPrompt(R: FixRefs, fixes: string[], frame: string | u
   const words = [an.hair && `hair: ${an.hair}`, an.face && `face: ${an.face}`, an.skin && `skin: ${an.skin}`, body && `body: ${body}`].filter(Boolean).join(". ");
   const first = family === "pro" && words ? `IDENTITY (follow exactly): ${words}.${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""}\n\n` : "";
   const sheetOutfit = R.usePack && R.anchors?.sheetOutfit;
-  const who = (fixes ?? []).filter((f) => !clothingFix(f));
+  const who = (fixes ?? []).filter((f) => !clothingFix(f) && !accessoryFix(f));
   const keep = (outfit ?? "").replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, 300);
   const keepLine = keep ? ` OUTFIT TO KEEP, exactly as @image1 shows it: ${keep}.` : "";
   return `${first}@image1 is the PHOTO TO EDIT: its pose, outfit, props, background, light and framing stay. ${tags.map((t, i) => `${t} is ${R.roles[i]}`).join(", ")}; ${tags.length > 1 ? "these are REFERENCE PHOTOS of the same woman" : "this is a REFERENCE PHOTO of her"}, used only for who she is. Replace the woman in @image1 with the woman from ${joinTags(tags)}, copying only her face, hair, skin tone and body from ${tags.length > 1 ? "them" : "it"}, nothing she wears. Rebuild only who she is: her facial structure, hair, skin tone and body proportions must be the reference woman's, not those of the woman currently in @image1. ${who.length ? `In particular: ${who.join("; ")}.` : ""}${an.face ? ` Face: ${an.face}.` : ""}${an.hair ? ` Hair: ${an.hair}.` : ""}${an.skin ? ` Skin: ${an.skin}.` : ""}${body ? ` Her body must match ${bodyRef} exactly: ${body}; her clothes only re-drape over that shape.` : ""}${avoid.length ? ` Not: ${avoid.join("; ")}.` : ""} Keep everything else from @image1: the pose, expression, outfit, props, background, light, framing and camera look.${keepLine} ${OUTFIT_LOCK} ${BODY_LOCK} Take only the person from ${joinTags(tags)}, never their layout, panels, backgrounds or outfit.${sheetOutfit ? ` Never dress her in the reference outfit (${sheetOutfit}).` : ""} ${SHEET_CLOTHES_RULE} ${MODS_RULE} ${makeupRule("@image1")} ${REALISM_FIX.quality} ${TEXT_SHORT}`;

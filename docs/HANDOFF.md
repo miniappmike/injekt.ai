@@ -13,6 +13,38 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**See likeness runs the full report by itself; smaller blur eyes (November 16; NOT run, types not run, not checked in a browser)**
+- `/likeness?generation=<id>` (from "See likeness" under an image) now starts the full report as soon as the page opens (`autoRan` effect in `likeness-checker.tsx`), instead of waiting for Check likeness. It costs one full check each time that page is opened that way.
+- **Unpin in the viewer (November 16; not run, types not run, not checked in a browser)**
+- After Pin It, an **Unpin** button appears next to "Pinned" (`PinToReferences`, so also in the Library bars' single pins and the images panel). `unpinFromReferences` in `characters/pin-actions.ts` removes the copy Pin It made from her `reference_paths` (the file stays in storage; the cursor is not rewound; if the pin had replaced another photo, that photo is not restored). It only knows the pin made in this browser session (`pinStates`), so after a reload the button isn't shown until pinned again; showing it for older pins would need the pinned path saved on the generation.
+
+**API key guide text models (November 16; not run, not checked in a browser)**
+- `GUIDE_MODELS.vision` in `src/lib/key-guide.ts` is now DeepSeek V4.1 Flash (`deepseek/v4.1-flash/chat`, "Recommended", name links to its SpicyAPI page), Claude Sonnet 5.5 ("More expensive"), Claude Haiku 5.5 ("Most affordable"); Kimi K3.1 Pro was dropped from the list. `GUIDE_MODELS_NOTE` was rewritten to match. The older HANDOFF lines below that mention Haiku "Latest Iteration" and Kimi "Tested" are out of date. Images are unchanged (Seedream 5.5 "Latest Iteration"). `GUIDE_UPDATED` was not changed.
+
+**One scoring pass now feeds both (same day; NOT run, types not run):** `runQuickLikeness` saves its result on the generation (`params.likeness`, written with the admin client, best effort); `runLikenessReport` reuses it (or runs the quick pass first, for an upload or when nothing was saved), shows it as the report's `overall`, and gives the model the per-part scores to stay consistent with (`anchorBlock` in `prompts/likeness.ts`). So the badge and the report agree. A full report with no saved quick score makes one extra vision call. Re-pressing Check likeness under an image still re-scores and replaces the saved one. The old explanation below is why they used to differ.
+- **Why 86 then 58 (old behaviour):** the quick score under an image and the full report are two separate model calls with different instructions (the quick one scores face, hair, skin, upper and lower body and skips what's hidden; the full one scores ~13 traits with an overall that weights the body heavily when visible), so their numbers can differ a lot. If they should agree, the next step is to run one scoring pass and show it in both places.
+- The Recent images blur eye button is smaller (24px, 14px icon).
+
+**Director button hover (November 16; class change only, not checked in a browser)**
+- The dashboard's Director button (`dashboard/studio.tsx`) now gets an iris (purple) outline on hover, matching its icon, like the Discord tile's `hover:border-iris-500/50` but a touch stronger (`/70`) since the button is small.
+
+**Blur toggle on the dashboard's Recent images (November 16; NOT run, types not run, not checked in a browser)**
+- A branded pink eye button sits top-left of each Recent images tile (`RecentImages` in `dashboard/tiles.tsx`): on hover on a computer, always on touch screens. Click it: the eye gets a diagonal slash (`EyeOffIcon`) and the picture blurs (and the button stays visible). Remembered per browser in localStorage `ms.blurredRecent` (ids of images still shown), not on the account, so it doesn't follow them to another device. Opening a blurred tile (or stepping to one with the arrows) shows it blurred in the viewer too, with a pink "Show image" button that clears it for that picture while the viewer is open (`ViewableImage.blurred` in `panel-events.ts`, `shown` in `image-viewer.tsx`). Only the dashboard sets `blurred`; Download in the viewer still saves the real picture.
+
+**Likeness page fixes (November 16; NOT run, types not run, not checked in a browser)**
+- Removed "Generate with revised prompt" under the Revised prompt (it made a new image of the scene, not an edit); the Revised prompt card keeps Copy and "Use for next round", and the "Fix this image" card is the way to fix (it edits the checked image).
+- `FixRun` no longer auto-starts: Fix / Fix the likeness / Fix only her face now show Size, Shape and Format first, then the pink button starts it.
+- The checker's drop box also takes a picture dragged from another page or tab (it carried only an address, no file): `pickDropped` fetches it; if the site blocks that, it says to save the file and drop it, or paste. Cause of the original report not reproduced.
+
+**Inject's "Edit it" renamed "Swap into photo" (November 16; wording only, not run or checked in a browser)**
+- The Target photo toggle in `inject-writer.tsx` is now "Recreate it" / "Swap into photo", and its tip points to Direct swap for the quick fixed version. Behaviour is unchanged.
+
+**Several images at once from one Generate button (November 16; NOT run, types not run, not checked in a browser)**
+- `GenerateImage` (`src/components/generate-image.tsx`, used by Direct swap, Edit and the other cards) kept one `phase`/`result`, so the button stayed locked until the image finished. It now keeps a list of runs (`runs`, newest first): each press starts its own job and polls it, finished images stack under the button (nothing is cleared by the next press), and a failure shows under the button. Size/shape/format are no longer locked while something runs (the request is captured at the press). **Free plan keeps the one-at-a-time lock** (`free && busy`). Server rate limits (12 image starts a minute) still apply; Generate all still skips a card that already finished.
+
+**Likeness ignores accessories (November 16; NOT run, types and tests not run; `node_modules` isn't installed here)**
+- The quick and full likeness checks now score only the person's own visible physical features. `ACCESSORY_RULE` is in both prompts, the "Signature accessories" trait was removed from the full report, and `accessoryFix` (cuffs, jewellery, belts, hats, glasses, hair accessories and similar) drops any such fix from the quick check, the Fix prompt and the full report's traits. Piercings and tattoos still count (they are body marks). Not tested on a real check; if a worn item still shows in "To fix", add its word to `accessoryFix`.
+
 **Build profile scroll and Director link (November 16; NOT run or checked in a browser)**
 - Build profile on a character's page no longer jumps to the top: `build()` in `character-form.tsx` remembers the scroll position and restores it several times after the save (the server action's revalidate re-renders the page; the cause of the jump was not reproduced), and its extra `router.refresh()` was removed. If it still jumps, look at what remounts on revalidate.
 - The "No reference photos yet?" note on a character's page now also links to Director (`/director?character=<id>`).
