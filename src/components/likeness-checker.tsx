@@ -12,13 +12,12 @@ import { uploadImage } from "@/components/image-slot";
 import { useToast } from "@/components/toast";
 import { clipboardImages, usePasteTarget } from "@/components/paste-router";
 import { FixRun, type ImageRef } from "@/components/likeness-panel";
-import { GenerateImage } from "@/components/generate-image";
 import { useGeneration } from "@/components/app-context";
 import { CopyOpen } from "@/components/copy-open";
 import { PasteIcon } from "@/components/icons";
 import { readClipboardImages } from "@/lib/clipboard";
 import { ScoreBar, ScoreRing } from "@/components/score-ring";
-import { REFERENCES_RUN, type RevisedRun } from "@/lib/revised-run";
+import type { RevisedRun } from "@/lib/revised-run";
 import { checkLikeness } from "@/app/(app)/likeness/actions";
 import type { LikenessReport } from "@/lib/ai/prompts/likeness";
 import { SEND_TO_LIKENESS_KEY } from "@/lib/likeness-link";
@@ -58,8 +57,6 @@ export function LikenessChecker({
   const [characterId, setCharacterId] = useState(initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id);
   const [picked, setPicked] = useState<Picked | null>(generated ? { preview: generated.url, image: { generationId: generated.id } } : null);
   const [promptUsed, setPromptUsed] = useState(generated?.prompt ?? "");
-  // How "Generate" on a revised prompt runs: like the prompt the image came from, else her references alone.
-  const revisedRunWith = generated?.run ?? REFERENCES_RUN;
   const top = useRef<HTMLElement>(null);
   // Score rounds per character (R1 · 72 → R2 · 86), as in the artifact.
   const [rounds, setRounds] = useState<Round[]>([]);
@@ -87,6 +84,22 @@ export function LikenessChecker({
   }, [characters]);
 
   usePasteTarget(top, (f) => pick(f), busy);
+  // A drop from this computer carries files; one dragged from another page or tab carries only the picture's address.
+  async function pickDropped(dt: DataTransfer) {
+    if (busy) return;
+    if (Array.from(dt.files).some((x) => x.type.startsWith("image/"))) return pick(dt.files);
+    const html = dt.getData("text/html").match(/<img[^>]+src=["']([^"']+)["']/i)?.[1];
+    const url = (dt.getData("text/uri-list").split("\n").find((l) => l && !l.startsWith("#")) ?? html ?? "").trim();
+    if (!/^(https?:|blob:|data:image\/)/i.test(url)) return;
+    try {
+      const blob = await (await fetch(url)).blob();
+      if (!blob.type.startsWith("image/")) throw new Error("not an image");
+      pick([new File([blob], "dropped-image", { type: blob.type })]);
+      setPasteError(undefined);
+    } catch {
+      setPasteError("Couldn't read that dropped picture. Save it, then drop the file here, or paste it.");
+    }
+  }
   function pick(files: FileList | File[] | null) {
     const f = files && Array.from(files).find((x) => x.type.startsWith("image/"));
     if (f) setPicked({ file: f, preview: URL.createObjectURL(f) });
@@ -143,7 +156,7 @@ export function LikenessChecker({
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
-            pick(e.dataTransfer.files);
+            void pickDropped(e.dataTransfer);
           }}
         >
           <div className={`w-full ${picked ? "aspect-[4/3] max-sm:aspect-[4/5] max-sm:max-h-[55dvh]" : "aspect-[4/3] max-sm:aspect-[2/1]"}`}>
@@ -323,36 +336,6 @@ export function LikenessChecker({
                 </div>
                 {!generation && <CopyOpen text={latest.report.revisedPrompt} />}
                 <p className="whitespace-pre-wrap">{latest.report.revisedPrompt}</p>
-                {generation && <div className="border-t border-neutral-800 pt-3">
-                  <GenerateImage
-                    key={`${latest.n}-${characterId}`}
-                    prompt={latest.report.revisedPrompt}
-                    characterId={characterId}
-                    extraPaths={revisedRunWith.extraPaths}
-                    kind={revisedRunWith.kind}
-                    meta={revisedRunWith.meta}
-                    actionLabel="Generate with revised prompt"
-                    checkLikeness={false}
-                    renderActions={(result) => (
-                      <div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => {
-                            // Next round: this image, with the prompt that made it.
-                            setPicked({ preview: result.url, image: { generationId: result.generationId } });
-                            setPromptUsed(latest.report.revisedPrompt);
-                            top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                            show("Loaded. Press Check likeness to score it.");
-                          }}
-                        >
-                          Check this image
-                        </Button>
-                      </div>
-                    )}
-                  />
-                  <p className="mt-2 text-xs text-neutral-500">{revisedRunWith.note}</p>
-                </div>}
               </CardContent>
             </Card>
           )}

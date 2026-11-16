@@ -13,6 +13,11 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Likeness page fixes (November 16; NOT run, types not run, not checked in a browser)**
+- Removed "Generate with revised prompt" under the Revised prompt (it made a new image of the scene, not an edit); the Revised prompt card keeps Copy and "Use for next round", and the "Fix this image" card is the way to fix (it edits the checked image).
+- `FixRun` no longer auto-starts: Fix / Fix the likeness / Fix only her face now show Size, Shape and Format first, then the pink button starts it.
+- The checker's drop box also takes a picture dragged from another page or tab (it carried only an address, no file): `pickDropped` fetches it; if the site blocks that, it says to save the file and drop it, or paste. Cause of the original report not reproduced.
+
 **Inject's "Edit it" renamed "Swap into photo" (November 16; wording only, not run or checked in a browser)**
 - The Target photo toggle in `inject-writer.tsx` is now "Recreate it" / "Swap into photo", and its tip points to Direct swap for the quick fixed version. Behaviour is unchanged.
 
