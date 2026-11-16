@@ -59,9 +59,43 @@
   }
 }
 
+/*
+ * The phone's own furniture. The safe areas are the strips under the status bar or notch and above the home bar; they
+ * are zero in an ordinary browser tab and real once the page covers the whole screen (the home-screen app).
+ * --dock-bottom is where the floating dock sits, and --dock-clear is how far up anything else pinned to the bottom of
+ * a phone screen (the image tray, toasts, bulk bars) must start so it clears the dock.
+ */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --dock-bottom: max(0.75rem, var(--safe-bottom));
+  --dock-clear: calc(var(--dock-bottom) + 4.5rem);
+}
+
 @layer base {
   html {
     color-scheme: dark;
+    /* Text keeps its size when the phone is turned sideways. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    /* Sideways on a phone, the page stays clear of the notch. */
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  /* A tap acts at once: no wait to see whether it becomes a double-tap zoom. */
+  a,
+  button,
+  label,
+  summary,
+  select,
+  input,
+  textarea,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"] {
+    touch-action: manipulation;
   }
   body {
     font-family: var(--font-sans);
@@ -286,6 +320,38 @@
     -webkit-tap-highlight-color: transparent;
   }
 }
+}
+
+/*
+ * Phones, continued (not in a layer, so these win over the size classes on each field).
+ * A field with text smaller than 16px makes iPhones zoom the whole page in when it is tapped, and the page stays
+ * zoomed afterwards; at 16px they leave it alone.
+ */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+/*
+ * Touch screens: the bars, buttons and tabs behave like an app's. Holding one doesn't select its label or bring up the
+ * link preview. Text on the page and the pictures themselves are untouched, so prompts can still be selected and a
+ * long press on a picture still offers Save.
+ */
+@media (pointer: coarse) {
+  button,
+  summary,
+  label,
+  nav a,
+  header a,
+  [role="tab"],
+  [role="menuitem"],
+  [role="menuitemcheckbox"] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
 }
 
 /* The heart's little bounce when someone hearts a persona. */

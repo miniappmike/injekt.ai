@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import { useSheetDrag } from "@/lib/sheet-drag";
 
 /**
  * On a phone, its contents slide up as a bottom sheet over the page (opened by a button elsewhere); from the small
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils";
  */
 export function MobileSheet({ open, onClose, title, className, children }: { open: boolean; onClose: () => void; title: string; className?: string; children: React.ReactNode }) {
   const [phone, setPhone] = useState(false);
+  const drag = useSheetDrag(onClose);
   useEffect(() => {
     const mq = matchMedia("(max-width: 639px)");
     const on = () => setPhone(mq.matches);
@@ -38,13 +40,17 @@ export function MobileSheet({ open, onClose, title, className, children }: { ope
       <section
         role={open ? "dialog" : undefined}
         aria-label={title}
+        style={open && phone ? drag.style : undefined}
         className={cn(
           className,
-          "max-sm:relative max-sm:max-h-[86dvh] max-sm:animate-sheet-up max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:rounded-b-none max-sm:rounded-t-[1.75rem] max-sm:border-x-0 max-sm:border-b-0 max-sm:bg-neutral-900 max-sm:pb-[max(1.25rem,env(safe-area-inset-bottom))]",
+          "max-sm:relative max-sm:max-h-[min(86dvh,calc(100dvh-var(--safe-top)-1rem))] max-sm:animate-sheet-up max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:rounded-b-none max-sm:rounded-t-[1.75rem] max-sm:border-x-0 max-sm:border-b-0 max-sm:bg-neutral-900 max-sm:pb-[max(1.25rem,env(safe-area-inset-bottom))]",
         )}
       >
-        <div className="sticky -top-4 z-10 -mx-4 -mt-4 mb-1 flex flex-col items-center gap-2 bg-neutral-900/95 px-4 pb-2 pt-2.5 backdrop-blur sm:hidden">
-          <span aria-hidden="true" className="h-1 w-10 rounded-full bg-neutral-700" />
+        <div className="sticky -top-4 z-10 -mx-4 -mt-4 mb-1 flex flex-col items-center bg-neutral-900/95 px-4 pb-2 backdrop-blur sm:hidden">
+          {/* The grab bar: pull it down to close the sheet (Done does the same). */}
+          <div {...drag.handle} aria-hidden="true" className="flex w-full cursor-grab justify-center pb-2 pt-2.5">
+            <span className="h-1 w-10 rounded-full bg-neutral-700" />
+          </div>
           <div className="flex w-full items-center justify-between">
             <span className="font-display text-lg font-bold text-neutral-50">{title}</span>
             <button type="button" onClick={onClose} className="h-9 rounded-full bg-brand-500 px-4 text-sm font-semibold text-white active:scale-95">Done</button>

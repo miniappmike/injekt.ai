@@ -4,11 +4,11 @@
  * read this, so they always match.
  */
 export const NAV = [
-  { href: "/home", label: "Dashboard" },
-  { href: "/inject", label: "Inject" },
-  { href: "/variants", label: "Variants" },
-  { href: "/director", label: "Director" },
-  { href: "/marketplace", label: "Marketplace" },
+  { href: "/home", label: "Dashboard", short: "Home" },
+  { href: "/inject", label: "Inject", short: "Inject" },
+  { href: "/variants", label: "Variants", short: "Variants" },
+  { href: "/director", label: "Director", short: "Director" },
+  { href: "/marketplace", label: "Marketplace", short: "Market" },
 ] as const;
 export type NavHref = (typeof NAV)[number]["href"];
 
@@ -21,6 +21,9 @@ export const MORE_NAV = [
   { href: "/art-to-real", label: "Art to Real" },
 ] as const;
 
-/** The phone dock is the same menu: the five tabs, then More. */
+/**
+ * The phone dock is the same menu: the five tabs, then More. With six slots there is room for about eight letters
+ * under each icon, so the dock shows each tab's `short` name ("Home", "Market") instead of cutting the long one off.
+ */
 export const DOCK_NAV = NAV;
 export const DOCK_MORE = MORE_NAV;

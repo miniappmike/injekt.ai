@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { getDraftFiles, putDraftFiles, readDraft, useDraftState, writeDraft } from "@/lib/drafts";
 import { useGeneration } from "@/components/app-context";
 import { CharacterPicker } from "@/components/character-picker";
 import { CopyOpen } from "@/components/copy-open";
@@ -36,8 +37,34 @@ export function ArtToReal({ characters }: { characters: ArtCharacter[] }) {
   const [notice, setNotice] = useState<string>();
   // Goes up by one each time "Generate make real" is pressed; every artwork that hasn't run yet starts, staggered.
   const [runAll, setRunAll] = useState(0);
-  const [characterId, setCharacterId] = useState("");
-  const [direction, setDirection] = useState("");
+  // The character, the note and the artworks come back if the phone closes the app (see src/lib/drafts.ts).
+  const [characterId, setCharacterId] = useDraftState("art.character", "", { decode: (v) => (characters.some((c) => c.id === v) ? (v as string) : null) });
+  const [direction, setDirection] = useDraftState("art.direction", "", { decode: (v) => (typeof v === "string" ? v.slice(0, 600) : null) });
+  // The picked files, by artwork id, so they can be kept in the browser and shown again after a reload.
+  const files = useRef(new Map<string, File>());
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    void (async () => {
+      const kept = await getDraftFiles("art");
+      const paths = readDraft<Record<string, string>>("art.paths") ?? {};
+      // Only artworks that had finished uploading come back: their stored copy is what Generate sends.
+      const back = kept.filter((k) => paths[k.id]).slice(0, MAX_ARTWORKS);
+      if (back.length && !artsRef.current.length) {
+        for (const k of back) files.current.set(k.id, k.file);
+        commit(back.map((k) => ({ id: k.id, preview: URL.createObjectURL(k.file), path: paths[k.id] })));
+      }
+      setRestored(true);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const uploaded = arts.filter((a) => a.path);
+  const uploadedKey = uploaded.map((a) => a.id).join(",");
+  useEffect(() => {
+    if (!restored) return;
+    void putDraftFiles("art", uploaded.flatMap((a) => (files.current.has(a.id) ? [{ id: a.id, file: files.current.get(a.id)! }] : [])));
+    writeDraft("art.paths", uploaded.length ? Object.fromEntries(uploaded.map((a) => [a.id, a.path])) : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restored, uploadedKey]);
   const [written, setWritten] = useState<{ busy?: boolean; text?: string; attach?: { label: string; url: string | null }[]; error?: string }>({});
   const character = characters.find((c) => c.id === characterId) ?? null;
 
@@ -54,6 +81,7 @@ export function ArtToReal({ characters }: { characters: ArtCharacter[] }) {
     }
     setNotice(undefined);
     const id = crypto.randomUUID();
+    files.current.set(id, file);
     commit([...artsRef.current, { id, preview: URL.createObjectURL(file), busy: true }]);
     setWritten({});
     try {

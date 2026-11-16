@@ -47,9 +47,33 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
 
 export function AppFooter() {
   return (
-    <footer className="border-t border-neutral-800/80 bg-neutral-950/40">
-      {/* Phones keep room under it for the floating dock. */}
-      <div className="mx-auto grid max-w-6xl gap-6 px-6 pb-8 pt-7 2xl:max-w-[88rem] lg:grid-cols-[minmax(0,1.2fr)_repeat(4,minmax(0,1fr))] max-sm:px-4 max-sm:pb-28 max-sm:pt-6">
+    <footer className="border-t border-neutral-800/80 bg-neutral-950/40 max-sm:border-transparent max-sm:bg-transparent">
+      {/*
+        Phones: the site map is in the dock's More sheet, so the page ends with two quiet lines (the legal links and the
+        referral note) and the room the floating dock needs under them.
+      */}
+      <div className="px-4 pb-[calc(var(--dock-clear)+1rem)] pt-2 text-center sm:hidden">
+        <p className="flex justify-center gap-4 text-xs text-neutral-500">
+          <Link href="/terms" className="py-1">Terms</Link>
+          <Link href="/privacy" className="py-1">Privacy</Link>
+          <a href={`mailto:${CONTACT_EMAIL}`} className="py-1">Contact</a>
+        </p>
+        <p className="mx-auto mt-1 max-w-xs text-[11px] leading-relaxed text-neutral-600">
+          {REFERRAL_DISCLOSURE.split("SpicyAPI").map((part, i) =>
+            i === 0 ? (
+              part
+            ) : (
+              <span key={i}>
+                <a href={SPICYAPI_REFERRAL_URL} target="_blank" rel="noopener noreferrer sponsored" className="font-medium text-neutral-400 underline underline-offset-2">
+                  SpicyAPI
+                </a>
+                {part}
+              </span>
+            ),
+          )}
+        </p>
+      </div>
+      <div className="mx-auto grid max-w-6xl gap-6 px-6 pb-8 pt-7 2xl:max-w-[88rem] lg:grid-cols-[minmax(0,1.2fr)_repeat(4,minmax(0,1fr))] max-sm:hidden">
         <div className="flex flex-col gap-2">
           <Logo />
           <p className="max-w-xs text-[13px] text-neutral-500">Create your model once, then put her in any photo.</p>

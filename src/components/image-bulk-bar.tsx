@@ -212,7 +212,7 @@ export function ImageBulkBar({
           (n > 0 || note) &&
           createPortal(
             // Drawn on the page body so it floats over the page whatever scrolls; above the phone dock and the image tray.
-            <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--tray-h,0px)+6rem)] z-30 flex justify-center px-3 sm:bottom-[calc(var(--tray-h,0px)+1.5rem)]">
+            <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--tray-h,0px)+var(--dock-clear)+0.75rem)] z-30 flex justify-center px-3 sm:bottom-[calc(var(--tray-h,0px)+1.5rem)]">
               <div className="pointer-events-auto flex max-w-full animate-pop-in flex-col items-center gap-1 rounded-2xl border border-neutral-700/80 bg-neutral-900/95 px-3 py-2 shadow-[0_18px_50px_-12px_rgb(0_0_0/0.95)] backdrop-blur-xl">
                 {n > 0 && (
                   <div className="flex flex-wrap items-center justify-center gap-1.5">

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { INVITE_COOKIE, INVITE_COOKIE_DAYS, parseInviteCode } from "@/lib/invites";
+import { LAST_PAGE_COOKIE, PWA_SOURCE, resumablePath } from "@/lib/resume";
 
 const PUBLIC_PREFIXES = ["/login", "/signup", "/auth", "/api/webhooks", "/api/cron", "/marketplace", "/terms", "/privacy", "/guides", "/manifest.webmanifest", "/how-it-works", "/about", "/get-a-key"];
 
@@ -39,7 +40,19 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Opened from the home-screen icon (the manifest's start address): signed out, the app opens on log in, not the
+  // landing page; signed in, it goes back to the page it was last on, if that was recent (see src/lib/resume.ts).
+  const appLaunch = pathname === "/" && request.nextUrl.searchParams.get("source") === PWA_SOURCE;
+  if (!user && appLaunch) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   if (user && (pathname === "/" || pathname === "/login" || pathname === "/signup")) {
+    const last = appLaunch ? resumablePath(request.cookies.get(LAST_PAGE_COOKIE)?.value) : null;
+    if (last) return NextResponse.redirect(new URL(last, request.nextUrl.origin));
     const url = request.nextUrl.clone();
     url.pathname = "/home";
     url.search = "";

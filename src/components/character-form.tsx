@@ -242,7 +242,7 @@ export function CharacterForm({
         // Floating save: appears after the first change and stays on screen while scrolling (above the phone dock).
         // Portalled to <body> because a parent on this page (transform/filter/blur) traps `position: fixed` inside it;
         // the button reaches the form through its `form` attribute.
-        <div className="pointer-events-none fixed inset-x-0 bottom-20 z-40 flex justify-center px-4 lg:bottom-6">
+        <div className="pointer-events-none fixed inset-x-0 bottom-20 z-40 flex justify-center px-4 max-sm:bottom-[calc(var(--dock-clear)-0.25rem)] lg:bottom-6">
           <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-neutral-700 bg-neutral-900/95 py-2 pl-4 pr-2 shadow-2xl backdrop-blur">
             <span className="text-sm text-neutral-300">Unsaved changes</span>
             <Button type="submit" form={formId} disabled={pending}>{pending ? "Saving..." : submitLabel}</Button>

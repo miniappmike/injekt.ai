@@ -12,7 +12,7 @@ import { INVITE_PATH, INVITE_REWARD_TOKENS } from "@/lib/invites";
 import { Gift } from "lucide-react";
 
 const item =
-  "block w-full rounded-md px-3 py-2 text-left text-sm text-neutral-200 hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none";
+  "block w-full rounded-md px-3 py-2 text-left text-sm text-neutral-200 hover:bg-neutral-800 focus-visible:bg-neutral-800 focus-visible:outline-none max-sm:rounded-lg max-sm:py-3 max-sm:text-[15px] max-sm:active:bg-neutral-800";
 
 // Your profile in the header. Hover it to open the menu; on a touch screen or with the keyboard, tap or press it instead.
 export function ProfileMenu({ email, admin = false }: { email: string; admin?: boolean }) {

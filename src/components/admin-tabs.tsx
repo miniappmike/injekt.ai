@@ -18,7 +18,7 @@ export function AdminTabs({ tab }: { tab: AdminTab }) {
   return (
     <nav
       aria-label="Admin sections"
-      className="sticky top-14 z-[9] -mx-4 grid grid-cols-4 gap-1 border-b border-neutral-800 bg-neutral-950/90 px-4 py-2 backdrop-blur sm:static sm:mx-0 sm:mt-4 sm:flex sm:gap-1 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
+      className="sticky top-[calc(3.5rem+var(--safe-top))] z-[9] -mx-4 grid grid-cols-4 gap-1 border-b border-neutral-800 bg-neutral-950/90 px-4 py-2 backdrop-blur sm:static sm:mx-0 sm:mt-4 sm:flex sm:gap-1 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
     >
       {ADMIN_TABS.map((t) => (
         <Link

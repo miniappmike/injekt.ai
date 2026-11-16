@@ -123,7 +123,7 @@ export function ModelRefusedToast() {
   if (!refused) return null;
   const notAllowed = refused.reason === "model_not_allowed";
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-8 z-[60] flex justify-center px-4 max-sm:bottom-24">
+    <div className="pointer-events-none fixed inset-x-0 bottom-8 z-[60] flex justify-center px-4 max-sm:bottom-[calc(var(--dock-clear)+0.75rem)]">
       <div
         role="alert"
         className="pointer-events-auto relative w-full max-w-lg animate-pop-in overflow-hidden rounded-2xl border border-brand-500/50 bg-neutral-900/95 p-5 pr-12 shadow-[0_30px_80px_-20px_rgb(0_0_0/0.95),0_0_0_1px_rgb(232_38_94/0.2),0_0_60px_-20px_rgb(232_38_94/0.6)] backdrop-blur-xl"

@@ -45,6 +45,7 @@ import {
 import { chipItem, segItem, segTrack } from "@/components/ui/segmented";
 import { CharacterPicker } from "@/components/character-picker";
 import { tokenGate } from "@/components/out-of-tokens";
+import { getDraftFiles, oneOf, putDraftFiles, readDraft, setDraft, useDraftState, writeDraft } from "@/lib/drafts";
 
 /**
  * The two tabs: Photoshoot ("edits": this same scene and setting, new takes) and Moments ("carousel": shots from
@@ -100,7 +101,8 @@ const platformLabel = (id: PlatformId) => PLATFORMS.find((p) => p.id === id)!.la
 export function VariantsTool({ characters }: { characters: { id: string; name: string; ready: boolean; hasSheet?: boolean; photo?: string | null }[] }) {
   const router = useRouter();
   const generation = useGeneration();
-  const [tab, setTab] = useState<Tab>("edits");
+  // The choices on this page are drafts: they come back if the phone closes the app (see src/lib/drafts.ts).
+  const [tab, setTab] = useDraftState<Tab>("variants.tab", "edits", oneOf<Tab>(["edits", "carousel"]));
   // Here (Generate buttons) or elsewhere (finished prompts to paste). Without image generation, always elsewhere.
   const [elsewhereChoice, setElsewhere] = useState(false);
   const elsewhere = !generation || elsewhereChoice;
@@ -113,7 +115,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   }, []);
   // What a run makes: Moments made elsewhere are the finished-prompt kind.
   const mode: Mode = tab === "carousel" && elsewhere ? "write" : tab;
-  const [characterId, setCharacterId] = useState("");
+  const [characterId, setCharacterId] = useDraftState("variants.character", "", { decode: (v) => (characters.some((c) => c.id === v) ? (v as string) : null) });
   // Phones: the choices live in a bottom sheet, so the image, her face and the button fit on one screen.
   const [sheet, setSheet] = useState(false);
   const [phone, setPhone] = useState(false);
@@ -127,20 +129,67 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   const [image, setImage] = useState<Picked | null>(null);
   // Up to MAX_EXTRA_IMAGES more images for the vibe or outfit; a slot is null until something is added.
   const [extras, setExtras] = useState<(Picked | null)[]>(Array(MAX_EXTRA_IMAGES).fill(null));
-  const [dims, setDims] = useState<Set<VariantDimId>>(new Set(["pose", "angle"]));
-  const [types, setTypes] = useState<Set<CarouselTypeId>>(new Set(CAROUSEL_TYPES.map((t) => t.id)));
-  const [slides, setSlides] = useState(DEFAULT_NEW_SLIDES);
+  const [dims, setDims] = useDraftState<Set<VariantDimId>>("variants.dims", () => new Set<VariantDimId>(["pose", "angle"]), setDraft(VARIANT_DIMS.map((d) => d.id)));
+  const [types, setTypes] = useDraftState<Set<CarouselTypeId>>("variants.types", () => new Set(CAROUSEL_TYPES.map((t) => t.id)), setDraft(CAROUSEL_TYPES.map((t) => t.id)));
+  const wholeNumber = (max: number) => ({ decode: (v: unknown) => (Number.isInteger(v) && (v as number) >= 1 && (v as number) <= max ? (v as number) : null) });
+  const text = { decode: (v: unknown) => (typeof v === "string" ? v : null) };
+  const [slides, setSlides] = useDraftState<number>("variants.slides", DEFAULT_NEW_SLIDES, wholeNumber(MAX_NEW_SLIDES));
   // Where the set is going (Carousel and Write only): sets the tone and how spicy it is. None picked means no steer.
-  const [platform, setPlatform] = useState<PlatformId | null>(null);
-  const [platformOther, setPlatformOther] = useState("");
-  const [count, setCount] = useState<number>(DEFAULT_VARIANT_COUNT);
-  const [note, setNote] = useState("");
+  const [platform, setPlatform] = useDraftState<PlatformId | null>("variants.platform", null, { decode: (v) => (PLATFORMS.some((p) => p.id === v) ? (v as PlatformId) : null) });
+  const [platformOther, setPlatformOther] = useDraftState("variants.platformOther", "", text);
+  const [count, setCount] = useDraftState<number>("variants.count", DEFAULT_VARIANT_COUNT, wholeNumber(MAX_VARIANT_COUNT));
+  const [note, setNote] = useDraftState("variants.note", "", text);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ text: string; good: boolean }>();
   const [result, setResult] = useState<Result | null>(null);
   // Goes up by one each time "Generate all" is pressed; every slide or variant that hasn't run yet starts.
   const [runAll, setRunAll] = useState(0);
   const { toast, show } = useToast(2000);
+
+  // The picked images and the prompts written from them come back after a reload too. The photos themselves are kept
+  // in the browser (IndexedDB); the rest is small enough for a draft. An image sent here by the viewer's Variants
+  // button wins over what was saved.
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    let sent = false;
+    try {
+      sent = !!sessionStorage.getItem(SEND_TO_VARIANTS_KEY);
+    } catch {
+      // No storage: nothing was sent.
+    }
+    if (sent) return setRestored(true);
+    void (async () => {
+      const files = await getDraftFiles("variants");
+      const kept = readDraft<{ slots?: Record<string, { path?: string; preview?: string }>; result?: Result | null }>("variants.work");
+      const pick = (slot: string): Picked | null => {
+        const file = files.find((f) => f.id === slot)?.file;
+        const was = kept?.slots?.[slot];
+        if (file) return { file, preview: URL.createObjectURL(file), path: was?.path };
+        return was?.path && was.preview ? { path: was.path, preview: was.preview } : null;
+      };
+      const main = pick("main");
+      if (main) {
+        const more = Array.from({ length: MAX_EXTRA_IMAGES }, (_, i) => pick(`x${i}`));
+        setImage((cur) => cur ?? main);
+        setExtras((cur) => (cur.some(Boolean) ? cur : more));
+        const result = kept?.result;
+        // The saved previews were links to photos in memory, which are gone; point them at the restored photos.
+        if (result?.items?.length) setResult((cur) => cur ?? { ...result, preview: main.preview, extraPreviews: more.filter((x) => x?.path).map((x) => x!.preview) });
+      }
+      setRestored(true);
+    })();
+  }, []);
+  const slots = [["main", image] as const, ...extras.map((x, i) => [`x${i}`, x] as const)];
+  const photosKey = slots.map(([, x]) => (x?.file ? `${x.file.name}:${x.file.size}:${x.file.lastModified}` : (x?.path ?? ""))).join("|");
+  useEffect(() => {
+    if (restored) void putDraftFiles("variants", slots.flatMap(([id, x]) => (x?.file ? [{ id, file: x.file }] : [])));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restored, photosKey]);
+  useEffect(() => {
+    if (!restored || busy) return;
+    writeDraft("variants.work", image ? { slots: Object.fromEntries(slots.flatMap(([id, x]) => (x ? [[id, { path: x.path, preview: x.file ? undefined : x.preview }]] : []))), result } : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restored, busy, image, extras, result]);
 
   // The viewer's Variants button: its image lands in the "Generated image" slot, on Edits.
   useEffect(() => {

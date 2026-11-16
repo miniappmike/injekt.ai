@@ -8,6 +8,7 @@ import { OutOfTokens } from "@/components/out-of-tokens";
 import { PasteRouter } from "@/components/paste-router";
 import { MobileDock } from "@/components/mobile-nav";
 import { HistoryLauncher } from "@/components/history-launcher";
+import { ResumeTracker } from "@/components/resume-tracker";
 import { requireUser } from "@/lib/auth";
 import { AppProvider } from "@/components/app-context";
 import { entitlements, loadProfile } from "@/lib/entitlements";
@@ -35,6 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <AppProvider value={{ generation, imageKey: hasImageKey, generationConfirmed: confirmed, pro: plan !== "free", billing: plan !== "free" && hasImageKey ? "own" : "credits" }}>
       <div className="min-h-screen">
         <TimezoneSync />
+        <ResumeTracker />
         <AppHeader email={user.email ?? "Account"} admin={plan === "admin"} />
         <RenewBanner proUntil={profile?.proUntil ?? null} manualPro={profile?.manualPro ?? false} autoRenews={autoRenews} />
         {/* The footer below leaves the room for the phone dock and the generation tray. */}

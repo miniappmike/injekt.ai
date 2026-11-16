@@ -116,7 +116,7 @@ export function GenerationTray() {
       <section
         ref={tray}
         aria-label="Images generated on this page"
-        className={`fixed inset-x-0 bottom-0 z-30 animate-fade-up border-t border-neutral-800/80 bg-neutral-950/85 px-4 py-2 shadow-[0_-12px_40px_-12px_rgb(0_0_0/0.8)] backdrop-blur-xl max-sm:bottom-[5.25rem] max-sm:rounded-2xl max-sm:border ${
+        className={`fixed inset-x-0 bottom-0 z-30 animate-fade-up border-t border-neutral-800/80 bg-neutral-950/85 px-4 py-2 shadow-[0_-12px_40px_-12px_rgb(0_0_0/0.8)] backdrop-blur-xl max-sm:bottom-[var(--dock-clear)] max-sm:rounded-2xl max-sm:border ${
           collapsed ? "max-sm:left-auto max-sm:right-3 max-sm:rounded-full max-sm:py-1 max-sm:pl-3 max-sm:pr-1" : "max-sm:inset-x-3"
         }`}
       >

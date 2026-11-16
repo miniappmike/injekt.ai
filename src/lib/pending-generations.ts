@@ -1,7 +1,9 @@
 /**
- * Generations started in this browser tab, kept in sessionStorage so a page that the phone reloaded (switching apps on
- * iOS can do that) still shows the image once it's ready. The Generate panel that started a job picks it back up, and
- * so does the tray along the bottom of the page. Entries are dropped after 30 minutes.
+ * Generations started in this browser, kept in localStorage so a page that the phone reloaded (switching apps on iOS
+ * can do that) still shows the image once it's ready. localStorage, not sessionStorage: a home-screen app that the
+ * phone closed in the background starts a new session when it reopens, which would forget the jobs. The Generate panel
+ * that started a job picks it back up, and so does the tray along the bottom of the page. Entries are dropped after 30
+ * minutes.
  */
 const KEY = "ms.pendingGenerations";
 const MAX_AGE_MS = 30 * 60_000;
@@ -20,7 +22,7 @@ export interface PendingGeneration {
 
 function read(): PendingGeneration[] {
   try {
-    const list = JSON.parse(sessionStorage.getItem(KEY) ?? "[]") as PendingGeneration[];
+    const list = JSON.parse(localStorage.getItem(KEY) ?? "[]") as PendingGeneration[];
     return Array.isArray(list) ? list.filter((p) => Date.now() - p.startedAt < MAX_AGE_MS) : [];
   } catch {
     return [];
@@ -28,7 +30,7 @@ function read(): PendingGeneration[] {
 }
 function write(list: PendingGeneration[]) {
   try {
-    sessionStorage.setItem(KEY, JSON.stringify(list.slice(-20)));
+    localStorage.setItem(KEY, JSON.stringify(list.slice(-20)));
   } catch {
     // Private window or full storage: the page just won't remember it across a reload.
   }

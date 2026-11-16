@@ -34,6 +34,7 @@ import { MobileSheet } from "@/components/mobile-sheet";
 import { PasteIcon, SlidersIcon, UploadIcon } from "@/components/icons";
 import { readClipboardImages } from "@/lib/clipboard";
 import { tokenGate } from "@/components/out-of-tokens";
+import { getDraftFiles, putDraftFiles, readDraft, useDraftState, writeDraft } from "@/lib/drafts";
 
 const MAX_TARGETS = 10;
 const OPTIONS_KEY = "ms.injectOptions";
@@ -130,7 +131,11 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
   const [runAll, setRunAll] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const { toast, show } = useToast();
-  const [characterId, setCharacterId] = useState(initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id);
+  // Who is picked comes back if the phone closes the app (see src/lib/drafts.ts); a link that names her wins.
+  const [characterId, setCharacterId] = useDraftState("inject.character", initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id, {
+    skip: !!initialCharacterId,
+    decode: (v) => (characters.some((c) => c.id === v) ? (v as string) : null),
+  });
   const [targets, setTargets] = useState<Target[]>([]);
   const [o, setO] = useState<Options>({ ...INJECT_DEFAULTS });
   const [editTarget, setEditTarget] = useState(false);
@@ -165,6 +170,41 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
   const lastRunFor = useRef<string | null>(null);
   const targetsRef = useRef(targets);
   targetsRef.current = targets;
+
+  // The photos added and the prompts written for them come back after a reload too: the photos are kept in the
+  // browser (IndexedDB), what was written for each one in a draft. A photo that was still being written when the page
+  // went away comes back without prompts (anything the server finished is in the Library's Prompts tab).
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    void (async () => {
+      const files = await getDraftFiles("inject");
+      const kept = readDraft<Partial<Target>[]>("inject.targets") ?? [];
+      if (files.length) {
+        setTargets((cur) =>
+          cur.length
+            ? cur
+            : files.slice(0, MAX_TARGETS).map(({ id, file }) => ({ ...(kept.find((k) => k.id === id) ?? {}), id, file, preview: URL.createObjectURL(file) })),
+        );
+      }
+      setRestored(true);
+    })();
+  }, []);
+  const targetIds = targets.map((t) => t.id).join(",");
+  useEffect(() => {
+    if (restored) void putDraftFiles("inject", targetsRef.current.map(({ id, file }) => ({ id, file })));
+  }, [restored, targetIds]);
+  useEffect(() => {
+    if (!restored || running) return;
+    writeDraft(
+      "inject.targets",
+      targets.length
+        ? targets.map((t) => {
+            const done = t.state === "done" && !!t.versions;
+            return { id: t.id, path: t.path, ratio: t.ratio, clean: t.clean, ...(done ? { state: t.state, status: t.status, characterId: t.characterId, writtenPath: t.writtenPath, versions: t.versions } : {}) };
+          })
+        : null,
+    );
+  }, [restored, running, targets]);
 
   const character = characters.find((c) => c.id === characterId)!;
 

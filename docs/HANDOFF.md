@@ -13,6 +13,16 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Phone app pass: home-screen app, saved work, resume (November 16; types clean; checked on the stand-in backend in Chromium emulating an iPhone 14: More sheet and pull-to-close, drafts after a reload, launch going back to the last page and scroll spot; NOT checked on a real iPhone, where the safe areas and the status bar matter most)**
+- **Opens as its own app**: `src/app/manifest.ts` now has `display: "standalone"`, an id, a scope and Android shortcuts; `src/app/layout.tsx` exports a `viewport` with `viewportFit: "cover"` and sets `appleWebApp` (capable, see-through status bar). Before this the safe-area paddings already written across the app were all zero. People who added the icon before this change must remove it and add it again (iPhones keep the old settings).
+- **Safe areas** (top of `globals.css`): `--safe-top`, `--safe-bottom`, `--dock-bottom` (where the dock floats) and `--dock-clear` (how far up anything else pinned to the bottom of a phone must start). The header pads by `--safe-top`; the tray, toasts, bulk bar, floating Save and the footer's dock room use `--dock-clear` instead of fixed numbers. New fixed things on phones should use these.
+- **Phone feel** (`globals.css`): fields are 16px on phones (smaller text makes iPhones zoom the page on focus), taps act at once (`touch-action: manipulation`), and on touch screens holding a button, tab or bar link doesn't select it or open the link preview. Page text and pictures are left alone, so prompts can be selected and a long press on a picture still offers Save.
+- **Dock and More** (`mobile-nav.tsx`, `nav.ts`): the dock is Home, Inject, Variants, Director, Market and More (each tab has a `short` name so none is cut off). More has the tool tiles (Characters, Create Model, Library, Likeness, Art to Real, Group photo), an Account list (Tokens, Upgrade to Pro on the free plan, Invite friends, Ledger, Settings, API key guide) and Terms, Privacy, Discord, Contact. That is everything the desktop footer lists, so on phones the footer is two small lines (`app-footer.tsx`). The More sheet and `MobileSheet` close by pulling the grab bar down (`src/lib/sheet-drag.ts`).
+- **Back to where you were** (`src/lib/resume.ts`, `src/components/resume-tracker.tsx`, `src/proxy.ts`): a phone closes a home-screen app that sits in the background, and no page code can stop that. So the last page is kept in the `ms_last` cookie for 24 hours (`LAST_PAGE_HOURS`), the manifest's start address is `/?source=pwa`, and the proxy sends that launch to the last page (Home if none, log in if signed out; a plain visit to `/` still goes Home). The scroll position comes back too. Sign-out clears the cookie.
+- **Saved work** (`src/lib/drafts.ts`): `useDraftState` is `useState` kept in localStorage; picked photos go in IndexedDB. Both last 24 hours (`DRAFT_HOURS`). Wired into Director (character, text), Variants (every choice, the images, the written prompts), Inject (character, target photos and the prompts written for them) and Art to Real (character, note, uploaded artworks). Not wired: Likeness, Create Model, the new and edit character forms. Jobs in progress (`pending-generations.ts`) moved from sessionStorage to localStorage, because a relaunched home-screen app is a new session.
+- Decided: the dock keeps six slots (the owner put Marketplace there) with short names, not five. The page still scrolls as a whole document, so it bounces as one piece at the top; a fixed bar over a scrolling pane was not done (it would touch every page's scroll code).
+- Next: try it on a real iPhone (status bar overlap, dock above the home bar, keyboard with the 16px fields); consider splash images for the launch; wire drafts into Likeness and Create Model if wanted.
+
 **Face sheet prompt: white background, whole hair in frame (November 16; reference-sheet tests updated and passing; not tried on a real generation)**
 - `sheetPrompts().face` (`prompts/sheets.ts`) now asks for "a plain, clean white background" and "her whole hair fully in frame and uncropped in every portrait, including the top of her head and the full length of her hair". The body sheet is unchanged (still mid-grey). If very long hair still gets cut off, the next step is asking for a little more space above and below each portrait.
 
@@ -238,9 +248,8 @@ section is right.
   both sheets, a generation completed, an `api_ledger` row with feature `likeness` succeeded, a reference path contains
   `/pinned/`. When all five are done the tile becomes Quick tools for good. The owner rejected showing an average
   likeness score.
-- **Phone navigation** (`src/components/mobile-nav.tsx`, lists in `src/lib/nav.ts`): the dock is Characters, Inject,
-  Director, Variants and More; More slides up a sheet with Likeness, Create Model, Marketplace, Art to Real, Group
-  photo. The order is a guess at session flow, not measured usage. History is a square button in the phone top bar
+- **Phone navigation** (`src/components/mobile-nav.tsx`, lists in `src/lib/nav.ts`): see the phone app pass at the
+  top for what the dock and the More sheet hold. History is a square button in the phone top bar
   (`src/components/history-button.tsx`); the floating History button is desktop and tablet only.
 - **Desktop navigation**: a More menu after the tabs (see the November 15 menu note above). `/characters#group` opens
   Characters already picking for a group photo.
@@ -256,8 +265,6 @@ section is right.
   direction: referrals first (pay when the friend confirms their email and makes a first image), then tasks that can
   be checked from stored data, then social tasks by pasted link and admin approval (X and Instagram posts can't be
   verified automatically), then achievements. Rewards need the same one-per-person check as the first-month bonus.
-- The marketplace is in the phone More sheet, not the dock. The owner may want it back in the dock: swap it with
-  Variants in `src/lib/nav.ts`.
 - A "what's new" line on the dashboard's Discord tile needs a changelog source first.
 
 **Looking at signed-in pages locally (no real Supabase needed)**

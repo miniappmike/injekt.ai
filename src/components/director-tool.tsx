@@ -9,6 +9,7 @@ import { CharacterPicker } from "@/components/character-picker";
 import { GenerateImage } from "@/components/generate-image";
 import { useGeneration } from "@/components/app-context";
 import { MAX_DIRECTION } from "@/lib/ai/prompts/director";
+import { useDraftState } from "@/lib/drafts";
 
 const REALISM_KEY = "ms.directorRealism";
 
@@ -26,8 +27,12 @@ interface DirectorCharacter {
  */
 export function DirectorTool({ characters, initialCharacterId }: { characters: DirectorCharacter[]; initialCharacterId?: string }) {
   const generation = useGeneration();
-  const [characterId, setCharacterId] = useState(initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id);
-  const [direction, setDirection] = useState("");
+  // Who and what you typed come back if the phone closes the app before you press Generate (see src/lib/drafts.ts).
+  const [characterId, setCharacterId] = useDraftState("director.character", initialCharacterId ?? characters.find((c) => c.ready)?.id ?? characters[0].id, {
+    skip: !!initialCharacterId,
+    decode: (v) => (characters.some((c) => c.id === v) ? (v as string) : null),
+  });
+  const [direction, setDirection] = useDraftState("director.direction", "", { decode: (v) => (typeof v === "string" ? v.slice(0, MAX_DIRECTION) : null) });
   // Inject realism: on unless turned off, and remembered in this browser.
   const [realism, setRealism] = useState(true);
   useEffect(() => {
