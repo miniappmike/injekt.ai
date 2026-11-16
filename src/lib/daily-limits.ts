@@ -1,4 +1,5 @@
-import { pacificDay } from "@/lib/pacific";
+import { zoneDay } from "@/lib/zone";
+import { viewerTz } from "@/lib/tz-server";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { adminClient } from "@/lib/supabase/admin";
@@ -40,7 +41,8 @@ export async function useDaily(supabase: SupabaseClient, userId: string, key: Da
   if (plan !== "free") return NOOP;
   const { caps } = await getAppConfig();
   const limit = caps[plan][key];
-  const { data, error } = await adminClient().rpc("consume_daily", { p_user: userId, p_key: key, p_limit: limit });
+  const tz = await viewerTz();
+  const { data, error } = await adminClient().rpc("consume_daily", { p_user: userId, p_key: key, p_limit: limit, p_tz: tz });
   if (error) {
     if (missing(error)) {
       console.warn("[limits] daily usage isn't set up yet (run migration 0012); not counting");
@@ -54,7 +56,7 @@ export async function useDaily(supabase: SupabaseClient, userId: string, key: Da
     release: async () => {
       if (released) return;
       released = true;
-      await adminClient().rpc("release_daily", { p_user: userId, p_key: key });
+      await adminClient().rpc("release_daily", { p_user: userId, p_key: key, p_tz: tz });
     },
   };
 }
@@ -100,7 +102,7 @@ export async function dailyStatus(supabase: SupabaseClient, userId: string, opts
   const counted = plan === "free";
   const used: Record<string, number> = {};
   if (counted) {
-    const today = pacificDay(Date.now());
+    const today = zoneDay(Date.now(), await viewerTz());
     const { data } = await supabase.from("daily_usage").select("key, count").eq("user_id", userId).eq("day", today);
     for (const r of data ?? []) used[r.key as string] = r.count as number;
   }

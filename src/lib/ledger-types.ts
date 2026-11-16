@@ -107,9 +107,10 @@ const csvCell = (v: string | number | null) => {
 };
 
 export function ledgerCsv(entries: LedgerEntry[]): string {
-  const head = ["Time (UTC)", "Platform", "Job", "What", "Model", "Input tokens", "Output tokens", "Cost (USD)", "Cost known", "Cost source", "Status", "Paid by"];
+  const head = ["Time (your time zone)", "Platform", "Job", "What", "Model", "Input tokens", "Output tokens", "Cost (USD)", "Cost known", "Cost source", "Status", "Paid by"];
   const rows = entries.map((e) => [
-    e.createdAt,
+    // Sweden's format is a sortable "2026-11-16 04:30:12", in this browser's own time zone.
+    new Date(e.createdAt).toLocaleString("sv-SE"),
     platformLabel(e.platform),
     jobLabel(e.job),
     featureLabel(e.feature),

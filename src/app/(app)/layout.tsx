@@ -1,3 +1,4 @@
+import { TimezoneSync } from "@/components/timezone-sync";
 import { AppHeader } from "@/components/app-header";
 import { AppFooter } from "@/components/app-footer";
 import { ModelRefusedToast, PageModelBox } from "@/components/page-model";
@@ -33,6 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppProvider value={{ generation, imageKey: hasImageKey, generationConfirmed: confirmed, pro: plan !== "free", billing: plan !== "free" && hasImageKey ? "own" : "credits" }}>
       <div className="min-h-screen">
+        <TimezoneSync />
         <AppHeader email={user.email ?? "Account"} admin={plan === "admin"} />
         <RenewBanner proUntil={profile?.proUntil ?? null} manualPro={profile?.manualPro ?? false} autoRenews={autoRenews} />
         {/* The footer below leaves the room for the phone dock and the generation tray. */}

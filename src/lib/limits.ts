@@ -9,7 +9,7 @@ export const FREE_LIMITS = {
 } as const;
 
 /**
- * Daily allowances for the prompt tools on the platform's AI key, reset at midnight Pacific time. A "run" is one target photo
+ * Daily allowances for the prompt tools on the platform's AI key, reset at midnight in the person's time zone. A "run" is one target photo
  * written for in Inject, or one press of Write variant edits, Plan carousel or Write variations. Accounts that add
  * their own AI key aren't counted.
  */

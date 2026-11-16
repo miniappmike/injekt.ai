@@ -1,4 +1,5 @@
-import { pacificDayAgo } from "@/lib/pacific";
+import { zoneDayAgo } from "@/lib/zone";
+import { viewerTz } from "@/lib/tz-server";
 import "server-only";
 import { adminClient } from "@/lib/supabase/admin";
 import { effectiveRole, readRoles } from "@/lib/ai/roles";
@@ -11,7 +12,8 @@ const DAY = 86_400_000;
 export async function loadAdminStats() {
   const db = adminClient();
   const since30 = new Date(Date.now() - 30 * DAY).toISOString();
-  const since7 = pacificDayAgo(Date.now(), 7);
+  const tz = await viewerTz();
+  const since7 = zoneDayAgo(Date.now(), 7, tz);
   // Every call by everyone over 30 days. cost_settled comes with migration 0021; without it, read the rest.
   const cols = "user_id, created_at, key_source, platform, job, feature, model, status, input_tokens, output_tokens, cost_usd, cost_known, cost_source, generation_id";
   const readLedger = async () => {
@@ -50,7 +52,7 @@ export async function loadAdminStats() {
     }
   }
   return {
-    stats: summarize(rows as unknown as LedgerRow[], (usage.data ?? []) as UsageRow[], users),
+    stats: summarize(rows as unknown as LedgerRow[], (usage.data ?? []) as UsageRow[], users, Date.now(), tz),
     // Only the platform key's own usage; the second view adds the admins' own testing on their saved keys.
     finance: finances(rows, sizes),
     financeWithAdmins: finances(rows, sizes, Date.now(), new Set(users.filter((u) => u.is_admin).map((u) => u.id))),

@@ -1,4 +1,4 @@
-import { pacificDay, pacificDayAgo } from "@/lib/pacific";
+import { DEFAULT_TZ, zoneDay, zoneDayAgo } from "@/lib/zone";
 /**
  * Numbers for the admin console, worked out from raw rows so they can be tested without a database: what the platform's
  * AI key cost (today, 7 and 30 days, average a day, a 14-day chart), and each person's usage and cost.
@@ -57,15 +57,14 @@ export interface AdminStats {
 }
 
 const DAY = 86_400_000;
-/** The Pacific calendar day of a moment (the site counts days in Pacific time). */
-const utcDay = (t: number) => pacificDay(t);
 const num = (v: number | string) => (typeof v === "number" ? v : Number(v) || 0);
 
-export function summarize(ledger: LedgerRow[], usage: UsageRow[], users: UserRow[], now = Date.now()): AdminStats {
-  const today = utcDay(now);
-  const days = Array.from({ length: 14 }, (_, i) => pacificDayAgo(now, 13 - i));
-  const since7 = pacificDayAgo(now, 6);
-  const since30 = pacificDayAgo(now, 29);
+export function summarize(ledger: LedgerRow[], usage: UsageRow[], users: UserRow[], now = Date.now(), tz = DEFAULT_TZ): AdminStats {
+  const dayOf = (t: number) => zoneDay(t, tz);
+  const today = dayOf(now);
+  const days = Array.from({ length: 14 }, (_, i) => zoneDayAgo(now, 13 - i, tz));
+  const since7 = zoneDayAgo(now, 6, tz);
+  const since30 = zoneDayAgo(now, 29, tz);
   const daily = new Map(days.map((d) => [d, { day: d, cost: 0, calls: 0 }]));
   const per = new Map<string, UserStats>(
     users.map((u) => [u.id, { ...u, runsToday: 0, likenessToday: 0, runs7: 0, likeness7: 0, calls30: 0, serverToday: 0, server7: 0, server30: 0, ownKey30: 0, lastActive: null }]),
@@ -83,7 +82,7 @@ export function summarize(ledger: LedgerRow[], usage: UsageRow[], users: UserRow
   for (const l of ledger) {
     const t = Date.parse(l.created_at);
     if (!Number.isFinite(t)) continue;
-    const d = utcDay(t);
+    const d = dayOf(t);
     if (d < since30) continue;
     const cost = num(l.cost_usd);
     const s = row(l.user_id);

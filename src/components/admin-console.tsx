@@ -46,7 +46,7 @@ function SpendChart({ daily }: { daily: AdminStats["daily"] }) {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="spend-title" className="font-display text-lg font-bold text-neutral-50">Your AI key, per day</h2>
         <p className="text-xs text-neutral-400 tabular-nums" aria-live="polite">
-          {h ? `${new Date(h.day + "T00:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })}: ${usd(h.cost)} · ${h.calls} AI calls` : "Last 14 days (Pacific time). Hover a bar for details."}
+          {h ? `${new Date(h.day + "T00:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })}: ${usd(h.cost)} · ${h.calls} AI calls` : "Last 14 days (your time zone). Hover a bar for details."}
         </p>
       </div>
       <p className="mt-3 text-[10px] tabular-nums text-neutral-500">{usd(max)}</p>

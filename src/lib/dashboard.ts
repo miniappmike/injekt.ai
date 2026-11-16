@@ -1,4 +1,5 @@
-import { pacificMonthStart } from "@/lib/pacific";
+import { zoneMonthStart } from "@/lib/zone";
+import { viewerTz } from "@/lib/tz-server";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { characterAvatars } from "@/lib/character-avatars";
@@ -35,7 +36,7 @@ const count = (r: { count: number | null }) => r.count ?? 0;
 /** Everything the home dashboard shows, read in one go. A part that fails shows as empty, never as an error page. */
 export async function loadDashboard(supabase: SupabaseClient, user: Actor & { email_confirmed_at?: string | null }): Promise<Dashboard> {
   const now = new Date();
-  const monthStart = new Date(pacificMonthStart(now.getTime())).toISOString();
+  const monthStart = new Date(zoneMonthStart(now.getTime(), 0, await viewerTz())).toISOString();
   const weekStart = new Date(now.getTime() - 7 * 86_400_000).toISOString();
   const done = () => supabase.from("generations").select("id", { count: "exact", head: true }).eq("status", "complete");
 
