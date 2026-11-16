@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronIcon, EyeIcon, TrashIcon } from "@/components/icons";
+import { ChevronIcon, TrashIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { deleteCharacter } from "@/app/(app)/characters/actions";
 import { getCharacterGenerations } from "@/app/(app)/characters/media-actions";
@@ -101,14 +101,6 @@ export function CharacterImagesButton({ name, characterId, refCount = MAX_REFERE
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label={`See the images made for ${name}`}
-        className="absolute left-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-b from-brand-400 to-brand-600 text-white shadow-[0_6px_20px_-8px_rgb(232_38_94/0.7)] transition-all hover:scale-105 hover:from-brand-300 hover:to-brand-500 hover:shadow-[0_8px_28px_-8px_rgb(232_38_94/0.85)] active:scale-90 max-sm:left-2 max-sm:top-2"
-      >
-        <EyeIcon className="h-[18px] w-[18px]" />
-      </button>
       {open &&
         createPortal(
           <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={`${name}'s images`}>

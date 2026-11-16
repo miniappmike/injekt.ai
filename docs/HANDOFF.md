@@ -15,7 +15,10 @@ section is right.
 
 **See likeness runs the full report by itself; smaller blur eyes (November 16; NOT run, types not run, not checked in a browser)**
 - `/likeness?generation=<id>` (from "See likeness" under an image) now starts the full report as soon as the page opens (`autoRan` effect in `likeness-checker.tsx`), instead of waiting for Check likeness. It costs one full check each time that page is opened that way.
-- **Unpin in the viewer (November 16; not run, types not run, not checked in a browser)**
+- **Characters page: the pink eye button on each card is gone (November 16; not checked in a browser)**
+- Removed from `CharacterImagesButton`; clicking her picture still opens the same images panel (`modelspawn:open-character-images`), so the panel is unchanged. The older line below about the "bright pink eye" is out of date.
+
+**Unpin in the viewer (November 16; not run, types not run, not checked in a browser)**
 - After Pin It, an **Unpin** button appears next to "Pinned" (`PinToReferences`, so also in the Library bars and the images panel). `unpinFromReferences` in `characters/pin-actions.ts` removes the copy Pin It made from her `reference_paths` (the file stays in storage; the cursor is not rewound; if the pin had replaced another photo, that photo is not restored).
 - **Pins from now on are remembered**: Pin It saves the copy's path on the generation (`params.pinnedPath`, admin client, best effort) and `getPinnedPath` shows the image as Pinned with Unpin after a reload, while that copy is still one of her references. **Pins made before this change have no saved link** (the copy is re-encoded under a new name), so they can't be matched to their image; take those off on her character page. Not run or checked in a browser.
 
