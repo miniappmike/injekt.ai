@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalTime } from "@/components/local-time";
 import { DownloadLink } from "@/components/download-link";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { deleteGeneration } from "@/app/(app)/history/actions";
 import { generationDeleted, viewImage } from "@/lib/panel-events";
 import type { GenerationItem } from "@/lib/history-types";
 
-const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+const when = (iso: string | null | undefined) => <LocalTime iso={iso} o={{ dateStyle: "medium", timeStyle: "short" }} />;
 
 const PLACEHOLDER: Record<GenerationItem["state"], string> = {
   generating: "Generating...",

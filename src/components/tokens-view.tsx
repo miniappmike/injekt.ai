@@ -1,3 +1,4 @@
+import { LocalTime } from "@/components/local-time";
 import Link from "next/link";
 import type { PayMethods } from "@/lib/payments/methods";
 import type { CreditSummary } from "@/lib/billing";
@@ -7,7 +8,7 @@ import { TokenIcon } from "@/components/token-icon";
 import { ProBadge } from "@/components/pro-badge";
 import { InviteCard } from "@/components/invite-card";
 
-const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const day = (iso: string | null | undefined) => <LocalTime iso={iso} o={{ month: "short", day: "numeric" }} />;
 
 /** The Tokens page: the balance by where it came from, the packs to buy, what things cost, and recent activity. */
 export function TokensView({ s, emailConfirmed, methods, invite, justPaid = false }: { s: CreditSummary; emailConfirmed: boolean; methods: PayMethods; invite: { link: string; joined: number }; justPaid?: boolean }) {

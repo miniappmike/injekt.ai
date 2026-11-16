@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalTime } from "@/components/local-time";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import { GENERATION_DELETED_EVENT, GENERATION_EVENT, OPEN_HISTORY_EVENT, viewIma
 import { historyGenerationKind, type GenerationItem, type HistoryItem } from "@/lib/history-types";
 import { metaForRun, readEditTarget, type InjectMeta } from "@/lib/inject-meta";
 
-const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+const when = (iso: string | null | undefined) => <LocalTime iso={iso} o={{ dateStyle: "medium", timeStyle: "short" }} />;
 
 function download(name: string, text: string, type: string) {
   const url = URL.createObjectURL(new Blob([text], { type }));
