@@ -458,10 +458,10 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
       {choice(
         "Target photo",
         editTarget,
-        [[false, "Recreate it"], [true, "Edit it"]],
+        [[false, "Recreate it"], [true, "Swap into photo"]],
         chooseEdit,
         <InfoTip label="Recreate or edit">
-          Recreate it (the default): the photo only guides the prompt, and a new image of her is made from her sheets in a similar scene, pose and style. Edit it: the photo itself is sent with her sheets and she replaces the person in it, which keeps the scene exactly. Only for photos you have the rights to. You can switch after writing.
+          Recreate it (the default): the photo only guides the prompt, and a new image of her is made from her sheets in a similar scene, pose and style. Swap into photo: the photo itself is sent with her sheets and she replaces the person in it, which keeps the scene exactly, using your written prompt and the Pose and Outfit options. For a quick fixed swap with no prompt writing, use Direct swap. Only for photos you have the rights to. You can switch after writing.
         </InfoTip>,
       )}
     </div>
