@@ -29,7 +29,18 @@ function usePinState(id: string): PinState {
  * "Pin It" under a generated image of a character. At the limit, a pop-up asks before the new image
  * replaces the next of her reference photos in rotation (1st, 2nd, ... then back to the 1st), and it only goes ahead once the box is ticked.
  */
-export function PinToReferences({ generationId, characterId }: { generationId: string; characterId: string }) {
+export function PinToReferences({
+  generationId,
+  characterId,
+  className,
+  buttonClassName,
+}: {
+  generationId: string;
+  characterId: string;
+  /** Extra classes for the wrapper and for the button itself (the viewer sizes them for phones). */
+  className?: string;
+  buttonClassName?: string;
+}) {
   const router = useRouter();
   const state = usePinState(generationId);
   const setState = (s: PinState) => setPinState(generationId, s);
@@ -55,9 +66,9 @@ export function PinToReferences({ generationId, characterId }: { generationId: s
   }
 
   return (
-    <div className="flex flex-col gap-2 text-sm">
+    <div className={`flex flex-col gap-2 text-sm ${className ?? ""}`}>
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" size="sm" variant="secondary" disabled={state.busy || !!state.done} onClick={() => void pin()}>
+        <Button type="button" size="sm" variant="secondary" className={buttonClassName} disabled={state.busy || !!state.done} onClick={() => void pin()}>
           {state.busy ? "Checking…" : state.done ? "Pinned" : "Pin It"}
         </Button>
         {state.done && <span role="status" className="text-emerald-300">{state.done}</span>}
