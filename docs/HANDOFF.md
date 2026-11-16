@@ -13,12 +13,14 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Build fix (November 16)**: the first merge failed the Vercel type check (my edit also made `deleteCharacter` return instead of redirect, and `createCharacter` lost `provenance`). Fixed; `npx tsc --noEmit` is now clean here (`npm ci` was run).
+
 **Reference photos: drag to reorder, first is the cover (November 16; NOT run, types not run, not checked in a browser)**
 - `ImageSlot` (reference box only) uses HTML5 drag and drop: drag a photo onto another to move it; the first tile has a pink ring and a "Cover" badge. Saved characters call `reorderReferences` (`media-actions.ts`, checks it's the same set of paths); the new-character draft just reorders in the form. **Touch screens** (`pointer: coarse`) get buttons on each tile instead of dragging: ★ makes it the cover, ‹ › move it one place (mouse users see none of them).
 - **Dashboard**: the big picture uses her cover (`DashCharacter.cover`, first reference photo), the small circles use the profile photo (`characterAvatars(..., "profile")`).
 - **Cover = `reference_paths[0]`**, now ahead of the profile photo on the Characters card (`characters/page.tsx` `photo`) and in `character-avatars.ts` (pickers). The profile photo still shows if she has no reference photos. Other pages that read `profile_photo_path` directly (marketplace, dashboard) were not changed. Reordering also changes which photos prompts use (they take the first 2-3 references).
 
-**Floating Save on the edit-character page (November 16; NOT run, types not run, not checked in a browser)**
+**Floating Save on the edit-character page (November 16; types clean after the build fix below, not checked in a browser)**
 - **Saving an edit no longer leaves the page**: `updateCharacter` returns `{ saved: Date.now() }` (no redirect), the form shows a green "Save successful!" toast and hides the pill until the next change. **The "I own or license" checkbox now shows only on New character**; `characterEditInput` (`lib/characters.ts`) doesn't require it, since `provenance_attested_at` was set at creation. Existing tests for `characterInput` are unchanged.
 - `character-form.tsx`: on a character's edit page the Save button is gone from the bottom of the form; once anything in the form changes (`dirty`, set by the form's `onInput`/`onChange`) a floating "Unsaved changes" pill with Save sits fixed at the bottom centre (above the phone dock). The New character page keeps its inline Save buttons. Notes: image uploads and Build profile save on their own and don't trigger it.
 

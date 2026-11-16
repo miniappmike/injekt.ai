@@ -13,8 +13,8 @@ import { characterEditInput, characterInput, parseProfile } from "@/lib/characte
 /** `saved` changes on every successful in-place save (edit page), so the form can show a toast. */
 export type CharacterFormState = { error?: string; saved?: number };
 
-function parseForm(formData: FormData, asksConsent = true) {
-  const parsed = (asksConsent ? characterInput : characterEditInput).safeParse({
+function parseForm(formData: FormData) {
+  const parsed = characterInput.safeParse({
     name: formData.get("name") ?? "",
     always_keep: formData.get("always_keep") ?? "",
     height: formData.get("height") ?? "",
@@ -23,6 +23,16 @@ function parseForm(formData: FormData, asksConsent = true) {
     provenance: formData.get("provenance") ?? undefined,
   });
   return parsed;
+}
+
+function parseFormEdit(formData: FormData) {
+  return characterEditInput.safeParse({
+    name: formData.get("name") ?? "",
+    always_keep: formData.get("always_keep") ?? "",
+    height: formData.get("height") ?? "",
+    weight: formData.get("weight") ?? "",
+    lore: formData.get("lore") ?? "",
+  });
 }
 
 export async function createCharacter(_: CharacterFormState, formData: FormData): Promise<CharacterFormState> {
@@ -56,7 +66,7 @@ export async function createCharacter(_: CharacterFormState, formData: FormData)
 
 export async function updateCharacter(id: string, _: CharacterFormState, formData: FormData): Promise<CharacterFormState> {
   const { supabase } = await requireUser();
-  const parsed = parseForm(formData, false);
+  const parsed = parseFormEdit(formData);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   const fields = parsed.data;
@@ -94,5 +104,5 @@ export async function deleteCharacter(id: string) {
   const remove = [...new Set(files)];
   if (remove.length) await supabase.storage.from(MEDIA_BUCKET).remove(remove);
   revalidatePath("/characters");
-  return { saved: Date.now() };
+  redirect("/characters");
 }
