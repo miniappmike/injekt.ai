@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { adminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { toFailure, type AiFailure } from "@/lib/ai/failure";
 import { MEDIA_BUCKET, shrinkForVision, stripAndNormalize, toDataUri } from "@/lib/images";
@@ -75,11 +76,35 @@ export async function pinToReferences(input: { generationId: string; characterId
       await supabase.storage.from(MEDIA_BUCKET).remove([path]);
       return { ok: false, error: "Couldn't save the image. Try again." };
     }
+    // Remember which copy this image made, so Unpin can be offered later (best effort).
+    try {
+      const db = adminClient();
+      const { data: row } = await db.from("generations").select("params").eq("id", input.generationId).eq("user_id", user.id).maybeSingle();
+      if (row) await db.from("generations").update({ params: { ...((row.params as object | null) ?? {}), pinnedPath: path } }).eq("id", input.generationId).eq("user_id", user.id);
+    } catch {
+      // Without it, Unpin is only offered right after pinning.
+    }
     revalidatePath(`/characters/${input.characterId}`);
     revalidatePath("/characters");
     return { ok: true, count: next.length, replaced: full, slot: slot + 1, path };
   } catch (e) {
     return toFailure(e);
+  }
+}
+
+/** The copy this image's Pin It made, if it is still one of her reference photos. */
+export async function getPinnedPath(generationId: string, characterId: string): Promise<{ path: string; count: number } | null> {
+  try {
+    const { supabase } = await requireUser();
+    const [{ data: g }, { data: c }] = await Promise.all([
+      supabase.from("generations").select("params").eq("id", generationId).maybeSingle(),
+      supabase.from("characters").select("reference_paths").eq("id", characterId).maybeSingle(),
+    ]);
+    const path = (g?.params as { pinnedPath?: string } | null)?.pinnedPath;
+    const refs = (c?.reference_paths as string[] | undefined) ?? [];
+    return path && refs.includes(path) ? { path, count: refs.length } : null;
+  } catch {
+    return null;
   }
 }
 

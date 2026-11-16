@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { pinToReferences, unpinFromReferences } from "@/app/(app)/characters/pin-actions";
+import { getPinnedPath, pinToReferences, unpinFromReferences } from "@/app/(app)/characters/pin-actions";
 import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
 
 // What each image's Pin It is doing lives outside the component, so stepping to another image with the arrow keys while
 // the nudity check runs doesn't lose it: the check carries on, and its result is there when you come back.
 type PinState = { busy?: boolean; done?: string; error?: string; path?: string };
 const pinStates = new Map<string, PinState>();
+// Images already looked up for an earlier pin, so each is asked about once per page load.
+const looked = new Set<string>();
 const pinListeners = new Set<() => void>();
 function setPinState(id: string, s: PinState) {
   pinStates.set(id, s);
@@ -44,6 +46,14 @@ export function PinToReferences({
   const router = useRouter();
   const state = usePinState(generationId);
   const setState = (s: PinState) => setPinState(generationId, s);
+  // An image pinned earlier (this visit or before): find its copy so it shows as pinned, with Unpin.
+  useEffect(() => {
+    if (pinStates.has(generationId) || looked.has(generationId)) return;
+    looked.add(generationId);
+    void getPinnedPath(generationId, characterId).then((r) => {
+      if (r && !pinStates.has(generationId)) setPinState(generationId, { path: r.path, done: `Pinned to her reference photos (${r.count} of ${MAX_REFERENCE_PHOTOS}).` });
+    });
+  }, [generationId, characterId]);
   const [confirm, setConfirm] = useState<number | false>(false);
   const [agreed, setAgreed] = useState(false);
 
@@ -71,6 +81,7 @@ export function PinToReferences({
     setState({ ...state, busy: true, error: undefined });
     const r = await unpinFromReferences({ characterId, path });
     if (r.ok) {
+      looked.add(generationId);
       setState({});
       router.refresh();
     } else if ("redirectTo" in r && r.redirectTo) {
