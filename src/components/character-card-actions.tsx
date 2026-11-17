@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { ChevronIcon, TrashIcon } from "@/components/icons";
+import { useRouter } from "next/navigation";
+import { ChevronIcon, DuplicateIcon, TrashIcon } from "@/components/icons";
+import { useToast } from "@/components/toast";
+import { duplicateCharacter } from "@/app/(app)/characters/duplicate-actions";
 import { Button } from "@/components/ui/button";
 import { deleteCharacter } from "@/app/(app)/characters/actions";
 import { getCharacterGenerations } from "@/app/(app)/characters/media-actions";
@@ -38,6 +41,47 @@ export function DeleteCharacterButton({ id, name, icon = false }: { id: string; 
         <Button type="submit" size="sm" variant="ghost" className="text-red-400 hover:bg-red-500/10 hover:text-red-300">Delete</Button>
       )}
     </form>
+  );
+}
+
+/** Duplicate (Pro and admin): a second character with the same profile, sheets and reference photos. */
+export function DuplicateCharacterButton({ id, name, icon = false }: { id: string; name: string; icon?: boolean }) {
+  const router = useRouter();
+  const [busy, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const { toast, show } = useToast();
+  const run = () => {
+    if (!window.confirm(`Duplicate ${name}? The copy gets the same profile, sheets and reference photos.`)) return;
+    setError(null);
+    start(async () => {
+      const r = await duplicateCharacter(id).catch(() => ({ error: "Couldn't duplicate her. Try again." }) as { error?: string; name?: string });
+      if (r.error) return setError(r.error);
+      show(`Created ${r.name}`);
+      router.refresh();
+    });
+  };
+  return (
+    <>
+      {icon ? (
+        <button type="button" onClick={run} disabled={busy} aria-label={`Duplicate ${name}`} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-800 text-neutral-100 transition-transform active:scale-90 disabled:opacity-50">
+          <DuplicateIcon className={`h-[18px] w-[18px] ${busy ? "animate-pulse" : ""}`} />
+        </button>
+      ) : (
+        <Button type="button" size="sm" variant="ghost" onClick={run} disabled={busy}>{busy ? "Duplicating…" : "Duplicate"}</Button>
+      )}
+      {(toast || error) &&
+        createPortal(
+          <>
+            {toast}
+            {error && (
+              <div role="alert" onClick={() => setError(null)} className="fixed bottom-6 left-1/2 z-50 max-w-[90vw] -translate-x-1/2 cursor-pointer rounded-full border border-red-500/40 bg-neutral-900/95 px-4 py-2 text-sm font-medium text-red-200 shadow-lg backdrop-blur-xl max-sm:bottom-[calc(var(--dock-clear)+0.75rem)]">
+                {error}
+              </div>
+            )}
+          </>,
+          document.body,
+        )}
+    </>
   );
 }
 

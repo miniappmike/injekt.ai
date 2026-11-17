@@ -52,7 +52,7 @@ const DEFAULT_DIRECTION = "A candid photo of them together, like friends posing 
  * into a picker for up to four characters; a dock shows who is picked, and Continue opens the creative-direction
  * composer with Generate.
  */
-export function CharactersBoard({ characters, canList, atLimit, limitText }: { characters: CharacterCardData[]; canList: boolean; atLimit: boolean; limitText: string }) {
+export function CharactersBoard({ characters, canList, canDuplicate = false, atLimit, limitText }: { characters: CharacterCardData[]; canList: boolean; canDuplicate?: boolean; atLimit: boolean; limitText: string }) {
   const generation = useGeneration();
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
@@ -224,7 +224,7 @@ export function CharactersBoard({ characters, canList, atLimit, limitText }: { c
             return (
               <div key={c.id} className="relative">
                 <div className={cn("transition-all duration-300", picking && !on && "opacity-70", picking && (full || !ok) && "opacity-40 saturate-50")}>
-                  <CharacterCard c={c} canList={canList} />
+                  <CharacterCard c={c} canList={canList} canDuplicate={canDuplicate} />
                 </div>
                 {arranging && (
                   <div
