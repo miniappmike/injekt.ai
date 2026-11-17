@@ -61,6 +61,8 @@ describe("injectJob", () => {
     expect(job.prompt).toContain("\n\nCamera: Phone at chest height, straight on, tilted slightly up; main lens; frame cuts at mid-thigh.\n\nPose: Standing, chest to the camera, weight on the leg on the left of the frame.\n\n");
     expect(job.prompt.length).toBeLessThan(900);
     expect(() => injectJob(c, pack, "ignored", meta, SEEDREAM, 4)).toThrow(/Swap into photo/);
+    const s = injectJob(c, pack, "ignored", { brief: true, scene: "A dim bedroom lit by a lamp at frame-left. She kneels on the bed facing the camera.", target: TARGET }, SEEDREAM, 4);
+    expect(s.prompt).toContain("\n\nScene and pose: A dim bedroom lit by a lamp at frame-left. She kneels on the bed facing the camera.\n\n");
   });
 
   it("a photo edit with only one sheet sends that sheet", () => {

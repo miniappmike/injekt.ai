@@ -301,4 +301,19 @@ describe("prompt length", () => {
     const t = buildInjectPrompt({ name: "A", profile: {} } as never, "", injectOptionsSchema.parse({}) as never, [{ palette: "", hair: "" }], 0, [], []);
     expect(t).toContain(`LENGTH: short and dense. Write each finished prompt at roughly ${PROMPT_CHARS - 500} to ${PROMPT_CHARS} characters`);
   });
+
+  describe("swap brief", () => {
+    it("the reader's instruction stays under 500 characters, with every option on", async () => {
+      const { buildSwapBriefPrompt, swapChange, BRIEF_LIMIT } = await import("@/lib/ai/prompts/swap-brief");
+      const plain = buildSwapBriefPrompt({ who: "", extra: "", pose: false });
+      expect(plain).toContain("concretely describe: the scene");
+      expect(plain).toContain("full body");
+      expect(plain).toContain("aesthetic");
+      expect(plain.length).toBeLessThanOrEqual(400);
+      expect(buildSwapBriefPrompt({ who: "w".repeat(200), extra: "e".repeat(2000), pose: true }, 4).length).toBeLessThanOrEqual(BRIEF_LIMIT);
+      expect(swapChange({ newOutfit: false, ward: "match", exText: "", recolor: true, hair: true }, { palette: "navy and cream", hair: "a high ponytail" })).toBe(
+        "the same garments recoloured in navy and cream; her hair styled as a high ponytail, keeping its colour and length",
+      );
+    });
+  });
 });

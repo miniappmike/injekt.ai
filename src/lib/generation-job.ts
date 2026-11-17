@@ -75,6 +75,7 @@ export const BRIEF_ONLY_MESSAGE = "This prompt was written for Swap into photo. 
 /** What the lean swap recipe says for an Inject version, from its meta. */
 export const leanSwapOptions = (meta: InjectMeta): LeanSwapOptions => ({
   who: meta.chg?.who,
+  scene: meta.scene,
   camera: meta.camera,
   pose: meta.brief ? meta.pose : undefined,
   change: meta.edit,

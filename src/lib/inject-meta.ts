@@ -20,6 +20,8 @@ export const injectMetaSchema = z.object({
   edit: z.string().max(600).optional(),
   /** Swap into photo's short brief: the camera and the pose read from the target, and that the prompt is that brief. */
   brief: z.boolean().optional(),
+  /** The reader's one short paragraph: the scene, her whole body, the camera and the aesthetic. */
+  scene: z.string().max(900).optional(),
   camera: z.string().max(400).optional(),
   pose: z.string().max(700).optional(),
   frame: z.string().max(200).optional(),

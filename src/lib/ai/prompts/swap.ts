@@ -27,6 +27,8 @@ const LEAN_BODY = "entire body likeness (chest, shoulders, waist, hips, glutes a
 /** What a lean swap says besides the recipe: the camera and pose read from the target, and what the version changes. */
 export interface LeanSwapOptions {
   who?: string;
+  /** The reader's short paragraph: the scene, her whole body (the new pose when `poseChanges`), the camera, the aesthetic. */
+  scene?: string;
   /** Where the camera is and the lens look, as read from the target. */
   camera?: string;
   /** The pose as read from the target, or the new pose when `poseChanges`. */
@@ -57,6 +59,7 @@ export function leanSwap(R: RefSet, o: LeanSwapOptions = {}): string {
     : `the exact face, hair and ${LEAN_BODY} of the woman in ${joinTags(tags)}`;
   const who = one(fence(o.who), 60);
   const keep = [!o.poseChanges && "pose", !o.outfitChanges && "outfit", !o.hairChanges && "hairstyle", "background", "light", "camera angle", "framing", "image quality"].filter(Boolean).join(", ");
+  const scene = one(o.scene, 900);
   const camera = one(o.camera, 320);
   const pose = one(o.pose, 520);
   const change = one(o.change, 600);
@@ -66,6 +69,7 @@ export function leanSwap(R: RefSet, o: LeanSwapOptions = {}): string {
       "Her body keeps its real size and shape, never slimmed or averaged, with none of the original person's tattoos or piercings.",
     ),
     `Keep everything else in ${target} exactly: ${keep}. Ignore the clothing and backgrounds in ${joinTags(tags)}.`,
+    scene && `${o.poseChanges ? "Scene, with her new pose" : "Scene and pose"}: ${scene}.`,
     camera && `Camera: ${camera}.`,
     pose && `${o.poseChanges ? "New pose" : "Pose"}: ${pose}.`,
     change && `Change: ${change}.`,

@@ -12,7 +12,7 @@ import { harness } from "@/lib/ai/prompts/harness";
 import { sheetLines } from "@/lib/ai/prompts/identity";
 import { DECLINED_MESSAGE } from "@/lib/ai/refusal";
 import { buildInjectPrompt, looksLikeRefusal, parseVersions, TWO_SHEET_OPENER, type InjectOptions, type VersionPlan } from "@/lib/ai/prompts/inject";
-import { buildSwapBriefPrompt } from "@/lib/ai/prompts/swap-brief";
+import { buildSwapBriefPrompt, swapChange } from "@/lib/ai/prompts/swap-brief";
 import { leanSwap } from "@/lib/ai/prompts/swap";
 import { leanSwapOptions, sheetRefs } from "@/lib/generation-job";
 import { HAIRSTYLES, PALETTES, POSE_HINTS, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
@@ -103,7 +103,7 @@ export async function runInject(
   const pals = shuffleArr(PALETTES, random);
   const hs = shuffleArr(HAIRSTYLES, random);
   const plans: VersionPlan[] = Array.from({ length: o.count }, (_, k) => ({ palette: pals[k], hair: hs[k] }));
-  const recent = o.pose ? (await recentPoses(supabase, userId)).poses.slice(-RECENT_SEND) : [];
+  const recent = o.pose && !opt.swap ? (await recentPoses(supabase, userId)).poses.slice(-RECENT_SEND) : [];
   const inspo = o.pose ? shuffleArr(o.poseMode === "social" ? SOCIAL_POSES : [...POSE_HINTS, ...SOCIAL_POSES], random).slice(0, 6) : [];
 
   const refPaths = opt.withRefs ? c.reference_paths.slice(0, 3) : [];
@@ -112,14 +112,12 @@ export async function runInject(
 
   if (opt.swap) o.fixedIdentity = false;
   const prompt = opt.swap
-    ? buildSwapBriefPrompt(o, plans, recent, inspo)
+    ? buildSwapBriefPrompt(o, plans.length)
     : buildInjectPrompt({ ...c, profile: c.profile ?? {} }, sheetLines(pack), o, plans, refs.length, recent, inspo);
   const task = { prompt, images: [target, ...refs].map((x) => x.dataUri) };
   const reply = client.complete ? await client.complete(task, { onDelta, stopOnRefusal: true }) : { text: await client.run(task), truncated: false };
 
-  // The short brief has no prompt body: its CAMERA and POSE lines are the answer, kept in `text` so the checks below hold.
-  const readReply = (text: string) =>
-    parseVersions(text).map((v) => (opt.swap ? { ...v, text: v.camera || v.pose ? "brief" : "" } : looksLikeRefusal(v.text) ? { ...v, text: "" } : v));
+  const readReply = (text: string) => parseVersions(text).map((v) => (looksLikeRefusal(v.text) ? { ...v, text: "" } : v));
   let parsedVersions = readReply(reply.text);
   let truncated = reply.truncated;
   let declined = looksLikeRefusal(reply.text);
@@ -148,7 +146,9 @@ export async function runInject(
     if (!v || !v.text) return null;
     if (opt.swap) {
       // Swap into photo: the prompt is the lean recipe itself, exactly what Generate sends with the target as the last image.
-      const meta: InjectMeta = { brief: true, camera: v.camera, pose: v.pose.slice(0, 700), edit: v.edit, chg, ...(o.clean ? { clean: true } : {}) };
+      // The reader's short paragraph goes in as written; outfit, colour and hair options are the app's own Change line.
+      const scene = [v.camera, v.pose, v.text].filter(Boolean).join(" ").replace(/\s+/g, " ").trim().slice(0, 900);
+      const meta: InjectMeta = { brief: true, scene, edit: swapChange(o, plan), chg, ...(o.clean ? { clean: true } : {}) };
       const tags = [o.pose && "New pose", o.newOutfit && "New outfit", o.recolor && "Colours: " + plan.palette, o.hair && "Hair: " + plan.hair].filter((x): x is string => !!x);
       return { text: leanSwap(sheetRefs(c, pack, 2, 3).R, leanSwapOptions(meta)), fixed: [], tags, meta };
     }
@@ -180,8 +180,7 @@ export async function runInject(
   );
   let k = 0;
   for (const v of versions) if (v) v.historyId = historyIds[k++] ?? null;
-  // A brief's pose is a full description; only a new, invented pose is remembered, cut to its opening words.
-  if (!opt.swap || o.pose) await rememberPoses(supabase, userId, parsedVersions.map((v) => (opt.swap ? v.pose.split(/\s+/).slice(0, 12).join(" ") : v.pose)).filter(Boolean));
+  if (!opt.swap) await rememberPoses(supabase, userId, parsedVersions.map((v) => v.pose).filter(Boolean));
   return { versions, truncated, characterName: c.name };
 }
 

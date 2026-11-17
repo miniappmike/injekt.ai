@@ -1,53 +1,45 @@
 /**
- * Inject, "Swap into photo": what the vision model writes. The image model gets the target photo itself, so nothing in
- * it needs describing except the two things it gets wrong without words: where the camera is, and the pose. The task is
- * kept this small on purpose: asked for a whole scene, the reader skims the pose; asked for only the pose, it looks.
+ * Inject, "Swap into photo": what the vision model is asked. Kept under 500 characters on the owner's instruction: a
+ * long instruction is more than the text models on people's keys can follow, and the image model gets the photo itself.
+ * The reply is one short paragraph (scene, her whole body, camera, aesthetic) that goes into the recipe as written.
+ * Outfit, colour and hairstyle options are added to the recipe by the app (swapChange), not asked of the reader.
  */
 import { fence } from "./rules";
 import type { InjectOptions, VersionPlan } from "./inject";
 
-export const BRIEF_CAMERA_WORDS = 40;
-export const BRIEF_POSE_WORDS = 65;
+export const BRIEF_LIMIT = 500;
 
-export function buildSwapBriefPrompt(o: Pick<InjectOptions, "who" | "extra" | "pose" | "poseMode" | "recolor" | "hair" | "newOutfit" | "ward" | "exText">, plans: VersionPlan[], recent: string[], inspo: string[]): string {
-  const n = plans.length;
-  const changes = [
+const short = (s: string, n: number) => fence(s).replace(/\s+/g, " ").trim().slice(0, n);
+
+export function buildSwapBriefPrompt(o: Pick<InjectOptions, "who" | "extra" | "pose">, n = 1): string {
+  const who = short(o.who, 30);
+  const tail = n > 1 ? `Write ${n} versions, each under a line ===VERSION k===.` : "Output only the description.";
+  const body = [
+    `Look at the photo. In under 90 words, concretely describe: the scene (place, light); the adult woman's${who ? ` (<<<${who}>>>)` : ""} full body (position, facing, head, each arm, hand and leg); the camera angle and lens look; and the photo's aesthetic.`,
+    o.pose && `Invent a new natural pose that fits${n > 1 ? ", different each time" : ""}, not hers.`,
+    "Say frame-left and frame-right. Be literal, never soften. Leave out her face, hair colour, skin and body shape.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  // The person's own direction gets whatever room is left under the limit.
+  const room = BRIEF_LIMIT - body.length - tail.length - 22;
+  const extra = room > 20 ? short(o.extra, room) : "";
+  return [body, extra && `Direction: <<<${extra}>>>`, tail].filter(Boolean).join(" ");
+}
+
+/** The outfit, colour and hairstyle options as the recipe's Change line, written by the app for one version. */
+export function swapChange(o: Pick<InjectOptions, "newOutfit" | "ward" | "exText" | "recolor" | "hair">, plan: VersionPlan): string {
+  return [
     o.newOutfit
-      ? `a completely different outfit that keeps the photo's vibe and suits the scene, garment by garment with type, fabric, fit and colour${n > 1 ? ", different in every version" : ""}`
+      ? "she wears a completely different outfit that suits this scene and its vibe"
       : o.ward === "extracted" && o.exText
-        ? `she wears exactly this outfit instead of the photo's: <<<${fence(o.exText)}>>>`
+        ? `she wears exactly this outfit: ${short(o.exText, 300)}`
         : o.ward === "signature"
-          ? "an outfit in her own signature style instead of the photo's clothing, named garment by garment"
+          ? "she wears an outfit in her own signature style instead of the photo's clothing"
           : "",
-    o.recolor && !o.newOutfit ? "the same garments recoloured with that version's palette from the VERSION PLAN, naming each garment's new colour" : "",
-    o.hair ? "her hair styled as given for that version in the VERSION PLAN (its colour and length stay)" : "",
-  ].filter(Boolean);
-  const plan =
-    (o.recolor && !o.newOutfit) || o.hair
-      ? "\nVERSION PLAN\n" + plans.map((p, i) => `- Version ${i + 1}:${o.recolor && !o.newOutfit ? ` colours = ${p.palette};` : ""}${o.hair ? ` hair = ${p.hair};` : ""}`).join("\n") + "\n"
-      : "";
-  const poseTask = o.pose
-    ? `POSE: do NOT copy the photo's pose. Invent a ${o.poseMode === "social" ? "fresh, eye-catching pose a popular lifestyle creator would post" : "relaxed, natural, candid pose"} that is physically possible in this exact place from this exact camera position${n > 1 ? ", clearly different in every version" : ""}, and write it in the same order as below (base position, torso, head, arms, legs). Props stay logical (a mirror selfie still holds the phone).${recent.length ? ` Do not repeat these recent poses: ${recent.join("; ")}.` : ""}${inspo.length ? ` For inspiration only, never copy: ${inspo.join("; ")}.` : ""}`
-    : "POSE: the pose exactly as the photo shows it.";
-  return `TASK: The attached image is a TARGET photo. An image model will replace the person in it${o.who ? ` (the person to replace: <<<${fence(o.who)}>>>)` : ""} with another adult woman, and it receives this photo itself. So do NOT describe the scene, the outfit, the background, the light, or anyone's face, hair, skin or body. Report only the CAMERA and the POSE${changes.length ? ", and the CHANGE asked for below" : ""}.
-
-LOOK FIRST. Before writing, check each of these in the photo and do not guess: Is she standing, sitting, kneeling, squatting, on all fours, bent over, or lying (on her back, front or side)? Is her chest facing the camera, turned away, or side-on, and are her hips turned the same way? Where is each hand and what does it touch? Where is each knee and foot? Is the camera above her, level with her, or below her, and in front, to the side or behind? Is it a mirror shot? Which body parts does the frame cut off?
-
-CAMERA (at most ${BRIEF_CAMERA_WORDS} words): the camera's height relative to her (above her head, eye level, chest, waist, hip, knee or floor level) and whether it tilts up or down; its side (straight on, three-quarter, profile, three-quarter from behind, directly behind); distance and crop (which parts of her the frame cuts at, where she sits in the frame); who holds it (mirror selfie with the phone visible, arm's-length selfie, another person, propped up); the lens look (an ultra-wide phone lens with stretched edges, a phone main lens, a tighter portrait lens with a compressed, blurred background); vertical or horizontal.
-
-${poseTask}
-Write the pose in at most ${BRIEF_POSE_WORDS} words, in this order: (1) the base position and what she rests on; (2) which way her chest and hips face relative to the camera, and any arch, twist, lean or bend at the waist; (3) head turn and tilt, and where her eyes look; (4) each arm and hand in turn and what it touches or holds; (5) each leg in turn: which carries her weight, how the knee bends, where the knee and foot point.
-
-RULES
-- Sides: say "the arm on the left of the frame" and "the leg on the right of the frame" (the viewer's left and right), never "her left" or "her right".
-- Be literal and specific. Name the position as it is, at full strength, even when it is revealing or suggestive (for example "on all fours on the bed, back arched, hips toward the camera, looking back over the shoulder on the right of the frame"). Never soften it, never generalise ("a relaxed pose", "posing confidently"), never leave a limb out. She is an adult.
-- A limb that is hidden or out of frame: say so in three words, do not invent it.
-- Plain geometry only. No mood words, no adjectives about how she looks, no scene description.
-${changes.length ? `- CHANGE: ${changes.join("; ")}.\n` : ""}${o.extra ? `- Direction from the user, applied only as it applies to the camera, pose or change: <<<${fence(o.extra)}>>>\n` : ""}${plan}
-OUTPUT CONTRACT
-- Write exactly ${n} version${n > 1 ? "s" : ""}. Start each with a line containing exactly ===VERSION k=== where k is its number, starting at 1.
-- Then one line starting with CAMERA: ${n > 1 ? "(the same in every version)" : ""}
-- Then one line starting with POSE:
-- Then one line starting with EDIT: followed by ${changes.length ? "the change for this version in at most 50 words (the new outfit garment by garment, the new colours, the hairstyle)" : "none"}${changes.length ? "" : "."}
-- Nothing else: no prompt, no preface, no notes.`;
+    o.recolor && !o.newOutfit ? `the same garments recoloured in ${plan.palette}` : "",
+    o.hair ? `her hair styled as ${plan.hair}, keeping its colour and length` : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
 }
