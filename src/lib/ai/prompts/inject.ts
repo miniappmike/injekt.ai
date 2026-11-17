@@ -160,6 +160,8 @@ ${o.pose ? "- Directly under that marker write one line that starts with POSE: f
 
 export interface ParsedVersion {
   pose: string;
+  /** Swap into photo's short brief: where the camera is and the lens look. Empty for a written scene. */
+  camera: string;
   frame: string;
   edit: string;
   outfit: string;
@@ -181,6 +183,7 @@ export function parseVersions(text: string): ParsedVersion[] {
   const body = parts.length > 1 ? parts.slice(1) : [parts[0]];
   return body.map((p) => {
     let pose = "";
+    let camera = "";
     let frame = "";
     let edit = "";
     let outfit = "";
@@ -188,6 +191,7 @@ export function parseVersions(text: string): ParsedVersion[] {
       p = p
         .replace(/^\s*OUTFIT:\s*([^\n]*)\n?/i, (_m, x: string) => ((outfit = x.trim().slice(0, 300)), ""))
         .replace(/^\s*POSE:\s*([^\n]*)\n?/i, (_m, x: string) => ((pose = x.trim()), ""))
+        .replace(/^\s*CAMERA:\s*([^\n]*)\n?/i, (_m, x: string) => ((camera = x.trim().slice(0, 400)), ""))
         .replace(/^\s*IN FRAME:\s*([^\n]*)\n?/i, (_m, x: string) => ((frame = x.trim().slice(0, 200)), ""))
         // A model that still writes a NUDITY line from habit has it removed, not shown in the prompt.
         .replace(/^\s*NUDITY:\s*([^\n]*)\n?/i, () => "")
@@ -203,6 +207,6 @@ export function parseVersions(text: string): ParsedVersion[] {
       return "";
     });
     if (/^none\.?$/i.test(edit)) edit = "";
-    return { pose, frame, edit, outfit, text: cleanOut(p) };
+    return { pose, camera, frame, edit, outfit, text: cleanOut(p) };
   });
 }

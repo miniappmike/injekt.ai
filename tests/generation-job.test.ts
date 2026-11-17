@@ -38,23 +38,35 @@ beforeEach(() => {
 });
 
 describe("injectJob", () => {
-  it("photo edit: the target first, then her two reference sheets (never crops), with only the EDIT line as the change", () => {
+  it("photo edit: the lean swap recipe, her two reference sheets first (never crops) and the target last", () => {
     const job = injectJob(c, pack, "LONG SCENE PROMPT", { target: TARGET, edit: "New pose: sitting", frame: "face, hair", chg: { pose: true } }, SEEDREAM, 4);
     expect(job.photoEdit).toBe(true);
-    expect(job.paths).toEqual([TARGET, `${U}/face.jpg`, `${U}/body.jpg`]);
+    expect(job.paths).toEqual([`${U}/face.jpg`, `${U}/body.jpg`, TARGET]);
     expect(job.paths.some((p) => p.includes("/pack/"))).toBe(false);
-    expect(job.prompt).toMatch(/^Replace the person in @image1 with the woman from @image2 and @image3\./);
-    expect(job.prompt).toContain("@image2 is her face reference sheet");
-    expect(job.prompt).toContain("@image3 is her full-body reference sheet, front, side and back views: take her exact body proportions");
-    expect(job.prompt).toContain("HER LOOK (fixed, the same in every image): Hair: jet black.");
+    expect(job.prompt).toMatch(
+      /^Replace the person in @image3 \(target photo\) with the exact face and hair of @image1 \(face reference\) and the entire body likeness \(chest, shoulders, waist, hips, glutes and legs\) of @image2 \(body reference\)\./,
+    );
+    expect(job.prompt).toContain("Keep everything else in @image3 exactly: outfit, hairstyle, background, light, camera angle, framing, image quality.");
     expect(job.prompt).toContain("Change: New pose: sitting.");
+    expect(job.prompt).toContain("small blemishes and fine body hair");
+    expect(job.prompt).not.toContain("HER LOOK");
     expect(job.prompt).not.toContain("LONG SCENE PROMPT");
+    expect(job.prompt.length).toBeLessThan(700);
+  });
+
+  it("a swap brief adds the camera and the pose in the writer's words, and can't be recreated without the target", () => {
+    const meta = { brief: true, camera: "Phone at chest height, straight on, tilted slightly up; main lens; frame cuts at mid-thigh", pose: "Standing, chest to the camera, weight on the leg on the left of the frame." };
+    const job = injectJob(c, pack, "ignored", { ...meta, target: TARGET }, SEEDREAM, 4);
+    expect(job.prompt).toContain("Keep everything else in @image3 exactly: pose, outfit, hairstyle,");
+    expect(job.prompt).toContain("\n\nCamera: Phone at chest height, straight on, tilted slightly up; main lens; frame cuts at mid-thigh.\n\nPose: Standing, chest to the camera, weight on the leg on the left of the frame.\n\n");
+    expect(job.prompt.length).toBeLessThan(900);
+    expect(() => injectJob(c, pack, "ignored", meta, SEEDREAM, 4)).toThrow(/Swap into photo/);
   });
 
   it("a photo edit with only one sheet sends that sheet", () => {
     const job = injectJob({ ...c, face_sheet_path: null }, null, "scene", { target: TARGET }, SEEDREAM, 10);
-    expect(job.paths).toEqual([TARGET, `${U}/body.jpg`]);
-    expect(job.prompt).toContain("@image2 is her full-body reference sheet");
+    expect(job.paths).toEqual([`${U}/body.jpg`, TARGET]);
+    expect(job.prompt).toMatch(/^Replace the person in @image2 \(target photo\) with the exact face, hair and entire body likeness \(.*\) of the woman in @image1\./);
   });
 
   it("text + refs: her two sheets, framed for the configured model, with her look in words from the pack", () => {
@@ -88,7 +100,7 @@ describe("buildJob", () => {
     h.ensureSheetPack.mockResolvedValue(pack);
     const job = await buildJob(userClient(), U, { kind: "inject", characterId: "c1", extraPaths: [], prompt: "Photo.", meta: { target: TARGET, edit: "none" } }, { model: SEEDREAM, max: 10 });
     expect(h.ensureSheetPack).toHaveBeenCalledTimes(1);
-    expect(job.paths[0]).toBe(TARGET);
+    expect(job.paths).toEqual([`${U}/face.jpg`, `${U}/body.jpg`, TARGET]);
   });
 
   it("never pays to read a sheet for a price check", async () => {

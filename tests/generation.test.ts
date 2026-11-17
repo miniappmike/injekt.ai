@@ -192,12 +192,12 @@ describe("startGeneration: opt-in generation", () => {
     expect(JSON.stringify(db.rows[0])).not.toContain("sk-spicy");
   });
 
-  it("frames an Inject prompt that carries meta: photo edit with the target first, and saves the prompt it sent", async () => {
+  it("frames an Inject prompt that carries meta: photo edit with the target last, and saves the prompt it sent", async () => {
     await startGeneration(userClient(), verified, request({ extraPaths: [], prompt: "LONG SCENE", meta: { target: `${U}/targets/t.jpg`, edit: "New pose: sitting" } }));
     const call = h.submit.mock.calls[0][0];
-    // No sheet pack and no body sheet here: the face sheet goes whole after the target.
-    expect(call.input.imageUrls).toEqual([`https://signed.test/${U}/targets/t.jpg`, `https://signed.test/${U}/characters/${C}/face.jpg`]);
-    expect(call.input.prompt).toMatch(/^Replace the person in @image1 with the woman from @image2\./);
+    // No sheet pack and no body sheet here: the face sheet goes whole, then the target.
+    expect(call.input.imageUrls).toEqual([`https://signed.test/${U}/characters/${C}/face.jpg`, `https://signed.test/${U}/targets/t.jpg`]);
+    expect(call.input.prompt).toMatch(/^Replace the person in @image2 \(target photo\) with /);
     expect(call.input.prompt).toContain("Change: New pose: sitting.");
     expect(db.rows[0].prompt).toBe(call.input.prompt);
     expect(db.rows[0].params).toMatchObject({ photo_edit: true, image_count: 2 });

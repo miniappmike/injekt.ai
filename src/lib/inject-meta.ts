@@ -18,6 +18,10 @@ export const injectMetaSchema = z.object({
   /** The target photo, when it may be sent to the image model (Inject's opt-in "Edit this photo" mode). */
   target: z.string().max(300).optional(),
   edit: z.string().max(600).optional(),
+  /** Swap into photo's short brief: the camera and the pose read from the target, and that the prompt is that brief. */
+  brief: z.boolean().optional(),
+  camera: z.string().max(400).optional(),
+  pose: z.string().max(700).optional(),
   frame: z.string().max(200).optional(),
   outfit: z.string().max(300).optional(),
   clean: z.boolean().optional(),
@@ -88,6 +92,8 @@ export const injectOptionsSchema = z.object({
   withRefs: z.boolean().default(false),
   /** The targets were cleaned of overlays: the prompt and the image job leave them out. */
   clean: z.boolean().default(false),
+  /** Swap into photo: write only the short brief (camera and pose) for the lean swap recipe, not a whole scene. */
+  swap: z.boolean().default(false),
 });
 export type InjectOptionsInput = z.input<typeof injectOptionsSchema>;
 export const INJECT_DEFAULTS = injectOptionsSchema.parse({});

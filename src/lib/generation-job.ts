@@ -6,11 +6,11 @@ import { isOwnPath } from "@/lib/uploads";
 import { referencesFor } from "@/lib/character-images";
 import { currentPack, ensureSheetPack, selectCharacter } from "@/lib/sheet-pack";
 import { getUserTextClient, withDeclineFallback } from "@/lib/ai/text-client";
-import { basePrompt, clampTags, fitCrops, condenseTask, framePrompt, sceneCondenseTask, sheetLines, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
+import { clampTags, fitCrops, condenseTask, framePrompt, sceneCondenseTask, sheetLines, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
 import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
 import { faceFixPrompt, likenessFixPrompt, type FixRefs } from "@/lib/ai/prompts/likeness";
 import { carouselSlidePrompt } from "@/lib/ai/prompts/variants";
-import { swapPrompt } from "@/lib/ai/prompts/swap";
+import { leanSwap, swapPrompt, type LeanSwapOptions } from "@/lib/ai/prompts/swap";
 import { sheetPrompts } from "@/lib/ai/prompts/sheets";
 import { buildDirectorPrompt, MAX_DIRECTION } from "@/lib/ai/prompts/director";
 import { parseVersions } from "@/lib/ai/prompts/inject";
@@ -67,15 +67,29 @@ export function sheetRefs(c: JobCharacter, pack: SheetPack | null, max: number, 
 }
 
 /**
- * Artifact genJobFor: a photo edit when the target may be sent (her sheets after the target, with basePrompt),
- * otherwise her sheets alone with the model's identity framing around the written scene.
+ * A photo edit when the target may be sent: the lean swap recipe, her references first and the target photo last.
+ * Otherwise her sheets alone with the identity framing around the written scene.
  */
+export const BRIEF_ONLY_MESSAGE = "This prompt was written for Swap into photo. Press Write prompts again to recreate the photo instead.";
+
+/** What the lean swap recipe says for an Inject version, from its meta. */
+export const leanSwapOptions = (meta: InjectMeta): LeanSwapOptions => ({
+  who: meta.chg?.who,
+  camera: meta.camera,
+  pose: meta.brief ? meta.pose : undefined,
+  change: meta.edit,
+  poseChanges: !!meta.chg?.pose,
+  outfitChanges: !!meta.chg?.outfit,
+  hairChanges: !!meta.chg?.hair,
+  clean: !!meta.clean,
+});
+
 export function injectJob(c: JobCharacter, pack: SheetPack | null, text: string, meta: InjectMeta, model: string, max: number): BuiltJob {
-  const chg = { ...meta.chg, outfitText: meta.outfit || "", clean: !!meta.clean };
   if (meta.target) {
     const s = sheetRefs(c, pack, max - 1, 3);
-    if (s.paths.length) return { prompt: basePrompt(s.R, meta.edit, meta.frame, chg), paths: [meta.target, ...s.paths], photoEdit: true };
+    if (s.paths.length) return { prompt: leanSwap(s.R, leanSwapOptions(meta)), paths: [...s.paths, meta.target], photoEdit: true };
   }
+  if (meta.brief) throw new UserFacingError(BRIEF_ONLY_MESSAGE);
   const s = sheetRefs(c, pack, max, 3);
   if (!s.paths.length) throw new UserFacingError("This character needs a reference sheet or photo first.");
   if (s.isSheet) return { prompt: framePrompt(modelFamily(model), text, s.R, meta.frame, { outfit: meta.outfit, clean: meta.clean, realism: meta.real !== false }), paths: s.paths, photoEdit: false };

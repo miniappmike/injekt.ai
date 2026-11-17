@@ -5,10 +5,10 @@ import { UserFacingError } from "@/lib/errors";
 import { isOwnPath } from "@/lib/uploads";
 import { ensureSheetPack, selectCharacter } from "@/lib/sheet-pack";
 import { injectMetaSchema, type InjectMeta } from "@/lib/inject-meta";
-import { basePrompt, framePrompt, lockRefs, outfitLock, type Anchors } from "@/lib/ai/prompts/identity";
+import { framePrompt, lockRefs, outfitLock, type Anchors } from "@/lib/ai/prompts/identity";
 import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
-import { swapPrompt } from "@/lib/ai/prompts/swap";
-import { PROMPT_LIMIT } from "@/lib/generation-job";
+import { leanSwap, swapPrompt } from "@/lib/ai/prompts/swap";
+import { BRIEF_ONLY_MESSAGE, leanSwapOptions, PROMPT_LIMIT } from "@/lib/generation-job";
 import { attachText, linkAttachItems, retag, standaloneRefs, tagItems, type AttachItem, type StandaloneRef } from "@/lib/standalone";
 import { MAX_VERSIONS } from "@/lib/inject-meta";
 
@@ -37,16 +37,13 @@ export function injectStandalone(
   let copy: string;
   let items: Omit<AttachItem, "tag">[];
   if (target) {
-    // The edit is written with the target as @image1 and her references after it; renumbered so her references lead.
-    const n = refs.length;
-    copy = retag(basePrompt(R, meta.edit, meta.frame, { ...meta.chg, outfitText: meta.outfit || "", clean: !!meta.clean }), [
-      ...Array.from({ length: n }, (_, i) => i + 2),
-      1,
-    ]);
+    // The lean swap recipe: her references lead and the target photo is the last image, as Generate sends it.
+    copy = leanSwap(R, leanSwapOptions(meta));
     // A cleaned target is a copy only the app has, so it gets a link to save it.
     const t = target.cleanedPath ? { label: "your target photo (cleaned copy)", path: target.cleanedPath } : { label: "your target photo" };
     items = [...refItems, { ...t, source: "target" }];
   } else {
+    if (meta.brief) throw new UserFacingError(BRIEF_ONLY_MESSAGE);
     const sheets = refs.some((r) => r.kind !== "photo");
     copy = sheets
       ? framePrompt("pro", text, R, meta.frame, { outfit: meta.outfit, clean: meta.clean })

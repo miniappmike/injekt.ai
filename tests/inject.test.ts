@@ -103,13 +103,18 @@ NUDITY: no
 `;
     const v = parseVersions(reply);
     expect(v).toHaveLength(2);
-    expect(v[0]).toEqual({ pose: "sitting on the counter", frame: "face, hair, shoulders", outfit: "black ribbed sports bra", edit: "New pose: she sits on the counter.", text: "Use @image1 as the strict identity reference. Photo of a young woman." });
+    expect(v[0]).toEqual({ pose: "sitting on the counter", camera: "", frame: "face, hair, shoulders", outfit: "black ribbed sports bra", edit: "New pose: she sits on the counter.", text: "Use @image1 as the strict identity reference. Photo of a young woman." });
     // A stray NUDITY line is dropped; a stray IN FRAME after the text stays in it, as in the artifact.
     expect(v[1]).toMatchObject({ edit: "", outfit: "red dress", text: "Photo two.\nIN FRAME: face" });
   });
 
   it("reads a reply with no markers as one version, and drops a trailing half marker", () => {
-    expect(parseVersions("Photo of her.\n===")).toEqual([{ pose: "", frame: "", edit: "", outfit: "", text: "Photo of her." }]);
+    expect(parseVersions("Photo of her.\n===")).toEqual([{ pose: "", camera: "", frame: "", edit: "", outfit: "", text: "Photo of her." }]);
+  });
+
+  it("reads a swap brief: CAMERA, POSE and EDIT lines with no prompt body", () => {
+    const v = parseVersions("===VERSION 1===\nCAMERA: Phone at hip height, tilted up.\nPOSE: Kneeling on the bed, chest to the camera.\nEDIT: none");
+    expect(v).toEqual([{ pose: "Kneeling on the bed, chest to the camera.", camera: "Phone at hip height, tilted up.", frame: "", edit: "", outfit: "", text: "" }]);
   });
 });
 

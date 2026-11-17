@@ -329,7 +329,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
           update(t.id, { live: raw });
         }, 160);
       };
-      const res = await awaitOrRecover(streamInjectPrompts({ characterId, targetPath: path, options: { ...o } }, onDelta), async () => {
+      const res = await awaitOrRecover(streamInjectPrompts({ characterId, targetPath: path, options: { ...o, swap: editTarget } }, onDelta), async () => {
         const r = await recoverInjectPrompts({ characterId, targetPath: path, since, count: o.count });
         return r.ok && r.result ? { ok: true as const, ...r.result } : null;
       }).catch((e: unknown): AiFailure => ({ ok: false, error: e instanceof Error ? e.message : "Couldn't write the prompts. Try again." }));
@@ -479,6 +479,8 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
     if (on && !window.confirm("Edit the photo sends the target photo itself to the image model and changes it. Only use photos you took or have the rights to, never a real person without their consent. Continue?")) return;
     setEditTarget(on);
     writeEditTarget(on);
+    // A short swap brief can't be recreated from (it describes no scene), so say what to do.
+    if (targetsRef.current.some((t) => t.versions?.some(Boolean))) show(on ? "Press Write prompts again to get the short swap prompt with the camera and pose." : "Press Write prompts again: Recreate needs the full scene written.");
   };
   const choice = (label: string, value: boolean, options: [boolean, string][], onPick: (v: boolean) => void, tip?: ReactNode) => (
     <div className="flex flex-col gap-1.5">
@@ -501,7 +503,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
         [[false, "Recreate it"], [true, "Swap into photo"]],
         chooseEdit,
         <InfoTip label="Recreate or edit">
-          Recreate it (the default): the photo only guides the prompt, and a new image of her is made from her sheets in a similar scene, pose and style. Swap into photo: the photo itself is sent with her sheets and she replaces the person in it, which keeps the scene exactly, using your written prompt and the Pose and Outfit options. For a quick fixed swap with no prompt writing, use Direct swap. Only for photos you have the rights to. You can switch after writing.
+          Recreate it (the default): the photo only guides the prompt, and a new image of her is made from her sheets in a similar scene, pose and style. Swap into photo: the photo itself is sent after her sheets (face sheet, body sheet, then the photo) with a short prompt: replace the person, keep everything else, plus the camera angle, lens and pose read from the photo, and the Pose and Outfit options. For a quick fixed swap with no prompt writing, use Direct swap. Only for photos you have the rights to. You can switch after writing.
         </InfoTip>,
       )}
     </div>
@@ -927,8 +929,8 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                       </div>
                       {/* The written prompt is the scene; Generate wraps it with her identity and body lock and sends these. */}
                       <p className="text-xs text-neutral-500">
-                        Sent with {editTarget ? "@image1 your target photo, " : ""}
-                        {sentRefs(characters.find((c) => c.id === (t.characterId ?? characterId)), editTarget ? 2 : 1).join(", ") || "her references"}, under her identity and body lock.
+                        Sent with {sentRefs(characters.find((c) => c.id === (t.characterId ?? characterId)), 1).join(", ") || "her references"}
+                        {editTarget ? ", then your target photo as the last image." : ", under her identity and body lock."}
                       </p>
                       <div data-generate-anchor className="scroll-mt-24" aria-hidden="true" />
                       <GenerateImage

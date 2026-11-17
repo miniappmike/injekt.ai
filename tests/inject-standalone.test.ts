@@ -22,13 +22,12 @@ describe("Inject Write only", () => {
   it("with the target: the photo edit, her sheets first (face @image1, body @image2) then the target, changing only the EDIT line", () => {
     const p = injectStandalone(refs, anchors, "Photo of her on a red sofa.", meta, {});
     expect(p.attach).toEqual(["@image1: Holly's face sheet", "@image2: Holly's body sheet", "@image3: your target photo"]);
-    expect(p.copy.startsWith("Replace the person in @image3 with the woman from @image1 and @image2. @image3 is the photo to keep:")).toBe(true);
-    expect(p.copy).toContain("@image1 is her face reference sheet: take her exact face, hair and piercings. @image2 is her body reference sheet: take her exact body proportions");
-    expect(p.copy).toContain("Match @image3's own light, shadows, grain and image quality");
+    expect(p.copy.startsWith("Replace the person in @image3 (target photo) with the exact face and hair of @image1 (face reference) and the entire body likeness")).toBe(true);
+    expect(p.copy).toContain("Keep everything else in @image3 exactly:");
+    expect(p.copy).toContain("Ignore the clothing and backgrounds in @image1 and @image2.");
     expect(p.copy).not.toMatch(/@image[4-9]/);
-    expect(p.copy).toContain("Hair: jet black waves.");
+    expect(p.copy).not.toContain("Hair: jet black waves.");
     expect(p.copy).toContain("Change: new pose: seated on the sofa arm.");
-    expect(p.copy).toContain("plain outfit (white shorts).");
     expect(p.attachItems[2]).toMatchObject({ source: "target", tag: "@image3" });
   });
 

@@ -12,6 +12,9 @@ import { harness } from "@/lib/ai/prompts/harness";
 import { sheetLines } from "@/lib/ai/prompts/identity";
 import { DECLINED_MESSAGE } from "@/lib/ai/refusal";
 import { buildInjectPrompt, looksLikeRefusal, parseVersions, TWO_SHEET_OPENER, type InjectOptions, type VersionPlan } from "@/lib/ai/prompts/inject";
+import { buildSwapBriefPrompt } from "@/lib/ai/prompts/swap-brief";
+import { leanSwap } from "@/lib/ai/prompts/swap";
+import { leanSwapOptions, sheetRefs } from "@/lib/generation-job";
 import { HAIRSTYLES, PALETTES, POSE_HINTS, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
 import { injectOptionsSchema, type InjectMeta, type InjectOptionsInput } from "@/lib/inject-meta";
 import type { CharacterProfile } from "@/lib/characters";
@@ -107,11 +110,16 @@ export async function runInject(
   const [target] = await loadForVision(supabase, [{ label: "target", path: input.targetPath }], Math.min(TARGET_EDGE, imageMaxEdge ?? TARGET_EDGE));
   const refs = await loadForVision(supabase, refPaths.map((path) => ({ label: "reference photo", path })), imageMaxEdge);
 
-  const prompt = buildInjectPrompt({ ...c, profile: c.profile ?? {} }, sheetLines(pack), o, plans, refs.length, recent, inspo);
+  if (opt.swap) o.fixedIdentity = false;
+  const prompt = opt.swap
+    ? buildSwapBriefPrompt(o, plans, recent, inspo)
+    : buildInjectPrompt({ ...c, profile: c.profile ?? {} }, sheetLines(pack), o, plans, refs.length, recent, inspo);
   const task = { prompt, images: [target, ...refs].map((x) => x.dataUri) };
   const reply = client.complete ? await client.complete(task, { onDelta, stopOnRefusal: true }) : { text: await client.run(task), truncated: false };
 
-  const readReply = (text: string) => parseVersions(text).map((v) => (looksLikeRefusal(v.text) ? { ...v, text: "" } : v));
+  // The short brief has no prompt body: its CAMERA and POSE lines are the answer, kept in `text` so the checks below hold.
+  const readReply = (text: string) =>
+    parseVersions(text).map((v) => (opt.swap ? { ...v, text: v.camera || v.pose ? "brief" : "" } : looksLikeRefusal(v.text) ? { ...v, text: "" } : v));
   let parsedVersions = readReply(reply.text);
   let truncated = reply.truncated;
   let declined = looksLikeRefusal(reply.text);
@@ -138,6 +146,12 @@ export async function runInject(
   const versions = plans.map((plan, i): InjectVersion | null => {
     const v = parsedVersions[i];
     if (!v || !v.text) return null;
+    if (opt.swap) {
+      // Swap into photo: the prompt is the lean recipe itself, exactly what Generate sends with the target as the last image.
+      const meta: InjectMeta = { brief: true, camera: v.camera, pose: v.pose.slice(0, 700), edit: v.edit, chg, ...(o.clean ? { clean: true } : {}) };
+      const tags = [o.pose && "New pose", o.newOutfit && "New outfit", o.recolor && "Colours: " + plan.palette, o.hair && "Hair: " + plan.hair].filter((x): x is string => !!x);
+      return { text: leanSwap(sheetRefs(c, pack, 2, 3).R, leanSwapOptions(meta)), fixed: [], tags, meta };
+    }
     const h = harness(o.twoSheets ? withBothSheets(v.text) : v.text, { tag: o.mode === "ref" ? o.tag : "", stripAR: o.len === "full" });
     if (o.fixedIdentity) h.text = withIdentityBlock(h.text, identityBlock(pack?.anchors, v.frame));
     const tags = [v.pose ? "Pose: " + v.pose : o.pose && "New pose", o.newOutfit && "New outfit", o.recolor && "Colours: " + plan.palette, o.hair && "Hair: " + plan.hair].filter(
@@ -166,7 +180,8 @@ export async function runInject(
   );
   let k = 0;
   for (const v of versions) if (v) v.historyId = historyIds[k++] ?? null;
-  await rememberPoses(supabase, userId, parsedVersions.map((v) => v.pose).filter(Boolean));
+  // A brief's pose is a full description; only a new, invented pose is remembered, cut to its opening words.
+  if (!opt.swap || o.pose) await rememberPoses(supabase, userId, parsedVersions.map((v) => (opt.swap ? v.pose.split(/\s+/).slice(0, 12).join(" ") : v.pose)).filter(Boolean));
   return { versions, truncated, characterName: c.name };
 }
 
