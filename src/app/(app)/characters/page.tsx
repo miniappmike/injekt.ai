@@ -22,7 +22,8 @@ export default async function CharactersPage() {
   }
 
   // The free-plan limit counts every character she has, listed or not.
-  const atLimit = !(await entitlements.isUnlimited(user.id)) && (allCharacters?.length ?? 0) >= FREE_LIMITS.characters;
+  const unlimited = await entitlements.isUnlimited(user.id);
+  const atLimit = !unlimited && (allCharacters?.length ?? 0) >= FREE_LIMITS.characters;
   // An admin's characters that are on the marketplace (live, mid-checkout or sold) live there, not in this grid.
   let characters = allCharacters;
   const isAdmin = (await entitlements.planOf(user.id)) === "admin";
@@ -50,6 +51,8 @@ export default async function CharactersPage() {
   return (
     <CharactersBoard
       canList={isAdmin}
+      // Duplicate is for Pro and admin accounts (the action checks again).
+      canDuplicate={unlimited}
       atLimit={atLimit}
       limitText={limitMessage("characters")}
       characters={(characters ?? []).map((c) => ({

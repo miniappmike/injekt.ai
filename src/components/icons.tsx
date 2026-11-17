@@ -76,6 +76,9 @@ export const EyeOffIcon = ({ className }: P) => (
 export const TrashIcon = ({ className }: P) => (
   <svg {...base(className)}><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4L17.5 7M10 11v6M14 11v6" /></svg>
 );
+export const DuplicateIcon = ({ className }: P) => (
+  <svg {...base(className)}><rect x="8.5" y="8.5" width="11" height="11" rx="2" /><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2" /></svg>
+);
 export const LockIcon = ({ className }: P) => (
   <svg {...base(className)}><rect x="5" y="10.5" width="14" height="9.5" rx="2.5" /><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" /></svg>
 );
