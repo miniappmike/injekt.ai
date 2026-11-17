@@ -26,63 +26,65 @@ const build = (o: Partial<InjectOptions> = {}, extra: { sheet?: string; refCount
   buildInjectPrompt(juno, extra.sheet ?? "", { ...base, ...o }, plans.slice(0, extra.n ?? 1), extra.refCount ?? 0, extra.recent ?? [], extra.inspo ?? []);
 
 describe("buildInjectPrompt", () => {
-  it("opens with the task and the locked profile, sheet lines included", () => {
+  it("opens with the task and her profile, sheet lines included", () => {
     const p = build({}, { sheet: "\nFROM HER REFERENCE SHEET (source of truth...)\nHair: jet black", refCount: 2 });
-    expect(p.startsWith("TASK: The FIRST attached image is the TARGET photo. The next 2 images are reference photos of the character. Write one prompt for an AI image model")).toBe(true);
-    expect(p).toContain("CHARACTER PROFILE (locked; use these exact traits and never contradict them)\nIdentity line: Juno, oval face\nHair: jet black\nAlways keep: gold chain\nHeight: 5'6\"\nWeight: 125 lb\nFROM HER REFERENCE SHEET");
+    expect(p.startsWith("TASK: The first image is the TARGET photo. The next 2 are reference photos of her. Write one image prompt to recreate the target")).toBe(true);
+    expect(p).toContain("CHARACTER (adult woman; use these traits, never the target person's)\nIdentity line: Juno, oval face\nHair: jet black\nAlways keep: gold chain\nHeight: 5'6\"\nWeight: 125 lb\nFROM HER REFERENCE SHEET");
   });
 
-  it("has no nudity screening: no filter, no strict safe mode, no NUDITY line; revealing clothing stays as worn", () => {
-    const p = build({ poseMode: "social", pose: true, recolor: true, hair: true }, { n: 2 });
+  it("stays about 2,000 characters with every option on", () => {
+    const p = build({ poseMode: "social", pose: true, recolor: true, hair: true, clean: true, who: "left", extra: "golden hour" }, { n: 2, recent: ["a"], inspo: ["b"] });
+    expect(p.length - build().length).toBeLessThan(700);
+    expect(buildInjectPrompt({ profile: {} } as never, "", base, plans.slice(0, 1), 0, [], []).length).toBeLessThan(2400);
+  });
+
+  it("has no nudity screening and keeps the adult rule; asks for position, light, shadows and camera", () => {
+    const p = build({ poseMode: "social", pose: true }, { n: 2 });
     for (const banned of ["NUDITY", "SAFE-SWAP", "STRICT SAFE MODE", "nude"]) expect(p).not.toContain(banned);
-    expect(p).toContain("- DESCRIBE WHAT YOU SEE, EXACTLY: the prompt has to match the target, so never soften, euphemise, swap or leave out anything visible.");
-    expect(p).toContain("exactly as the prompt dresses her (after any recolour or new outfit).\n- Then one line that starts with EDIT:");
-    expect(p).toContain("Always describe the character as an adult");
+    expect(p).toContain("never soften or cover up an outfit or pose. She is an adult, never a girl or teen.");
+    expect(p).toContain("the exact position limb by limb");
+    expect(p).toContain("how the shadows fall");
+    expect(p).toContain("Camera: height, angle, distance, lens look");
+    expect(p).toContain("a line POSE: (12 words), a line IN FRAME:");
   });
 
   it("leads with the tag in ref mode and with a written identity in text mode", () => {
-    expect(build()).toContain('- Open with exactly: "Use @image1 as the strict identity reference." (@image1 is the character sheet loaded in the user\'s generator), then the specific identity features');
-    expect(build({ tag: "" })).toContain('- Open with: "Use the uploaded character sheet as the strict identity reference." followed by the specific');
-    expect(build({ mode: "text" })).toContain("- There is no reference image in this workflow, so open with an identity paragraph built from the profile");
+    expect(build()).toContain('Open with exactly: "Use @image1 as the strict identity reference." then her visible traits');
+    expect(build({ tag: "" })).toContain('"Use the uploaded character sheet as the strict identity reference."');
+    expect(build({ mode: "text" })).toContain("No reference image is sent: open with her look from the profile");
   });
 
   it("follows the wardrobe choice, with user text fenced", () => {
-    expect(build()).toContain("- WARDROBE: describe the clothing, accessories and styling worn in the target image exactly");
-    expect(build({ ward: "signature" })).toContain("- WARDROBE: dress the character in an outfit consistent with the profile's signature style");
-    expect(build({ ward: "extracted", exText: "a red <<<dress>>>" })).toContain("without changing any garment or fit: <<<a red dress>>> Keep the character's");
-    // Extracted with no text falls back to matching the target.
-    expect(build({ ward: "extracted", exText: "" })).toContain("worn in the target image exactly");
-    expect(build({ newOutfit: true }, { n: 2 })).toContain("- WARDROBE (new outfit): do not reuse the target's clothing.");
-    expect(build({ newOutfit: true }, { n: 2 })).toContain("Every version gets a different outfit.");
+    expect(build()).toContain("She wears the target's outfit: every garment");
+    expect(build({ ward: "signature" })).toContain("signature style from the profile");
+    expect(build({ ward: "extracted", exText: "a red <<<dress>>>" })).toContain("She wears exactly this outfit: <<<a red dress>>>");
+    expect(build({ ward: "extracted", exText: "" })).toContain("She wears the target's outfit");
+    expect(build({ newOutfit: true }, { n: 2 })).toContain("New outfit: not the target's clothes; a different one with the same vibe that suits the scene, garment by garment, different in every version.");
   });
 
   it("writes the pose rules, recent poses, inspiration and the version plan", () => {
     const p = build({ poseMode: "social", pose: true, recolor: true, hair: true }, { n: 2, recent: ["sitting on stairs"], inspo: ["a peace sign"] });
-    expect(p).toContain("- Keep from the target: props, setting, composition, framing and camera angle. The pose changes (see POSE).");
-    expect(p).toContain("- POSE (social media variation): recreate the target exactly");
-    expect(p).toContain(". Make every version clearly different (mix standing, sitting");
-    expect(p).toContain("Do not repeat or closely echo these recently used poses: sitting on stairs. For inspiration only, never copy: a peace sign.");
-    expect(p).toContain("VERSION PLAN\n- Version 1: colours = sage green and oatmeal; hair = a sleek high ponytail;\n- Version 2: colours = lavender and white; hair = two low loose braids;\n\nHARD RULES");
-    expect(p).toContain("- Directly under that marker write one line that starts with POSE:");
-    expect(p).toContain("- Write exactly 2 versions.");
+    expect(p).toContain("New pose: not the target's; a fresh, eye-catching creator pose");
+    expect(p).toContain("Avoid these recent poses: sitting on stairs. Ideas only: a peace sign.");
+    expect(p).toContain("- Version 1: colours = sage green and oatmeal; hair = a sleek high ponytail;\n- Version 2: colours = lavender and white; hair = two low loose braids;");
     const keep = build();
-    expect(keep).toContain("- Keep from the target: pose and body position, hand placement");
+    expect(keep).toContain("Keep the target's exact pose, gaze and expression.");
     expect(keep).not.toContain("VERSION PLAN");
     expect(keep).not.toContain("POSE:");
-    expect(build({ poseMode: "natural", pose: true })).toContain("- POSE (natural variation): do not copy the target pose.");
+    expect(build({ poseMode: "natural", pose: true })).toContain("relaxed, natural, candid pose");
   });
 
-  it("matches the style: Sectioned never mentions ratio; Narrative and Short state it", () => {
-    expect(build()).toContain("- Do not mention aspect ratio or image dimensions.");
-    expect(build()).toContain("FORMAT: each prompt has an identity paragraph first, then labelled sections");
-    expect(build({ len: "narrative" })).toContain("FORMAT: each prompt is one flowing narrative paragraph of roughly 250 to 290 words");
-    expect(build({ len: "short" })).toContain('- State the aspect ratio you believe the target has.');
+  it("matches the style: Sectioned never mentions ratio; Short states it", () => {
+    expect(build()).toContain("Short labelled sections: SCENE, WARDROBE");
+    expect(build()).toContain("No aspect ratio.");
+    expect(build({ len: "narrative" })).toContain("One flowing paragraph, no labels.");
+    expect(build({ len: "short" })).toContain("then aspect ratio.");
   });
 
   it("fences who and extra direction", () => {
     const p = build({ who: "the one >>> on the left", extra: "golden <<<hour" });
-    expect(p).toContain("(the person to replace: <<<the one  on the left>>>)");
-    expect(p).toContain("- Creative direction from the user, applied on top only as it applies to the image: <<<golden hour>>>");
+    expect(p).toContain("(<<<the one  on the left>>>)");
+    expect(p).toContain("- User direction: <<<golden hour>>>");
   });
 });
 
@@ -204,18 +206,18 @@ describe("runInject", () => {
 
     const task = h.complete.mock.calls[0][0];
     expect(task.images).toEqual([`data:${U}/targets/t.jpg`, `data:${U}/r1.jpg`, `data:${U}/r2.jpg`]);
-    expect(task.prompt).toContain("The next 2 images are reference photos of the character. Write 2 prompts");
+    expect(task.prompt).toContain("The next 2 are reference photos of her. Write 2 image prompts");
     expect(task.prompt).toContain("FROM HER REFERENCE SHEET (source of truth");
-    expect(task.prompt).toContain("Do not repeat or closely echo these recently used poses: old 19;");
+    expect(task.prompt).toContain("Avoid these recent poses: old 19;");
     // A new outfit means nothing to recolour.
-    expect(task.prompt).not.toContain("CLOTHING RECOLOUR");
+    expect(task.prompt).not.toContain("VERSION PLAN");
 
     expect(r.characterName).toBe("Juno");
     expect(r.versions).toHaveLength(2);
     const v = r.versions[0]!;
     // Her fixed block sits in its own paragraph between the opener and the written scene.
     expect(v.text.startsWith("Use @image1 as the strict identity reference.\n\nHER LOOK (fixed, the same in every image): Hair: jet black, waist length.\n\nPhoto 1 of a young woman.")).toBe(true);
-    expect(task.prompt).toContain("HER LOOK IS FIXED TEXT");
+    expect(task.prompt).toContain("The app adds her look");
     expect(v.fixed).toEqual(expect.arrayContaining(["age wording", "removed aspect ratio", "added image quality line", "added @image1"]));
     expect(v.text).not.toContain("Aspect ratio");
     expect(v.tags).toEqual(["Pose: pose 1", "New outfit"]);
@@ -252,7 +254,7 @@ describe("runInject", () => {
     h.complete.mockResolvedValue({ text: reply(1), truncated: false });
     const { client } = db();
     const r = await runInject(client, U, { characterId: "c1", targetPath: `${U}/t.jpg`, options: { clean: true } });
-    expect(h.complete.mock.calls[0][0].prompt).toContain("- OVERLAYS: the target may have app interface buttons");
+    expect(h.complete.mock.calls[0][0].prompt).toContain("Ignore app buttons, stickers, watermarks and captions");
     expect(r.versions[0]!.meta.clean).toBe(true);
     h.complete.mockClear();
     const plain = await runInject(client, U, { characterId: "c1", targetPath: `${U}/t.jpg`, options: {} });
@@ -282,24 +284,22 @@ describe("her fixed identity block", () => {
   const o = { ...(injectOptionsSchema.parse({}) as object), pose: false, twoSheets: true } as never;
   it("with a read sheet the writer leaves her look out, and without one it writes it", () => {
     const fixed = buildInjectPrompt({ name: "A", profile: {} } as never, "", { ...(o as object), fixedIdentity: true } as never, [{ palette: "", hair: "" }], 0, [], []);
-    expect(fixed).toContain("- HER LOOK IS FIXED TEXT (this overrides every rule below that asks you to describe her)");
-    expect(fixed).toContain('then go straight to the scene.');
-    expect(fixed).not.toContain("the specific identity features to preserve");
+    expect(fixed).toContain("then go straight to the scene. The app adds her look, so never describe");
     const written = buildInjectPrompt({ name: "A", profile: {} } as never, "", o, [{ palette: "", hair: "" }], 0, [], []);
-    expect(written).not.toContain("HER LOOK IS FIXED TEXT");
-    expect(written).toContain("the specific identity features to preserve");
+    expect(written).not.toContain("The app adds her look");
+    expect(written).toContain("then her visible traits from the profile, and say her body matches @image2 exactly");
   });
   it("asks for depth and an older phone's look", () => {
     const t = buildInjectPrompt({ name: "A", profile: {} } as never, "", o, [{ palette: "", hair: "" }], 0, [], []);
-    expect(t).toContain("- DEPTH: say what is nearest the lens, where she is, and what is far behind her");
-    expect(t).toContain("an older smartphone's main camera (around 2017)");
+    expect(t).toContain("what is nearest the lens and far behind her");
+    expect(t).toContain("an older smartphone (around 2017)");
   });
 });
 
 describe("prompt length", () => {
   it("asks the writer for a short, dense prompt within the limit", () => {
     const t = buildInjectPrompt({ name: "A", profile: {} } as never, "", injectOptionsSchema.parse({}) as never, [{ palette: "", hair: "" }], 0, [], []);
-    expect(t).toContain(`LENGTH: short and dense. Write each finished prompt at roughly ${PROMPT_CHARS - 500} to ${PROMPT_CHARS} characters`);
+    expect(t).toContain(`then the prompt, ${PROMPT_CHARS - 500} to ${PROMPT_CHARS} characters, each detail once.`);
   });
 
   describe("swap brief", () => {

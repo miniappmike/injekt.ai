@@ -3,7 +3,7 @@
  * nudity screening, so the NUDITY FILTER, strict safe mode, [[SAFE-SWAP]] and the NUDITY output line are left out; the
  * "revealing clothing is fine" rule, the adult-only wording and the mild body wording stay.
  */
-import { fence, PROPORTIONS_WORDS } from "./rules";
+import { fence } from "./rules";
 import { profileBlock } from "../tasks/profile-builder";
 import type { CharacterProfile } from "@/lib/characters";
 import type { POSE_MODES, PROMPT_STYLES, WARDROBES } from "@/lib/inject-meta";
@@ -13,7 +13,7 @@ import type { POSE_MODES, PROMPT_STYLES, WARDROBES } from "@/lib/inject-meta";
  * How long each written prompt may be. The image model takes 5,000 characters, but it follows a short prompt more
  * closely: with the app's framing (about 1,200 to 1,700) the whole prompt stays near 3,000 to 3,500 characters.
  */
-export const PROMPT_CHARS = 1900;
+export const PROMPT_CHARS = 1400;
 
 /** The written prompt's opener when both of her sheets go to the generator. */
 export const TWO_SHEET_OPENER = "Use @image1 (her face sheet) and @image2 (her body sheet) as the strict identity reference.";
@@ -59,102 +59,67 @@ export interface InjectCharacter {
   weight?: string | null;
 }
 
-/** The artifact's buildInjectPrompt, without the nudity rules. `sheet` is sheetLines() for her pack. */
+/**
+ * Recreate's instruction to the vision model. Cut from about 12,000 to about 2,000 characters on the owner's
+ * instruction (November 17): a text model follows a short brief, and a long one made long prompts. It says once: put
+ * her in place of the person, which parts of her show and in what position, the light and shadows, the camera, and the
+ * realism. Don't grow it back; add a few words to the matching line instead. `sheet` is sheetLines() for her pack.
+ */
 export function buildInjectPrompt(c: InjectCharacter, sheet: string, o: InjectOptions, plans: VersionPlan[], refCount: number, recent: string[], inspo: string[]): string {
   const n = plans.length;
   const opener = o.twoSheets ? TWO_SHEET_OPENER : o.tag ? `Use ${o.tag} as the strict identity reference.` : "Use the uploaded character sheet as the strict identity reference.";
   const fixed = o.mode === "ref" && !!o.fixedIdentity;
-  const lead = fixed
-    ? `Open with exactly: "${opener}" then go straight to the scene.`
-    : o.mode === "ref"
-      ? (o.twoSheets
-          ? `Open with exactly: "${TWO_SHEET_OPENER}" (@image1 is her face sheet and @image2 her full-body sheet, both loaded in the generator), then`
-          : o.tag
-          ? `Open with exactly: "Use ${o.tag} as the strict identity reference." (${o.tag} is the character sheet loaded in the user's generator), then`
-          : 'Open with: "Use the uploaded character sheet as the strict identity reference." followed by') +
-        " the specific identity features to preserve that are visible in the target's framing (face, eyes, freckles or marks, lips, hair, signature accessories), written from the profile." +
-        (o.twoSheets ? " When you state her body and build, say it must match @image2 exactly." : "")
-      : "There is no reference image in this workflow, so open with an identity paragraph built from the profile (face, eyes, skin marks, hair, build, accessories), limited to what is visible in the target's framing, so the model can reproduce the same person from text alone.";
-  const wardLine = o.newOutfit
-    ? `WARDROBE (new outfit): do not reuse the target's clothing. Design a completely different outfit that keeps the target's vibe and aesthetic (style, colour story, level of dressiness, season) and makes sense for this exact scene and activity. Name every garment with its type, fabric, fit and colour, plus footwear if the feet are in frame and accessories; real brands are fine where they fit the aesthetic. Keep the character's signature accessories if they suit it.${n > 1 ? " Every version gets a different outfit." : ""}`
+  const lead =
+    o.mode === "text"
+      ? "No reference image is sent: open with her look from the profile (face, hair, skin, marks, build), only what is in frame."
+      : fixed
+        ? `Open with exactly: "${opener}" then go straight to the scene. The app adds her look, so never describe her face, eyes, hair colour or length, skin, marks or body shape.`
+        : `Open with exactly: "${opener}" then her visible traits from the profile, and say her body matches ${o.twoSheets ? "@image2" : "the reference"} exactly, never slimmed or idealised.`;
+  const ward = o.newOutfit
+    ? `New outfit: not the target's clothes; a different one with the same vibe that suits the scene, garment by garment${n > 1 ? ", different in every version" : ""}.`
     : o.ward === "extracted" && o.exText
-      ? `WARDROBE: dress the character in exactly this outfit and write it into the prompt without changing any garment or fit: <<<${fence(o.exText)}>>> Keep the character's signature accessories only if they do not clash with it.`
-      : o.ward !== "signature"
-        ? 'WARDROBE: describe the clothing, accessories and styling worn in the target image exactly (fabric, fit, colour, wear, trims, stripes, zips, logos), but not the target person\'s body piercings or tattoos. Also name the main garments with their colours in the very first sentence of the prompt (for example "photo of a young woman in a black sleeveless half-zip crop top and black bike shorts with a grey side stripe ..."), so the outfit is stated up front as well as in the wardrobe description. Keep the character\'s signature accessories if they do not clash with the outfit.'
-        : "WARDROBE: dress the character in an outfit consistent with the profile's signature style and accessories instead of the target's clothing, keeping the target's mood and season.";
-  const format =
-    o.len === "narrative"
-      ? 'FORMAT: each prompt is one flowing narrative paragraph of roughly 250 to 290 words, written like a vivid scene description, with no section labels or bullet points. Order: who is there, what they are doing and the mood; expression and gaze; hair; the pose limb by limb using left and right and what each hand holds or touches; the outfit; the character\'s face and skin from the profile; the setting and everything visible in the room or reflection; the light with its source and direction; the capture device and image quality; the colour palette; the overall vibe in one sentence; the aspect ratio. Use concrete everyday phrases such as "messy low bun" or "foot flat on the floor" instead of abstract adjectives. Finish with the exclusions (no text overlays, no watermark, no added logos beyond the brands named in the prompt, no garbled or made-up lettering).'
-      : o.len === "short"
-        ? 'FORMAT: each prompt is one tight paragraph that begins "Photo of ...", then the identity, action, setting, light and camera look in that order, then one closing line for aspect ratio and exclusions.'
-        : "FORMAT: each prompt has an identity paragraph first, then labelled sections in this order: SCENE, WARDROBE, BACKGROUND, LIGHT, CAMERA AND LOOK, and ends with one line of exclusions (no text overlays or captions, no watermark, no added logos beyond the brands named in the prompt, no garbled or made-up lettering). Do not mention aspect ratio anywhere. Section bodies are short flowing prose, no bullet points. Each section adds only what is not already said: the opening sentence names the scene and outfit in brief, and SCENE, WARDROBE and the rest give the details without repeating it; the skin and camera realism goes once, in CAMERA AND LOOK.";
-  const safeRule =
-    '- DESCRIBE WHAT YOU SEE, EXACTLY: the prompt has to match the target, so never soften, euphemise, swap or leave out anything visible. Name every garment as it really is, with its real coverage, colour, fabric and fit: a thong is a thong, lingerie is lingerie, sheer or see-through fabric is called sheer or see-through, a plunging neckline or a micro skirt is called that (for example "a black lace bralette and matching high-cut briefs"). Describe the pose, expression and mood as they are. Never replace a revealing outfit with a more covered one, never tone a pose down, and never skip a detail because it is revealing. She is an adult.\n';
-  const keepLine = o.pose
-    ? "- Keep from the target: props, setting, composition, framing and camera angle. The pose changes (see POSE)."
-    : "- Keep from the target: pose and body position, hand placement, gaze and expression, props, setting, composition and camera angle.";
-  const varRules = [
-    o.poseMode === "social"
-      ? `- POSE (social media variation): recreate the target exactly (same outfit, setting, props, light, colour, camera, lens look and framing) and change only the pose. Read the image's vibe (setting, props, mood, time of day, camera position) and invent a fresh, eye-catching pose for each version that a popular lifestyle creator would post: confident, playful or effortlessly candid, physically possible in this space from this camera position, and different from the target's pose${n > 1 ? ". Make every version clearly different (mix standing, sitting, lying, motion, using a prop, a gesture near the face)" : ""}.`
-      : o.pose
-        ? `- POSE (natural variation): do not copy the target pose. Invent a relaxed, natural, candid pose that fits this setting, camera position and framing${n > 1 ? ", different in every version" : ""}.`
-        : "",
-    o.pose
-      ? `- Keep props logical (a mirror selfie still holds the phone). Describe the pose limb by limb with left and right, with a matching expression and gaze. Adjust the framing only as much as the pose needs.${recent.length ? ` Do not repeat or closely echo these recently used poses: ${recent.join("; ")}.` : ""} For inspiration only, never copy: ${inspo.join("; ")}.`
-      : "",
-    o.recolor
-      ? "- CLOTHING RECOLOUR: keep every garment's type, cut, fit, fabric and texture, but recolour the outfit with the palette given for that version in the VERSION PLAN. State the new colour of each garment. This overrides any colour given elsewhere."
-      : "",
-    o.hair
-      ? "- HAIRSTYLE: style the hair as given for that version in the VERSION PLAN, keeping the profile's exact hair colour, length, texture and highlights. If the hair is too short for it, choose the closest style that suits its length. This overrides the target's hairstyle."
-      : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+      ? `She wears exactly this outfit: <<<${fence(o.exText)}>>>`
+      : o.ward === "signature"
+        ? "She wears an outfit in her signature style from the profile, not the target's clothes."
+        : "She wears the target's outfit: every garment with type, colour, fabric and fit, named in the first sentence too.";
+  const pose = o.pose
+    ? `New pose: not the target's; a ${o.poseMode === "social" ? "fresh, eye-catching creator pose" : "relaxed, natural, candid pose"} possible in this place from this camera${n > 1 ? ", different in every version" : ""}. Keep props logical.${recent.length ? ` Avoid these recent poses: ${recent.join("; ")}.` : ""}${inspo.length ? ` Ideas only: ${inspo.join("; ")}.` : ""}`
+    : "Keep the target's exact pose, gaze and expression.";
   const plan =
     o.recolor || o.hair
-      ? "VERSION PLAN\n" + plans.map((p, i) => `- Version ${i + 1}:${o.recolor ? ` colours = ${p.palette};` : ""}${o.hair ? ` hair = ${p.hair};` : ""}`).join("\n") + "\n\n"
+      ? "\nVERSION PLAN" + (o.recolor ? " (recolour every garment, same cut)" : "") + (o.hair ? " (hairstyle; same colour and length)" : "") + ":\n" +
+        plans.map((p, i) => `- Version ${i + 1}:${o.recolor ? ` colours = ${p.palette};` : ""}${o.hair ? ` hair = ${p.hair};` : ""}`).join("\n") + "\n"
       : "";
-  return `TASK: The FIRST attached image is the TARGET photo.${refCount ? ` The next ${refCount} image${refCount > 1 ? "s are" : " is"} reference photos of the character.` : ""} Write ${n > 1 ? n + " prompts" : "one prompt"} for an AI image model that recreate the target photo with the CHARACTER below in place of the person in it${o.who ? ` (the person to replace: <<<${fence(o.who)}>>>)` : ""}.
+  const format =
+    o.len === "narrative"
+      ? "One flowing paragraph, no labels."
+      : o.len === "short"
+        ? 'One tight paragraph starting "Photo of ...", then aspect ratio.'
+        : "Short labelled sections: SCENE, WARDROBE, BACKGROUND, LIGHT, CAMERA AND LOOK, then one exclusions line.";
+  return `TASK: The first image is the TARGET photo.${refCount ? ` The next ${refCount} ${refCount > 1 ? "are" : "is"} reference photos of her.` : ""} Write ${n > 1 ? n + " image prompts" : "one image prompt"} to recreate the target with the CHARACTER below in place of the person in it${o.who ? ` (<<<${fence(o.who)}>>>)` : ""}.
 
-CHARACTER PROFILE (locked; use these exact traits and never contradict them)
+CHARACTER (adult woman; use these traits, never the target person's)
 ${profileBlock(c)}${sheet}
-
-${plan}HARD RULES
-${fixed ? `- HER LOOK IS FIXED TEXT (this overrides every rule below that asks you to describe her): the app adds her identity block (face, hair, skin, marks and build) to the prompt word for word, so it is the same in every image. Do NOT describe her face, eyes, hair colour or length, skin tone, freckles, marks, tattoos, height or body shape anywhere in your prompt. Where a rule below is about her body or marks, follow only what it tells you to leave out. Call her "she" or "the woman". You still describe how her hair is worn, her makeup, expression, gaze, pose and outfit, and you still add negatives for the target person's own tattoos or piercings.\n` : ""}- ONLY WHAT IS IN FRAME: describe nothing the target does not show. Work out which parts of her are visible first (the IN FRAME line), then write only about those: no shoes, feet or floor contact when her feet are out of frame; no face, eyes, expression, gaze or makeup when her face is hidden, turned away or cropped out; no legs or lower outfit for a waist-up crop; no hands when they are out of frame; nothing about a part of the room the photo does not show. This keeps the prompt short and stops the image model inventing what was never there.
-- DEPTH: say what is nearest the lens, where she is, and what is far behind her, as the target shows it (for example the blurred edge of a doorframe close to the camera, her in the middle, the room behind), and name the lens look when it is clear (a wide phone lens close to her, a tighter portrait look).
-- ILLUSTRATED TARGETS: if the target is anime, manga, a cartoon, a drawing, digital art or a 3D render, use it only as a reference for pose, outfit, accessories, composition and mood, and turn it into a real photograph. Translate every drawn element into its real-world equivalent: real fabrics with weight, seams and creases, real shoes and bags, real skin, real lighting and a real camera. Ignore the drawn character's exaggerated proportions and use the character profile's real build instead. Never mention anime, illustration, drawing, art style, cel shading, line art or any named fictional character in the prompt.
-- NO SCENE IN THE TARGET: if the background is plain white, transparent, a flat colour, a studio cut-out or otherwise empty, invent a believable real-world location that suits the outfit, pose and vibe (for example, a fitted knit dress with a shoulder bag suits a city sidewalk or a stylish café at golden hour), and describe it concretely with matching light. Keep the target's framing, such as full body head to toe.
-- LEGIBLE TEXT ONLY: never leave lettering vague (no "a graphic print with text"). For every piece of visible text in the scene (clothing prints, signs, posters, book covers, screens, packaging, phone cases, mugs, tattoos), write the exact short words in quotes and say they are clean and legible, in clear print or neat cursive. Keep real brands, logos and slogans exactly as they appear in the target, named and spelled correctly, with the logo described accurately (for example a Nike swoosh, the Adidas three stripes, "Champion" script); brands make the photo real. Keep any other wording that is clearly readable. Only if text is unreadable, gibberish or foreign-looking scribble, or is a real person's name, replace it with short generic wording in quotes (for example "good vibes", "sunday", "coffee club", "est. 2019", "hello") or describe that item as a plain design with no lettering. Keep small background text to a minimum: soften it out of focus or leave the surface plain.
-- SOCIAL MEDIA QUALITY (default): unless the user's extra direction says otherwise, make every prompt look like a real, unedited photo a creator actually posted: believable light, the subject clearly the focus, vertical framing suited to a feed or story, focus on the face with natural softness and falloff elsewhere, a natural colour grade, shot on a phone. It must read as a real camera capture, never a retouched, glossy, beauty-filtered or CGI image. Never use the words flawless, polished, glossy, glowing, radiant, dewy, luminous, porcelain, airbrushed, smooth skin, perfect, ultra-sharp or crisp.
-- NO FACE IN THE TARGET: if the target person's face is not visible (cropped out of frame, turned fully away, a back view, hidden behind a phone, hands, hair, mask or helmet, or a body-only crop), keep the exact framing and crop of the target and do not add a face that is not in frame. Put the likeness into everything that is visible instead: the character's exact body build and proportions, height impression, skin tone and undertone, freckles, moles, tattoos and other marks from the profile, hands and nails, hair colour, texture, length and style if any hair shows, and the signature accessories. State plainly that this is the same person as the reference so the body matches her exactly.
-- VISIBLE TRAITS ONLY: first work out what of the person is actually in frame in the target and from which side (how much of the face, the hair, which body parts, hands, legs, feet). Bring in only the character traits that would be visible in that framing and angle, and leave out everything cropped out or hidden: no eye colour, brows or face freckles for a back view or a face hidden behind a phone; no legs, feet, height or full-figure build for a head-and-shoulders crop; no tattoos, moles or marks on areas that are covered by clothing or out of frame; no accessories that would not show from that side. Covered body parts keep the character's shape, but their skin details are not described.
-- BODY ADHERENCE (strict, required): the character's body replaces the target person's body completely. Restate the profile's body and build with its concrete proportion anchors for the parts of the body that are in frame (frame, shoulder width, bust, waist, hips, glutes, thigh and leg length, muscle tone, height impression) in plain, concrete wording, and say the body must match the reference exactly with no slimming, enlarging or idealising. Never carry over the target person's figure, even when the outfit or pose shows it off.
-- BODY MODIFICATIONS BELONG TO THE CHARACTER: never carry over the target person's tattoos, piercings (belly-button/navel, nose, septum, lip, eyebrow, tongue, extra ear piercings), scars, birthmarks or moles, and never list them as jewellery or accessories. Only include ones that the character profile or reference sheet lines give her. When the target shows one she does not have, add a short negative for it in the prompt, for example "no navel piercing" or "no tattoos on her arms", so the generator does not copy it.
-- TATTOOS ARE SKIN, NEVER CLOTHING: her tattoos exist only on her bare skin. Mention a tattoo only when its exact spot is bare and in frame in this version's outfit and pose. When the outfit covers that spot (for example a catsuit, bodysuit, one-piece swimsuit, high-waisted bottoms or a top over a lower-belly tattoo), do not mention the tattoo at all, and if that garment has no print of its own, describe it as plain and solid with no print, motif or graphic. Never describe a tattoo design as a print, pattern, patch, embroidery or logo on any garment.
-- Do NOT describe the target person's face, hair colour, skin, body shape or distinguishing marks. Replace them entirely with the character profile. Do not name or identify anyone.
-${keepLine}
+${plan}
+SAY, IN THIS ORDER
 - ${lead}
-- ${wardLine}
-- The character's reference images show her in a plain placeholder outfit. Never describe or reuse it; she wears only the wardrobe above.
-- Begin by saying who is there and what they are doing, as a plain "photo of ..." or scene description. Never use "photorealistic", "photorealism", "8k", "hyper-detailed", "ultra HD" or similar filler; say what is physically visible instead.
-- Always describe the character as an adult (young woman, woman, young man, man), never as a girl, boy, teen or child, and never state an age under 21.
-- Body shape: describe the build exactly as the reference sheet lines state (or the profile when there are none), in plain, concrete wording such as curvy hourglass figure, wide hips, full rounded glutes, fuller bust, narrow waist, slim build or petite frame. Never soften a curvy build into slim or athletic, and never make a slim build curvy. ${PROPORTIONS_WORDS}
-- If the profile gives a height or weight, turn them into visual build terms (for example tall and long-limbed, petite, slender). Mention the height once in plain terms such as about 5'6", only when most of the body is in frame. Never write the weight as a number.
-- Light: name the source and direction (for example key light from top right, bounce fill from low left, hard midday sun overhead, daylight through blinds off camera) and how the shadows fall (which way, how long, how soft, a contact shadow where she touches the ground); if something glows (candles, pumpkins, a neon sign, a screen) say it tints the nearby skin and surfaces. Never write just "natural lighting". Let the setting inform the light.
-- IMAGE QUALITY AND SHADING, required in every prompt: describe the target's image quality (sharpness, resolution feel, noise or grain, compression, dynamic range, colour grade) and its shading (where the light falls on the person and the scene, the contrast, how hard or soft and how deep the shadows are, highlight roll-off, the colour of the shadows), so the new image keeps both exactly. Never upgrade a low-quality or phone photo to a clean studio look, and never flatten or even out the shading.
-- If the target looks candid or phone-shot, say so. Add film stock, lens or grade details only if the image clearly shows them. If you name a camera body, put it near the end.
-${o.len === "full" ? "- Do not mention aspect ratio or image dimensions." : "- State the aspect ratio you believe the target has."}
-- REALISM, required in every prompt: (1) a skin sentence: real, unretouched, matte skin with visible pores, fine peach fuzz, uneven tone, faint redness and small natural imperfections, using the profile's skin tone and marks, plus a few flyaway hairs, and never shine, glow or smoothness; (2) a materials sentence: the real texture of the fabrics, surfaces and objects, such as ribbed knit weave, soft fleece, creases, fraying, wood grain, dust; (3) a camera quality sentence matching how the target was captured: device or camera type, focal length look, depth of field, noise or grain, sharpening, dynamic range. Always include real camera imperfections: slight softness and focus falloff away from the face, faint motion blur where something moves, visible noise in the shadows, mild compression and slightly imperfect white balance. A phone photo gets the look of an older smartphone's main camera (around 2017) with those imperfections and true-to-life colour. A film photo gets grain, halation and its colour grade. A green screen or coloured backdrop casts a faint colour spill on the skin and clothes.
-${varRules ? varRules + "\n" : ""}- ${format}
-${safeRule}${o.clean ? '- OVERLAYS: the target may have app interface buttons, icons, watermarks, usernames, stickers, emoji or caption text laid on top of the photo, or soft painted-over patches where they were removed. They are not part of the scene: never describe them, and add "no app interface elements, floating buttons, stickers or screen overlays" to the exclusions.\n' : ""}${o.extra ? `- Creative direction from the user, applied on top only as it applies to the image: <<<${fence(o.extra)}>>>\n` : ""}
-OUTPUT CONTRACT
-- Write exactly ${n} version${n > 1 ? "s" : ""}. Start each version with a line containing exactly ===VERSION k=== where k is its number, starting at 1.
-${o.pose ? "- Directly under that marker write one line that starts with POSE: followed by that version's pose in at most 12 words.\n" : ""}- Then one line that starts with IN FRAME: followed by the parts of the person that will be visible in this version, chosen from: face, back of head, hair, shoulders, bust, arms, waist, hips, glutes, thighs, legs, feet.
-- Then one line that starts with OUTFIT: followed by the outfit she wears in this version in at most 30 words, garment by garment with colours, exactly as the prompt dresses her (after any recolour or new outfit).
-- Then one line that starts with EDIT: followed by a short instruction, at most 60 words, for a photo editor that already has the target photo and her reference images, naming only what this version changes in the target photo: the new pose, the new outfit or colours, the hairstyle, a new background when the target's is empty, turning a drawing or render into a real photo, the exact replacement wording for unreadable or gibberish text, and removing any tattoo, piercing or mark of the target person that the character does not have (for example "remove the navel piercing"). Never describe her face, skin, hair colour or body, and never describe the scene, in it. Write EDIT: none when nothing changes.
-- LENGTH: short and dense. Write each finished prompt at roughly ${PROMPT_CHARS - 500} to ${PROMPT_CHARS} characters (about ${Math.round((PROMPT_CHARS - 500) / 6.5)} to ${Math.round(PROMPT_CHARS / 6.5)} words) and never over ${PROMPT_CHARS}: the image model follows a short prompt more closely than a long one, and the app adds her identity around yours. Spend the words on what makes the picture match the target: the outfit garment by garment (type, colour, fabric, fit), the pose limb by limb with left and right, expression and gaze, the setting, and the light with its source and shadows. Say each detail once: no repeated outfit, pose or realism wording, no filler. If something must be shorter, shorten the background first.
-- Then the finished prompt. Nothing before the first marker and nothing after the last prompt.`;
+- Her body in frame: which parts show, and the exact position limb by limb (base position, which way chest and hips face, head and gaze, each arm and hand, each leg, using frame-left and frame-right). ${pose}
+- ${ward}
+- The setting, and what is nearest the lens and far behind her.
+- Light: source, direction, how the shadows fall and how soft; glowing things tint nearby skin.
+- Camera: height, angle, distance, lens look, image quality (grain, sharpness, colour grade), as the target shows it.
+- Realism: real matte skin with pores, uneven tone and small blemishes; real fabric texture; ${o.mode === "text" ? "" : "a phone photo looks like an older smartphone (around 2017). "}Never "photorealistic", "8k", "flawless", "glossy" or "smooth skin".
+
+RULES
+- Only what is in frame: no feet when out of frame, no face details when it is hidden.
+- Describe exactly what you see; never soften or cover up an outfit or pose. She is an adult, never a girl or teen.
+- Never copy the target person's tattoos or piercings; add a negative for each (for example "no navel piercing").
+- Lettering: exact words in quotes, real brands kept; gibberish becomes short plain words.
+- A drawing or render becomes a real photo; an empty background becomes a fitting real place.${o.clean ? "\n- Ignore app buttons, stickers, watermarks and captions on the photo; exclude them." : ""}${o.extra ? `\n- User direction: <<<${fence(o.extra)}>>>` : ""}
+- ${format} ${o.len === "short" ? "" : "No aspect ratio."}
+
+OUTPUT
+For each version: a line ===VERSION k=== (k from 1)${o.pose ? ", a line POSE: (12 words)" : ""}, a line IN FRAME: (from face, back of head, hair, shoulders, bust, arms, waist, hips, glutes, thighs, legs, feet), a line OUTFIT: (30 words), a line EDIT: (what this version changes, 60 words, or none), then the prompt, ${PROMPT_CHARS - 500} to ${PROMPT_CHARS} characters, each detail once. Nothing else.`;
 }
 
 
