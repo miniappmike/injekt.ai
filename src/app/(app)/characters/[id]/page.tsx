@@ -12,6 +12,7 @@ import { FREE_LIMITS } from "@/lib/limits";
 import { referenceList } from "@/lib/character-images";
 import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
 import { selectCharacter } from "@/lib/sheet-pack";
+import { MAX_X_REFERENCES } from "@/lib/reference-limits";
 import type { CharacterProfile } from "@/lib/characters";
 import { ListingEditor, type OwnImage } from "@/components/listing-editor";
 import { loadEditorListing } from "@/lib/marketplace/admin-data";
@@ -64,7 +65,10 @@ export default async function EditCharacterPage({
 
   // Profile builds cost credits on the platform's key (free with their own key on Pro).
   const buildCredits = (await hasOwnAiKey(supabase, user.id)) ? null : PROFILE_BUILD_CREDITS;
-  const urls = await signedUrlMap(supabase, [c.profile_photo_path, c.face_sheet_path, c.body_sheet_path, ...c.reference_paths]);
+  // X Reference (placeholder): read on its own, so the page still opens before migration 0036 is run.
+  const { data: xRow } = await supabase.from("characters").select("x_reference_paths").eq("id", id).maybeSingle();
+  const xRefs = ((xRow as { x_reference_paths?: string[] | null } | null)?.x_reference_paths ?? []).slice(0, MAX_X_REFERENCES);
+  const urls = await signedUrlMap(supabase, [c.profile_photo_path, c.face_sheet_path, c.body_sheet_path, ...c.reference_paths, ...xRefs]);
   const imgs = (paths: (string | null)[]) => paths.filter((p): p is string => !!p && !!urls[p]).map((p) => ({ path: p, url: urls[p] }));
 
   // The marketplace panel is for admins only. The listing data is read with the service role, after this admin check.
@@ -123,6 +127,7 @@ export default async function EditCharacterPage({
             <ImageSlot label="Face sheet" slot="face_sheet" characterId={c.id} images={imgs([c.face_sheet_path])} hint="A sheet of the face from several angles, or one clear face photo." />
             <ImageSlot label="Body sheet" slot="body_sheet" characterId={c.id} images={imgs([c.body_sheet_path])} hint="Front, back and side of the body." />
             <ImageSlot label={`Reference images (up to ${MAX_REFERENCE_PHOTOS})`} slot="reference" characterId={c.id} images={imgs(c.reference_paths)} max={MAX_REFERENCE_PHOTOS} />
+            <ImageSlot label={`X Reference (up to ${MAX_X_REFERENCES})`} slot="x_reference" characterId={c.id} images={imgs(xRefs)} max={MAX_X_REFERENCES} hint="Saved with her. Not used by any tool yet." />
           </div>
           {c.reference_paths.length === 0 && (
             <p className="rounded-xl border border-brand-500/30 bg-brand-500/5 p-3 text-sm text-neutral-300">

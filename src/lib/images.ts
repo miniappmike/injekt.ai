@@ -38,5 +38,5 @@ export function parseDataUri(uri: string): { mediaType: string; data: string } {
   return { mediaType: m[1], data: m[2] };
 }
 
-export const UPLOAD_SLOTS = ["profile_photo", "face_sheet", "body_sheet", "reference", "target"] as const;
+export const UPLOAD_SLOTS = ["profile_photo", "face_sheet", "body_sheet", "reference", "x_reference", "target"] as const;
 export type UploadSlot = (typeof UPLOAD_SLOTS)[number];

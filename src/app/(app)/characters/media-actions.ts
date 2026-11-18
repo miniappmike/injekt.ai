@@ -23,10 +23,19 @@ const COLUMN = {
 
 export async function removeCharacterImage(
   characterId: string,
-  slot: keyof typeof COLUMN | "reference",
+  slot: keyof typeof COLUMN | "reference" | "x_reference",
   path?: string,
 ) {
   const { supabase, user } = await requireUser();
+  if (slot === "x_reference") {
+    const { data: x } = await supabase.from("characters").select("x_reference_paths").eq("id", characterId).maybeSingle();
+    const list = (x?.x_reference_paths as string[] | null) ?? [];
+    if (!path || !list.includes(path)) return;
+    await supabase.from("characters").update({ x_reference_paths: list.filter((p) => p !== path) }).eq("id", characterId);
+    if (isOwnPath(user.id, path)) await supabase.storage.from(MEDIA_BUCKET).remove([path]);
+    revalidatePath(`/characters/${characterId}`);
+    return;
+  }
   const { data: c } = await supabase
     .from("characters")
     .select("reference_paths, profile_photo_path, face_sheet_path, body_sheet_path")
