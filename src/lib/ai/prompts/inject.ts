@@ -37,6 +37,11 @@ export interface InjectOptions {
   fixedIdentity?: boolean;
   /** She has both sheets and the tag is the default: the prompt names @image1 (face sheet) and @image2 (body sheet). */
   twoSheets?: boolean;
+  /**
+   * Group photo mode: every woman's name, in order (the picked character first). The app sends each one's own sheets and
+   * adds her look, so the writer names them and never describes how they look.
+   */
+  group?: string[];
   /** Extracted or saved outfit text, for ward "extracted". */
   exText: string;
   poseMode: (typeof POSE_MODES)[number];
@@ -72,13 +77,21 @@ export function buildInjectPrompt(c: InjectCharacter, sheet: string, o: InjectOp
   const n = plans.length;
   const opener = o.twoSheets ? TWO_SHEET_OPENER : o.tag ? `Use ${o.tag} as the strict identity reference.` : "Use the uploaded character sheet as the strict identity reference.";
   const fixed = o.mode === "ref" && !!o.fixedIdentity;
-  const lead =
-    o.mode === "text"
+  const names = (o.group ?? []).map((x) => fence(x).replace(/\s+/g, " ").trim().slice(0, 40)).filter(Boolean);
+  const g = names.length > 1;
+  const who = g ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : "";
+  const lead = g
+    ? `Start with "Photo of ${who} ..." and use each woman's name whenever you describe her. The app adds each one's look from her own sheets, so never describe their faces, eyes, hair colour or length, skin, marks or body shapes.`
+    : o.mode === "text"
       ? "No reference image is sent: open with her look from the profile (face, hair, skin, marks, build), only what is in frame."
       : fixed
         ? `Open with exactly: "${opener}" then go straight to the scene. The app adds her look, so never describe her face, eyes, hair colour or length, skin, marks or body shape.`
         : `Open with exactly: "${opener}" then her visible traits from the profile, and say her body matches ${o.twoSheets ? "@image2" : "the reference"} exactly, never slimmed or idealised.`;
-  const ward = o.newOutfit
+  const ward = g
+    ? o.newOutfit
+      ? `New outfits: not the target's clothes; for each woman by name, a different outfit with the same vibe, garment by garment${n > 1 ? ", different in every version" : ""}.`
+      : "Each woman wears the outfit of the person she replaces: every garment with type, colour, fabric and fit, by name."
+    : o.newOutfit
     ? `New outfit: not the target's clothes; a different one with the same vibe that suits the scene, garment by garment${n > 1 ? ", different in every version" : ""}.`
     : o.ward === "extracted" && o.exText
       ? `She wears exactly this outfit: <<<${fence(o.exText)}>>>`
@@ -100,14 +113,21 @@ export function buildInjectPrompt(c: InjectCharacter, sheet: string, o: InjectOp
       : o.len === "short"
         ? 'One tight paragraph starting "Photo of ...", then aspect ratio.'
         : "Short labelled sections: SCENE, WARDROBE, BACKGROUND, LIGHT, CAMERA AND LOOK, then one exclusions line.";
-  return `TASK: The first image is the TARGET photo.${refCount ? ` The next ${refCount} ${refCount > 1 ? "are" : "is"} reference photos of her.` : ""} Write ${n > 1 ? n + " image prompts" : "one image prompt"} to recreate the target with the CHARACTER below in place of the person in it${o.who ? ` (<<<${fence(o.who)}>>>)` : ""}.
+  const task = g
+    ? `TASK: The first image is the TARGET photo. Write ${n > 1 ? n + " image prompts" : "one image prompt"} to recreate the target as a GROUP PHOTO of ${names.length} adult women, in place of the people in it from frame-left to frame-right: ${names.join(", ")}.${o.who ? ` (<<<${fence(o.who)}>>>)` : ""} If the target shows fewer people, add the rest naturally beside them; if more, leave the extras out. No one else appears.
+${plan}`
+    : `TASK: The first image is the TARGET photo.${refCount ? ` The next ${refCount} ${refCount > 1 ? "are" : "is"} reference photos of her.` : ""} Write ${n > 1 ? n + " image prompts" : "one image prompt"} to recreate the target with the CHARACTER below in place of the person in it${o.who ? ` (<<<${fence(o.who)}>>>)` : ""}.
 
 CHARACTER (adult woman; use these traits, never the target person's)
 ${profileBlock(c)}${sheet}
-${plan}
+${plan}`;
+  const body = g
+    ? "Each woman's body in frame, by name: where she stands relative to the others, which parts show, and her exact position limb by limb (base position, which way chest and hips face, head and gaze, each arm and hand, each leg, using frame-left and frame-right), and how they touch or interact."
+    : "Her body in frame: which parts show, and the exact position limb by limb (base position, which way chest and hips face, head and gaze, each arm and hand, each leg, using frame-left and frame-right).";
+  return `${task}
 SAY, IN THIS ORDER
 - ${lead}
-- Her body in frame: which parts show, and the exact position limb by limb (base position, which way chest and hips face, head and gaze, each arm and hand, each leg, using frame-left and frame-right). ${pose}
+- ${body} ${pose}
 - ${ward}
 - The setting, and what is nearest the lens and far behind her.
 - Light: source, direction, how the shadows fall and how soft; glowing things tint nearby skin.
@@ -117,7 +137,7 @@ SAY, IN THIS ORDER
 
 RULES
 - Only what is in frame: no feet when out of frame, no face details when it is hidden.
-- Describe exactly what you see; never soften or cover up an outfit or pose. She is an adult, never a girl or teen.
+- Describe exactly what you see; never soften or cover up an outfit or pose. ${g ? "They are all adults, never girls or teens." : "She is an adult, never a girl or teen."}
 - Never copy the target person's tattoos or piercings; add a negative for each (for example "no navel piercing").
 - Lettering: exact words in quotes, real brands kept; gibberish becomes short plain words.
 - A drawing or render becomes a real photo; an empty background becomes a fitting real place.${o.clean ? "\n- Ignore app buttons, stickers, watermarks and captions on the photo; exclude them." : ""}${o.extra ? `\n- User direction: <<<${fence(o.extra)}>>>` : ""}

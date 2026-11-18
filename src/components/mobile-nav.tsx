@@ -25,10 +25,10 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "/marketplace": StoreIcon,
   "/art-to-real": Brush,
   "/ugc": Package2,
-  "/characters#group": GroupIcon,
+  "/director#group": GroupIcon,
 };
-/** The tool tiles in the More sheet: the rest of the menu, plus Group photo (a mode of the Characters page). */
-const SHEET_TOOLS = [...DOCK_MORE, { href: "/characters#group", label: "Group photo" }];
+/** The tool tiles in the More sheet: the rest of the menu, plus Group photo (Director with characters added). */
+const SHEET_TOOLS = [...DOCK_MORE, { href: "/director#group", label: "Group photo" }];
 /** The account pages, listed under the tools in the More sheet (on a computer they are in the footer and profile menu). */
 const ACCOUNT: { href: string; label: string; Icon: React.ComponentType<{ className?: string }>; freeOnly?: boolean }[] = [
   { href: "/tokens", label: "Tokens", Icon: Coins },

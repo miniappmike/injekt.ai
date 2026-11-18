@@ -21,7 +21,7 @@ export interface GroupMember {
 const short = (s: string | undefined, n: number) => String(s || "").replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, n);
 
 /** The prompt. Members' images are sent in order, so member 1 is @image1.., member 2 follows, and so on. */
-export function groupPhotoPrompt(members: GroupMember[], direction: string): string {
+export function groupPhotoPrompt(members: GroupMember[], direction: string, o: { real?: boolean; camera?: string } = {}): string {
   const n = members.length;
   let at = 1;
   const blocks = members.map((m, i) => {
@@ -43,10 +43,11 @@ export function groupPhotoPrompt(members: GroupMember[], direction: string): str
   const head = `A single new photograph of exactly ${n} women together in one scene: ${joinTags(members.map((m, i) => fence(m.name).trim().slice(0, 40) || `Person ${i + 1}`))}. Each woman's reference images show only her, so build each person only from her own references and never mix features between them. Every person is clearly visible with her face shown, and no extra people appear.`;
 
   const rules = [
+    "They are all adult women.",
     "Each woman's identity from her own references is the highest priority: an identical face, hair, skin and body at its real scale. Never blend, swap or average faces or bodies between them, and never slim or idealise a figure.",
     "Take only the people from the references, never their grids, plain backgrounds, studio light or plain outfits: each woman wears what the creative direction describes, or an outfit that suits the scene.",
     "Light, colour and perspective are consistent across everyone, at true relative scale.",
-    REALISM_FIX.quality,
+    o.real === false ? "Keep the look, light and style the creative direction describes." : `${o.camera ? `Shot on a ${o.camera}. ` : ""}${REALISM_FIX.quality}`,
     TEXT_SHORT,
     "No tattoos or piercings a woman does not have in her references.",
   ];

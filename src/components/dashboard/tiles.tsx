@@ -90,7 +90,7 @@ const TOOLS = [
   { href: "/variants", label: "Variants", Icon: VariantsIcon },
   { href: "/likeness", label: "Likeness", Icon: LikenessIcon },
   { href: "/art-to-real", label: "Art to Real", Icon: Brush },
-  { href: "/characters#group", label: "Group photo", Icon: GroupIcon },
+  { href: "/director#group", label: "Group photo", Icon: GroupIcon },
 ];
 
 /** What takes the next-step tile's place once the first steps are done. */

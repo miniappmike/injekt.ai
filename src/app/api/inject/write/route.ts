@@ -15,7 +15,7 @@ export const maxDuration = 120;
  */
 export async function POST(req: Request) {
   const { supabase, user } = await requireUser();
-  let input: { characterId: string; targetPath: string; options: InjectOptionsInput };
+  let input: { characterId: string; targetPath: string; options: InjectOptionsInput; groupIds?: string[] };
   try {
     input = await req.json();
   } catch {

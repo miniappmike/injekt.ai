@@ -7,7 +7,7 @@ import { useGeneration } from "@/components/app-context";
 import { MODEL_ID_RE, MODEL_REFUSED_EVENT, usePageModel, type ModelRefused } from "@/lib/page-model";
 import { cn } from "@/lib/utils";
 
-/** Pages whose Generate buttons get the box at the bottom. Characters gets it inside the group photo panel instead. */
+/** Pages whose Generate buttons get the box at the bottom. Characters has none. */
 const GENERATION_PAGES = [/^\/inject/, /^\/variants/, /^\/likeness/, /^\/reference-sheet/, /^\/art-to-real/, /^\/ugc/];
 
 /** Whether the box is open, remembered in this browser and shared by every page. */
@@ -36,7 +36,7 @@ function useBoxOpen(): [boolean, (v: boolean) => void] {
   return [open, set];
 }
 
-/** At the bottom of each generation page (not Characters, whose group photo panel has its own). */
+/** At the bottom of each generation page (not Characters). */
 export function PageModelBox() {
   const generation = useGeneration();
   const path = usePathname();

@@ -12,7 +12,7 @@ export type WriteResult = ({ ok: true } & InjectRunResult) | AiFailure;
  * caller then recovers the prompts from History).
  */
 export async function streamInjectPrompts(
-  input: { characterId: string; targetPath: string; options: InjectOptionsInput },
+  input: { characterId: string; targetPath: string; options: InjectOptionsInput; groupIds?: string[] },
   onDelta: (text: string) => void,
 ): Promise<WriteResult> {
   const res = await fetch("/api/inject/write", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });

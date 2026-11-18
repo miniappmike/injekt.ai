@@ -13,6 +13,14 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Group photo is now a mode of Director and Inject, not a Characters page panel (November 18; types clean, all tests pass except the two env-var files; Director and Inject checked on the stand-in backend in desktop Chromium (adding a character turns the box iris and the button into "Create group photo"); NOT run on a real generation, not checked on a phone)**
+- **Removed**: the Group photo button, card picking, selection dock and composer on the Characters page. The board is now `src/components/characters-board.tsx` (was `group-photo.tsx`): sort, rearrange and New character only.
+- **Added**: `GroupAdd` (`src/components/group-add.tsx`) under the character picker in **Director** and **Inject (Write prompts)**: "Add characters for a group photo" lists the others (only ones with a reference sheet can be picked; up to 4 women with the picked one first). Adding one switches the tool into group photo mode; removing them all goes back. Kept as a draft (`director.group`, `inject.group`). Links that pointed to `/characters#group` (More sheet, footer, dashboard Quick tools) now go to `/director#group`, which opens the list.
+- **Director in group mode**: Generate becomes "Create group photo" (3:2), kind `group_photo` with `meta.group` and `meta.real` (the Inject realism checkbox now works for groups too); the direction goes into `groupPhotoPrompt` as before (no writer call).
+- **Inject in group mode** (Recreate only; the Target photo toggle is replaced by a note, the photo itself is never sent): `runInject` takes `groupIds`, checks each has a sheet, and the writer is told to recreate the target as a group photo with the women named frame-left to frame-right (fewer people in the target: add the rest; more: leave extras out), each woman's position by name, never her look (`o.group` in `buildInjectPrompt`). Each version's meta is `{ group, frame, outfit, real }`, and Generate sends it as `group_photo` with the written scene as the direction. Not available in "Make the image: Elsewhere" (group photos need the app to send every sheet; the box says so).
+- `groupPhotoPrompt` now takes `{ real, camera }`: it names a random 2000s camera, and with realism off it keeps the direction's look. It also says they are all adults.
+- Not done: group mode in UGC, Variants, Art to Real or Swap into photo; History labels group prompts "Inject · First name · Group: A, B".
+
 **Every new shot names an early-to-mid 2000s camera (November 18; types clean, all tests pass except the two env-var files; NOT run on a real generation; on the branch, not yet on main)**
 - Owner's request, for realism. `OLD_CAMERAS` in `prompts/pools.ts` (24: Canon PowerShot, Sony Cyber-shot, Nikon Coolpix, Kodak EasyShare, Olympus, Fujifilm FinePix, Casio Exilim, Lumix, Pentax, Samsung, plus Rebel XT, D70 and a Sony Ericsson camera phone) and `OLD_CAMERA_LOOK` (CCD colour, softness, shadow noise, JPEG compression, off white balance, harsh on-camera flash or dim light).
 - **Inject Recreate**: each version gets a different camera at random in the VERSION PLAN (`VersionPlan.camera`, shuffled in `runInject`), and the writer must say "shot on a ..." with that look. **Director**: one picked at random per shot (`pickCamera` in `directorJob`).
@@ -326,7 +334,7 @@ Nothing can be generated this way; it is for layout and screenshots only.
 
 **What's live**
 - Characters, Create Model, Inject (Recreate by default, "Edit this photo" opt-in), Variants, Likeness, Art to Real,
-  group photos, History, the ledger, and the persona marketplace (browse and admin listing; buying isn't wired).
+  group photos (Director or Inject with characters added), History, the ledger, and the persona marketplace (browse and admin listing; buying isn't wired).
 - **Tokens and plans** (`docs/PRICING.md`): 15 free tokens at sign-up, Pro at $9.99 / 30 days, four token packs.
   Bring-your-own keys are Pro-only; the free plan uses the platform's SpicyAPI key with daily limits.
 - **Payments**: Telegram Stars (@ModelSpawnBot) and crypto (NOWPayments). Both are set up and connected in production.

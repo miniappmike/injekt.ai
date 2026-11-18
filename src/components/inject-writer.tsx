@@ -30,6 +30,7 @@ import { staggerDelay, WRITE_STAGGER_MS } from "@/lib/stagger";
 import type { ImageAspectRatio } from "@/lib/ai/providers/types";
 import { segItem, segTrack } from "@/components/ui/segmented";
 import { CharacterPicker } from "@/components/character-picker";
+import { GroupAdd } from "@/components/group-add";
 import { MobileSheet } from "@/components/mobile-sheet";
 import { PasteIcon, SlidersIcon, UploadIcon } from "@/components/icons";
 import { readClipboardImages } from "@/lib/clipboard";
@@ -136,6 +137,10 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
     skip: !!initialCharacterId,
     decode: (v) => (characters.some((c) => c.id === v) ? (v as string) : null),
   });
+  // Group photo mode: the other characters added under the picker (see GroupAdd).
+  const [groupIds, setGroupIds] = useDraftState<string[]>("inject.group", [], {
+    decode: (v) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && characters.some((c) => c.id === x)) : null),
+  });
   const [targets, setTargets] = useState<Target[]>([]);
   const [o, setO] = useState<Options>({ ...INJECT_DEFAULTS });
   const [editTarget, setEditTarget] = useState(false);
@@ -207,6 +212,8 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
   }, [restored, running, targets]);
 
   const character = characters.find((c) => c.id === characterId)!;
+  const hasSheet = (c: InjectCharacter) => !!c.refOptions?.some((r) => r.id === "face_sheet" || r.id === "body_sheet");
+  const groupOn = !writeOnly && groupIds.some((id) => id !== characterId);
 
   // Saved choices come back on the next visit; "which person" is per photo, so it starts empty.
   useEffect(() => {
@@ -329,7 +336,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
           update(t.id, { live: raw });
         }, 160);
       };
-      const res = await awaitOrRecover(streamInjectPrompts({ characterId, targetPath: path, options: { ...o, swap: editTarget } }, onDelta), async () => {
+      const res = await awaitOrRecover(streamInjectPrompts({ characterId, targetPath: path, options: { ...o, swap: editTarget && !groupOn }, ...(groupOn ? { groupIds } : {}) }, onDelta), async () => {
         const r = await recoverInjectPrompts({ characterId, targetPath: path, since, count: o.count });
         return r.ok && r.result ? { ok: true as const, ...r.result } : null;
       }).catch((e: unknown): AiFailure => ({ ok: false, error: e instanceof Error ? e.message : "Couldn't write the prompts. Try again." }));
@@ -444,7 +451,9 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
       if (t.state !== "done" || !t.versions?.some(Boolean)) continue;
       const key = standaloneKey(t);
       if (standalone[t.id]?.key === key) continue;
-      const written = t.versions.map((v, i) => (v ? i : -1)).filter((i) => i >= 0);
+      // Group photos are only made here, so they have no prompt to copy.
+      const written = t.versions.map((v, i) => (v && !v.meta.group ? i : -1)).filter((i) => i >= 0);
+      if (!written.length) continue;
       const target = editTarget ? (t.writtenPath ?? t.path ?? null) : null;
       setStandalone((s) => ({ ...s, [t.id]: { key } }));
       void writeInjectStandalone({
@@ -497,7 +506,9 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
   const controls = (
     <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
       {generation && choice("Make the image", writeOnly, [[false, "Here"], [true, "Elsewhere (copy prompts)"]], saveWriteOnly)}
-      {choice(
+      {groupOn ? (
+        <p className="max-w-xs text-xs text-neutral-400">Group photo: the target is recreated from every woman&apos;s reference sheets (the photo itself isn&apos;t sent).</p>
+      ) : choice(
         "Target photo",
         editTarget,
         [[false, "Recreate it"], [true, "Swap into photo"]],
@@ -543,6 +554,15 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
             onChange={setCharacterId}
             characters={characters.map((c) => ({ id: c.id, name: c.name, photo: c.photo, note: c.ready ? undefined : "No images yet" }))}
           />
+          <GroupAdd
+            primaryId={characterId}
+            value={groupIds}
+            onChange={setGroupIds}
+            characters={characters.map((c) => ({ id: c.id, name: c.name, photo: c.photo, sheet: hasSheet(c) }))}
+            disabled={writeOnly}
+            disabledNote={generation ? "Group photos are made here: set Make the image to Here to add characters." : undefined}
+          />
+          {groupOn && !hasSheet(character) && <p className="text-sm text-amber-400">{character.name} needs a reference sheet for a group photo.</p>}
           {!character.ready ? (
             <p className="text-sm text-amber-400">
               Add a face sheet, body sheet or reference photo on <Link href={`/characters/${character.id}`} className="underline">the character page</Link> first.
@@ -901,7 +921,13 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                       </div>
                     )}
                   </div>
-                  {v && writeOnly && (
+                  {v && writeOnly && v.meta.group && (
+                    <>
+                      <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words text-sm">{v.text}</pre>
+                      <p className="text-xs text-neutral-500">Group photos are made here, with every woman&apos;s reference sheets. Set Make the image to Here to generate it.</p>
+                    </>
+                  )}
+                  {v && writeOnly && !v.meta.group && (
                     <>
                       {ready ? (
                         <>
@@ -929,16 +955,22 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                       </div>
                       {/* The written prompt is the scene; Generate wraps it with her identity and body lock and sends these. */}
                       <p className="text-xs text-neutral-500">
-                        Sent with {sentRefs(characters.find((c) => c.id === (t.characterId ?? characterId)), 1).join(", ") || "her references"}
-                        {editTarget ? ", then your target photo as the last image." : ", under her identity and body lock."}
+                        {v.meta.group ? (
+                          "Group photo: sent with each woman's reference sheets, in order, each keeping her own face and body."
+                        ) : (
+                          <>
+                            Sent with {sentRefs(characters.find((c) => c.id === (t.characterId ?? characterId)), 1).join(", ") || "her references"}
+                            {editTarget ? ", then your target photo as the last image." : ", under her identity and body lock."}
+                          </>
+                        )}
                       </p>
                       <div data-generate-anchor className="scroll-mt-24" aria-hidden="true" />
                       <GenerateImage
                         prompt={v.text}
-                        characterId={t.characterId ?? characterId}
+                        characterId={v.meta.group ? undefined : (t.characterId ?? characterId)}
                         extraPaths={[]}
-                        kind="inject"
-                        meta={metaForRun(v.meta, t.writtenPath ?? t.path ?? null, editTarget)}
+                        kind={v.meta.group ? "group_photo" : "inject"}
+                        meta={v.meta.group ? { group: v.meta.group, real: true } : metaForRun(v.meta, t.writtenPath ?? t.path ?? null, editTarget)}
                         autoAspectRatio={t.ratio}
                         historyId={v.historyId}
                         runSignal={runAll}

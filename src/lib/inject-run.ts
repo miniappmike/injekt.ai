@@ -12,6 +12,7 @@ import { harness } from "@/lib/ai/prompts/harness";
 import { sheetLines } from "@/lib/ai/prompts/identity";
 import { DECLINED_MESSAGE } from "@/lib/ai/refusal";
 import { buildInjectPrompt, looksLikeRefusal, parseVersions, TWO_SHEET_OPENER, type InjectOptions, type VersionPlan } from "@/lib/ai/prompts/inject";
+import { MAX_GROUP } from "@/lib/ai/prompts/group";
 import { buildSwapBriefPrompt, swapChange } from "@/lib/ai/prompts/swap-brief";
 import { leanSwap } from "@/lib/ai/prompts/swap";
 import { leanSwapOptions, sheetRefs } from "@/lib/generation-job";
@@ -57,7 +58,7 @@ interface Row {
 export async function runInject(
   supabase: SupabaseClient,
   userId: string,
-  input: { characterId: string; targetPath: string; options: InjectOptionsInput },
+  input: { characterId: string; targetPath: string; options: InjectOptionsInput; /** Group photo mode: the other characters, in order (1 to 3). */ groupIds?: string[] },
   random: () => number = Math.random,
   /** Each piece of the reply as the model writes it (the streaming route shows it live). */
   onDelta?: (text: string) => void,
@@ -73,6 +74,19 @@ export async function runInject(
     "id, name, profile, always_keep, height, weight, face_sheet_path, body_sheet_path, reference_paths, sheet_pack",
   );
   if (!c) throw new UserFacingError("Character not found.");
+  // Group photo mode: the other characters picked. Each needs a reference sheet (group photos send only sheets).
+  const others = [...new Set((Array.isArray(input.groupIds) ? input.groupIds : []).filter((x) => typeof x === "string" && x !== c.id))].slice(0, MAX_GROUP - 1);
+  const group = others.length
+    ? await Promise.all(
+        others.map(async (id) => {
+          const m = await selectCharacter<{ id: string; name: string; face_sheet_path: string | null; body_sheet_path: string | null }>(supabase, id, "id, name, face_sheet_path, body_sheet_path");
+          if (!m) throw new UserFacingError("One of those characters couldn't be found.");
+          if (!m.face_sheet_path && !m.body_sheet_path) throw new UserFacingError(`${m.name} needs a reference sheet first. Group photos use only reference sheets.`);
+          return m;
+        }),
+      )
+    : [];
+  if (group.length && !c.face_sheet_path && !c.body_sheet_path) throw new UserFacingError(`${c.name} needs a reference sheet first. Group photos use only reference sheets.`);
 
   const o: InjectOptions = {
     mode: opt.mode,
@@ -111,6 +125,11 @@ export async function runInject(
   const [target] = await loadForVision(supabase, [{ label: "target", path: input.targetPath }], Math.min(TARGET_EDGE, imageMaxEdge ?? TARGET_EDGE));
   const refs = await loadForVision(supabase, refPaths.map((path) => ({ label: "reference photo", path })), imageMaxEdge);
 
+  if (group.length) {
+    // A group is always recreated from the sheets; the photo itself is never sent.
+    opt.swap = false;
+    o.group = [c.name, ...group.map((m) => m.name)];
+  }
   if (opt.swap) o.fixedIdentity = false;
   const prompt = opt.swap
     ? buildSwapBriefPrompt(o, plans.length)
@@ -152,6 +171,12 @@ export async function runInject(
       const meta: InjectMeta = { brief: true, scene, edit: swapChange(o, plan), chg, ...(o.clean ? { clean: true } : {}) };
       const tags = [o.pose && "New pose", o.newOutfit && "New outfit", o.recolor && "Colours: " + plan.palette, o.hair && "Hair: " + plan.hair].filter((x): x is string => !!x);
       return { text: leanSwap(sheetRefs(c, pack, 2, 3).R, leanSwapOptions(meta)), fixed: [], tags, meta };
+    }
+    if (group.length) {
+      // Group photo mode: Generate sends every woman's sheets with groupPhotoPrompt around this scene, which adds the realism.
+      const h = harness(v.text, { tag: "", stripAR: o.len === "full", realism: false });
+      const tags = [`Group: ${o.group!.join(", ")}`, v.pose ? "Pose: " + v.pose : o.pose && "New pose", o.newOutfit && "New outfit"].filter((x): x is string => !!x);
+      return { text: h.text, fixed: h.fixed, tags, meta: { group: [c.id, ...group.map((m) => m.id)], frame: v.frame, outfit: v.outfit, real: true } };
     }
     const h = harness(o.twoSheets ? withBothSheets(v.text) : v.text, { tag: o.mode === "ref" ? o.tag : "", stripAR: o.len === "full" });
     if (o.fixedIdentity) h.text = withIdentityBlock(h.text, identityBlock(pack?.anchors, v.frame));

@@ -212,7 +212,7 @@ export function groupRefs(c: JobCharacter): { paths: string[]; roles: string[] }
  * Group photo: each character's reference sheets in turn (at most 2 each, so at most 8 images for 4 people), her look
  * in words from her read sheet pack, and the person's creative direction.
  */
-export function groupJob(members: { c: JobCharacter & { name: string }; pack: SheetPack | null }[], direction: string, max: number): BuiltJob {
+export function groupJob(members: { c: JobCharacter & { name: string }; pack: SheetPack | null }[], direction: string, max: number, o: { real?: boolean; camera?: string } = {}): BuiltJob {
   if (members.length < MIN_GROUP || members.length > MAX_GROUP) throw new UserFacingError(`Pick ${MIN_GROUP} to ${MAX_GROUP} characters.`);
   const paths: string[] = [];
   const people: GroupMember[] = members.map(({ c, pack }) => {
@@ -222,7 +222,7 @@ export function groupJob(members: { c: JobCharacter & { name: string }; pack: Sh
     return { name: c.name, roles: r.roles, anchors: pack?.anchors ?? null };
   });
   if (paths.length > max) throw new UserFacingError(`That's too many images (${max} at most).`);
-  return { prompt: groupPhotoPrompt(people, direction), paths, photoEdit: false };
+  return { prompt: groupPhotoPrompt(people, direction, o), paths, photoEdit: false };
 }
 
 /**
@@ -294,7 +294,7 @@ export async function buildJob(
         return { c: ch, pack: await packOf(ch) };
       }),
     );
-    return groupJob(members, request.prompt, opts.max);
+    return groupJob(members, request.prompt, opts.max, { real: request.meta?.real, camera: opts.forQuote ? undefined : pickCamera() });
   }
 
   if (request.kind === "ugc") {

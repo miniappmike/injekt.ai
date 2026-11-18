@@ -251,6 +251,21 @@ describe("runInject", () => {
     expect(writes).toHaveLength(1);
   });
 
+  it("group photo mode: names every woman, never sends the photo, and gives each version the group to generate with", async () => {
+    h.complete.mockResolvedValue({ text: reply(1), truncated: false });
+    const { client } = db();
+    const r = await runInject(client, U, { characterId: "c1", targetPath: `${U}/t.jpg`, options: { swap: true }, groupIds: ["c2"] });
+    const prompt = h.complete.mock.calls[0][0].prompt as string;
+    expect(prompt).toContain("as a GROUP PHOTO of 2 adult women, in place of the people in it from frame-left to frame-right: Juno, Juno.");
+    expect(prompt).toContain('Start with "Photo of Juno and Juno ..."');
+    expect(prompt).not.toContain("CHARACTER (adult woman");
+    const v = r.versions[0]!;
+    expect(v.meta.group).toHaveLength(2);
+    expect(v.meta).not.toHaveProperty("brief");
+    expect(v.tags[0]).toBe("Group: Juno, Juno");
+    expect(v.text).not.toContain("@image1");
+  });
+
   it("with cleaned targets, the prompt leaves overlays out and Generate adds the overlay rule", async () => {
     h.complete.mockResolvedValue({ text: reply(1), truncated: false });
     const { client } = db();

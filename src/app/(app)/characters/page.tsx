@@ -1,4 +1,4 @@
-import { CharactersBoard } from "@/components/group-photo";
+import { CharactersBoard } from "@/components/characters-board";
 import { requireUser } from "@/lib/auth";
 import { signedUrlMap } from "@/lib/media-urls";
 import { entitlements } from "@/lib/entitlements";

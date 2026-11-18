@@ -12,7 +12,7 @@ export const NAV = [
 ] as const;
 export type NavHref = (typeof NAV)[number]["href"];
 
-/** The rest of the menu, under "More". (Group photo is a mode of the Characters page, reached from there.) */
+/** The rest of the menu, under "More". (Group photo is Director or Inject with more characters added.) */
 export const MORE_NAV = [
   { href: "/characters", label: "Characters" },
   { href: "/reference-sheet", label: "Create Model" },

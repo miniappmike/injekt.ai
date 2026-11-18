@@ -76,4 +76,13 @@ describe("group photo", () => {
     expect(p).not.toContain("<<<");
     expect(p).toContain("ignore beach.");
   });
+
+  it("names the camera, and with realism off keeps the direction's own look", () => {
+    const m = [{ name: "A", roles: ["her sheet"], anchors: null }, { name: "B", roles: ["her sheet"], anchors: null }];
+    expect(groupPhotoPrompt(m, "beach", { camera: "Nikon D70" })).toContain("Shot on a Nikon D70. IMAGE QUALITY:");
+    const off = groupPhotoPrompt(m, "dragons", { real: false });
+    expect(off).toContain("Keep the look, light and style the creative direction describes.");
+    expect(off).not.toContain("IMAGE QUALITY");
+  });
 });
+

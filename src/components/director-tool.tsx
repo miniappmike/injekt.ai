@@ -7,11 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CharacterPicker } from "@/components/character-picker";
 import { GenerateImage } from "@/components/generate-image";
+import { GroupAdd } from "@/components/group-add";
 import { useGeneration } from "@/components/app-context";
 import { MAX_DIRECTION } from "@/lib/ai/prompts/director";
 import { useDraftState } from "@/lib/drafts";
 
 const REALISM_KEY = "ms.directorRealism";
+const GROUP_DEFAULT = "A candid photo of them together, like friends posing for a photo on a night out, each in a stylish outfit that suits the setting.";
 
 interface DirectorCharacter {
   id: string;
@@ -51,6 +53,12 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
     }
   };
   const character = characters.find((c) => c.id === characterId)!;
+  // Group photo mode: the other characters added under the picker (see GroupAdd).
+  const [groupIds, setGroupIds] = useDraftState<string[]>("director.group", [], {
+    decode: (v) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && characters.some((c) => c.id === x)) : null),
+  });
+  const extras = groupIds.filter((id) => id !== characterId && characters.some((c) => c.id === id));
+  const groupOn = extras.length > 0;
 
   return (
     <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
@@ -67,7 +75,15 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
             Director always sends {character.name}&apos;s face sheet and body sheet. Make both on <Link href={`/characters/${character.id}`} className="underline">her character page</Link> first.
           </p>
         )}
-        {character.ready && <p className="text-xs text-neutral-500">Sent with every image: @image1 her face sheet, @image2 her body sheet, under her identity and body lock.</p>}
+        {character.ready && !groupOn && <p className="text-xs text-neutral-500">Sent with every image: @image1 her face sheet, @image2 her body sheet, under her identity and body lock.</p>}
+        {generation && (
+          <GroupAdd
+            primaryId={characterId}
+            value={groupIds}
+            onChange={setGroupIds}
+            characters={characters.map((c) => ({ id: c.id, name: c.name, photo: c.photo, sheet: c.ready }))}
+          />
+        )}
       </section>
 
       <section className="panel flex flex-col gap-3 p-4">
@@ -78,7 +94,11 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
           maxLength={MAX_DIRECTION}
           rows={5}
           onChange={(e) => setDirection(e.target.value)}
-          placeholder="Describe the shot in your own words: where she is, what she's wearing and doing, the mood, the time of day…"
+          placeholder={
+            groupOn
+              ? `Describe the shot and use their names: who stands where, what each wears and does, the place, the mood… e.g. "${character.name} on the left in a red dress, ${characters.find((c) => c.id === extras[0])?.name ?? "her friend"} laughing beside her, neon-lit street at night."`
+              : "Describe the shot in your own words: where she is, what she's wearing and doing, the mood, the time of day…"
+          }
         />
         <p className="text-xs text-neutral-500">Anything you leave out (the place, outfit, pose, light) is chosen to fit. Each press makes a fresh take.</p>
         <label className="flex w-fit cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 text-sm transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15">
@@ -88,9 +108,20 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
           </InfoTip>
         </label>
         {generation ? (
-          character.ready && (
+          character.ready &&
+          (groupOn ? (
+            <GenerateImage
+              key={[characterId, ...extras].join()}
+              prompt={direction.trim() || GROUP_DEFAULT}
+              extraPaths={[]}
+              kind="group_photo"
+              meta={{ group: [characterId, ...extras], real: realism }}
+              actionLabel="Create group photo"
+              autoAspectRatio="3:2"
+            />
+          ) : (
             <GenerateImage key={characterId} prompt={direction} characterId={characterId} extraPaths={[]} kind="inject" meta={{ direct: true, real: realism }} actionLabel="Generate" />
-          )
+          ))
         ) : (
           <p className="text-sm text-amber-400">
             Director makes the image here, so it needs image generation. Turn it on in <Link href="/settings/api-keys" className="underline">Settings</Link>.
