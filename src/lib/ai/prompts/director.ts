@@ -6,14 +6,15 @@
 import { fence, PROPORTIONS_WORDS } from "./rules";
 import { profileBlock } from "../tasks/profile-builder";
 import { PROMPT_CHARS, type InjectCharacter } from "./inject";
+import { OLD_CAMERA_LOOK } from "./pools";
 
 /** How long the person's direction may be. */
 export const MAX_DIRECTION = 1500;
 
 /** The writer's task: one finished scene for her, following the direction, in the Inject output format. */
-export function buildDirectorPrompt(c: InjectCharacter, sheet: string, direction: string, realism = true, fixedIdentity = false): string {
+export function buildDirectorPrompt(c: InjectCharacter, sheet: string, direction: string, realism = true, fixedIdentity = false, camera = ""): string {
   const look = realism
-    ? `- REALISM (Inject realism is on), required: it looks like a real, unretouched photo, with real light, depth and shadows. Keep everything the direction asks for, fantastical or not, and render it as if it were photographed for real. One skin sentence (matte skin with visible pores, fine peach fuzz, uneven tone, small imperfections, a few flyaway hairs), the real texture of fabrics and surfaces, and a camera sentence (an older smartphone's main camera, around 2017, focus falloff away from the face, sensor noise in the shadows, mild compression, slightly imperfect white balance), saying it is not retouched or CGI. Never use flawless, glossy, glowing, radiant, dewy, porcelain, airbrushed, perfect, photorealistic, 8k or similar words.
+    ? `- REALISM (Inject realism is on), required: it looks like a real, unretouched photo, with real light, depth and shadows. Keep everything the direction asks for, fantastical or not, and render it as if it were photographed for real. One skin sentence (matte skin with visible pores, fine peach fuzz, uneven tone, small imperfections, a few flyaway hairs), the real texture of fabrics and surfaces, and a camera sentence naming ${camera ? `the ${camera}` : "one early-to-mid 2000s digital camera"} ("shot on a ...") with its ${OLD_CAMERA_LOOK}, saying it is not retouched or CGI. Never use flawless, glossy, glowing, radiant, dewy, porcelain, airbrushed, perfect, photorealistic, 8k or similar words.
 - Light: name the source and direction; never just "natural lighting".`
     : `- STYLE (Inject realism is off): carry out the direction exactly as imagined, including anything fantastical, magical or impossible (creatures, flight, spells, armour, costumes, other worlds). Never ground, explain away, shrink or tone down those elements, and never turn them into a costume, set or prop unless the direction says so. Do not add a phone-photo look, skin-texture lines or camera imperfections; describe the light, colour, atmosphere and camera framing that best suit the scene. Her face, hair and body still match her exactly.`;
   return `TASK: Write one prompt for an AI image model that makes ${realism ? "a real photo" : "an image"} of the CHARACTER below, following the user's DIRECTION. The image model also receives her face reference sheet and her full-body reference sheet, so she is the same woman; your prompt sets the scene.
@@ -29,7 +30,7 @@ ${fixedIdentity ? `- HER LOOK IS FIXED TEXT: the app adds her identity block (fa
 - Body shape: describe the build exactly as the reference sheet lines state (or the profile when there are none), in plain, concrete wording. Never soften a curvy build into slim or athletic, and never make a slim build curvy. ${PROPORTIONS_WORDS}
 - If the profile gives a height or weight, turn them into visual build terms. Mention the height once in plain terms only when most of the body is in frame. Never write the weight as a number.`}
 - ONLY WHAT IS IN FRAME: decide the framing first (the IN FRAME line), then describe only what it shows: no shoes or feet for a waist-up shot, no face or expression when she faces away, no legs for a close-up.
-- DEPTH: give the image real depth: say what is nearest the lens, where she is, and what is far behind her (for example a blurred plant leaf at the edge of the frame, her in the middle, the street behind), and name the lens look (a wide phone lens close to her, or a tighter portrait look).
+- DEPTH: give the image real depth: say what is nearest the lens, where she is, and what is far behind her (for example a blurred plant leaf at the edge of the frame, her in the middle, the street behind), and name the lens look (a wide lens close to her, or a tighter portrait look).
 - Always describe her as an adult woman, never as a girl or teen, and never state an age under 21.
 - Her tattoos, piercings, scars and moles come only from the profile or sheet lines; never add others. A tattoo is mentioned only where its spot is bare skin in this outfit and pose, never as a print on clothing.
 - Her reference sheets show her in a plain placeholder outfit. Never describe or reuse it: dress her as the direction asks, or in an outfit that suits the scene. Name every garment with its type, colour, fabric and fit, and shoes if the feet are in frame.

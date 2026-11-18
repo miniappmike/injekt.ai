@@ -35,7 +35,7 @@ describe("buildInjectPrompt", () => {
   it("stays about 2,000 characters with every option on", () => {
     const p = build({ poseMode: "social", pose: true, recolor: true, hair: true, clean: true, who: "left", extra: "golden hour" }, { n: 2, recent: ["a"], inspo: ["b"] });
     expect(p.length - build().length).toBeLessThan(700);
-    expect(buildInjectPrompt({ profile: {} } as never, "", base, plans.slice(0, 1), 0, [], []).length).toBeLessThan(2400);
+    expect(buildInjectPrompt({ profile: {} } as never, "", base, plans.slice(0, 1), 0, [], []).length).toBeLessThan(2600);
   });
 
   it("has no nudity screening and keeps the adult rule; asks for position, light, shadows and camera", () => {
@@ -210,7 +210,8 @@ describe("runInject", () => {
     expect(task.prompt).toContain("FROM HER REFERENCE SHEET (source of truth");
     expect(task.prompt).toContain("Avoid these recent poses: old 19;");
     // A new outfit means nothing to recolour.
-    expect(task.prompt).not.toContain("VERSION PLAN");
+    expect(task.prompt).not.toContain("colours =");
+    expect(task.prompt).toMatch(/Version 2: camera = [^;]+;/);
 
     expect(r.characterName).toBe("Juno");
     expect(r.versions).toHaveLength(2);
@@ -289,10 +290,11 @@ describe("her fixed identity block", () => {
     expect(written).not.toContain("The app adds her look");
     expect(written).toContain("then her visible traits from the profile, and say her body matches @image2 exactly");
   });
-  it("asks for depth and an older phone's look", () => {
+  it("asks for depth and a named 2000s camera", () => {
     const t = buildInjectPrompt({ name: "A", profile: {} } as never, "", o, [{ palette: "", hair: "" }], 0, [], []);
     expect(t).toContain("what is nearest the lens and far behind her");
-    expect(t).toContain("an older smartphone (around 2017)");
+    expect(t).toContain("name one early-to-mid 2000s digital camera");
+    expect(buildInjectPrompt({ name: "A", profile: {} } as never, "", o, [{ palette: "", hair: "", camera: "Nikon D70" }], 0, [], [])).toContain("camera = Nikon D70;");
   });
 });
 

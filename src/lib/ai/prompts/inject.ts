@@ -4,6 +4,7 @@
  * "revealing clothing is fine" rule, the adult-only wording and the mild body wording stay.
  */
 import { fence } from "./rules";
+import { OLD_CAMERA_LOOK } from "./pools";
 import { profileBlock } from "../tasks/profile-builder";
 import type { CharacterProfile } from "@/lib/characters";
 import type { POSE_MODES, PROMPT_STYLES, WARDROBES } from "@/lib/inject-meta";
@@ -50,6 +51,8 @@ export interface InjectOptions {
 export interface VersionPlan {
   palette: string;
   hair: string;
+  /** The early-to-mid 2000s camera this version is shot on (pickCamera). */
+  camera?: string;
 }
 
 export interface InjectCharacter {
@@ -85,10 +88,11 @@ export function buildInjectPrompt(c: InjectCharacter, sheet: string, o: InjectOp
   const pose = o.pose
     ? `New pose: not the target's; a ${o.poseMode === "social" ? "fresh, eye-catching creator pose" : "relaxed, natural, candid pose"} possible in this place from this camera${n > 1 ? ", different in every version" : ""}. Keep props logical.${recent.length ? ` Avoid these recent poses: ${recent.join("; ")}.` : ""}${inspo.length ? ` Ideas only: ${inspo.join("; ")}.` : ""}`
     : "Keep the target's exact pose, gaze and expression.";
+  const cams = plans.some((p) => p.camera);
   const plan =
-    o.recolor || o.hair
+    o.recolor || o.hair || cams
       ? "\nVERSION PLAN" + (o.recolor ? " (recolour every garment, same cut)" : "") + (o.hair ? " (hairstyle; same colour and length)" : "") + ":\n" +
-        plans.map((p, i) => `- Version ${i + 1}:${o.recolor ? ` colours = ${p.palette};` : ""}${o.hair ? ` hair = ${p.hair};` : ""}`).join("\n") + "\n"
+        plans.map((p, i) => `- Version ${i + 1}:${o.recolor ? ` colours = ${p.palette};` : ""}${o.hair ? ` hair = ${p.hair};` : ""}${p.camera ? ` camera = ${p.camera};` : ""}`).join("\n") + "\n"
       : "";
   const format =
     o.len === "narrative"
@@ -108,7 +112,8 @@ SAY, IN THIS ORDER
 - The setting, and what is nearest the lens and far behind her.
 - Light: source, direction, how the shadows fall and how soft; glowing things tint nearby skin.
 - Camera: height, angle, distance, lens look, image quality (grain, sharpness, colour grade), as the target shows it.
-- Realism: real matte skin with pores, uneven tone and small blemishes; real fabric texture; ${o.mode === "text" ? "" : "a phone photo looks like an older smartphone (around 2017). "}Never "photorealistic", "8k", "flawless", "glossy" or "smooth skin".
+- Camera body: ${cams ? "name the camera given for that version in the VERSION PLAN" : "name one early-to-mid 2000s digital camera"} ("shot on a ..."), with its ${OLD_CAMERA_LOOK}.
+- Realism: real matte skin with pores, uneven tone and small blemishes; real fabric texture. Never "photorealistic", "8k", "flawless", "glossy" or "smooth skin".
 
 RULES
 - Only what is in frame: no feet when out of frame, no face details when it is hidden.

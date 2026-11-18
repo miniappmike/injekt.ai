@@ -73,7 +73,7 @@ describe("finishVariant", () => {
     expect(t).toContain("MAKEUP STAYS: keep her makeup and nail polish exactly as in @image2");
     // An edit keeps the photo's own look: no new-photo camera line.
     expect(t.endsWith("Match @image2's own light, shadows, grain and image quality, never cleaner or sharper. Realistic skin texture with pores and small imperfections; no glossy, waxy or airbrushed skin.")).toBe(true);
-    expect(t).not.toContain("older smartphone");
+    expect(t).not.toContain("2000s digital camera");
   });
   it("keeps an existing opener, skips the makeup rule when asked for makeup, and works with no character", () => {
     const t = finishVariant("Edit @image2. Keep her as in @image1. New lipstick.", vt, "", "red lipstick");

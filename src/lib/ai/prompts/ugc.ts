@@ -84,7 +84,7 @@ export function ugcPrompt(R: RefSet, products: number, p: UgcProduct, shot: UgcS
   const scene = one(shot.scene, 700).replace(/([^.!?])$/, "$1.");
   return paragraphs(
     sentences(
-      "A candid smartphone photo a creator posted, not an advert.",
+      "A candid photo a creator posted, not an advert.",
       refRoles(R, refTags),
       `${joinTags(prodTags)} ${prodTags.length > 1 ? "show the product (the same product in each)" : "is the product"}${product ? `: ${product}` : ""}. Keep its shape, colours, materials, logo and printed text exactly${label ? `, reading "${label}"` : ""}, at its real size.`,
     ),

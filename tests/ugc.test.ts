@@ -59,9 +59,9 @@ describe("UGC image prompt", () => {
     expect(ugcPrompt(sheets, 1, product, { ...shot, frame: "" })).toContain("very small waist, very wide hips; thick thighs.");
   });
 
-  it("stays lean and looks like an older phone took it", () => {
+  it("stays lean and looks like a 2000s digital camera took it", () => {
     expect(t.length).toBeLessThan(2400);
-    expect(t).toContain("Shot on an older smartphone (a 2017 iPhone look)");
+    expect(t).toContain("Shot on an early-to-mid 2000s digital camera");
     for (const once of ["waxy", "highest priority", "plain outfit"]) expect(t.split(once)).toHaveLength(2);
   });
 

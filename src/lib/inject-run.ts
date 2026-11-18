@@ -15,7 +15,7 @@ import { buildInjectPrompt, looksLikeRefusal, parseVersions, TWO_SHEET_OPENER, t
 import { buildSwapBriefPrompt, swapChange } from "@/lib/ai/prompts/swap-brief";
 import { leanSwap } from "@/lib/ai/prompts/swap";
 import { leanSwapOptions, sheetRefs } from "@/lib/generation-job";
-import { HAIRSTYLES, PALETTES, POSE_HINTS, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
+import { HAIRSTYLES, OLD_CAMERAS, PALETTES, POSE_HINTS, SOCIAL_POSES, shuffleArr } from "@/lib/ai/prompts/pools";
 import { injectOptionsSchema, type InjectMeta, type InjectOptionsInput } from "@/lib/inject-meta";
 import type { CharacterProfile } from "@/lib/characters";
 
@@ -102,7 +102,8 @@ export async function runInject(
 
   const pals = shuffleArr(PALETTES, random);
   const hs = shuffleArr(HAIRSTYLES, random);
-  const plans: VersionPlan[] = Array.from({ length: o.count }, (_, k) => ({ palette: pals[k], hair: hs[k] }));
+  const cams = shuffleArr(OLD_CAMERAS, random);
+  const plans: VersionPlan[] = Array.from({ length: o.count }, (_, k) => ({ palette: pals[k], hair: hs[k], camera: cams[k % cams.length] }));
   const recent = o.pose && !opt.swap ? (await recentPoses(supabase, userId)).poses.slice(-RECENT_SEND) : [];
   const inspo = o.pose ? shuffleArr(o.poseMode === "social" ? SOCIAL_POSES : [...POSE_HINTS, ...SOCIAL_POSES], random).slice(0, 6) : [];
 

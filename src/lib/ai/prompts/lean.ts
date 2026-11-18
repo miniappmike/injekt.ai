@@ -88,9 +88,9 @@ export function personOnly(refs: string[], sheet: boolean, sheetOutfit?: string)
 export const realKeep = (photo: string) =>
   `Match ${photo}'s own light, shadows, grain and image quality, never cleaner or sharper. Realistic skin texture with pores and small imperfections; no glossy, waxy or airbrushed skin.`;
 
-/** A new image: the look of a photo from an older phone, which reads as real where a clean render does not. */
+/** A new image: the look of a photo from a 2000s digital camera, which reads as real where a clean render does not. */
 export const REAL_NEW =
-  "Shot on an older smartphone (a 2017 iPhone look): slight softness, real image grain, natural depth, lighting and shadows. Realistic skin texture with pores and small imperfections; no glossy, waxy or airbrushed skin. No overlays, captions or watermarks.";
+  "Shot on an early-to-mid 2000s digital camera: CCD colour, slight softness, real image grain, natural depth, lighting and shadows. Realistic skin texture with pores and small imperfections; no glossy, waxy or airbrushed skin. No overlays, captions or watermarks.";
 
 /** Joins paragraphs, dropping empty ones. */
 export const paragraphs = (...p: (string | false | null | undefined)[]) => p.filter((x): x is string => !!x && !!x.trim()).join("\n\n");
