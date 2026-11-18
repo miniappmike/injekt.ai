@@ -21,7 +21,6 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
       { label: "Marketplace", href: "/marketplace" },
       { label: "Art to Real", href: "/art-to-real" },
       { label: "UGC", href: "/ugc" },
-      { label: "Group photo", href: "/director#group" },
       { label: "Likeness check", href: "/likeness" },
     ],
   },

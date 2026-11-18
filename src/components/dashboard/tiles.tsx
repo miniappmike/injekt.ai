@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowRight, Brush, Check } from "lucide-react";
-import { EyeIcon, EyeOffIcon, GroupIcon, LikenessIcon, VariantsIcon } from "@/components/icons";
+import { EyeIcon, EyeOffIcon, LikenessIcon, VariantsIcon } from "@/components/icons";
 import { setGeneration } from "@/app/(app)/settings/api-keys/actions";
 import type { DashImage, StepKey } from "@/lib/dashboard-types";
 import { openHistory, viewImage } from "@/lib/panel-events";
@@ -90,7 +90,6 @@ const TOOLS = [
   { href: "/variants", label: "Variants", Icon: VariantsIcon },
   { href: "/likeness", label: "Likeness", Icon: LikenessIcon },
   { href: "/art-to-real", label: "Art to Real", Icon: Brush },
-  { href: "/director#group", label: "Group photo", Icon: GroupIcon },
 ];
 
 /** What takes the next-step tile's place once the first steps are done. */

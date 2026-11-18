@@ -10,7 +10,7 @@ import { useApp } from "@/components/app-context";
 import { useSheetDrag } from "@/lib/sheet-drag";
 import { CONTACT_EMAIL, DISCORD_URL, GET_KEY_PATH } from "@/lib/links";
 import { INVITE_PATH } from "@/lib/invites";
-import { BackIcon, CharactersIcon, CreateModelIcon, GridIcon, GroupIcon, InjectIcon, LikenessIcon, SparkIcon, StoreIcon, VariantsIcon } from "@/components/icons";
+import { BackIcon, CharactersIcon, CreateModelIcon, GridIcon, InjectIcon, LikenessIcon, SparkIcon, StoreIcon, VariantsIcon } from "@/components/icons";
 import { DOCK_MORE, DOCK_NAV } from "@/lib/nav";
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -25,10 +25,9 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "/marketplace": StoreIcon,
   "/art-to-real": Brush,
   "/ugc": Package2,
-  "/director#group": GroupIcon,
 };
-/** The tool tiles in the More sheet: the rest of the menu, plus Group photo (Director with characters added). */
-const SHEET_TOOLS = [...DOCK_MORE, { href: "/director#group", label: "Group photo" }];
+/** The tool tiles in the More sheet: the rest of the menu. */
+const SHEET_TOOLS = DOCK_MORE;
 /** The account pages, listed under the tools in the More sheet (on a computer they are in the footer and profile menu). */
 const ACCOUNT: { href: string; label: string; Icon: React.ComponentType<{ className?: string }>; freeOnly?: boolean }[] = [
   { href: "/tokens", label: "Tokens", Icon: Coins },
