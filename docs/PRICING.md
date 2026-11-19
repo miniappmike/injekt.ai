@@ -7,15 +7,23 @@ their own model keys.
 
 ## Plans
 
-| | Free | Pro ($9.99 / 30 days, or 500 Telegram Stars) |
+| | Free | Pro ($9.99 / 30 days, or 750 Telegram Stars) |
 |---|---|---|
-| Tokens | 15 once, at sign-up | 220 the first month (once per person), then 200 a month |
+| Tokens | 20 once, at sign-up | 220 the first month (once per person), then 200 a month |
 | Own API keys (BYOK) | No | Yes: with an own image key, images cost no tokens |
-| Daily limits | Yes, set in Admin → Limits (prompts, likeness checks, images) | None |
+| Daily limits | Yes, set in Admin → Limits (prompts, likeness checks, images) | Fair-use caps on the platform key, set in the same table (default: 200 likeness checks a day, no limit on prompts or images; own key not counted) |
 | Platform key | Yes, paid with tokens | Yes, paid with tokens when no own key |
 
 Admins (`profiles.is_admin`) are unlimited. Pro is either set by hand in Admin (`profiles.plan = 'pro'`) or a paid
 30-day pass (`profiles.pro_until`).
+
+## Why these numbers (November 2026)
+
+From the first 30 days of real costs: an image costs about $0.037–0.038 on Seedream at any size (at most about
+$0.052), a text call about $0.005, and a likeness check about $0.002 (DeepSeek 4.1 flash, used for all checks on the
+platform key). That is about $0.02 a token on average. Crypto packs earn $0.043–0.050 a token. Pro in Stars was 500
+(about $6.50 paid out), now 750 (about $9.75), so Stars Pro earns close to the $9.99 crypto price. Stars subscriptions
+already running keep the price they started at.
 
 ## What tokens cost
 

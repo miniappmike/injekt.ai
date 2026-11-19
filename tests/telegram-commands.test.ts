@@ -27,7 +27,7 @@ describe("bot commands", () => {
     expect(tokens).toContain("⭐ 1,500");
     const pro = commandReply("/pro", SITE)?.text ?? "";
     expect(pro).toContain("$9.99");
-    expect(pro).toContain("⭐ 500");
+    expect(pro).toContain("⭐ 750");
   });
 
   it("/tools names the tools without repeating any", () => {

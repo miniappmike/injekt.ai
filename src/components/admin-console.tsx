@@ -13,7 +13,7 @@ import type { SweepResult } from "@/lib/ledger-sweep";
 import { cn } from "@/lib/utils";
 
 type Config = {
-  caps: { free: { runs: number; likeness: number; images: number }; pro: { runs: number; likeness: number; images: number } };
+  caps: { free: { runs: number; likeness: number; images: number }; pro: { runs: number | null; likeness: number | null; images: number | null } };
   serverModel: string;
   serverImageModel: string;
   serverPrice: { input: number; output: number } | null;
@@ -84,30 +84,48 @@ export function CapsForm({ config }: { config: Config }) {
   const [c, setC] = useState(config);
   const [msg, setMsg] = useState<{ text: string; ok: boolean }>();
   const [pending, start] = useTransition();
+  const label = (key: "runs" | "likeness" | "images") => (key === "runs" ? "prompts" : key === "images" ? "images" : "likeness checks");
   const capInput = (key: "runs" | "likeness" | "images") => (
     <Input
       type="number"
       min={0}
       inputMode="numeric"
-      aria-label={`Free ${key === "runs" ? "prompts" : key === "images" ? "images" : "likeness checks"} per day`}
+      aria-label={`Free ${label(key)} per day`}
       value={c.caps.free[key]}
       onChange={(e) => setC((x) => ({ ...x, caps: { ...x.caps, free: { ...x.caps.free, [key]: Number(e.target.value) } } }))}
       className="w-24 tabular-nums"
+    />
+  );
+  // Pro: an empty box means no limit.
+  const proInput = (key: "runs" | "likeness" | "images") => (
+    <Input
+      type="number"
+      min={0}
+      inputMode="numeric"
+      placeholder="No limit"
+      aria-label={`Pro ${label(key)} per day (empty for no limit)`}
+      value={c.caps.pro[key] ?? ""}
+      onChange={(e) => {
+        const v = e.target.value.trim();
+        setC((x) => ({ ...x, caps: { ...x.caps, pro: { ...x.caps.pro, [key]: v === "" ? null : Number(v) } } }));
+      }}
+      className="w-28 tabular-nums"
     />
   );
   return (
     <section className="panel flex flex-col gap-5 p-5" aria-labelledby="caps-title">
       <div>
         <h2 id="caps-title" className="font-display text-lg font-bold text-neutral-50">Limits and AI model</h2>
-        <p className="text-sm text-neutral-400">Free accounts only: Pro has no daily limits. Changes apply within about 15 seconds.</p>
+        <p className="text-sm text-neutral-400">Daily limits on your key. Pro limits are fair-use caps: leave a box empty for no limit, and Pro accounts on their own AI key aren&apos;t counted. Admins are never limited. Changes apply within about 15 seconds.</p>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full max-w-md text-sm">
+        <table className="w-full max-w-lg text-sm">
           <thead>
             <tr className="text-left text-xs text-neutral-400">
               <th className="pb-2 font-medium">Per day</th>
               <th className="pb-2 font-medium">Free plan</th>
+              <th className="pb-2 font-medium">Pro</th>
             </tr>
           </thead>
           <tbody>
@@ -116,16 +134,21 @@ export function CapsForm({ config }: { config: Config }) {
                 <span className="flex items-center gap-1.5">Prompts <InfoTip label="What counts as a prompt">Each target photo in Inject, and each press of Write variations, Write variant edits or Plan carousel. Direct swap and copying are free.</InfoTip></span>
               </td>
               <td className="py-1.5 pr-3">{capInput("runs")}</td>
+              <td className="py-1.5 pr-3">{proInput("runs")}</td>
             </tr>
             <tr>
               <td className="py-1.5 pr-4 text-neutral-200">
                 <span className="flex items-center gap-1.5">Images <InfoTip label="What counts as an image">Each image made with tokens, at any size.</InfoTip></span>
               </td>
               <td className="py-1.5 pr-3">{capInput("images")}</td>
+              <td className="py-1.5 pr-3">{proInput("images")}</td>
             </tr>
             <tr>
-              <td className="py-1.5 pr-4 text-neutral-200">Likeness checks</td>
+              <td className="py-1.5 pr-4 text-neutral-200">
+                <span className="flex items-center gap-1.5">Likeness checks <InfoTip label="About likeness checks">Free for everyone (no tokens), so Pro has a fair-use cap. Each check is one vision call on your key, about $0.002 on DeepSeek flash.</InfoTip></span>
+              </td>
               <td className="py-1.5 pr-3">{capInput("likeness")}</td>
+              <td className="py-1.5 pr-3">{proInput("likeness")}</td>
             </tr>
           </tbody>
         </table>
@@ -150,7 +173,7 @@ export function CapsForm({ config }: { config: Config }) {
           onClick={() =>
             start(async () => {
               // Costs come from SpicyAPI's real charges now, so no typed-in price is kept.
-              const r = await saveSettings({ caps: c.caps, serverModel: c.serverModel, serverImageModel: c.serverImageModel, serverPrice: null });
+              const r = await saveSettings({ caps: { free: c.caps.free }, proCaps: c.caps.pro, serverModel: c.serverModel, serverImageModel: c.serverImageModel, serverPrice: null });
               setMsg(r.ok ? { text: "Saved.", ok: true } : { text: r.error, ok: false });
               if (r.ok) router.refresh();
             })

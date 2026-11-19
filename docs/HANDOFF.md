@@ -13,6 +13,11 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Pricing: 20 sign-up tokens, Pro at 750 Stars, Pro fair-use limits in Admin (November 19; types clean, tests pass except the two env-var files and the existing likeness-fix test in `generation.test.ts`, which failed before this too; Admin table NOT checked in a browser)**
+- `FREE_CREDITS` 15 → 20 (only new sign-ups; people who already got 15 keep 15). `PRO.stars` 500 → 750 (about $9.75 paid out instead of $6.50). Stars subscriptions already running keep renewing at 500.
+- Pro now has daily fair-use limits on the platform key: `DAILY_LIMITS.pro` = `{ runs: null, likeness: 200, images: null }` (null = no limit). Stored as `proCaps` in `app_settings` (the old `caps.pro` 100000 placeholders are ignored). `useDaily` counts Pro too, but skips admins, a null limit, and Pro prompts and checks on their own AI key. Admin → Limits has a Pro column (empty box = no limit). Pro hitting a cap is told to wait for midnight or add their own key. The Terms mention the fair-use cap; the marketing "No daily limits" for Pro was left as is (prompts and images stay unlimited).
+- Why: owner's margin review (numbers in `docs/PRICING.md` → "Why these numbers").
+
 **X references checkbox, floating Save after image changes, Director photo box fix (November 19; types clean; NOT checked in a browser or on a real generation)**
 - "X references" checkbox in Inject Write prompts (draft `inject.xref`, a chip by Clean up overlays) and Direct swap (Generate mode). Sends `meta.xref`; `withXRefs` in `generation-job.ts` appends her `x_reference_paths` after all other images (no @image tag moves) plus one line naming them. Errors if she has none or there's no room. X Reference is no longer a placeholder (its box hint says so).
 - Character page: header image strip no longer shows the sheets or X References; X References card (renamed) has a Discord tooltip and a Join the Discord button (discord.gg/9tV5FfMvW4); metadata note removed. `ImageSlot` fires a `character-images-changed` window event after upload, remove or reorder; `CharacterForm` listens and shows the floating Save.

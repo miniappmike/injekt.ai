@@ -73,7 +73,7 @@ export default async function TermsPage({ searchParams }: { searchParams: Promis
           <b className="text-neutral-100">Tokens</b> pay for work done on our AI. An image costs {IMAGE_CREDITS["1k"]}, {IMAGE_CREDITS["1.5k"]} or {IMAGE_CREDITS["2k"]} tokens
           (1k, 1.5k or 2k), a prompt {PROMPT_CREDITS} and a profile build {PROFILE_BUILD_CREDITS}. If an image fails, its tokens are given back.
         </li>
-        <li>New accounts get {FREE_CREDITS} free tokens once, after confirming their email. Free accounts have daily limits.</li>
+        <li>New accounts get {FREE_CREDITS} free tokens once, after confirming their email. Free accounts have daily limits. Pro has a fair-use daily cap on free features run on our key, such as likeness checks.</li>
         <li>
           Token packs ({CREDIT_PACKS.map((x) => `${dollars(x.priceCents)} for ${x.credits.toLocaleString()}`).join(", ")}) never expire. Tokens have no cash value and
           can&apos;t be transferred or exchanged for money.

@@ -35,12 +35,18 @@ export async function canUseOwnKeys(userId: string): Promise<boolean> {
 // Before migration 0012 runs the functions don't exist; prompts keep working (uncounted) rather than all failing.
 const missing = (e: { message?: string; code?: string } | null) => !!e && (e.code === "PGRST202" || e.code === "42883" || /consume_daily|release_daily|daily_usage/.test(e.message ?? "")) || (!!e && e.code === "23514");
 
-/** Uses one unit of today's allowance, or throws DailyLimitError. Only free accounts have daily limits. */
+/**
+ * Uses one unit of today's allowance, or throws DailyLimitError. Free accounts have daily limits; Pro has fair-use
+ * limits (set in Admin, null = none) on the platform's key only, so prompts and checks on their own key aren't counted.
+ * Admins are never counted. Images only come here when made on the platform's key.
+ */
 export async function useDaily(supabase: SupabaseClient, userId: string, key: DailyKey): Promise<DailySlot> {
   const plan = await entitlements.planOf(userId);
-  if (plan !== "free") return NOOP;
+  if (plan === "admin") return NOOP;
   const { caps } = await getAppConfig();
   const limit = caps[plan][key];
+  if (limit == null) return NOOP;
+  if (plan === "pro" && key !== "images" && (await hasOwnAiKey(supabase, userId))) return NOOP;
   const tz = await accountTz(userId);
   const { data, error } = await adminClient().rpc("consume_daily", { p_user: userId, p_key: key, p_limit: limit, p_tz: tz });
   if (error) {

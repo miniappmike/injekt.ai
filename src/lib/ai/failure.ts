@@ -30,7 +30,9 @@ export function toFailure(e: unknown): AiFailure {
 export function dailyLimitMessage(e: Pick<DailyLimitError, "key" | "plan" | "limit" | "proLimit">): string {
   const one = e.limit === 1;
   const what = e.key === "runs" ? `prompt${one ? "" : "s"}` : e.key === "images" ? `image${one ? "" : "s"}` : `likeness check${one ? "" : "s"}`;
-  return `You've used today's ${e.limit} ${what} on the free plan. They reset at midnight. Pro has no daily limits: open your profile menu and choose Upgrade to Pro.`;
+  if (e.plan === "pro") return `You've used today's ${e.limit} ${what} on Pro (a fair-use limit on our key). They reset at midnight, or add your own AI key in Settings to keep going now.`;
+  const pro = e.proLimit == null ? "Pro has no daily limit on these" : `Pro gives ${e.proLimit} a day`;
+  return `You've used today's ${e.limit} ${what} on the free plan. They reset at midnight. ${pro}: open your profile menu and choose Upgrade to Pro.`;
 }
 
 export { creditsMessage };

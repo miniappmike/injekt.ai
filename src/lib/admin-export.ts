@@ -4,7 +4,7 @@ import { featureLabel } from "@/lib/ledger-types";
 /** Everything on the Admin page, for "Export as". */
 export interface AdminSnapshot {
   generatedAt: string;
-  config: { caps: { free: { runs: number; likeness: number; images?: number }; pro: { runs: number; likeness: number } }; serverModel: string };
+  config: { caps: { free: { runs: number; likeness: number; images?: number }; pro: { runs: number | null; likeness: number | null; images?: number | null } }; serverModel: string };
   stats: AdminStats;
   /** Real costs of the platform key alone, and with admin accounts' own testing. */
   realCosts: { platformKeyOnly: FinanceStats; withAdminTesting: FinanceStats };
@@ -86,7 +86,7 @@ export function snapshotMarkdown(s: AdminSnapshot): string {
     ),
     "## Settings",
     "",
-    `- Daily caps (free plan): ${s.config.caps.free.runs} prompts / ${s.config.caps.free.likeness} likeness / ${s.config.caps.free.images ?? "-"} images; Pro has no daily limits`,
+    `- Daily caps (free plan): ${s.config.caps.free.runs} prompts / ${s.config.caps.free.likeness} likeness / ${s.config.caps.free.images ?? "-"} images; Pro: ${capText(s.config.caps.pro.runs)} prompts / ${capText(s.config.caps.pro.likeness)} likeness / ${capText(s.config.caps.pro.images)} images (on the platform key)`,
     `- Model on the platform key: ${s.config.serverModel}`,
     "",
   ].join("\n");
@@ -150,3 +150,5 @@ export function snapshotCsv(s: AdminSnapshot): string {
     ),
   ].join("\n");
 }
+
+const capText = (n: number | null | undefined) => (n == null ? "no limit" : String(n));

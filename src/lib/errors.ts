@@ -47,8 +47,8 @@ export class DailyLimitError extends Error {
     public readonly key: "runs" | "likeness" | "images",
     public readonly plan: "free" | "pro",
     public readonly limit: number,
-    /** Pro's limit for the same thing, to say what upgrading gives. */
-    public readonly proLimit: number,
+    /** Pro's limit for the same thing, to say what upgrading gives (null: no limit). */
+    public readonly proLimit: number | null,
   ) {
     super(`Daily limit reached: ${key}`);
     this.name = "DailyLimitError";

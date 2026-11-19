@@ -140,7 +140,7 @@ export function UsageMeterView({ s, startOpen = false }: { s: DailyStatus; start
                 {bar("Prompts", s.runs)}
                 {bar("Images", s.images)}
                 {bar("Likeness checks", s.likeness)}
-                <li className="text-xs text-neutral-500">Resets at midnight. Pro has no daily limits.</li>
+                <li className="text-xs text-neutral-500">Resets at midnight. Pro has no daily limits on prompts or images.</li>
               </ul>
             </>
           )}

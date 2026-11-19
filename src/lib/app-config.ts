@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { adminClient } from "@/lib/supabase/admin";
 import { env } from "@/env";
-import { DAILY_LIMITS } from "@/lib/limits";
+import { DAILY_LIMITS, type ProCaps } from "@/lib/limits";
 
 /** Images paid with credits are made with this unless the admin page sets another. */
 export const DEFAULT_SERVER_IMAGE_MODEL = "bytedance/seedream-5.0-pro/edit";
@@ -15,10 +15,12 @@ export const appConfigSchema = z.object({
   caps: z
     .object({
       free: z.object({ runs: cap, likeness: cap, images: cap.optional() }),
-      // Pro has no daily limits now; older saved settings may still carry these.
+      // Older saved settings carry a placeholder Pro block (100000s); it is ignored. Pro's limits live in proCaps.
       pro: z.object({ runs: cap, likeness: cap, images: cap.optional() }).optional(),
     })
     .optional(),
+  /** Pro's daily fair-use limits on the platform's key. null: no limit. Left out: the default (DAILY_LIMITS.pro). */
+  proCaps: z.object({ runs: cap.nullable(), likeness: cap.nullable(), images: cap.nullable() }).partial().optional(),
   /** The image model used for images paid with credits (on the platform's key). */
   serverImageModel: z.string().trim().min(3).max(200).optional(),
   /** The model the platform's key uses for prompt writing, sheets and likeness checks. */
@@ -30,7 +32,7 @@ export type AppConfigInput = z.infer<typeof appConfigSchema>;
 
 type Caps = { runs: number; likeness: number; images: number };
 export interface AppConfig {
-  caps: { free: Caps; pro: Caps };
+  caps: { free: Caps; pro: ProCaps };
   serverModel: string;
   serverImageModel: string;
   serverPrice: { input: number; output: number } | null;
@@ -49,7 +51,8 @@ export function mergeConfig(raw: unknown): AppConfig {
   if (!p.success) return d;
   const caps = p.data.caps
     ? { free: { ...d.caps.free, ...p.data.caps.free, images: p.data.caps.free.images ?? d.caps.free.images }, pro: d.caps.pro }
-    : d.caps;
+    : { ...d.caps };
+  if (p.data.proCaps) caps.pro = { ...d.caps.pro, ...p.data.proCaps };
   return {
     caps,
     serverModel: p.data.serverModel ?? d.serverModel,

@@ -15,10 +15,15 @@ export const FREE_LIMITS = {
  */
 export const DAILY_LIMITS = {
   free: { runs: 3, likeness: 1, images: 20 },
-  // Pro has no daily limits; these stay for the config's shape (and older saved settings).
-  pro: { runs: 100000, likeness: 100000, images: 100000 },
+  /**
+   * Pro's fair-use limits, on the platform's key only (own keys aren't counted). null: no limit. Prompts and images
+   * already cost tokens, so only likeness checks (free) are limited by default. All three can be changed in Admin.
+   */
+  pro: { runs: null, likeness: 200, images: null },
 } as const;
 export type DailyKey = keyof (typeof DAILY_LIMITS)["free"];
+/** Pro's daily limits; null means no limit. */
+export type ProCaps = Record<DailyKey, number | null>;
 
 export type AllowanceKey = Exclude<keyof typeof FREE_LIMITS, "characters">;
 

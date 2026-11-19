@@ -3,12 +3,12 @@ import type { ImageResolution } from "@/lib/ai/providers/types";
 /**
  * Prices and what each plan includes. One source for the Pro page, the credits page and every charge on the server.
  *
- * Free: 15 credits once (with a confirmed email), daily limits set on the admin page, no own keys.
+ * Free: 20 credits once (with a confirmed email), daily limits set on the admin page, no own keys.
  * Pro: $9.99 for 30 days. Own keys (BYOK), no daily limits, 220 credits the first month and 200 every month after.
  * Monthly credits run out with the month; bought credits never expire.
  */
 
-export const FREE_CREDITS = 15;
+export const FREE_CREDITS = 20;
 
 /** Credits for one image made on the platform's key, by size. */
 export const IMAGE_CREDITS: Record<ImageResolution, number> = { "1k": 2, "1.5k": 3, "2k": 4 };
@@ -20,10 +20,10 @@ export const PROMPT_CREDITS = 1;
 export const PRO = {
   priceCents: 999,
   /**
-   * The price in Telegram Stars. Each price is an exact Stars bundle (iPhone only sells bundles at or above the price),
-   * chosen so a phone buyer pays about the dollar price.
+   * The price in Telegram Stars, an exact Stars bundle (iPhone only sells bundles). 750 Stars pays out about $9.75
+   * (STAR_PAYOUT_USD), close to the crypto price; 500 paid out only about $6.50.
    */
-  stars: 500,
+  stars: 750,
   days: 30,
   firstMonthCredits: 220,
   monthlyCredits: 200,
