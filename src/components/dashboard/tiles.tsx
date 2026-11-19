@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowRight, Brush, Check } from "lucide-react";
+import { ArrowRight, Brush, Check, Images } from "lucide-react";
 import { EyeIcon, EyeOffIcon, LikenessIcon, VariantsIcon } from "@/components/icons";
 import { setGeneration } from "@/app/(app)/settings/api-keys/actions";
 import type { DashImage, StepKey } from "@/lib/dashboard-types";
@@ -90,6 +90,7 @@ const TOOLS = [
   { href: "/variants", label: "Variants", Icon: VariantsIcon },
   { href: "/likeness", label: "Likeness", Icon: LikenessIcon },
   { href: "/art-to-real", label: "Art to Real", Icon: Brush },
+  { href: "/library", label: "Library", Icon: Images },
 ];
 
 /** What takes the next-step tile's place once the first steps are done. */

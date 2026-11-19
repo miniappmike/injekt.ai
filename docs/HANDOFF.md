@@ -13,6 +13,8 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Library added to the dashboard Quick tools (November 19)**: a fourth tile, Library (`/library`, lucide `Images` icon), in `TOOLS` in `src/components/dashboard/tiles.tsx`. Not type-checked (no node_modules in that session).
+
 **"X Reference" box on a character's page, a placeholder (November 18; types clean, all tests pass except the two env-var files; looked at on the stand-in backend on desktop and an emulated phone, upload NOT tried against real Supabase; migration 0036 must be run)**
 - A fifth upload box, **X Reference (up to 3)** (`MAX_X_REFERENCES` in `src/lib/reference-limits.ts`), after Reference images on `/characters/[id]`, the same `ImageSlot` as the others, hint "Saved with her. Not used by any tool yet." Upload slot `x_reference` (`UPLOAD_SLOTS`), saved by `/api/uploads/finalize` into `characters.x_reference_paths`, removed by `removeCharacterImage`.
 - **Run `supabase/migrations/0036_x_reference.sql`** (adds the column, at most 3). Until then the page still opens (the column is read in its own query) and an upload says "X Reference isn't set up yet".
