@@ -37,6 +37,7 @@ export function CharacterForm({
   buildCredits = null,
   buildsTotal,
   fromWizard = false,
+  buildStyle,
 }: {
   action: (state: CharacterFormState, formData: FormData) => Promise<CharacterFormState>;
   initial?: Initial;
@@ -51,6 +52,8 @@ export function CharacterForm({
   buildsTotal?: number;
   /** Arrived straight from the Create Model wizard: point at Build profile, the last step. */
   fromWizard?: boolean;
+  /** Design options for the Build profile button the owner is comparing ("1" | "2" | "3"; default the plain button). */
+  buildStyle?: string;
 }) {
   const router = useRouter();
   const [state, formAction, pendingAction] = useActionState(action, {});
@@ -185,6 +188,31 @@ export function CharacterForm({
         </p>
         {characterId && (
           <div className="flex flex-col gap-2">
+            {buildStyle === "1" ? (
+              <Button ref={buildRef} type="button" onClick={build} disabled={building || !canBuildProfile || buildsLeft === 0} className="glow-brand h-14 w-full rounded-2xl bg-gradient-to-r from-brand-500 via-brand-400 to-iris-500 text-base font-bold text-white shadow-[0_12px_40px_-10px_rgb(232_38_94/0.8)] transition-transform hover:scale-[1.01] active:scale-[0.99]">
+                <span aria-hidden="true" className="mr-1">✦</span>{building ? "Building..." : <>Build profile from images{buildCredits ? <TokenCost n={buildCredits} onPink /> : null}</>}
+              </Button>
+            ) : buildStyle === "2" ? (
+              <div className="relative overflow-hidden rounded-2xl border border-brand-500/40 bg-[radial-gradient(circle_at_0%_0%,rgb(232_38_94/0.3),transparent_60%),radial-gradient(circle_at_100%_100%,rgb(91_91_246/0.25),transparent_60%)] p-5">
+                <p className="font-display text-xl font-bold text-neutral-50">✦ Let AI write her profile</p>
+                <p className="mt-1 text-sm text-neutral-300">Reads her sheets and photos and fills in every field below. You can edit anything after.</p>
+                <Button ref={buildRef} type="button" onClick={build} disabled={building || !canBuildProfile || buildsLeft === 0} className="glow-brand mt-4 h-12 w-full rounded-xl bg-brand-500 text-base font-bold text-white hover:bg-brand-400 sm:w-auto sm:px-8">
+                  {building ? "Building..." : <>Build profile from images{buildCredits ? <TokenCost n={buildCredits} onPink /> : null}</>}
+                </Button>
+              </div>
+            ) : buildStyle === "3" ? (
+              <button ref={buildRef as React.Ref<HTMLButtonElement>} type="button" onClick={build} disabled={building || !canBuildProfile || buildsLeft === 0} className="group relative flex w-full items-center gap-4 overflow-hidden rounded-2xl bg-neutral-950 p-[2px] text-left disabled:opacity-50">
+                <span aria-hidden="true" className="absolute inset-[-100%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#e8265e,#5b5bf6,#f7487a,#e8265e)]" />
+                <span className="relative flex w-full items-center gap-4 rounded-[calc(1rem-2px)] bg-neutral-950 px-5 py-4">
+                  <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-iris-500 text-2xl text-white shadow-lg">✦</span>
+                  <span className="flex flex-1 flex-col">
+                    <span className="text-base font-bold text-neutral-50">{building ? "Building..." : "Build profile from images"}</span>
+                    <span className="text-sm text-neutral-400">AI reads her sheets and photos and fills in every field.</span>
+                  </span>
+                  {buildCredits ? <TokenCost n={buildCredits} /> : null}
+                </span>
+              </button>
+            ) : (
             <Button
               ref={buildRef}
               type="button"
@@ -195,6 +223,7 @@ export function CharacterForm({
             >
               {building ? "Building..." : <>Build profile from images{buildCredits ? <TokenCost n={buildCredits} onPink={nudge} /> : null}</>}
             </Button>
+            )}
             {!canBuildProfile && <p className="text-xs text-neutral-500">Upload a face sheet, body sheet or reference photo to enable this.</p>}
             {buildsLeft !== null && buildsTotal !== undefined && (
               <p className="text-xs text-neutral-500">
