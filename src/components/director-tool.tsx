@@ -9,7 +9,13 @@ import { CharacterPicker } from "@/components/character-picker";
 import { GenerateImage } from "@/components/generate-image";
 import { GroupAdd } from "@/components/group-add";
 import { useGeneration } from "@/components/app-context";
+import { ImageDrop } from "@/components/image-drop";
+import { uploadImage } from "@/components/image-slot";
+import { Button } from "@/components/ui/button";
+import { tokenGate } from "@/components/out-of-tokens";
 import { MAX_DIRECTION } from "@/lib/ai/prompts/director";
+import { directorEditPrompt, MAX_EDIT_CHANGES } from "@/lib/ai/prompts/director-edit";
+import { writeDirectorEdit } from "@/app/(app)/director/actions";
 import { useDraftState } from "@/lib/drafts";
 
 const REALISM_KEY = "ms.directorRealism";
@@ -58,7 +64,35 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
     decode: (v) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && characters.some((c) => c.id === x)) : null),
   });
   const extras = groupIds.filter((id) => id !== characterId && characters.some((c) => c.id === id));
-  const groupOn = extras.length > 0;
+  // Edit a photo mode: upload a photo, say what should change, optionally have the prompt written, then Generate.
+  const [mode, setMode] = useDraftState<"new" | "edit">("director.mode", "new", { decode: (v) => (v === "new" || v === "edit" ? v : null) });
+  const editing = mode === "edit";
+  const groupOn = !editing && extras.length > 0;
+  const [photo, setPhoto] = useState<{ preview: string; path?: string; busy?: boolean; error?: string } | null>(null);
+  const [changes, setChanges] = useDraftState("director.changes", "", { decode: (v) => (typeof v === "string" ? v.slice(0, MAX_EDIT_CHANGES) : null) });
+  const [written, setWritten] = useState("");
+  const [writing, setWriting] = useState<{ busy?: boolean; error?: string }>({});
+  const [keepHer, setKeepHer] = useState(true);
+  const pickPhoto = async (file: File) => {
+    const preview = URL.createObjectURL(file);
+    setPhoto({ preview, busy: true });
+    setWritten("");
+    try {
+      const path = await uploadImage(file, "target");
+      setPhoto((p) => (p?.preview === preview ? { preview, path } : p));
+    } catch (e) {
+      setPhoto((p) => (p?.preview === preview ? { preview, error: e instanceof Error ? e.message : "Upload failed" } : p));
+    }
+  };
+  const writeEdit = async () => {
+    if (!photo?.path) return;
+    setWriting({ busy: true });
+    const r = await writeDirectorEdit({ photoPath: photo.path, changes, keepHer: keepHer && character.ready }).catch(() => ({ ok: false as const, error: "Couldn't write the prompt. Try again." }));
+    if (r.ok) setWritten(r.text);
+    setWriting(r.ok ? {} : { error: tokenGate(r.error) });
+  };
+  const sheetsOn = keepHer && character.ready;
+  const editText = directorEditPrompt(written.trim() || changes, sheetsOn);
 
   return (
     <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
@@ -70,13 +104,13 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
           onChange={setCharacterId}
           characters={characters.map((c) => ({ id: c.id, name: c.name, photo: c.photo, note: c.ready ? undefined : "Needs both sheets" }))}
         />
-        {!character.ready && (
+        {!character.ready && !editing && (
           <p className="text-sm text-amber-400">
             Director always sends {character.name}&apos;s face sheet and body sheet. Make both on <Link href={`/characters/${character.id}`} className="underline">her character page</Link> first.
           </p>
         )}
-        {character.ready && !groupOn && <p className="text-xs text-neutral-500">Sent with every image: @image1 her face sheet, @image2 her body sheet, under her identity and body lock.</p>}
-        {generation && (
+        {character.ready && !groupOn && !editing && <p className="text-xs text-neutral-500">Sent with every image: @image1 her face sheet, @image2 her body sheet, under her identity and body lock.</p>}
+        {generation && !editing && (
           <GroupAdd
             primaryId={characterId}
             value={groupIds}
@@ -87,6 +121,83 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
       </section>
 
       <section className="panel flex flex-col gap-3 p-4">
+        <div role="tablist" aria-label="Director mode" className="flex w-fit gap-1 rounded-full border border-neutral-700 p-1 text-sm">
+          {(
+            [
+              ["new", "New shot"],
+              ["edit", "Edit a photo"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={mode === id}
+              onClick={() => setMode(id)}
+              className={`rounded-full px-3 py-1 transition-colors ${mode === id ? "bg-brand-500/20 text-neutral-50" : "text-neutral-400 hover:text-neutral-200"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {editing ? (
+          <>
+            <Label>Photo to edit</Label>
+            <ImageDrop title={photo ? "Replace photo" : "Photo"} hint="Any photo: drop, paste or pick one." preview={photo?.preview} onPick={(f) => void pickPhoto(f)} />
+            {photo?.busy && <p className="text-xs text-neutral-400">Uploading...</p>}
+            {photo?.error && <p className="text-sm text-red-400">{photo.error}</p>}
+            <Label htmlFor="edit-changes">What should change?</Label>
+            <Textarea
+              id="edit-changes"
+              value={changes}
+              maxLength={MAX_EDIT_CHANGES}
+              rows={4}
+              onChange={(e) => setChanges(e.target.value)}
+              placeholder="In your own words, e.g. put her in a red summer dress, make it golden hour, swap the background for a rooftop bar…"
+            />
+            <label className="flex w-fit cursor-pointer items-center gap-2 text-sm">
+              <input type="checkbox" checked={keepHer} disabled={!character.ready} onChange={(e) => setKeepHer(e.target.checked)} /> Keep {character.name}&apos;s likeness
+              <InfoTip label="About keeping her likeness">
+                On: her face sheet and body sheet go with the photo (@image2 and @image3), so the woman in it looks exactly like her. Turn it off to edit a photo of anyone and keep them as they are.
+              </InfoTip>
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" size="sm" disabled={!photo?.path || !changes.trim() || writing.busy} onClick={() => void writeEdit()}>
+                {writing.busy ? "Writing..." : written ? "Write it again" : "Write the prompt with AI (optional)"}
+              </Button>
+              {writing.error && <span className="text-sm text-red-400">{writing.error}</span>}
+            </div>
+            {written && (
+              <>
+                <Label htmlFor="edit-prompt">Edit prompt (change anything you like)</Label>
+                <Textarea id="edit-prompt" value={written} maxLength={MAX_EDIT_CHANGES} rows={5} onChange={(e) => setWritten(e.target.value)} />
+                <button type="button" onClick={() => setWritten("")} className="w-fit text-xs text-neutral-400 underline">
+                  Use my own words instead
+                </button>
+              </>
+            )}
+            {generation ? (
+              photo?.path && changes.trim() ? (
+                <GenerateImage
+                  key={`${photo.path}|${sheetsOn ? characterId : ""}`}
+                  prompt={editText}
+                  characterId={sheetsOn ? characterId : null}
+                  extraPaths={[]}
+                  kind="edit"
+                  meta={{ target: photo.path, refs: sheetsOn ? ["face_sheet", "body_sheet"] : [] }}
+                  actionLabel="Generate edit"
+                />
+              ) : (
+                <p className="text-xs text-neutral-500">Add a photo and describe the changes to generate.</p>
+              )
+            ) : (
+              <p className="text-sm text-amber-400">
+                Editing makes the image here, so it needs image generation. Turn it on in <Link href="/settings/api-keys" className="underline">Settings</Link>.
+              </p>
+            )}
+          </>
+        ) : (
+          <>
         <Label htmlFor="direction">What do you want to see?</Label>
         <Textarea
           id="direction"
@@ -126,6 +237,8 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
           <p className="text-sm text-amber-400">
             Director makes the image here, so it needs image generation. Turn it on in <Link href="/settings/api-keys" className="underline">Settings</Link>.
           </p>
+        )}
+          </>
         )}
       </section>
     </div>

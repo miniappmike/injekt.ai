@@ -13,6 +13,8 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Director has an "Edit a photo" mode (November 19; types clean, its test passes; NOT checked in a browser or run on a real generation)**: a New shot / Edit a photo switch on `/director` (`director-tool.tsx`, kept as draft `director.mode`). Edit: upload a photo (slot `target`), say what should change, optionally press "Write the prompt with AI" (`writeDirectorEdit` in `src/app/(app)/director/actions.ts`, vision model reads the photo, one prompt run, task in `src/lib/ai/prompts/director-edit.ts`), tweak the written prompt, then "Generate edit" (kind `edit`, photo @image1). "Keep her likeness" (on by default) also sends her face sheet @image2 and body sheet @image3 (`directorEditPrompt` adds the likeness line). Group photo is hidden in Edit mode. The uploaded photo itself is not kept as a draft.
+
 **Download is always on the full image preview (November 19)**: `src/components/image-viewer.tsx` shows Download on every image (reference photos included), using `downloadUrl` or else the shown `url`. Owner rule: every full preview, web and mobile, must have Download.
 
 **Library added to the dashboard Quick tools (November 19)**: a fourth tile, Library (`/library`, lucide `Images` icon), in `TOOLS` in `src/components/dashboard/tiles.tsx`. Not type-checked (no node_modules in that session).
