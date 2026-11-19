@@ -1,5 +1,6 @@
 "use client";
 
+import { AspectPicker } from "@/components/aspect-picker";
 import { DownloadLink } from "@/components/download-link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -304,16 +305,16 @@ function GenerateImageInner({
           </select>
         </label>
         {!lockedAspectRatio && (
-          <label className="flex items-center gap-1.5 text-neutral-400">
+          <div className="flex items-center gap-1.5 text-neutral-400">
             Shape
-            <select className={select} value={chosenAspectRatio} onChange={(e) => {
-              const v = e.target.value as ImageAspectRatio;
-              setAspectRatio(v);
-              writeLastSettings({ aspectRatio: v });
-            }}>
-              {IMAGE_ASPECT_RATIOS.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
-          </label>
+            <AspectPicker
+              value={chosenAspectRatio}
+              onChange={(v) => {
+                setAspectRatio(v);
+                writeLastSettings({ aspectRatio: v });
+              }}
+            />
+          </div>
         )}
         <label className="flex items-center gap-1.5 text-neutral-400">
           Format

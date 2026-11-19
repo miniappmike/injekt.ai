@@ -40,7 +40,7 @@ export function ProPayButtons({
   onPay: (m: PayMethod) => void;
 }) {
   const card = "flex flex-col items-center gap-1 rounded-2xl px-5 py-3.5 text-center transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60";
-  if (!methods.telegram && !methods.crypto) return <p className="text-sm text-neutral-400">Checkout isn't available right now. Try again shortly.</p>;
+  methods = shown(methods);
   return (
     <div className={cn("grid w-full max-w-xl gap-3", methods.telegram && methods.crypto && "sm:grid-cols-2")}>
       {methods.telegram && (
@@ -79,7 +79,7 @@ export function PackPayButtons({
   disabled?: boolean;
   onPay: (m: PayMethod) => void;
 }) {
-  if (!methods.telegram && !methods.crypto) return <p className="mt-auto text-center text-xs text-neutral-500">Checkout isn't available right now. Try again shortly.</p>;
+  methods = shown(methods);
   return (
     <div className="mt-auto flex flex-col gap-2">
       {methods.telegram && (
@@ -114,3 +114,9 @@ export function PackPayButtons({
     </div>
   );
 }
+
+/**
+ * Which buttons to show. With neither way to pay set up, both still show (owner, November 19: so checkout can always
+ * be tried); pressing one then says that way isn't available yet (billing/actions.ts).
+ */
+const shown = (m: PayMethods): PayMethods => (m.telegram || m.crypto ? m : { telegram: true, crypto: true });
