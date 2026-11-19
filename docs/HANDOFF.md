@@ -13,7 +13,9 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
-**Character page redesign, her phone, X Reference up to 5 (November 19; on main; types clean; checked on the stand-in backend on desktop and a 390px phone, NOT against real Supabase; run migration 0037)**
+**Next.js upgraded to 16.4.5 (November 19; on main)**: fixes the moderate `use cache` advisories (GHSA-mfr8-8qww-v76h, GHSA-vc7v-qv4w-wrv8). `npm audit --omit=dev` clean, types clean, `next build` passes. Migration 0037 has been run (owner confirmed).
+
+**Character page redesign, her phone, X Reference up to 5 (November 19; on main; types clean; checked on the stand-in backend on desktop and a 390px phone, NOT against real Supabase; migration 0037 has been run)**
 - Layout A2 (owner's pick): header with her photo, name, status chips and actions over her blurred cover, plus a sideways strip of all her images; below, image cards on the left (Identity 3-across even on phones, References, Her phone, X Reference) and Details and profile on the right. "Build profile from images" is a pink callout card ("Let AI write her profile") in `character-form.tsx`.
 - Her phone: `PhoneCard` (photo slot `phone` + description, `savePhoneDescription`), columns `phone_description`, `phone_photo_path` (migration `0037_phone_and_x5.sql`, which also raises X Reference to 5). `phoneWriterRule` (`src/lib/ai/prompts/phone.ts`) goes into the Inject writer (photo shown last + description), Director new shot (description) and the Director edit writer (photo + description, with Keep likeness on). Read via `loadPhone` (`src/lib/character-phone.ts`), safe before the migration.
 
