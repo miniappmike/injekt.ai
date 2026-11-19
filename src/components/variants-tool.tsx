@@ -12,8 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Step } from "@/components/ui/step";
-import { BatchSizeToggle, GenerateImage } from "@/components/generate-image";
-import { useGeneration } from "@/components/app-context";
+import { BatchCost, BatchSizeToggle, batchConfirmText, GenerateImage } from "@/components/generate-image";
+import { useApp, useGeneration } from "@/components/app-context";
 import { CopyOpen } from "@/components/copy-open";
 import { MobileSheet } from "@/components/mobile-sheet";
 import { SlidersIcon } from "@/components/icons";
@@ -144,6 +144,7 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
   const [result, setResult] = useState<Result | null>(null);
   // Goes up by one each time "Generate all" is pressed; every slide or variant that hasn't run yet starts.
   const [runAll, setRunAll] = useState(0);
+  const { billing } = useApp();
   const { toast, show } = useToast(2000);
 
   // The picked images and the prompts written from them come back after a reload too. The photos themselves are kept
@@ -573,10 +574,11 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
                   size="sm"
                   onClick={() => {
                     const n = result.items.length;
-                    if (window.confirm(`Generate all ${n} ${result.mode === "edits" ? "takes" : "moments"}? They start one every 5 seconds, on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
+                    if (window.confirm(batchConfirmText(n, result.mode === "edits" ? "takes" : "moments", billing))) setRunAll((v) => v + 1);
                   }}
                 >
                   Generate all
+                  <BatchCost n={result.items.length} />
                 </Button>
               )}
               <Button

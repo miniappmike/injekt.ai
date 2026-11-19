@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { BatchSizeToggle, GenerateImage } from "@/components/generate-image";
+import { BatchCost, BatchSizeToggle, batchConfirmText, GenerateImage } from "@/components/generate-image";
 import { AttachStrip, TaggedPrompt } from "@/components/attach-strip";
 import { TagTextarea } from "@/components/tag-textarea";
 import { CopyOpen } from "@/components/copy-open";
-import { useGeneration } from "@/components/app-context";
+import { useApp, useGeneration } from "@/components/app-context";
 import { InfoTip } from "@/components/info-tip";
 import { uploadImage } from "@/components/image-slot";
 import { ImageDrop } from "@/components/image-drop";
@@ -131,6 +131,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
   const router = useRouter();
   // Goes up by one each time "Generate all" is pressed; every prompt that hasn't been generated yet starts, one every few seconds.
   const [runAll, setRunAll] = useState(0);
+  const { billing } = useApp();
   const input = useRef<HTMLInputElement>(null);
   const { toast, show } = useToast();
   // Who is picked comes back if the phone closes the app (see src/lib/drafts.ts); a link that names her wins.
@@ -856,10 +857,11 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                     type="button"
                     size="sm"
                     onClick={() => {
-                      if (window.confirm(`Generate all ${n} image${n > 1 ? "s" : ""}? They start one every 5 seconds, on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
+                      if (window.confirm(batchConfirmText(n, n > 1 ? "images" : "image", billing))) setRunAll((v) => v + 1);
                     }}
                   >
                     Generate all
+                    <BatchCost n={n} />
                   </Button>
                 </div>
               ) : null;

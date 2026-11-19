@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getDraftFiles, putDraftFiles, readDraft, useDraftState, writeDraft } from "@/lib/drafts";
-import { useGeneration } from "@/components/app-context";
+import { useApp, useGeneration } from "@/components/app-context";
 import { CharacterPicker } from "@/components/character-picker";
 import { CopyOpen } from "@/components/copy-open";
-import { BatchSizeToggle, GenerateImage } from "@/components/generate-image";
+import { BatchCost, BatchSizeToggle, batchConfirmText, GenerateImage } from "@/components/generate-image";
 import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ export function ArtToReal({ characters }: { characters: ArtCharacter[] }) {
   const [notice, setNotice] = useState<string>();
   // Goes up by one each time "Generate make real" is pressed; every artwork that hasn't run yet starts, staggered.
   const [runAll, setRunAll] = useState(0);
+  const { billing } = useApp();
   // The character, the note and the artworks come back if the phone closes the app (see src/lib/drafts.ts).
   const [characterId, setCharacterId] = useDraftState("art.character", "", { decode: (v) => (characters.some((c) => c.id === v) ? (v as string) : null) });
   const [direction, setDirection] = useDraftState("art.direction", "", { decode: (v) => (typeof v === "string" ? v.slice(0, 600) : null) });
@@ -204,11 +205,12 @@ export function ArtToReal({ characters }: { characters: ArtCharacter[] }) {
                   className="max-sm:h-11 max-sm:w-full max-sm:text-[15px]"
                   onClick={() => {
                     const n = ready.length;
-                    if (n > 1 && !window.confirm(`Make Real (${n})? They start one every 5 seconds; each one's price is shown on its own button below.`)) return;
+                    if (n > 1 && !window.confirm(batchConfirmText(n, "artworks real", billing).replace("Generate all", "Make"))) return;
                     setRunAll((v) => v + 1);
                   }}
                 >
                   Make Real{ready.length > 1 ? ` (${ready.length})` : ""}
+                  {ready.length > 1 && <BatchCost n={ready.length} />}
                 </Button>
                 {ready.length > 1 && <BatchSizeToggle />}
                 {ready.length > 1 && <p className="text-xs text-neutral-500">Starts every artwork below, one every 5 seconds. Or press Make Real on just one.</p>}

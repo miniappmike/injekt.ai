@@ -409,16 +409,7 @@ function writeLastSettings(v: LastSettings) {
  * changed on its own afterwards.
  */
 export function BatchSizeToggle({ className }: { className?: string }) {
-  const [size, setSize] = useState<ImageResolution | null>(null);
-  useEffect(() => {
-    const read = () => {
-      const r = readLastSettings()?.resolution;
-      setSize(r && (IMAGE_RESOLUTIONS as readonly string[]).includes(r) ? r : (IMAGE_RESOLUTIONS[0] as ImageResolution));
-    };
-    read();
-    window.addEventListener(SETTINGS_EVENT, read);
-    return () => window.removeEventListener(SETTINGS_EVENT, read);
-  }, []);
+  const size = useBatchSize();
   return (
     <div role="radiogroup" aria-label="Size for every image" className={`inline-flex items-center gap-0.5 rounded-full border border-neutral-700/80 bg-neutral-950/60 p-0.5 ${className ?? ""}`}>
       <span className="pl-2 pr-1 text-xs text-neutral-400">Size</span>
@@ -429,10 +420,7 @@ export function BatchSizeToggle({ className }: { className?: string }) {
           role="radio"
           aria-checked={size === r}
           title={`${r} · ${IMAGE_CREDITS[r]} tokens an image`}
-          onClick={() => {
-            setSize(r);
-            writeLastSettings({ resolution: r });
-          }}
+          onClick={() => writeLastSettings({ resolution: r })}
           className={`rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 max-sm:px-3 max-sm:py-1.5 ${
             size === r ? "bg-gradient-to-b from-brand-400 to-brand-600 text-white" : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
           }`}
@@ -442,4 +430,42 @@ export function BatchSizeToggle({ className }: { className?: string }) {
       ))}
     </div>
   );
+}
+
+/** The size every card on the page uses (the last one chosen), kept up to date when it changes anywhere. */
+export function useBatchSize(): ImageResolution {
+  const [size, setSize] = useState<ImageResolution>(IMAGE_RESOLUTIONS[0] as ImageResolution);
+  useEffect(() => {
+    const read = () => setSize(batchSizeNow());
+    read();
+    window.addEventListener(SETTINGS_EVENT, read);
+    return () => window.removeEventListener(SETTINGS_EVENT, read);
+  }, []);
+  return size;
+}
+
+/** The size chosen right now (read at the moment of a click). */
+export function batchSizeNow(): ImageResolution {
+  const r = readLastSettings()?.resolution;
+  return r && (IMAGE_RESOLUTIONS as readonly string[]).includes(r) ? r : (IMAGE_RESOLUTIONS[0] as ImageResolution);
+}
+
+/** Tokens for n images at the chosen size. */
+export const batchTokens = (n: number, size: ImageResolution = batchSizeNow()) => n * IMAGE_CREDITS[size];
+
+/**
+ * The estimated total on a "Generate all" button: n images at the chosen size, in tokens. Shown only when images are
+ * paid with tokens (on someone's own key each card shows its own provider price instead).
+ */
+export function BatchCost({ n }: { n: number }) {
+  const size = useBatchSize();
+  const { billing = "credits" } = useApp();
+  if (billing !== "credits" || n < 1) return null;
+  return <TokenCost n={batchTokens(n, size)} onPink />;
+}
+
+/** The "Generate all" question, with the estimated total when images are paid with tokens. */
+export function batchConfirmText(n: number, what: string, billing: string | undefined): string {
+  const cost = (billing ?? "credits") === "credits" ? ` That's about ${batchTokens(n).toLocaleString("en-US")} tokens at ${batchSizeNow()}.` : "";
+  return `Generate all ${n} ${what}? They start one every 5 seconds.${cost} Each one's price is also on its own button.`;
 }
