@@ -402,3 +402,44 @@ function writeLastSettings(v: LastSettings) {
     // Private windows can refuse storage; each card then starts on the defaults.
   }
 }
+
+/**
+ * The size for every image on the page at once, beside "Generate all" (and Art to Real's Make Real). It saves the size
+ * as the last-chosen one, which every card on the page (and in other tabs) picks up at once; a card can still be
+ * changed on its own afterwards.
+ */
+export function BatchSizeToggle({ className }: { className?: string }) {
+  const [size, setSize] = useState<ImageResolution | null>(null);
+  useEffect(() => {
+    const read = () => {
+      const r = readLastSettings()?.resolution;
+      setSize(r && (IMAGE_RESOLUTIONS as readonly string[]).includes(r) ? r : (IMAGE_RESOLUTIONS[0] as ImageResolution));
+    };
+    read();
+    window.addEventListener(SETTINGS_EVENT, read);
+    return () => window.removeEventListener(SETTINGS_EVENT, read);
+  }, []);
+  return (
+    <div role="radiogroup" aria-label="Size for every image" className={`inline-flex items-center gap-0.5 rounded-full border border-neutral-700/80 bg-neutral-950/60 p-0.5 ${className ?? ""}`}>
+      <span className="pl-2 pr-1 text-xs text-neutral-400">Size</span>
+      {IMAGE_RESOLUTIONS.map((r) => (
+        <button
+          key={r}
+          type="button"
+          role="radio"
+          aria-checked={size === r}
+          title={`${r} · ${IMAGE_CREDITS[r]} tokens an image`}
+          onClick={() => {
+            setSize(r);
+            writeLastSettings({ resolution: r });
+          }}
+          className={`rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 max-sm:px-3 max-sm:py-1.5 ${
+            size === r ? "bg-gradient-to-b from-brand-400 to-brand-600 text-white" : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+          }`}
+        >
+          {r}
+        </button>
+      ))}
+    </div>
+  );
+}

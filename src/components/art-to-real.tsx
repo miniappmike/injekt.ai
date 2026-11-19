@@ -5,7 +5,7 @@ import { getDraftFiles, putDraftFiles, readDraft, useDraftState, writeDraft } fr
 import { useGeneration } from "@/components/app-context";
 import { CharacterPicker } from "@/components/character-picker";
 import { CopyOpen } from "@/components/copy-open";
-import { GenerateImage } from "@/components/generate-image";
+import { BatchSizeToggle, GenerateImage } from "@/components/generate-image";
 import { ImageDrop } from "@/components/image-drop";
 import { uploadImage } from "@/components/image-slot";
 import { Button } from "@/components/ui/button";
@@ -210,6 +210,7 @@ export function ArtToReal({ characters }: { characters: ArtCharacter[] }) {
                 >
                   Make Real{ready.length > 1 ? ` (${ready.length})` : ""}
                 </Button>
+                {ready.length > 1 && <BatchSizeToggle />}
                 {ready.length > 1 && <p className="text-xs text-neutral-500">Starts every artwork below, one every 5 seconds. Or press Make Real on just one.</p>}
               </div>
               <div className="flex flex-col gap-4">

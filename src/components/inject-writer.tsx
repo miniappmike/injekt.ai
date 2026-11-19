@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { GenerateImage } from "@/components/generate-image";
+import { BatchSizeToggle, GenerateImage } from "@/components/generate-image";
 import { AttachStrip, TaggedPrompt } from "@/components/attach-strip";
 import { TagTextarea } from "@/components/tag-textarea";
 import { CopyOpen } from "@/components/copy-open";
@@ -850,15 +850,18 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
             {!writeOnly && !running && (() => {
               const n = results.reduce((sum, t) => sum + (t.versions?.filter(Boolean).length ?? 0), 0);
               return n > 0 ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => {
-                    if (window.confirm(`Generate all ${n} image${n > 1 ? "s" : ""}? They start one every 5 seconds, on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
-                  }}
-                >
-                  Generate all
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <BatchSizeToggle />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      if (window.confirm(`Generate all ${n} image${n > 1 ? "s" : ""}? They start one every 5 seconds, on your Image key; each one's price is shown on its own button.`)) setRunAll((v) => v + 1);
+                    }}
+                  >
+                    Generate all
+                  </Button>
+                </div>
               ) : null;
             })()}
           </div>

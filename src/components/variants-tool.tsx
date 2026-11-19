@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Step } from "@/components/ui/step";
-import { GenerateImage } from "@/components/generate-image";
+import { BatchSizeToggle, GenerateImage } from "@/components/generate-image";
 import { useGeneration } from "@/components/app-context";
 import { CopyOpen } from "@/components/copy-open";
 import { MobileSheet } from "@/components/mobile-sheet";
@@ -565,7 +565,8 @@ export function VariantsTool({ characters }: { characters: { id: string; name: s
         <section className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-medium">{result.mode === "edits" ? "Photoshoot" : "Moments"}</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {!result.elsewhere && <BatchSizeToggle />}
               {!result.elsewhere && (
                 <Button
                   type="button"
