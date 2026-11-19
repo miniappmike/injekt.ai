@@ -14,7 +14,7 @@ Live at injektai.vercel.app. Everything below this section is the older build hi
 section is right.
 
 **Character page redesign, her phone, X Reference up to 5 (November 19; types clean; looked at on the stand-in backend on desktop only; run migration 0037; WAITING on the owner to pick layout A or B)**
-- Two layouts on `/characters/[id]`: A (default: header strip, images left, details right) and B (`?layout=b`: centred profile sidebar, image cards in a grid). When the owner picks, delete the other branch of the JSX; if B, give "Her phone" full width.
+- Layout options on `/characters/[id]` for the owner to pick (B dropped, owner prefers A): default A, `?layout=a1` (scrolling image strip under the header), `a2` (strip inside the header over her blurred cover), `c` (a2 header + one full-width column). Keep the chosen one and delete the others.
 - Her phone: `PhoneCard` (photo slot `phone` + description, `savePhoneDescription`), columns `phone_description`, `phone_photo_path` (migration `0037_phone_and_x5.sql`, which also raises X Reference to 5). `phoneWriterRule` (`src/lib/ai/prompts/phone.ts`) goes into the Inject writer (photo shown last + description), Director new shot (description) and the Director edit writer (photo + description, with Keep likeness on). Read via `loadPhone` (`src/lib/character-phone.ts`), safe before the migration.
 
 **Director edit takes several photos with live @image tags; fixes are plain words; Direct swap tip (November 19; types clean; tests/likeness.test.ts updated but is one of the env-var files so it did not run here; NOT checked in a browser or on a real generation)**

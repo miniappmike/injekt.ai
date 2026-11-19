@@ -97,11 +97,37 @@ export default async function EditCharacterPage({
     { label: "Phone", on: !!(phone.description || phone.path) },
   ];
 
+  // Layout options for the owner to compare (?layout=a1 | a2 | c); the default is A.
+  const backdrop = layout === "a2" || layout === "c";
+  const oneCol = layout === "c";
+  const cover = c.reference_paths[0] ? urls[c.reference_paths[0]] : avatar;
+  const gallery = [
+    ...c.reference_paths.map((p, i) => ({ path: p, label: i === 0 ? "Cover" : `Reference ${i + 1}` })),
+    { path: c.face_sheet_path, label: "Face sheet" },
+    { path: c.body_sheet_path, label: "Body sheet" },
+    ...xRefs.map((p, i) => ({ path: p, label: `X Reference ${i + 1}` })),
+  ].filter((x): x is { path: string; label: string } => !!x.path && !!urls[x.path]);
+  const strip = gallery.length ? (
+    <ul className="flex snap-x gap-3 overflow-x-auto pb-2 [scrollbar-width:thin]" aria-label={`${c.name}'s images, scroll sideways`}>
+      {gallery.map((g) => (
+        <li key={g.path} className="group relative w-36 shrink-0 snap-start overflow-hidden rounded-2xl ring-1 ring-white/10 sm:w-44">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={urls[g.path]} alt={g.label} className="aspect-[3/4] w-full object-cover object-top transition-transform duration-500 group-hover:scale-105" />
+          <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-3 pb-2 pt-6 text-xs font-semibold text-white">{g.label}</span>
+        </li>
+      ))}
+    </ul>
+  ) : null;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Her header: picture, name, identity line, what she has, and the quick actions. */}
-      {layout !== "b" && (
+      {(
       <section className="panel relative overflow-hidden p-5 sm:p-7">
+        {backdrop && cover && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={cover} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-30 blur-2xl" />
+        )}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgb(232_38_94/0.18),transparent_55%),radial-gradient(circle_at_100%_100%,rgb(91_91_246/0.12),transparent_55%)]" />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
           {avatar ? (
@@ -128,8 +154,10 @@ export default async function EditCharacterPage({
             <DeleteCharacterButton id={c.id} name={c.name} />
           </div>
         </div>
+        {backdrop && <div className="relative mt-6">{strip}</div>}
       </section>
       )}
+      {layout === "a1" && <section className="panel p-4 sm:p-5">{strip}</section>}
 
       {banner && (
         <p role="status" className={`rounded-xl border p-3 text-sm ${banner.good ? "border-emerald-800 bg-emerald-500/5 text-emerald-300" : "border-amber-700 bg-amber-500/5 text-amber-300"}`}>
@@ -149,8 +177,8 @@ export default async function EditCharacterPage({
       )}
 
       {/* Wide screens: her images on the left, her details and profile on the right. */}
-      {layout !== "b" && (
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
+      {(
+      <div className={oneCol ? "flex flex-col gap-6" : "grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start"}>
         <div className="flex flex-col gap-6">
           <Card title="Identity" sub="Every tool keeps her looking like these. Click a picture to see it full size.">
             <div className="grid gap-3 sm:grid-cols-3">
@@ -185,7 +213,7 @@ export default async function EditCharacterPage({
           <p className="text-xs text-neutral-500">Photo metadata (location, device) is stripped on upload.</p>
         </div>
 
-        <Card title="Details and profile" sub="Every prompt describes her from this." className="lg:sticky lg:top-28">
+        <Card title="Details and profile" sub="Every prompt describes her from this." className={oneCol ? "" : "lg:sticky lg:top-28"}>
           <CharacterForm
             action={updateCharacter.bind(null, c.id)}
             initial={{ ...c, profile }}
@@ -198,81 +226,6 @@ export default async function EditCharacterPage({
           />
         </Card>
       </div>
-      )}
-      {layout === "b" && (
-        <div className="grid gap-6 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start">
-          <aside className="flex flex-col gap-6 lg:sticky lg:top-28">
-            <section className="panel relative flex flex-col items-center gap-3 overflow-hidden p-6 text-center">
-              <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_50%_0%,rgb(232_38_94/0.3),transparent_70%)]" />
-              {avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={avatar} alt="" className="relative h-32 w-32 rounded-full object-cover object-top ring-2 ring-neutral-950 shadow-[0_0_0_3px_rgb(232_38_94/0.55)]" />
-              ) : (
-                <span className="relative flex h-32 w-32 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-iris-500 font-display text-5xl font-bold text-white">{c.name.charAt(0)}</span>
-              )}
-              <h1 className="font-display text-2xl font-bold text-neutral-50">{c.name}</h1>
-              {profile.identity_line && <p className="line-clamp-3 text-sm text-neutral-400">{profile.identity_line}</p>}
-              <ul className="flex flex-wrap justify-center gap-2">
-                {chips.map((x) => (
-                  <li key={x.label} className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${x.on ? "bg-brand-500/15 text-brand-200 ring-brand-500/40" : "bg-neutral-800/70 text-neutral-500 ring-neutral-700"}`}>{x.on ? "✓ " : ""}{x.label}</li>
-                ))}
-              </ul>
-              <div className="mt-2 flex w-full gap-2">
-                <Button asChild size="sm" className="flex-1"><Link href={`/inject?character=${c.id}`}>Use in Inject</Link></Button>
-                <Button asChild size="sm" variant="secondary" className="flex-1"><Link href={`/director?character=${c.id}`}>Director</Link></Button>
-              </div>
-              <DeleteCharacterButton id={c.id} name={c.name} />
-            </section>
-          </aside>
-          <div className="grid gap-6 xl:grid-cols-2">
-            <div className="xl:col-span-2"><Card title="Identity" sub="Every tool keeps her looking like these. Click a picture to see it full size.">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <ImageSlot label="Profile photo" slot="profile_photo" characterId={c.id} images={imgs([c.profile_photo_path])} hint="Display only, never sent to an AI model." />
-              <ImageSlot label="Face sheet" slot="face_sheet" characterId={c.id} images={imgs([c.face_sheet_path])} hint="Her face from several angles." />
-              <ImageSlot label="Body sheet" slot="body_sheet" characterId={c.id} images={imgs([c.body_sheet_path])} hint="Front, back and side." />
-            </div>
-            {(!c.face_sheet_path || !c.body_sheet_path) && (
-              <p className="text-sm text-neutral-400">
-                No sheets yet? <Link href={`/reference-sheet?character=${c.id}`} className="font-semibold text-brand-300 underline underline-offset-2 hover:text-brand-200">Make them from photos</Link>.
-              </p>
-            )}
-          </Card></div>
-            
-
-          <Card title="Reference images" sub={`Up to ${MAX_REFERENCE_PHOTOS}. The first one is her cover.`}>
-            <ImageSlot label="Reference photos" slot="reference" characterId={c.id} images={imgs(c.reference_paths)} max={MAX_REFERENCE_PHOTOS} />
-            {c.reference_paths.length === 0 && (
-              <p className="text-sm text-neutral-400">
-                Generate some: <Link href={`/inject?character=${c.id}`} className="font-semibold text-brand-300 underline underline-offset-2 hover:text-brand-200">put {c.name} into a photo</Link> or describe a shot in{" "}
-                <Link href={`/director?character=${c.id}`} className="font-semibold text-brand-300 underline underline-offset-2 hover:text-brand-200">Director</Link>, then press Pin It.
-              </p>
-            )}
-          </Card>
-
-          <Card title="Her phone" sub="Used whenever a phone appears in a shot.">
-            <PhoneCard characterId={c.id} name={c.name} description={phone.description} images={imgs([phone.path])} />
-          </Card>
-
-          <Card title="X Reference" sub={`Up to ${MAX_X_REFERENCES}. Saved with her; not used by any tool yet.`}>
-            <ImageSlot label="X Reference" slot="x_reference" characterId={c.id} images={imgs(xRefs)} max={MAX_X_REFERENCES} />
-          </Card>
-          <p className="text-xs text-neutral-500">Photo metadata (location, device) is stripped on upload.</p>
-
-            <div className="xl:col-span-2">        <Card title="Details and profile" sub="Every prompt describes her from this.">
-          <CharacterForm
-            action={updateCharacter.bind(null, c.id)}
-            initial={{ ...c, profile }}
-            submitLabel="Save character"
-            characterId={c.id}
-            canBuildProfile={referenceList(c).length > 0}
-            buildCredits={buildCredits}
-            buildsTotal={FREE_LIMITS.profile_builds}
-            fromWizard={from === "wizard"}
-          />
-        </Card>
-</div>
-          </div>
-        </div>
       )}
     </div>
   );
