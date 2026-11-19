@@ -111,6 +111,8 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
   };
   const editText = directorEditPrompt(written.trim() || changes, sheetsOn, photos.length);
   const tagCount = photos.length + (sheetsOn ? 2 : 0);
+  // The @ menu and the "Type @ to reference" chips: one per uploaded photo (up to 8), none before the first upload.
+  const tagRefs = photos.slice(0, 8).map((p) => ({ thumb: p.preview }));
 
   return (
     <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
@@ -192,6 +194,7 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
               maxLength={MAX_EDIT_CHANGES}
               rows={4}
               tags={tagCount}
+              refs={tagRefs}
               onChange={setChanges}
               placeholder="In your own words, e.g. put her in a red summer dress, make it golden hour, swap the background for a rooftop bar…"
             />
@@ -210,7 +213,7 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
             {written && (
               <>
                 <Label htmlFor="edit-prompt">Edit prompt (change anything you like)</Label>
-                <TagTextarea id="edit-prompt" value={written} maxLength={MAX_EDIT_CHANGES} rows={5} tags={tagCount} onChange={setWritten} />
+                <TagTextarea id="edit-prompt" value={written} maxLength={MAX_EDIT_CHANGES} rows={5} tags={tagCount} refs={tagRefs} onChange={setWritten} />
                 <button type="button" onClick={() => setWritten("")} className="w-fit text-xs text-neutral-400 underline">
                   Use my own words instead
                 </button>

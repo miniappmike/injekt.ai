@@ -13,6 +13,11 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Director "Edit a photo": @ autocomplete with thumbnails (November 19; types clean; checked on the stand-in backend in desktop Chromium, not on a phone)**
+- `TagTextarea` takes `refs` (one per taggable image, with a thumbnail). With refs, typing @ (or @im, @image, @2) opens a menu of those images (thumbnail and "@image N"), filtered by the number typed; arrows, Enter or Tab pick, Escape closes, a click picks. It puts in "@imageN " and the cursor after it. The "Type @ to reference" chips list exactly the refs, so none show before the first upload, then 1, 2, 3... up to 8. Director passes its uploaded photos (both the changes box and the written prompt box). Inject's prompt box still uses the old tag count, without a menu.
+- Fixed: after a chip or menu pick the cursor was moved a frame later, so a letter typed straight away landed in the wrong place. It is now set right after the new text is in the box (`useLayoutEffect`).
+- The 2 sheet tags (Keep likeness) still highlight pink when typed, but aren't in the menu or chips (owner: one per uploaded photo).
+
 **No more "matte skin"; negated skin words kept (November 19; all 693 tests pass; NOT run on a real generation)**
 - Owner: matte skin looks plastic; realism needs natural skin texture. "Matte" is gone from every skin line: `REALISM_FIX.skin` and `.quality` (rules.ts and rules-full.ts), the Inject and Director writers' realism lines, and the sheet prompts' look. `harness` also rewrites a written "matte skin" / "skin is matte" to natural texture (matte lips, fabrics and lipstick are left alone). Don't add "matte" back to a skin line.
 - Bug fixed: the plastic-skin rule in `harness` turned "no glossy skin" into "no natural textured skin" (the opposite). Its replacements now leave a match alone when "no", "not", "never", "without", "avoid" or "nor" comes earlier in the same sentence (`unlessNegated`). Tests in `tests/harness-marks.test.ts`.
@@ -387,7 +392,7 @@ Nothing can be generated this way; it is for layout and screenshots only.
 **What's live**
 - Characters, Create Model, Inject (Recreate by default, "Edit this photo" opt-in), Variants, Likeness, Art to Real,
   group photos (Director or Inject with characters added), History, the ledger, and the persona marketplace (browse and admin listing; buying isn't wired).
-- **Tokens and plans** (`docs/PRICING.md`): 15 free tokens at sign-up, Pro at $9.99 / 30 days, four token packs.
+- **Tokens and plans** (`docs/PRICING.md`): 20 free tokens at sign-up, Pro at $9.99 / 30 days, four token packs.
   Bring-your-own keys are Pro-only; the free plan uses the platform's SpicyAPI key with daily limits.
 - **Payments**: Telegram Stars (@ModelSpawnBot) and crypto (NOWPayments). Both are set up and connected in production.
 - **Admin** (`/admin`, admins only), four tabs that each load only their own data:
