@@ -14,7 +14,7 @@ import type { POSE_MODES, PROMPT_STYLES, WARDROBES } from "@/lib/inject-meta";
  * How long each written prompt may be. The image model takes 5,000 characters, but it follows a short prompt more
  * closely: with the app's framing (about 1,200 to 1,700) the whole prompt stays near 3,000 to 3,500 characters.
  */
-export const PROMPT_CHARS = 1400;
+export const PROMPT_CHARS = 1600;
 
 /** The written prompt's opener when both of her sheets go to the generator. */
 export const TWO_SHEET_OPENER = "Use @image1 (her face sheet) and @image2 (her body sheet) as the strict identity reference.";
@@ -139,7 +139,7 @@ RULES
 - Only what is in frame: no feet when out of frame, no face details when it is hidden.
 - ${ANATOMY_WRITER}
 - Describe exactly what you see; never soften or cover up an outfit or pose. ${g ? "They are all adults, never girls or teens." : "She is an adult, never a girl or teen."}
-- Never copy the target person's tattoos or piercings; add a negative for each (for example "no navel piercing").
+- Tattoos and piercings only from her references; negate the target's by name ("no navel piercing"), never a blanket "no tattoos".
 - Lettering: exact words in quotes, real brands kept; gibberish becomes short plain words.
 - A drawing or render becomes a real photo; an empty background becomes a fitting real place.${o.clean ? "\n- Ignore app buttons, stickers, watermarks and captions on the photo; exclude them." : ""}${o.extra ? `\n- User direction: <<<${fence(o.extra)}>>>` : ""}
 - ${format} ${o.len === "short" ? "" : "No aspect ratio."}

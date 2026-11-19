@@ -68,6 +68,11 @@ export function harness(raw: string, opt: HarnessOptions = {}): HarnessResult {
     }
   }
   if (kept) t = t.split(KEEP).join(REALISM_FIX.quality);
+  const marks = dropBlanketMarks(t);
+  if (marks !== t) {
+    t = marks;
+    fixed.push("kept her own tattoos and piercings");
+  }
   if (opt.stripAR && /aspect ratio/i.test(t)) {
     t = t.replace(/[^.\n]*aspect ratio[^.\n]*\.?/gi, "").replace(/\n{3,}/g, "\n\n");
     fixed.push("removed aspect ratio");
@@ -98,4 +103,22 @@ export function harness(raw: string, opt: HarnessOptions = {}): HarnessResult {
   }
   t = t.replace(/[ \t]+([,.;])/g, "$1").replace(/,\s*,/g, ",").replace(/ {2,}/g, " ").trim();
   return { text: t, fixed };
+}
+
+/**
+ * Her tattoos and piercings come from her profile and sheets, so a blanket "no tattoos" or "no piercings" in a written
+ * exclusion list would fight them. Only list items are dropped (after a colon, comma or semicolon, or starting a line);
+ * a specific negative such as "no navel piercing", or a sentence such as "add no tattoos she lacks", stays.
+ */
+export function dropBlanketMarks(t: string): string {
+  const item = /(?:(?<=:)[ \t]*|[ \t]*[,;][ \t]*|^[ \t]*)(?:and[ \t]+)?no[ \t]+(?:visible[ \t]+|added[ \t]+|other[ \t]+)?(?:tattoos?|piercings?)(?:[ \t]*(?:,|or|and)[ \t]*(?:no[ \t]+)?(?:tattoos?|piercings?))?(?=[ \t]*(?:[,.;\n]|$))/gim;
+  if (!item.test(t)) return t;
+  item.lastIndex = 0;
+  return t
+    .replace(item, "")
+    .replace(/:[ \t]*[,;][ \t]*/g, ": ")
+    .replace(/^[ \t]*[,;][ \t]*/gm, "")
+    .replace(/^[A-Z][A-Za-z ]{0,30}:[ \t]*\.?[ \t]*$\n?/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }

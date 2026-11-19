@@ -31,7 +31,7 @@ export const MODS_RULE =
  * accounted for, so the image model doesn't invent extra, merged or twisted limbs and fingers.
  */
 export const ANATOMY_WRITER =
-  "Anatomy: a pose a real body can hold, joints bending naturally; say where each visible hand rests or what it holds.";
+  "Anatomy: a pose a real body can hold, joints bending naturally; say where each visible hand rests.";
 /** The same rule in the image prompt itself (not in Swap into photo, whose pose comes from a real photo). */
 export const ANATOMY_SHORT =
   "Natural, correct anatomy: two arms, two legs, hands with five well-formed fingers, no extra, merged or missing limbs.";
