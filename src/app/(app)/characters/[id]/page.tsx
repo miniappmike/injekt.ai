@@ -100,9 +100,6 @@ export default async function EditCharacterPage({
   const cover = c.reference_paths[0] ? urls[c.reference_paths[0]] : avatar;
   const gallery = [
     ...c.reference_paths.map((p, i) => ({ path: p, label: i === 0 ? "Cover" : `Reference ${i + 1}` })),
-    { path: c.face_sheet_path, label: "Face sheet" },
-    { path: c.body_sheet_path, label: "Body sheet" },
-    ...xRefs.map((p, i) => ({ path: p, label: `X Reference ${i + 1}` })),
   ].filter((x): x is { path: string; label: string } => !!x.path && !!urls[x.path]);
   const strip = gallery.length ? (
     <ul className="flex snap-x gap-3 overflow-x-auto pb-2 [scrollbar-width:thin]" aria-label={`${c.name}'s images, scroll sideways`}>
@@ -200,10 +197,9 @@ export default async function EditCharacterPage({
             <PhoneCard characterId={c.id} name={c.name} description={phone.description} images={imgs([phone.path])} />
           </Card>
 
-          <Card title="X Reference" sub={`Up to ${MAX_X_REFERENCES}. Saved with her; not used by any tool yet.`}>
+          <Card title="X Reference" sub={`Up to ${MAX_X_REFERENCES}. Sent to the AI when X references is ticked in Inject or Direct swap.`}>
             <ImageSlot label="X Reference" slot="x_reference" characterId={c.id} images={imgs(xRefs)} max={MAX_X_REFERENCES} />
           </Card>
-          <p className="text-xs text-neutral-500">Photo metadata (location, device) is stripped on upload.</p>
         </div>
 
         <Card title="Details and profile" sub="Every prompt describes her from this." className="lg:sticky lg:top-28">
