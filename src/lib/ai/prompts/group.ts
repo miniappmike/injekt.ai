@@ -21,7 +21,7 @@ export interface GroupMember {
 const short = (s: string | undefined, n: number) => String(s || "").replace(/\s+/g, " ").trim().replace(/\.$/, "").slice(0, n);
 
 /** The prompt. Members' images are sent in order, so member 1 is @image1.., member 2 follows, and so on. */
-export function groupPhotoPrompt(members: GroupMember[], direction: string, o: { real?: boolean; camera?: string } = {}): string {
+export function groupPhotoPrompt(members: GroupMember[], direction: string, o: { real?: boolean } = {}): string {
   const n = members.length;
   let at = 1;
   const blocks = members.map((m, i) => {
@@ -47,7 +47,7 @@ export function groupPhotoPrompt(members: GroupMember[], direction: string, o: {
     "Each woman's identity from her own references is the highest priority: an identical face, hair, skin and body at its real scale. Never blend, swap or average faces or bodies between them, and never slim or idealise a figure.",
     "Take only the people from the references, never their grids, plain backgrounds, studio light or plain outfits: each woman wears what the creative direction describes, or an outfit that suits the scene.",
     "Light, colour and perspective are consistent across everyone, at true relative scale.",
-    o.real === false ? "Keep the look, light and style the creative direction describes." : `${o.camera ? `Shot on a ${o.camera}. ` : ""}${REALISM_FIX.quality}`,
+    o.real === false ? "Keep the look, light and style the creative direction describes." : REALISM_FIX.quality,
     TEXT_SHORT,
     "No tattoos or piercings a woman does not have in her references.",
   ];

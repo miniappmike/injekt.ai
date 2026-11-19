@@ -24,7 +24,6 @@ import { asksMakeup, makeupRule } from "@/lib/ai/prompts/rules";
 import { artToRealPrompt } from "@/lib/ai/prompts/art-to-real";
 import { groupPhotoPrompt, MAX_GROUP, MIN_GROUP, type GroupMember } from "@/lib/ai/prompts/group";
 import { ugcPrompt } from "@/lib/ai/prompts/ugc";
-import { pickCamera } from "@/lib/ai/prompts/pools";
 import { identityBlock } from "@/lib/ai/prompts/lean";
 import { MAX_PRODUCT_PHOTOS } from "@/lib/ugc-meta";
 
@@ -308,7 +307,7 @@ export async function buildJob(
         return { c: ch, pack: await packOf(ch) };
       }),
     );
-    return groupJob(members, request.prompt, opts.max, { real: request.meta?.real, camera: opts.forQuote ? undefined : pickCamera() });
+    return groupJob(members, request.prompt, opts.max, { real: request.meta?.real });
   }
 
   if (request.kind === "ugc") {
@@ -428,7 +427,7 @@ async function directorJob(
   );
   const { client, model } = await getUserTextClient(supabase, userId, "llm", "prompt");
   const phone = phoneWriterRule({ description: (await loadPhone(supabase, c.id)).description });
-  const directorTask = { prompt: [buildDirectorPrompt({ ...row, profile: row?.profile ?? {} }, sheetLines(pack), dir, realism, !!identityBlock(pack?.anchors), pickCamera()), phone].filter(Boolean).join("\n\n") };
+  const directorTask = { prompt: [buildDirectorPrompt({ ...row, profile: row?.profile ?? {} }, sheetLines(pack), dir, realism, !!identityBlock(pack?.anchors)), phone].filter(Boolean).join("\n\n") };
   const reply = String(await withDeclineFallback(supabase, userId, "prompt", { client, model }, "vision", (cl) => cl.run(directorTask)));
   const v = parseVersions(reply)[0];
   if (!v?.text) throw new UserFacingError("Couldn't plan that shot. Try again, or describe it a little differently.");

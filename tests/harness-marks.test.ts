@@ -38,3 +38,13 @@ describe("skin wording", () => {
     expect(run("She wears nude matte lips and a matte black dress.")).toContain("matte lips and a matte black dress");
   });
 });
+
+describe("no named camera", () => {
+  const run = (t: string) => harness(t, { realism: false, text: false }).text;
+  it("drops the camera model and keeps the rest of the sentence", () => {
+    expect(run("Shot on an Olympus FE-210 at waist height, slightly behind her, with mild JPEG compression.")).toBe("Shot at waist height, slightly behind her, with mild JPEG compression.");
+    expect(run("Shot on a Nikon D70 with its kit lens at eye level.")).toBe("Shot at eye level.");
+    expect(run("Shot on a Canon PowerShot SD400, harsh flash.")).toBe("Shot, harsh flash.");
+    expect(run("Shot on an early-to-mid 2000s digital camera with noise.")).toContain("early-to-mid 2000s digital camera");
+  });
+});

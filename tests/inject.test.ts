@@ -211,7 +211,7 @@ describe("runInject", () => {
     expect(task.prompt).toContain("Avoid these recent poses: old 19;");
     // A new outfit means nothing to recolour.
     expect(task.prompt).not.toContain("colours =");
-    expect(task.prompt).toMatch(/Version 2: camera = [^;]+;/);
+    expect(task.prompt).not.toContain("camera = ");
 
     expect(r.characterName).toBe("Juno");
     expect(r.versions).toHaveLength(2);
@@ -305,11 +305,12 @@ describe("her fixed identity block", () => {
     expect(written).not.toContain("The app adds her look");
     expect(written).toContain("then her visible traits from the profile, and say her body matches @image2 exactly");
   });
-  it("asks for depth and a named 2000s camera", () => {
+  it("asks for depth and the old-camera image quality, never a named camera", () => {
     const t = buildInjectPrompt({ name: "A", profile: {} } as never, "", o, [{ palette: "", hair: "" }], 0, [], []);
     expect(t).toContain("what is nearest the lens and far behind her");
-    expect(t).toContain("name one early-to-mid 2000s digital camera");
-    expect(buildInjectPrompt({ name: "A", profile: {} } as never, "", o, [{ palette: "", hair: "", camera: "Nikon D70" }], 0, [], [])).toContain("camera = Nikon D70;");
+    expect(t).toContain("mild JPEG compression");
+    expect(t).toContain("Never name a camera brand or model.");
+    expect(t).not.toContain("camera = ");
   });
 });
 

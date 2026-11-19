@@ -13,6 +13,11 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**No named camera in any prompt; phone fix for the tag boxes (November 19; all 694 tests pass; phone checked on the stand-in backend as an emulated iPhone 14)**
+- Owner: don't name the camera, keep the low-quality, compressed look. `OLD_CAMERAS` and `pickCamera` are gone. Inject's writer is told "Image quality: an early-to-mid 2000s digital look: ... mild JPEG compression ... Never name a camera brand or model" (no camera in the VERSION PLAN); Director's writer gets the same; group photos no longer say "Shot on a ...". `harness` also strips a named camera the model writes anyway ("Shot on an Olympus FE-210 at waist height" becomes "Shot at waist height"). Generic "early-to-mid 2000s digital camera" wording in the realism lines stays.
+- **Phone bug fixed in `TagTextarea`** (Director edit boxes and Inject's prompt box): globals.css makes textareas 16px on phones, but the highlight layer that shows the words stayed 14px, so the visible text and the real text (cursor, taps) wrapped in different places. The layer is now 16px on phones too (`max-sm:text-base`).
+- Checked at iPhone 14 width with no sideways scroll: Director @ menu, Inject editable prompt, Admin → Limits (Pro column), Tokens, Upgrade.
+
 **Director "Edit a photo": @ autocomplete with thumbnails (November 19; types clean; checked on the stand-in backend in desktop Chromium, not on a phone)**
 - `TagTextarea` takes `refs` (one per taggable image, with a thumbnail). With refs, typing @ (or @im, @image, @2) opens a menu of those images (thumbnail and "@image N"), filtered by the number typed; arrows, Enter or Tab pick, Escape closes, a click picks. It puts in "@imageN " and the cursor after it. The "Type @ to reference" chips list exactly the refs, so none show before the first upload, then 1, 2, 3... up to 8. Director passes its uploaded photos (both the changes box and the written prompt box). Inject's prompt box still uses the old tag count, without a menu.
 - Fixed: after a chip or menu pick the cursor was moved a frame later, so a letter typed straight away landed in the wrong place. It is now set right after the new text is in the box (`useLayoutEffect`).
@@ -80,7 +85,7 @@ section is right.
 
 **Every new shot names an early-to-mid 2000s camera (November 18; types clean, all tests pass except the two env-var files; NOT run on a real generation; on main since November 18)**
 - Owner's request, for realism. `OLD_CAMERAS` in `prompts/pools.ts` (24: Canon PowerShot, Sony Cyber-shot, Nikon Coolpix, Kodak EasyShare, Olympus, Fujifilm FinePix, Casio Exilim, Lumix, Pentax, Samsung, plus Rebel XT, D70 and a Sony Ericsson camera phone) and `OLD_CAMERA_LOOK` (CCD colour, softness, shadow noise, JPEG compression, off white balance, harsh on-camera flash or dim light).
-- **Inject Recreate**: each version gets a different camera at random in the VERSION PLAN (`VersionPlan.camera`, shuffled in `runInject`), and the writer must say "shot on a ..." with that look. **Director**: one picked at random per shot (`pickCamera` in `directorJob`).
+- (Superseded November 19: no camera is named any more; only the old-camera look is asked for.)
 - **The shared realism lines no longer say "older smartphone (a 2017 iPhone look)"**: `REALISM_FIX.quality`, `REALISM_FIX.camera` and `REAL_NEW` now say an early-to-mid 2000s digital camera, so UGC, Group photo, Moments and framed prompts follow too (no named model there).
 - **Not changed**: edits of an existing photo (Swap into photo, Direct swap, fixes, Photoshoot) keep that photo's own look; Art to Real and the sheet prompts are untouched (owner's earlier instruction). If the flash look is too harsh in daylight scenes, soften `OLD_CAMERA_LOOK`.
 

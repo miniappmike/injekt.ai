@@ -77,23 +77,7 @@ export function shuffleArr<T>(a: readonly T[], random: () => number = Math.rando
   return x;
 }
 
-/**
- * Early to mid 2000s cameras (about 2002 to 2008), named in every new shot so it reads as a real photo from that time
- * rather than a clean modern render. Mostly compact point-and-shoots, a few early DSLRs and camera phones. The owner's
- * choice (November 18): one is picked at random per shot, never left to the model's habit.
- */
-export const OLD_CAMERAS = [
-  "Canon PowerShot SD400", "Canon PowerShot A520", "Canon PowerShot SD1000", "Canon PowerShot G7",
-  "Sony Cyber-shot DSC-W55", "Sony Cyber-shot DSC-T9", "Sony Cyber-shot DSC-P200",
-  "Nikon Coolpix 4600", "Nikon Coolpix S1", "Nikon Coolpix P4",
-  "Kodak EasyShare C743", "Kodak EasyShare V570", "Kodak EasyShare Z710",
-  "Olympus Stylus 600", "Olympus FE-210", "Fujifilm FinePix F30", "Fujifilm FinePix Z1",
-  "Casio Exilim EX-Z750", "Panasonic Lumix DMC-FX01", "Pentax Optio S5i", "Samsung Digimax L60",
-  "Canon EOS Digital Rebel XT with its kit lens", "Nikon D70 with its kit lens", "Sony Ericsson K800i camera phone",
-];
-
-/** What an old camera's photo looks like, said once after its name. */
+/** The early-to-mid 2000s photo quality every realistic new shot asks for. No camera is named (owner, November 19). */
 export const OLD_CAMERA_LOOK =
   "early-to-mid 2000s digital look: small-sensor CCD colour, slight softness, noise in the shadows, mild JPEG compression, imperfect white balance, harsh on-camera flash or dim available light";
 
-export const pickCamera = (random: () => number = Math.random) => OLD_CAMERAS[Math.floor(random() * OLD_CAMERAS.length)] ?? OLD_CAMERAS[0];

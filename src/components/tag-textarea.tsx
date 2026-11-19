@@ -80,7 +80,9 @@ export function TagTextarea({
     else if (e.key === "Enter" || e.key === "Tab") (e.preventDefault(), choose(options[Math.min(menu.active, options.length - 1)].n));
     else if (e.key === "Escape") (e.preventDefault(), setMenu(null));
   };
-  const box = "w-full whitespace-pre-wrap break-words px-3 py-2 text-sm leading-6";
+  // Phones: globals.css makes every textarea 16px (so iPhones don't zoom in on tap); the highlight layer must match it,
+  // or the words shown and the real text (with the cursor) wrap at different places.
+  const box = "w-full whitespace-pre-wrap break-words px-3 py-2 text-sm leading-6 max-sm:text-base max-sm:leading-6";
   const insert = (tag: string) => {
     const el = ta.current;
     const at = el?.selectionStart ?? value.length;

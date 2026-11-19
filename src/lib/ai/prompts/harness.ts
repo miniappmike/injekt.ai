@@ -41,6 +41,12 @@ const SUBS: [RegExp, string | ((m: string, ...args: unknown[]) => string), strin
     unlessNegated("natural textured "),
     "plastic-skin wording",
   ],
+  // No named camera (owner, November 19): "Shot on an Olympus FE-210 at waist height" becomes "Shot at waist height".
+  [
+    /\b(shot|taken|photographed|captured) (?:on|with) (?:an?|the) (?:Canon|Sony(?: Ericsson)?|Nikon|Kodak|Olympus|Fuji(?:film)?|Casio|Panasonic|Lumix|Pentax|Samsung|Minolta|Konica|Leica|Ricoh|Motorola|Nokia)\b[\w .\-]*?(?: with (?:its|a) kit lens)?(?= at\b| from\b| in\b| using\b| with\b|[,.;:]|$)/gim,
+    "$1",
+    "removed camera model",
+  ],
   // Matte reads as plastic to the image model; real skin has natural texture.
   [/\bskin (?:is|looks) matte(?: and textured)?\b/gi, (m: string) => (m[0] === "S" ? "S" : "s") + "kin has natural texture", "plastic-skin wording"],
   [/\bmatte(?:,? and textured)?\s+(?=(?:skin|complexion)\b)/gi, unlessNegated("naturally textured "), "plastic-skin wording"],
