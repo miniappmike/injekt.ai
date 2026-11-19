@@ -13,6 +13,10 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**Character page redesign, her phone, X Reference up to 5 (November 19; types clean; looked at on the stand-in backend on desktop only; run migration 0037; WAITING on the owner to pick layout A or B)**
+- Two layouts on `/characters/[id]`: A (default: header strip, images left, details right) and B (`?layout=b`: centred profile sidebar, image cards in a grid). When the owner picks, delete the other branch of the JSX; if B, give "Her phone" full width.
+- Her phone: `PhoneCard` (photo slot `phone` + description, `savePhoneDescription`), columns `phone_description`, `phone_photo_path` (migration `0037_phone_and_x5.sql`, which also raises X Reference to 5). `phoneWriterRule` (`src/lib/ai/prompts/phone.ts`) goes into the Inject writer (photo shown last + description), Director new shot (description) and the Director edit writer (photo + description, with Keep likeness on). Read via `loadPhone` (`src/lib/character-phone.ts`), safe before the migration.
+
 **Director edit takes several photos with live @image tags; fixes are plain words; Direct swap tip (November 19; types clean; tests/likeness.test.ts updated but is one of the env-var files so it did not run here; NOT checked in a browser or on a real generation)**
 - Director "Edit a photo": upload up to 10 photos (8 with Keep likeness, whose face and body sheets take 2 of Seedream's 10). Uploads are @image1..@imageN, sheets follow as @imageN+1 and N+2. Sent as `meta.target` (first) + `extraPaths` (rest) with new `meta.extrasFirst`, which makes `editJob` put the extras before her sheets.
 - **Keep likeness always tags the sheets**: `directorEditPrompt` always appends the line naming her face sheet @imageN+1 and body sheet @imageN+2 (idempotent), and `editJob` re-applies it on the server for Director edits (`meta.extrasFirst`) with both sheets picked, so the sheets go through and are tagged whatever the typed or AI-written text says. Test: `tests/director-edit.test.ts` (passes).

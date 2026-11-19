@@ -1,5 +1,6 @@
 "use server";
 
+import { MAX_PHONE_DESCRIPTION } from "@/lib/ai/prompts/phone";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { MEDIA_BUCKET } from "@/lib/images";
@@ -23,10 +24,19 @@ const COLUMN = {
 
 export async function removeCharacterImage(
   characterId: string,
-  slot: keyof typeof COLUMN | "reference" | "x_reference",
+  slot: keyof typeof COLUMN | "reference" | "x_reference" | "phone",
   path?: string,
 ) {
   const { supabase, user } = await requireUser();
+  if (slot === "phone") {
+    const { data: x } = await supabase.from("characters").select("phone_photo_path").eq("id", characterId).maybeSingle();
+    const old = (x?.phone_photo_path as string | null) ?? null;
+    if (!old) return;
+    await supabase.from("characters").update({ phone_photo_path: null }).eq("id", characterId);
+    if (isOwnPath(user.id, old)) await supabase.storage.from(MEDIA_BUCKET).remove([old]);
+    revalidatePath(`/characters/${characterId}`);
+    return;
+  }
   if (slot === "x_reference") {
     const { data: x } = await supabase.from("characters").select("x_reference_paths").eq("id", characterId).maybeSingle();
     const list = (x?.x_reference_paths as string[] | null) ?? [];
@@ -101,4 +111,14 @@ export async function getCharacterGenerations(characterId: string): Promise<Char
   return all
     .filter((g) => g.characterId === characterId && g.state === "ready" && g.previewUrl)
     .map((g) => ({ id: g.id, label: g.kindLabel, url: g.previewUrl as string, downloadUrl: g.downloadUrl, prompt: g.prompt, kind: g.kind, expiresAt: g.expiresAt ?? new Date().toISOString() }));
+}
+
+/** Saves the description of her phone (empty clears it). Needs migration 0037. */
+export async function savePhoneDescription(characterId: string, description: string): Promise<{ ok: boolean; error?: string }> {
+  const { supabase } = await requireUser();
+  const text = String(description ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_PHONE_DESCRIPTION);
+  const { error } = await supabase.from("characters").update({ phone_description: text || null, updated_at: new Date().toISOString() }).eq("id", characterId);
+  if (error) return { ok: false, error: "Couldn't save her phone. Has migration 0037 been run?" };
+  revalidatePath(`/characters/${characterId}`);
+  return { ok: true };
 }

@@ -1,6 +1,8 @@
 import "server-only";
 import { identityBlock } from "@/lib/ai/prompts/lean";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { phoneWriterRule } from "@/lib/ai/prompts/phone";
+import { loadPhone } from "@/lib/character-phone";
 import { UserFacingError } from "@/lib/errors";
 import { isOwnPath } from "@/lib/uploads";
 import { loadForVision } from "@/lib/character-images";
@@ -124,6 +126,10 @@ export async function runInject(
   const refPaths = opt.withRefs ? c.reference_paths.slice(0, 3) : [];
   const [target] = await loadForVision(supabase, [{ label: "target", path: input.targetPath }], Math.min(TARGET_EDGE, imageMaxEdge ?? TARGET_EDGE));
   const refs = await loadForVision(supabase, refPaths.map((path) => ({ label: "reference photo", path })), imageMaxEdge);
+  // Her own phone: its photo (last image the writer sees) and/or description, used whenever a phone is in the shot.
+  const ph = await loadPhone(supabase, c.id);
+  const phoneImg = ph.path ? await loadForVision(supabase, [{ label: "her phone", path: ph.path }], Math.min(768, imageMaxEdge ?? 768)).catch(() => []) : [];
+  const phoneRule = phoneWriterRule({ description: ph.description, imageLabel: phoneImg.length ? "the LAST image you are shown (a photo of her phone)" : null });
 
   if (group.length) {
     // A group is always recreated from the sheets; the photo itself is never sent.
@@ -134,7 +140,7 @@ export async function runInject(
   const prompt = opt.swap
     ? buildSwapBriefPrompt(o, plans.length)
     : buildInjectPrompt({ ...c, profile: c.profile ?? {} }, sheetLines(pack), o, plans, refs.length, recent, inspo);
-  const task = { prompt, images: [target, ...refs].map((x) => x.dataUri) };
+  const task = { prompt: phoneRule ? `${prompt}\n\n${phoneRule}` : prompt, images: [target, ...refs, ...phoneImg].map((x) => x.dataUri) };
   const reply = client.complete ? await client.complete(task, { onDelta, stopOnRefusal: true }) : { text: await client.run(task), truncated: false };
 
   const readReply = (text: string) => parseVersions(text).map((v) => (looksLikeRefusal(v.text) ? { ...v, text: "" } : v));

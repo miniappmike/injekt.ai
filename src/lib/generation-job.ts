@@ -9,6 +9,8 @@ import { getUserTextClient, withDeclineFallback } from "@/lib/ai/text-client";
 import { clampTags, fitCrops, condenseTask, framePrompt, sceneCondenseTask, sheetLines, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
 import { fence, OVERLAY_RULE } from "@/lib/ai/prompts/rules";
 import { directorEditPrompt } from "@/lib/ai/prompts/director-edit";
+import { phoneWriterRule } from "@/lib/ai/prompts/phone";
+import { loadPhone } from "@/lib/character-phone";
 import { type FixRefs } from "@/lib/ai/prompts/likeness";
 import { carouselSlidePrompt } from "@/lib/ai/prompts/variants";
 import { leanSwap, swapPrompt, type LeanSwapOptions } from "@/lib/ai/prompts/swap";
@@ -407,7 +409,8 @@ async function directorJob(
     "profile, always_keep, height, weight",
   );
   const { client, model } = await getUserTextClient(supabase, userId, "llm", "prompt");
-  const directorTask = { prompt: buildDirectorPrompt({ ...row, profile: row?.profile ?? {} }, sheetLines(pack), dir, realism, !!identityBlock(pack?.anchors), pickCamera()) };
+  const phone = phoneWriterRule({ description: (await loadPhone(supabase, c.id)).description });
+  const directorTask = { prompt: [buildDirectorPrompt({ ...row, profile: row?.profile ?? {} }, sheetLines(pack), dir, realism, !!identityBlock(pack?.anchors), pickCamera()), phone].filter(Boolean).join("\n\n") };
   const reply = String(await withDeclineFallback(supabase, userId, "prompt", { client, model }, "vision", (cl) => cl.run(directorTask)));
   const v = parseVersions(reply)[0];
   if (!v?.text) throw new UserFacingError("Couldn't plan that shot. Try again, or describe it a little differently.");

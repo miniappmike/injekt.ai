@@ -49,7 +49,15 @@ export async function POST(request: NextRequest) {
     // folder and attached when the character is saved.
     // X Reference: a list column of its own, read on its own so a missing column (migration 0036 not run) says so.
     let xRefs: string[] | null = null;
-    if (slot === "x_reference") {
+    // Her phone: one photo in a column of its own (migration 0037); a new one replaces the old.
+    let phone: { previous: string | null } | null = null;
+    if (slot === "phone") {
+      if (!characterId) return NextResponse.json({ error: "Save the character first" }, { status: 400 });
+      const { data, error } = await supabase.from("characters").select("phone_photo_path").eq("id", characterId).maybeSingle();
+      if (error) return NextResponse.json({ error: "Her phone isn't set up yet" }, { status: 400 });
+      if (!data) return NextResponse.json({ error: "Character not found" }, { status: 404 });
+      phone = { previous: (data.phone_photo_path as string | null) ?? null };
+    } else if (slot === "x_reference") {
       if (!characterId) return NextResponse.json({ error: "Save the character first" }, { status: 400 });
       const { data, error } = await supabase.from("characters").select("x_reference_paths").eq("id", characterId).maybeSingle();
       if (error) return NextResponse.json({ error: "X Reference isn't set up yet" }, { status: 400 });
@@ -83,7 +91,14 @@ export async function POST(request: NextRequest) {
     const { error: upError } = await storage.upload(path, clean, { contentType: "image/jpeg" });
     if (upError) return NextResponse.json({ error: "Could not store image" }, { status: 500 });
 
-    if (xRefs && characterId) {
+    if (phone && characterId) {
+      const { error } = await supabase.from("characters").update({ phone_photo_path: path, updated_at: new Date().toISOString() }).eq("id", characterId);
+      if (error) {
+        await storage.remove([path]);
+        return NextResponse.json({ error: "Could not save image" }, { status: 500 });
+      }
+      if (phone.previous && phone.previous.startsWith(`${user.id}/`)) await storage.remove([phone.previous]);
+    } else if (xRefs && characterId) {
       const { error } = await supabase
         .from("characters")
         .update({ x_reference_paths: [...xRefs, path], updated_at: new Date().toISOString() })

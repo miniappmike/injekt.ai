@@ -1,5 +1,7 @@
 "use server";
 
+import { phoneWriterRule } from "@/lib/ai/prompts/phone";
+import { loadPhone } from "@/lib/character-phone";
 import { requireUser } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/ratelimit";
 import { withDaily } from "@/lib/daily-limits";
@@ -14,7 +16,7 @@ import { directorEditTask, MAX_EDIT_CHANGES } from "@/lib/ai/prompts/director-ed
 const EDGE = 1024;
 
 /** Director "Edit a photo": reads the photo and writes an edit prompt from the person's words. Counts as one prompt run. */
-export async function writeDirectorEdit(input: { photoPath: string; extraCount?: number; changes: string; keepHer: boolean }): Promise<{ ok: true; text: string } | AiFailure> {
+export async function writeDirectorEdit(input: { photoPath: string; extraCount?: number; changes: string; keepHer: boolean; characterId?: string }): Promise<{ ok: true; text: string } | AiFailure> {
   try {
     const { supabase, user } = await requireUser();
     await enforceRateLimit(user.id, "llm", 20, 60);
@@ -24,7 +26,12 @@ export async function writeDirectorEdit(input: { photoPath: string; extraCount?:
     const text = await withDaily(supabase, user.id, "runs", async () => {
       const { client, imageMaxEdge, model } = await getUserTextClient(supabase, user.id, "vision", "prompt");
       const [photo] = await loadForVision(supabase, [{ label: "the photo to edit", path: input.photoPath }], Math.min(EDGE, imageMaxEdge ?? EDGE));
-      const task = { prompt: directorEditTask(changes, !!input.keepHer, Math.max(0, Math.min(9, Number(input.extraCount) || 0))), images: [photo.dataUri] };
+      // With Keep likeness on, her own phone goes in too (RLS keeps this to the person's own characters).
+      const ph = input.keepHer && typeof input.characterId === "string" ? await loadPhone(supabase, input.characterId) : { description: null, path: null };
+      const phoneImg = ph.path ? await loadForVision(supabase, [{ label: "her phone", path: ph.path }], 768).catch(() => []) : [];
+      const rule = phoneWriterRule({ description: ph.description, imageLabel: phoneImg.length ? "the second image you are shown (a photo of her phone; it is not sent to the image model)" : null });
+      const base = directorEditTask(changes, !!input.keepHer, Math.max(0, Math.min(9, Number(input.extraCount) || 0)));
+      const task = { prompt: rule ? `${base}\n\n${rule}` : base, images: [photo.dataUri, ...phoneImg.map((x) => x.dataUri)] };
       const out = String(await withDeclineFallback(supabase, user.id, "prompt", { client, model }, "llm", (cl) => cl.run(task))).trim();
       if (!out || looksLikeRefusal(out)) throw new UserFacingError("Couldn't write that edit. Try again, or press Generate to use your own words.");
       return out.slice(0, MAX_EDIT_CHANGES);

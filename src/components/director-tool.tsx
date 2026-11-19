@@ -105,7 +105,7 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
   const writeEdit = async () => {
     if (!photo?.path) return;
     setWriting({ busy: true });
-    const r = await writeDirectorEdit({ photoPath: photo.path, extraCount: photos.length - 1, changes, keepHer: keepHer && character.ready }).catch(() => ({ ok: false as const, error: "Couldn't write the prompt. Try again." }));
+    const r = await writeDirectorEdit({ photoPath: photo.path, extraCount: photos.length - 1, changes, keepHer: keepHer && character.ready, characterId }).catch(() => ({ ok: false as const, error: "Couldn't write the prompt. Try again." }));
     if (r.ok) setWritten(r.text);
     setWriting(r.ok ? {} : { error: tokenGate(r.error) });
   };

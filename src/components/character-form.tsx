@@ -176,8 +176,8 @@ export function CharacterForm({
         </fieldset>
       )}
 
-      <fieldset className="panel flex flex-col gap-4 p-5">
-        <legend className="rounded-full border border-neutral-700 bg-neutral-900 px-3 py-0.5 text-sm font-semibold">Profile</legend>
+      <fieldset className={characterId ? "flex flex-col gap-4 border-t border-neutral-800 pt-5" : "panel flex flex-col gap-4 p-5"}>
+        <legend className={characterId ? "float-left mb-1 w-full text-sm font-semibold uppercase tracking-[0.14em] text-brand-300" : "rounded-full border border-neutral-700 bg-neutral-900 px-3 py-0.5 text-sm font-semibold"}>Profile</legend>
         <p className="text-sm text-neutral-400">
           {characterId
             ? "Every prompt describes her from this profile. Build it from her images (it is saved straight away), then edit anything."
