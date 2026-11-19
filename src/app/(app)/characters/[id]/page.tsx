@@ -198,7 +198,11 @@ export default async function EditCharacterPage({
             <PhoneCard characterId={c.id} name={c.name} description={phone.description} images={imgs([phone.path])} />
           </Card>
 
-          <Card title="X Reference" sub={`Up to ${MAX_X_REFERENCES}. Sent to the AI when X references is ticked in Inject or Direct swap.`}>
+          <Card
+            title="X References"
+            sub={`Up to ${MAX_X_REFERENCES}. Sent to the AI when X references is ticked in Inject or Direct swap.`}
+            tip={<InfoTip label="About X References">What X References are for, and a guide on using them, are on our Discord.</InfoTip>}
+          >
             <ImageSlot label="X References" slot="x_reference" characterId={c.id} images={imgs(xRefs)} max={MAX_X_REFERENCES} />
             <Button asChild variant="secondary" className="w-fit">
               <a href="https://discord.gg/9tV5FfMvW4" target="_blank" rel="noopener noreferrer">Join the Discord for the guide</a>
