@@ -53,10 +53,10 @@ export default async function EditCharacterPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ notice?: string; from?: string; list?: string; layout?: string; build?: string }>;
+  searchParams: Promise<{ notice?: string; from?: string; list?: string }>;
 }) {
   const { id } = await params;
-  const { notice, from, list: listParam, layout, build } = await searchParams;
+  const { notice, from, list: listParam } = await searchParams;
   const banner = notice ? NOTICES[notice] : undefined;
   const { supabase, user } = await requireUser();
   const c = await selectCharacter<CharacterRow>(
@@ -97,9 +97,6 @@ export default async function EditCharacterPage({
     { label: "Phone", on: !!(phone.description || phone.path) },
   ];
 
-  // Layout options for the owner to compare (?layout=a1 | a2 | c); the default is A.
-  const backdrop = layout === "a2" || layout === "c";
-  const oneCol = layout === "c";
   const cover = c.reference_paths[0] ? urls[c.reference_paths[0]] : avatar;
   const gallery = [
     ...c.reference_paths.map((p, i) => ({ path: p, label: i === 0 ? "Cover" : `Reference ${i + 1}` })),
@@ -122,9 +119,8 @@ export default async function EditCharacterPage({
   return (
     <div className="flex flex-col gap-6">
       {/* Her header: picture, name, identity line, what she has, and the quick actions. */}
-      {(
       <section className="panel relative overflow-hidden p-5 sm:p-7">
-        {backdrop && cover && (
+        {cover && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={cover} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-30 blur-2xl" />
         )}
@@ -154,10 +150,8 @@ export default async function EditCharacterPage({
             <DeleteCharacterButton id={c.id} name={c.name} />
           </div>
         </div>
-        {backdrop && <div className="relative mt-6">{strip}</div>}
+        {strip && <div className="relative mt-6">{strip}</div>}
       </section>
-      )}
-      {layout === "a1" && <section className="panel p-4 sm:p-5">{strip}</section>}
 
       {banner && (
         <p role="status" className={`rounded-xl border p-3 text-sm ${banner.good ? "border-emerald-800 bg-emerald-500/5 text-emerald-300" : "border-amber-700 bg-amber-500/5 text-amber-300"}`}>
@@ -177,11 +171,10 @@ export default async function EditCharacterPage({
       )}
 
       {/* Wide screens: her images on the left, her details and profile on the right. */}
-      {(
-      <div className={oneCol ? "flex flex-col gap-6" : "grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start"}>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
         <div className="flex flex-col gap-6">
           <Card title="Identity" sub="Every tool keeps her looking like these. Click a picture to see it full size.">
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <ImageSlot label="Profile photo" slot="profile_photo" characterId={c.id} images={imgs([c.profile_photo_path])} hint="Display only, never sent to an AI model." />
               <ImageSlot label="Face sheet" slot="face_sheet" characterId={c.id} images={imgs([c.face_sheet_path])} hint="Her face from several angles." />
               <ImageSlot label="Body sheet" slot="body_sheet" characterId={c.id} images={imgs([c.body_sheet_path])} hint="Front, back and side." />
@@ -213,7 +206,7 @@ export default async function EditCharacterPage({
           <p className="text-xs text-neutral-500">Photo metadata (location, device) is stripped on upload.</p>
         </div>
 
-        <Card title="Details and profile" sub="Every prompt describes her from this." className={oneCol ? "" : "lg:sticky lg:top-28"}>
+        <Card title="Details and profile" sub="Every prompt describes her from this." className="lg:sticky lg:top-28">
           <CharacterForm
             action={updateCharacter.bind(null, c.id)}
             initial={{ ...c, profile }}
@@ -223,11 +216,9 @@ export default async function EditCharacterPage({
             buildCredits={buildCredits}
             buildsTotal={FREE_LIMITS.profile_builds}
             fromWizard={from === "wizard"}
-            buildStyle={build}
           />
         </Card>
       </div>
-      )}
     </div>
   );
 }
