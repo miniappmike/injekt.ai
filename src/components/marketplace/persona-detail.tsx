@@ -24,12 +24,15 @@ export function PersonaDetail({
   likes,
   stat,
   isAdmin,
+  editHref = null,
   signedIn,
   backHref = "/marketplace",
 }: {
   listing: PublicListing;
   likes: { likes: number; liked: boolean };
   isAdmin: boolean;
+  /** Admins: her listing editor on her character page. */
+  editHref?: string | null;
   signedIn: boolean;
   /** Views, likes and Virality Rank for the stat cards. */
   stat: ListingStat;
@@ -126,7 +129,14 @@ export function PersonaDetail({
 
           {isAdmin && (
             <section className="panel p-5" aria-label="Admin controls">
-              <p className="mb-3 text-xs font-semibold tracking-wide text-neutral-500 uppercase">Admin</p>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">Admin</p>
+                {editHref && (
+                  <Link href={editHref} className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm font-semibold text-neutral-100 transition-colors hover:border-neutral-500 hover:bg-neutral-800">
+                    Edit listing
+                  </Link>
+                )}
+              </div>
               <AdminListingControls listingId={listing.id} status={listing.status} priceCents={listing.priceCents} holdActive={listing.holdActive} name={listing.name} />
             </section>
           )}

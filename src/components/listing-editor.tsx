@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminListingControls } from "@/components/admin-listing-controls";
 import { UploadIcon } from "@/components/icons";
-import { useToast } from "@/components/toast";
+import { useToast, type ToastLink } from "@/components/toast";
 import { clipboardImages, usePasteTarget } from "@/components/paste-router";
 import {
   addPreviewFromCharacter,
@@ -69,13 +69,14 @@ export function ListingEditor({
   const [error, setError] = useState<string>();
 
   /** Runs a server action, shows its error or a toast, and reloads the page data. */
-  function act<T extends { ok: boolean }>(fn: () => Promise<T | { ok: false; error: string }>, done?: string, after?: () => void) {
+  function act<T extends { ok: boolean }>(fn: () => Promise<T | { ok: false; error: string }>, done?: string | { text: string; link: ToastLink }, after?: () => void) {
     setError(undefined);
     startTransition(async () => {
       const r = await fn();
       if (!r.ok) setError((r as { error: string }).error);
       else {
-        if (done) show(done);
+        if (typeof done === "string") show(done);
+        else if (done) show(done.text, done.link);
         after?.();
         router.refresh();
       }
@@ -122,7 +123,7 @@ export function ListingEditor({
   );
 }
 
-type Act = <T extends { ok: boolean }>(fn: () => Promise<T | { ok: false; error: string }>, done?: string, after?: () => void) => void;
+type Act = <T extends { ok: boolean }>(fn: () => Promise<T | { ok: false; error: string }>, done?: string | { text: string; link: ToastLink }, after?: () => void) => void;
 
 function EditorBody({
   characterId,
@@ -318,7 +319,7 @@ function EditorBody({
             onClick={() => {
               // A first publish puts her in front of every shopper, so it asks first; leaving without it keeps her a regular character.
               if (!live && !window.confirm(`Publish ${listing.name || "her"} to the marketplace for ${centsToDollars(listing.priceCents) ? "$" + centsToDollars(listing.priceCents) : "her price"}? Shoppers will see her small watermarked pictures and profile right away.`)) return;
-              act(() => publishListing(listing.id), live ? "Listing updated" : "Published to the marketplace");
+              act(() => publishListing(listing.id), { text: live ? "Listing updated" : "Published to the marketplace", link: { href: `/marketplace/${listing.id}`, label: "View her page" } });
             }}
           >
             {busy ? "Working..." : live ? "Update listing" : "Publish to marketplace"}

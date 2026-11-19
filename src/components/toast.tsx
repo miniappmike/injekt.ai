@@ -1,19 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+/** A link shown at the end of a toast, e.g. "View her page". */
+export interface ToastLink {
+  href: string;
+  label: string;
+}
 
 // Small confirmation message that fades away on its own. Announced to screen readers via role="status".
 export function useToast(durationMs = 4000) {
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; link?: ToastLink } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const show = useCallback(
-    (text: string) => {
+    (text: string, link?: ToastLink) => {
       clearTimeout(timer.current);
-      setMessage(text);
-      timer.current = setTimeout(() => setMessage(null), durationMs);
+      setMessage({ text, link });
+      // A toast with a link stays up longer, so there is time to press it.
+      timer.current = setTimeout(() => setMessage(null), link ? Math.max(durationMs, 8000) : durationMs);
     },
     [durationMs],
   );
@@ -23,7 +31,12 @@ export function useToast(durationMs = 4000) {
       role="status"
       className="fixed bottom-6 left-1/2 z-50 flex max-sm:bottom-[calc(var(--dock-clear)+0.75rem)] -translate-x-1/2 animate-[toast-in_0.25s_cubic-bezier(.2,.9,.3,1.2)_both] items-center gap-2 rounded-full border border-emerald-500/30 bg-neutral-900/95 px-4 py-2 text-sm font-medium text-emerald-100 shadow-[0_12px_40px_-12px_rgb(0_0_0/0.9)] backdrop-blur-xl before:h-2 before:w-2 before:rounded-full before:bg-emerald-400 before:shadow-[0_0_8px_rgb(52_211_153)] before:content-['']"
     >
-      {message}
+      {message.text}
+      {message.link && (
+        <Link href={message.link.href} className="ml-1 rounded-full bg-emerald-400/15 px-2.5 py-0.5 font-semibold text-emerald-200 underline-offset-2 hover:bg-emerald-400/25 hover:underline">
+          {message.link.label}
+        </Link>
+      )}
     </div>
   ) : null;
 

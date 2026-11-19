@@ -1,33 +1,37 @@
 import sharp from "sharp";
 import { ALLOWED_FORMATS } from "@/lib/images";
+import { MARK, MARK_BOX } from "@/lib/brand-mark";
 
 /** Longest side of a marketplace preview. Big enough to judge the look, too small to be a usable copy. */
 export const PREVIEW_MAX_EDGE = 768;
-export const WATERMARK_TEXT = "MODELSPAWN · PREVIEW";
-
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+/** How strong the logos are (owner: 25%). */
+export const WATERMARK_OPACITY = 0.25;
 
 /**
- * A transparent layer the size of the image: the text repeated on a diagonal across the whole picture (so it can't be
- * cropped out), plus a small badge in the bottom-right corner. Each text is drawn twice, dark then light, so it stays
- * readable on both bright and dark pictures.
+ * A transparent layer the size of the image: the ModelSpawn logo, upright, repeated in staggered rows across the whole
+ * picture at 25% so it can't be cropped out. Drawn from the logo's path, so no font is needed (the old text watermark
+ * drew as empty boxes on the server, which has no fonts). A faint dark outline keeps it visible on pink or bright photos.
  */
 export function watermarkSvg(width: number, height: number): string {
-  const font = Math.max(14, Math.round(Math.min(width, height) / 22));
-  const tileW = Math.round(font * 16);
-  const tileH = Math.round(font * 5);
-  const text = (fill: string, dx: number, dy: number) =>
-    `<text x="${tileW / 2 + dx}" y="${tileH / 2 + dy}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${font}" font-weight="700" letter-spacing="2" fill="${fill}">${esc(WATERMARK_TEXT)}</text>`;
-  const badgeFont = Math.max(11, Math.round(font * 0.7));
-  const badgeW = Math.round(badgeFont * 12);
-  const badgeH = Math.round(badgeFont * 2);
-  const bx = width - badgeW - 8;
-  const by = height - badgeH - 8;
+  // Small logos (owner: smaller than a fifth of the picture): about a ninth of the short side, never under 32px.
+  const lw = Math.max(32, Math.round(Math.min(width, height) / 9));
+  const scale = lw / MARK_BOX.w;
+  const lh = MARK_BOX.h * scale;
+  const tileW = Math.round(lw * 1.9);
+  const tileH = Math.round(lh * 3.2);
+  // One logo at (x, y), its top-left corner, in pattern space.
+  const logo = (x: number, y: number) =>
+    `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale.toFixed(5)}) translate(${-MARK_BOX.x} ${-MARK_BOX.y})"><path d="${MARK}" fill="url(#wm-pink)" stroke="rgba(0,0,0,0.35)" stroke-width="${(1.2 / scale).toFixed(1)}"/></g>`;
+  // Two rows per tile, the second shifted half a tile, so the logos sit in a brick pattern.
+  const gapX = (tileW - lw) / 2;
+  const gapY = (tileH / 2 - lh) / 2;
+  const cells = [logo(gapX, gapY), logo(gapX + tileW / 2, tileH / 2 + gapY), logo(gapX - tileW / 2, tileH / 2 + gapY)];
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-<defs><pattern id="wm" width="${tileW}" height="${tileH}" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">${text("rgba(0,0,0,0.28)", 1.5, 1.5)}${text("rgba(255,255,255,0.42)", 0, 0)}</pattern></defs>
-<rect width="${width}" height="${height}" fill="url(#wm)"/>
-<rect x="${bx}" y="${by}" width="${badgeW}" height="${badgeH}" rx="${badgeH / 2}" fill="rgba(0,0,0,0.6)"/>
-<text x="${bx + badgeW / 2}" y="${by + badgeH / 2 + badgeFont * 0.35}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${badgeFont}" font-weight="700" fill="#fff">PREVIEW ONLY</text>
+<defs>
+<radialGradient id="wm-pink" gradientUnits="userSpaceOnUse" cx="1000" cy="965" r="820"><stop offset="0" stop-color="#ff8fc0"/><stop offset="0.45" stop-color="#ff5fa2"/><stop offset="0.8" stop-color="#fb3a82"/><stop offset="1" stop-color="#f92776"/></radialGradient>
+<pattern id="wm" width="${tileW}" height="${tileH}" patternUnits="userSpaceOnUse">${cells.join("")}</pattern>
+</defs>
+<rect width="${width}" height="${height}" fill="url(#wm)" opacity="${WATERMARK_OPACITY}"/>
 </svg>`;
 }
 
