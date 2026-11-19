@@ -2,7 +2,7 @@ import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SparkIcon } from "@/components/icons";
-import { CharacterCoverButton, CharacterImagesButton, DeleteCharacterButton, DuplicateCharacterButton, type CardImage } from "@/components/character-card-actions";
+import { CharacterCoverButton, CharacterImagesButton, DeleteCharacterButton, DownloadSheetsButton, DuplicateCharacterButton, type CardImage } from "@/components/character-card-actions";
 
 export interface CharacterCardData {
   id: string;
@@ -29,6 +29,7 @@ export interface CharacterCardData {
  * strip, and her identity line. The whole card lifts and the picture zooms a little on hover.
  */
 export function CharacterCard({ c, canList = false, canDuplicate = false }: { c: CharacterCardData; canList?: boolean; canDuplicate?: boolean }) {
+  const sheets = c.images.filter((i) => i.label === "Face sheet" || i.label === "Body sheet").map((i) => ({ label: i.label, url: i.url }));
   const [cover, ...rest] = c.thumbs;
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 max-sm:rounded-[1.25rem] shadow-[0_14px_40px_-24px_rgb(0_0_0/0.9)] transition-all duration-300 hover:-translate-y-1 hover:border-brand-500/40 hover:shadow-[0_24px_50px_-24px_rgb(232_38_94/0.45)]">
@@ -89,6 +90,7 @@ export function CharacterCard({ c, canList = false, canDuplicate = false }: { c:
             ) : (
               <Link href={`/characters/${c.id}`} className="flex h-9 flex-1 items-center justify-center rounded-xl bg-neutral-800 text-sm font-semibold text-neutral-100 transition-transform active:scale-95">Edit</Link>
             )}
+            <DownloadSheetsButton name={c.name} sheets={sheets} icon />
             {canDuplicate && <DuplicateCharacterButton id={c.id} name={c.name} icon />}
             <DeleteCharacterButton id={c.id} name={c.name} icon />
           </div>
@@ -100,6 +102,7 @@ export function CharacterCard({ c, canList = false, canDuplicate = false }: { c:
           )}
           <DeleteCharacterButton id={c.id} name={c.name} />
           {canDuplicate && <DuplicateCharacterButton id={c.id} name={c.name} />}
+          <DownloadSheetsButton name={c.name} sheets={sheets} />
           <Button asChild size="sm" variant="secondary">
             <Link href={`/characters/${c.id}`}>Edit</Link>
           </Button>

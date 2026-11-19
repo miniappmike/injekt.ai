@@ -13,6 +13,8 @@ import { GENERATION_DELETED_EVENT, viewImage } from "@/lib/panel-events";
 import { ImageBulkBar, SelectBox, useSelection } from "@/components/image-bulk-bar";
 import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
 import { shortTimeLeft } from "@/lib/retention";
+import { saveImage } from "@/lib/download";
+import { Download } from "lucide-react";
 
 export interface CardImage {
   label: string;
@@ -242,5 +244,33 @@ function ImageStrip({ name, images, characterId, freeSlots, onPinned }: { name: 
       </ul>
       </div>
     </div>
+  );
+}
+
+/**
+ * Download her reference sheets (face, then body), one file every 3 seconds. Browsers bundle or block several
+ * downloads fired at once, so they are spaced out.
+ */
+export function DownloadSheetsButton({ name, sheets, icon = false }: { name: string; sheets: { label: string; url: string }[]; icon?: boolean }) {
+  const [busy, setBusy] = useState(false);
+  if (sheets.length === 0) return null;
+  const run = async () => {
+    setBusy(true);
+    try {
+      for (let i = 0; i < sheets.length; i++) {
+        if (i > 0) await new Promise((r) => setTimeout(r, 3000));
+        const s = sheets[i];
+        await saveImage(s.url, `${name}-${s.label}`.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  return icon ? (
+    <button type="button" onClick={() => void run()} disabled={busy} aria-label={`Download ${name}'s sheets`} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-800 text-neutral-100 transition-transform active:scale-90 disabled:opacity-50">
+      <Download className={`h-[18px] w-[18px] ${busy ? "animate-pulse" : ""}`} />
+    </button>
+  ) : (
+    <Button type="button" size="sm" variant="ghost" onClick={() => void run()} disabled={busy}>{busy ? "Downloading…" : "Download sheets"}</Button>
   );
 }
