@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { InfoTip } from "@/components/info-tip";
+import { DIRECT_SWAP_TIP } from "@/lib/tips";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -175,7 +177,8 @@ export function QuickGenerate({ mode, characters }: { mode: "direct_swap" | "edi
           <p className="text-sm text-neutral-400">
             {generation
               ? "Swaps her straight into the photo: the photo goes first, then her face and body references, with a fixed swap prompt. No prompt-writing step. For a prompt tailored to the photo, use Write prompts."
-              : "A ready-made swap prompt that puts her into any photo, keeping its pose, outfit and background. Instant and free: it doesn't use any of your daily prompts. For a prompt tailored to the photo, use Write prompts."}
+              : "A ready-made swap prompt that puts her into any photo, keeping its pose, outfit and background. Instant and free: it doesn't use any of your daily prompts. For a prompt tailored to the photo, use Write prompts."}{" "}
+            <InfoTip label="When to use Direct swap">{DIRECT_SWAP_TIP}</InfoTip>
           </p>
           <label className="flex flex-col gap-1.5 text-sm">
             <span>Which person <span className="text-xs text-neutral-500">optional</span></span>

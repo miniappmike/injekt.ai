@@ -7,8 +7,8 @@ import { referencesFor } from "@/lib/character-images";
 import { currentPack, ensureSheetPack, selectCharacter } from "@/lib/sheet-pack";
 import { getUserTextClient, withDeclineFallback } from "@/lib/ai/text-client";
 import { clampTags, fitCrops, condenseTask, framePrompt, sceneCondenseTask, sheetLines, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
-import { OVERLAY_RULE } from "@/lib/ai/prompts/rules";
-import { faceFixPrompt, likenessFixPrompt, type FixRefs } from "@/lib/ai/prompts/likeness";
+import { fence, OVERLAY_RULE } from "@/lib/ai/prompts/rules";
+import { type FixRefs } from "@/lib/ai/prompts/likeness";
 import { carouselSlidePrompt } from "@/lib/ai/prompts/variants";
 import { leanSwap, swapPrompt, type LeanSwapOptions } from "@/lib/ai/prompts/swap";
 import { sheetPrompts } from "@/lib/ai/prompts/sheets";
@@ -122,17 +122,23 @@ export function faceRefs(c: JobCharacter, pack: SheetPack | null): { paths: stri
   return { paths: refs, roles: refs.map(() => "a reference photo of her face"), anchors: null };
 }
 
-/** A likeness fix or face fix: the image to repaint is @image1, her references follow. */
-export function fixJob(kind: "likeness_fix" | "face_fix", c: JobCharacter, pack: SheetPack | null, source: string, meta: InjectMeta, model: string, max: number): BuiltJob {
+/**
+ * A likeness fix or face fix, in plain words (owner's rule). Likeness fix: only the image to fix is sent (@image1) and
+ * the prompt is the fixes as short instructions, e.g. "Make her body slimmer." Face fix: the image (@image1) plus one
+ * face reference (@image2), and the prompt is simply to make her face exactly like the reference.
+ */
+export function fixJob(kind: "likeness_fix" | "face_fix", c: JobCharacter, pack: SheetPack | null, source: string, meta: InjectMeta, _model: string, _max: number): BuiltJob {
+  const note = meta.note ? ` ${fence(meta.note).slice(0, 160).trim()}` : "";
   if (kind === "face_fix") {
-    const F = faceRefs(c, pack);
-    if (!F.paths.length) throw new UserFacingError("This character has no sheet or reference photos to fix against.");
-    const paths = F.paths.slice(0, max - 1);
-    return { prompt: faceFixPrompt({ roles: F.roles.slice(0, paths.length), anchors: F.anchors }, { hair: !!meta.matchHair, note: meta.note }), paths: [source, ...paths], photoEdit: true };
+    const face = faceRefs(c, pack).paths[0];
+    if (!face) throw new UserFacingError("This character has no sheet or reference photos to fix against.");
+    const hair = meta.matchHair ? " Match her hair colour too." : "";
+    return { prompt: `Make her face in @image1 exactly like the face in @image2. Change nothing else.${hair}${note}`, paths: [source, face], photoEdit: true };
   }
-  const { paths, R } = fixRefs(c, pack, max - 1);
-  if (!paths.length) throw new UserFacingError("This character has no sheet or reference photos to fix against.");
-  return { prompt: likenessFixPrompt(R, meta.fixes ?? [], meta.frame, modelFamily(model), meta.outfit), paths: [source, ...paths], photoEdit: true };
+  const fixes = (meta.fixes ?? []).map((f) => f.replace(/\s+/g, " ").trim().replace(/[.;]+$/, "")).filter(Boolean);
+  if (!fixes.length) throw new UserFacingError("There's nothing to fix in that report.");
+  const lines = fixes.map((f) => `${f.charAt(0).toUpperCase()}${f.slice(1)}.`).join(" ");
+  return { prompt: `${lines} Keep everything else in @image1 exactly the same.`, paths: [source], photoEdit: true };
 }
 
 /**
@@ -192,7 +198,8 @@ export function refOptions(c: JobCharacter, _pack: SheetPack | null): RefOption[
 export function editJob(c: JobCharacter | null, pack: SheetPack | null, text: string, meta: InjectMeta, extras: string[], max: number): BuiltJob {
   // No picks sent (the Likeness page's revised prompt): the references that are on by default.
   const refs = c ? refOptions(c, pack).filter((o) => (meta.refs ? meta.refs.includes(o.id) : o.on)) : [];
-  const paths = [...(meta.target ? [meta.target] : []), ...refs.map((r) => r.path), ...extras];
+  const refPaths = refs.map((r) => r.path);
+  const paths = [...(meta.target ? [meta.target] : []), ...(meta.extrasFirst ? [...extras, ...refPaths] : [...refPaths, ...extras])];
   if (!paths.length) throw new UserFacingError("Add a target photo or pick at least one reference.");
   if (paths.length > max) throw new UserFacingError(`That's too many images (${max} at most).`);
   const t = text.trim();

@@ -7,6 +7,8 @@ import { QuickGenerate, type QuickCharacter } from "@/components/quick-generate"
 import { useGeneration } from "@/components/app-context";
 import type { SavedOutfit } from "@/lib/outfits";
 import { segItem, segTrack } from "@/components/ui/segmented";
+import { InfoTip } from "@/components/info-tip";
+import { DIRECT_SWAP_TIP } from "@/lib/tips";
 
 type Tab = "write" | "direct_swap" | "edit";
 const TABS: { id: Tab; label: string; generationOnly?: boolean }[] = [
@@ -49,12 +51,15 @@ export function InjectTabs({
 
   return (
     <div className="mt-5">
+      <div className="flex items-center gap-2">
       <div className={segTrack} role="tablist">
         {tabs.map((t) => (
           <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={segItem(tab === t.id)}>
             {t.label}
           </button>
         ))}
+      </div>
+      <InfoTip label="When to use Direct swap">{DIRECT_SWAP_TIP}</InfoTip>
       </div>
 
       {tab === "write" && (characters.length ? <InjectWriter characters={characters} outfits={outfits} initialCharacterId={initialCharacterId} /> : <QuickGenerate mode="edit" characters={[]} />)}

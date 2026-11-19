@@ -17,6 +17,8 @@ export const injectMetaSchema = z.object({
   real: z.boolean().optional(),
   /** The target photo, when it may be sent to the image model (Inject's opt-in "Edit this photo" mode). */
   target: z.string().max(300).optional(),
+  /** Director "Edit a photo": the extra uploaded photos come right after the target (@image2...), before her sheets. */
+  extrasFirst: z.boolean().optional(),
   edit: z.string().max(600).optional(),
   /** Swap into photo's short brief: the camera and the pose read from the target, and that the prompt is that brief. */
   brief: z.boolean().optional(),

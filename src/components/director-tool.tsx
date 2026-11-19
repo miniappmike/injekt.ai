@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { InfoTip } from "@/components/info-tip";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +17,10 @@ import { MAX_DIRECTION } from "@/lib/ai/prompts/director";
 import { directorEditPrompt, MAX_EDIT_CHANGES } from "@/lib/ai/prompts/director-edit";
 import { writeDirectorEdit } from "@/app/(app)/director/actions";
 import { useDraftState } from "@/lib/drafts";
+import { TagTextarea } from "@/components/tag-textarea";
+
+/** Seedream takes 10 images at most; her two sheets (Keep likeness) take two of them. */
+const MAX_IMAGES = 10;
 
 const REALISM_KEY = "ms.directorRealism";
 const GROUP_DEFAULT = "A candid photo of them together, like friends posing for a photo on a night out, each in a stylish outfit that suits the setting.";
@@ -68,31 +72,45 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
   const [mode, setMode] = useDraftState<"new" | "edit">("director.mode", "new", { decode: (v) => (v === "new" || v === "edit" ? v : null) });
   const editing = mode === "edit";
   const groupOn = !editing && extras.length > 0;
-  const [photo, setPhoto] = useState<{ preview: string; path?: string; busy?: boolean; error?: string } | null>(null);
+  const [photos, setPhotos] = useState<{ preview: string; path?: string; busy?: boolean; error?: string }[]>([]);
   const [changes, setChanges] = useDraftState("director.changes", "", { decode: (v) => (typeof v === "string" ? v.slice(0, MAX_EDIT_CHANGES) : null) });
   const [written, setWritten] = useState("");
   const [writing, setWriting] = useState<{ busy?: boolean; error?: string }>({});
   const [keepHer, setKeepHer] = useState(true);
+  const sheetsOn = keepHer && character.ready;
+  const count = useRef(0);
+  useEffect(() => {
+    count.current = photos.length;
+  }, [photos.length]);
+  // Uploads are @image1..@imageN; her sheets (when on) come right after them.
+  const maxPhotos = MAX_IMAGES - (sheetsOn ? 2 : 0);
   const pickPhoto = async (file: File) => {
     const preview = URL.createObjectURL(file);
-    setPhoto({ preview, busy: true });
+    // Several files arrive at once; the ref counts them before React re-renders.
+    if (count.current >= maxPhotos) return;
+    count.current += 1;
+    setPhotos((list) => [...list, { preview, busy: true }]);
     setWritten("");
+    const set = (v: { preview: string; path?: string; error?: string }) => setPhotos((list) => list.map((p) => (p.preview === preview ? v : p)));
     try {
-      const path = await uploadImage(file, "target");
-      setPhoto((p) => (p?.preview === preview ? { preview, path } : p));
+      set({ preview, path: await uploadImage(file, "target") });
     } catch (e) {
-      setPhoto((p) => (p?.preview === preview ? { preview, error: e instanceof Error ? e.message : "Upload failed" } : p));
+      set({ preview, error: e instanceof Error ? e.message : "Upload failed" });
     }
   };
+  const removePhoto = (preview: string) => setPhotos((list) => list.filter((p) => p.preview !== preview));
+  const ready = photos.length > 0 && photos.every((p) => p.path);
+  const paths = photos.flatMap((p) => (p.path ? [p.path] : []));
+  const photo = photos[0];
   const writeEdit = async () => {
     if (!photo?.path) return;
     setWriting({ busy: true });
-    const r = await writeDirectorEdit({ photoPath: photo.path, changes, keepHer: keepHer && character.ready }).catch(() => ({ ok: false as const, error: "Couldn't write the prompt. Try again." }));
+    const r = await writeDirectorEdit({ photoPath: photo.path, extraCount: photos.length - 1, changes, keepHer: keepHer && character.ready }).catch(() => ({ ok: false as const, error: "Couldn't write the prompt. Try again." }));
     if (r.ok) setWritten(r.text);
     setWriting(r.ok ? {} : { error: tokenGate(r.error) });
   };
-  const sheetsOn = keepHer && character.ready;
-  const editText = directorEditPrompt(written.trim() || changes, sheetsOn);
+  const editText = directorEditPrompt(written.trim() || changes, sheetsOn, photos.length);
+  const tagCount = photos.length + (sheetsOn ? 2 : 0);
 
   return (
     <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
@@ -142,23 +160,45 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
         </div>
         {editing ? (
           <>
-            <Label>Photo to edit</Label>
-            <ImageDrop title={photo ? "Replace photo" : "Photo"} hint="Any photo: drop, paste or pick one." preview={photo?.preview} onPick={(f) => void pickPhoto(f)} />
-            {photo?.busy && <p className="text-xs text-neutral-400">Uploading...</p>}
-            {photo?.error && <p className="text-sm text-red-400">{photo.error}</p>}
+            <Label>Photos ({photos.length}/{maxPhotos})</Label>
+            <ImageDrop
+              title={photos.length ? "Add more photos" : "Photos"}
+              hint={`The photo to edit is @image1; add up to ${maxPhotos} in all and refer to them by tag.${sheetsOn ? " Her sheets take 2 of the 10 slots." : ""}`}
+              multiple
+              full={photos.length >= maxPhotos}
+              onPick={(f) => void pickPhoto(f)}
+              gallery={
+                photos.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {photos.map((p, i) => (
+                      <div key={p.preview} className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.preview} alt="" className={`h-20 w-16 rounded-lg object-cover ring-1 ${p.error ? "ring-red-500" : "ring-white/10"} ${p.busy ? "opacity-50" : ""}`} />
+                        <span className="absolute bottom-1 left-1 rounded bg-brand-500/90 px-1 font-mono text-[10px] text-white">@image{i + 1}</span>
+                        <button type="button" aria-label={`Remove @image${i + 1}`} onClick={(e) => (e.stopPropagation(), removePhoto(p.preview))} className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-neutral-900 text-xs text-neutral-200 ring-1 ring-white/20">×</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : undefined
+              }
+            />
+            {photos.some((p) => p.busy) && <p className="text-xs text-neutral-400">Uploading...</p>}
+            {photos.find((p) => p.error) && <p className="text-sm text-red-400">{photos.find((p) => p.error)?.error}</p>}
+            {photos.length > maxPhotos && <p className="text-sm text-amber-400">Seedream takes 10 images at most and her sheets use 2. Remove {photos.length - maxPhotos} photo(s) or turn off Keep likeness.</p>}
             <Label htmlFor="edit-changes">What should change?</Label>
-            <Textarea
+            <TagTextarea
               id="edit-changes"
               value={changes}
               maxLength={MAX_EDIT_CHANGES}
               rows={4}
-              onChange={(e) => setChanges(e.target.value)}
+              tags={tagCount}
+              onChange={setChanges}
               placeholder="In your own words, e.g. put her in a red summer dress, make it golden hour, swap the background for a rooftop bar…"
             />
             <label className="flex w-fit cursor-pointer items-center gap-2 text-sm">
               <input type="checkbox" checked={keepHer} disabled={!character.ready} onChange={(e) => setKeepHer(e.target.checked)} /> Keep {character.name}&apos;s likeness
               <InfoTip label="About keeping her likeness">
-                On: her face sheet and body sheet go with the photo (@image2 and @image3), so the woman in it looks exactly like her. Turn it off to edit a photo of anyone and keep them as they are.
+                On: her face sheet and body sheet go after your photos (@image{Math.max(1, photos.length) + 1} and @image{Math.max(1, photos.length) + 2}), so the woman in it looks exactly like her. Turn it off to edit a photo of anyone and keep them as they are.
               </InfoTip>
             </label>
             <div className="flex flex-wrap items-center gap-2">
@@ -170,21 +210,21 @@ export function DirectorTool({ characters, initialCharacterId }: { characters: D
             {written && (
               <>
                 <Label htmlFor="edit-prompt">Edit prompt (change anything you like)</Label>
-                <Textarea id="edit-prompt" value={written} maxLength={MAX_EDIT_CHANGES} rows={5} onChange={(e) => setWritten(e.target.value)} />
+                <TagTextarea id="edit-prompt" value={written} maxLength={MAX_EDIT_CHANGES} rows={5} tags={tagCount} onChange={setWritten} />
                 <button type="button" onClick={() => setWritten("")} className="w-fit text-xs text-neutral-400 underline">
                   Use my own words instead
                 </button>
               </>
             )}
             {generation ? (
-              photo?.path && changes.trim() ? (
+              ready && changes.trim() && photos.length <= maxPhotos ? (
                 <GenerateImage
-                  key={`${photo.path}|${sheetsOn ? characterId : ""}`}
+                  key={`${paths.join(",")}|${sheetsOn ? characterId : ""}`}
                   prompt={editText}
                   characterId={sheetsOn ? characterId : null}
-                  extraPaths={[]}
+                  extraPaths={paths.slice(1)}
                   kind="edit"
-                  meta={{ target: photo.path, refs: sheetsOn ? ["face_sheet", "body_sheet"] : [] }}
+                  meta={{ target: paths[0], extrasFirst: true, refs: sheetsOn ? ["face_sheet", "body_sheet"] : [] }}
                   actionLabel="Generate edit"
                 />
               ) : (

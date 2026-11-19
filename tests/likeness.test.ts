@@ -196,11 +196,10 @@ const crop = (kind: "front" | "faces" | "side" | "body") => ({ kind, role: `her 
 const pack: SheetPack = { v: PACK_V, sig: "x", body: null, side: null, faces: null, facesFrom: "face", anchors, crops: [crop("front"), crop("faces"), crop("side"), crop("body")], at: "" };
 
 describe("fix jobs", () => {
-  it("likeness fix: the image first, then crops of her sheets (face, body, side) where she has them", () => {
-    const job = fixJob("likeness_fix", c, pack, "gen:u1/g.png", { fixes: ["dark eyes"] }, "bytedance/seedream-5.0-pro/edit", 4);
-    expect(job.paths).toEqual(["gen:u1/g.png", `${U}/pack/front.jpg`, `${U}/pack/body.jpg`, `${U}/pack/side.jpg`]);
-    expect(job.prompt).toMatch(/^@image1 is the PHOTO TO EDIT/);
-    expect(job.prompt).toContain("Fix in particular: dark eyes.");
+  it("likeness fix: only the image, with the fixes in plain words", () => {
+    const job = fixJob("likeness_fix", c, pack, "gen:u1/g.png", { fixes: ["make her body slimmer"] }, "bytedance/seedream-5.0-pro/edit", 4);
+    expect(job.paths).toEqual(["gen:u1/g.png"]);
+    expect(job.prompt).toBe("Make her body slimmer. Keep everything else in @image1 exactly the same.");
   });
 
   it("a likeness fix uses her sheets, or 2 photos without one", () => {
@@ -214,8 +213,9 @@ describe("fix jobs", () => {
     expect(faceRefs({ ...c, face_sheet_path: null }, null).roles).toEqual(["her character reference sheet (use only her face from it)"]);
     expect(faceRefs({ ...c, face_sheet_path: null, body_sheet_path: null }, null).roles).toEqual(["a reference photo of her face", "a reference photo of her face"]);
     const job = fixJob("face_fix", c, pack, `${U}/t.jpg`, { matchHair: true, note: "smile" }, "x", 10);
-    expect(job.paths).toEqual([`${U}/t.jpg`, `${U}/face.jpg`, `${U}/body.jpg`]);
-    expect(job.prompt).toContain("Also match her hair colour and hairline");
+    expect(job.paths).toEqual([`${U}/t.jpg`, `${U}/face.jpg`]);
+    expect(job.prompt).toMatch(/^Make her face in @image1 exactly like the face in @image2\./);
+    expect(job.prompt).toContain("Match her hair colour too.");
     expect(() => fixJob("face_fix", { ...c, face_sheet_path: null, body_sheet_path: null, reference_paths: [] }, null, "x", {}, "x", 10)).toThrow(/no sheet or reference photos/);
   });
 
