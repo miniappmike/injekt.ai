@@ -31,7 +31,11 @@ OUTPUT: only the prompt, nothing else.`;
 export function directorEditPrompt(text: string, keepHer: boolean, photoCount = 1): string {
   const t = text.trim();
   const f = Math.max(1, photoCount) + 1;
-  if (!keepHer || new RegExp(`@image\\s?${f}\\b`).test(t)) return t;
+  if (!keepHer || !t) return t;
+  // Always added with Keep likeness on, even when the text already names the sheets, so her likeness is never left to
+  // the wording. Idempotent: the server runs this again on what the browser sent.
+  const line = `Keep the woman's exact face and hair from her face reference sheet @image${f} and her exact body from her body reference sheet @image${f + 1}; ignore the sheets' clothing and backgrounds. Keep everything not mentioned exactly as in @image1.`;
+  if (t.includes(line)) return t;
   const lead = /@image\s?1\b/.test(t) ? t : `Edit @image1: ${t}`;
-  return `${lead.replace(/\s*$/, "")}${/[.!?]$/.test(lead) ? "" : "."} Keep the woman's exact face and hair from @image${f} and her exact body from @image${f + 1}; ignore their clothing and backgrounds. Keep everything not mentioned exactly as in @image1.`;
+  return `${lead.replace(/\s*$/, "")}${/[.!?]$/.test(lead) ? "" : "."} ${line}`;
 }

@@ -8,6 +8,7 @@ import { currentPack, ensureSheetPack, selectCharacter } from "@/lib/sheet-pack"
 import { getUserTextClient, withDeclineFallback } from "@/lib/ai/text-client";
 import { clampTags, fitCrops, condenseTask, framePrompt, sceneCondenseTask, sheetLines, lockRefs, modelFamily, outfitLock, type RefSet, type SheetPack } from "@/lib/ai/prompts/identity";
 import { fence, OVERLAY_RULE } from "@/lib/ai/prompts/rules";
+import { directorEditPrompt } from "@/lib/ai/prompts/director-edit";
 import { type FixRefs } from "@/lib/ai/prompts/likeness";
 import { carouselSlidePrompt } from "@/lib/ai/prompts/variants";
 import { leanSwap, swapPrompt, type LeanSwapOptions } from "@/lib/ai/prompts/swap";
@@ -202,7 +203,10 @@ export function editJob(c: JobCharacter | null, pack: SheetPack | null, text: st
   const paths = [...(meta.target ? [meta.target] : []), ...(meta.extrasFirst ? [...extras, ...refPaths] : [...refPaths, ...extras])];
   if (!paths.length) throw new UserFacingError("Add a target photo or pick at least one reference.");
   if (paths.length > max) throw new UserFacingError(`That's too many images (${max} at most).`);
-  const t = text.trim();
+  // Director edit with Keep likeness (both sheets picked): the sheet tags always go in, whatever the text says.
+  const sheetsOn = !!meta.extrasFirst && refs.some((r) => r.id === "face_sheet") && refs.some((r) => r.id === "body_sheet");
+  if (meta.extrasFirst && meta.refs?.length && !sheetsOn) throw new UserFacingError("Keep likeness needs both her face sheet and body sheet.");
+  const t = sheetsOn ? directorEditPrompt(text, true, (meta.target ? 1 : 0) + extras.length) : text.trim();
   const prompt = meta.target && !asksMakeup(t) ? `${t.replace(/\s*$/, "")}${/[.!?]$/.test(t) ? " " : ". "}${makeupRule("@image1")}` : t;
   return { prompt, paths, photoEdit: !!meta.target };
 }
