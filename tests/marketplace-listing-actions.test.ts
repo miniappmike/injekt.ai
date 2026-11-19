@@ -85,7 +85,7 @@ import {
   updateListingDetails,
   updateListingPrice,
 } from "@/app/(app)/characters/[id]/listing-actions";
-import { centsToDollars, dollarsToCents, suggestFromProfile } from "@/lib/marketplace/listing-input";
+import { centsToDollars, dollarsToCents } from "@/lib/marketplace/listing-input";
 
 const profile = { tagline: "Hi", bio: "Bio", tags: ["a"] };
 const details = { name: "Mia", priceCents: 2900, publicProfile: profile };
@@ -285,11 +285,3 @@ describe("publishing", () => {
   });
 });
 
-describe("suggestFromProfile", () => {
-  it("builds a short tagline and a bio from the profile, no AI", () => {
-    const s = suggestFromProfile({ identity_line: "x".repeat(300), face: "Soft jaw", hair: "Auburn" });
-    expect(s.tagline.length).toBeLessThanOrEqual(120);
-    expect(s.bio).toContain("Soft jaw");
-    expect(suggestFromProfile(null)).toEqual({ tagline: "", bio: "" });
-  });
-});

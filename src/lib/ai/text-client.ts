@@ -19,7 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * seconds to write take a minute or more. Jobs that judge or read images (likeness, profile, sheet, overlays) keep a
  * little thinking.
  */
-const SHORT_ANSWER: ReadonlySet<TextFeature> = new Set(["cleanup", "pin"]);
+const SHORT_ANSWER: ReadonlySet<TextFeature> = new Set(["cleanup", "pin", "listing"]);
 const WRITING: ReadonlySet<TextFeature> = new Set(["prompt", "variants", "carousel", "outfit", "condense", "test", "ugc"]);
 
 // `feature` says what the call is for, which is how spend is broken down. Returns the guarded client for a role plus the

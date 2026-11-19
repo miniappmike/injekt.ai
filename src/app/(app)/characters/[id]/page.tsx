@@ -86,7 +86,7 @@ export default async function EditCharacterPage({
     { which: "profile_photo", label: "Profile photo", path: c.profile_photo_path },
     { which: "face_sheet", label: "Face sheet", path: c.face_sheet_path },
     { which: "body_sheet", label: "Body sheet", path: c.body_sheet_path },
-    ...c.reference_paths.slice(0, 3).map((path, i) => ({ which: `reference:${i}`, label: `Reference ${i + 1}`, path })),
+    ...c.reference_paths.map((path, i) => ({ which: `reference:${i}`, label: `Reference ${i + 1}`, path })),
   ].flatMap((x) => (x.path && urls[x.path] ? [{ which: x.which, label: x.label, url: urls[x.path] }] : []));
 
   const profile = (c.profile ?? {}) as CharacterProfile;
@@ -164,7 +164,6 @@ export default async function EditCharacterPage({
           listing={listing}
           hasAssets={!!c.face_sheet_path || !!c.body_sheet_path || c.reference_paths.length > 0}
           ownImages={ownImages}
-          profile={profile}
         />
       )}
 

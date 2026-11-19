@@ -14,6 +14,10 @@ import {
   detailsSchema,
 } from "@/lib/marketplace/listing-input";
 import { ActionError, firstIssue, friendly, parseId, run, type Result } from "@/lib/marketplace/admin-guard";
+import { getUserTextClient } from "@/lib/ai/text-client";
+import { askJson } from "@/lib/ai/json";
+import { listingPitchPrompt, parseListingPitch } from "@/lib/ai/prompts/listing-pitch";
+import type { CharacterProfile } from "@/lib/characters";
 import { holdIsLive, loadListing, mustNotBeSold, revalidateListing as revalidate, savePrice, type ListingRow } from "@/lib/marketplace/listing-core";
 
 /**
@@ -45,6 +49,23 @@ async function loadOwnCharacter(characterId: string, adminId: string): Promise<S
   const { data } = await adminClient().from("characters").select(CHARACTER_COLUMNS).eq("id", characterId).eq("user_id", adminId).maybeSingle();
   if (!data) throw new ActionError("That character couldn't be found.");
   return data as SourceCharacter;
+}
+
+/**
+ * "Fill from her profile": the AI reads her header (the line under her name on her page, plus her name and lore) and
+ * writes an "AI ..." niche tagline and a bio of at most 50 characters. Nothing is saved; the editor fills the fields.
+ */
+export async function suggestListingCopy(characterId: string): Promise<Result<{ tagline: string; bio: string }>> {
+  return run(async (adminId) => {
+    const c = await loadOwnCharacter(parseId(characterId), adminId);
+    const p = (c.profile ?? {}) as CharacterProfile;
+    const header = p.identity_line || [p.face, p.hair, p.body].filter(Boolean).join(" ");
+    if (!header.trim()) throw new ActionError("Her profile is empty. Build it on this page first.");
+    const { client } = await getUserTextClient(adminClient(), adminId, "llm", "listing");
+    const pitch = parseListingPitch(await askJson(client, { prompt: listingPitchPrompt({ name: c.name, header, lore: c.lore }) }).catch(() => null));
+    if (!pitch.tagline && !pitch.bio) throw new ActionError("Couldn't write a tagline and bio this time. Try again.");
+    return pitch;
+  }, "listing-pitch");
 }
 
 /** Opens this character's listing, or starts a draft. One live listing per character; a sold character is never listed again. */

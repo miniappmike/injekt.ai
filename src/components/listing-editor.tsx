@@ -20,6 +20,7 @@ import {
   reorderPreviews,
   updateListingDetails,
   updateListingPrice,
+  suggestListingCopy,
 } from "@/app/(app)/characters/[id]/listing-actions";
 import type { EditorListing } from "@/lib/marketplace/admin-data";
 import {
@@ -28,10 +29,8 @@ import {
   centsToDollars,
   dollarsToCents,
   publishBlockers,
-  suggestFromProfile,
   type ListingStatus,
 } from "@/lib/marketplace/listing-input";
-import type { CharacterProfile } from "@/lib/characters";
 
 export interface OwnImage {
   which: string;
@@ -57,14 +56,12 @@ export function ListingEditor({
   listing,
   hasAssets,
   ownImages,
-  profile,
 }: {
   characterId: string;
   characterName: string;
   listing: EditorListing | null;
   hasAssets: boolean;
   ownImages: OwnImage[];
-  profile: CharacterProfile;
 }) {
   const router = useRouter();
   const { toast, show } = useToast();
@@ -118,7 +115,6 @@ export function ListingEditor({
       listing={listing}
       hasAssets={hasAssets}
       ownImages={ownImages}
-      profile={profile}
       busy={busy}
       act={act}
       setError={setError}
@@ -129,10 +125,10 @@ export function ListingEditor({
 type Act = <T extends { ok: boolean }>(fn: () => Promise<T | { ok: false; error: string }>, done?: string, after?: () => void) => void;
 
 function EditorBody({
+  characterId,
   listing,
   hasAssets,
   ownImages,
-  profile,
   busy,
   act,
   setError,
@@ -141,7 +137,6 @@ function EditorBody({
   listing: EditorListing;
   hasAssets: boolean;
   ownImages: OwnImage[];
-  profile: CharacterProfile;
   busy: boolean;
   act: Act;
   setError: (e: string | undefined) => void;
@@ -190,12 +185,21 @@ function EditorBody({
     act(() => updateListingDetails(listing.id, { name, priceCents, publicProfile: { tagline, bio, tags } }), "Saved");
   }
 
-  function fillFromProfile() {
-    const s = suggestFromProfile(profile);
-    if (!s.tagline && !s.bio) return setError("Her profile is empty. Build it on this page first.");
+  // The AI reads her header and writes an "AI ..." tagline and a short bio; the fields fill, nothing is saved yet.
+  const [filling, setFilling] = useState(false);
+  async function fillFromProfile() {
+    setFilling(true);
     setError(undefined);
-    setTagline(s.tagline);
-    setBio(s.bio);
+    try {
+      const r = await suggestListingCopy(characterId);
+      if (!r.ok) return setError(r.error);
+      setTagline(r.tagline);
+      setBio(r.bio);
+    } catch {
+      setError("Couldn't write a tagline and bio. Try again.");
+    } finally {
+      setFilling(false);
+    }
   }
 
   return (
@@ -252,7 +256,7 @@ function EditorBody({
       <fieldset disabled={locked} className="grid min-w-0 gap-3 border-0 p-0">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">What shoppers see</h3>
-          <Button type="button" size="sm" variant="outline" onClick={fillFromProfile}>Fill from her profile</Button>
+          <Button type="button" size="sm" variant="outline" onClick={fillFromProfile} disabled={filling}>{filling ? "Writing..." : "Fill from her profile"}</Button>
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="listing-name">Name</Label>

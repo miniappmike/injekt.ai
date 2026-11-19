@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { CharacterProfile } from "@/lib/characters";
+import { MAX_REFERENCE_PHOTOS } from "@/lib/reference-limits";
 
 /** Plain helpers and rules for the admin "List on marketplace" flow. No server code here, so the editor can use them too. */
 
@@ -42,19 +42,9 @@ export const detailsSchema = z.object({
 export type ListingDetails = z.infer<typeof detailsSchema>;
 
 /** Where a preview can be copied from on the character. */
-export const PREVIEW_SOURCES = ["profile_photo", "face_sheet", "body_sheet", "reference:0", "reference:1", "reference:2"] as const;
-export type PreviewSource = (typeof PREVIEW_SOURCES)[number];
-
-const cut = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n - 1).trimEnd()}…`);
-
-/** "Fill from her profile": a tagline and bio from what the profile already says. No AI call. */
-export function suggestFromProfile(profile: CharacterProfile | null | undefined): { tagline: string; bio: string } {
-  const p = profile ?? {};
-  const clean = (v?: string) => (v ?? "").replace(/\s+/g, " ").trim();
-  const tagline = cut(clean(p.identity_line), 120);
-  const parts = [p.identity_line, p.face, p.hair, p.body, p.distinctive_traits].map(clean).filter(Boolean);
-  return { tagline, bio: cut(parts.join(" "), 1200) };
-}
+/** Her pictures that can become previews: profile photo, both sheets and every reference photo she can have. */
+export const PREVIEW_SOURCES = ["profile_photo", "face_sheet", "body_sheet", ...Array.from({ length: MAX_REFERENCE_PHOTOS }, (_, i) => `reference:${i}`)] as [string, ...string[]];
+export type PreviewSource = string;
 
 /** Why a listing can't be published yet, in plain words (empty when it can). Mirrors the server's checks. */
 export function publishBlockers(x: {
