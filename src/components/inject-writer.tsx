@@ -138,6 +138,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
     decode: (v) => (characters.some((c) => c.id === v) ? (v as string) : null),
   });
   // Group photo mode: the other characters added under the picker (see GroupAdd).
+  const [xref, setXref] = useDraftState<boolean>("inject.xref", false);
   const [groupIds, setGroupIds] = useDraftState<string[]>("inject.group", [], {
     decode: (v) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && characters.some((c) => c.id === x)) : null),
   });
@@ -776,6 +777,10 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
             <input type="checkbox" checked={o.clean} onChange={(e) => set("clean", e.target.checked)} /> Clean up overlays
             <InfoTip label="About cleaning up overlays">Removes app buttons, watermarks, usernames, stickers and captions laid on top of a screenshot before the prompt is written: cropped off when they sit clear of the person, painted over otherwise. Your original is kept.</InfoTip>
           </label>
+          <label className="flex cursor-pointer items-center gap-2 rounded-full border border-neutral-700 px-3 py-1.5 transition-colors hover:border-neutral-500 has-[:checked]:border-brand-500/70 has-[:checked]:bg-brand-500/15">
+            <input type="checkbox" checked={xref} onChange={(e) => setXref(e.target.checked)} /> X references
+            <InfoTip label="About X references">Also sends her X Reference photos (from her page) to the image model when you generate, after her other references.</InfoTip>
+          </label>
         </div>
 
         <label className="flex flex-col gap-1.5 text-sm">
@@ -970,7 +975,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                         characterId={v.meta.group ? undefined : (t.characterId ?? characterId)}
                         extraPaths={[]}
                         kind={v.meta.group ? "group_photo" : "inject"}
-                        meta={v.meta.group ? { group: v.meta.group, real: true } : metaForRun(v.meta, t.writtenPath ?? t.path ?? null, editTarget)}
+                        meta={v.meta.group ? { group: v.meta.group, real: true } : { ...metaForRun(v.meta, t.writtenPath ?? t.path ?? null, editTarget), ...(xref ? { xref: true } : {}) }}
                         autoAspectRatio={t.ratio}
                         historyId={v.historyId}
                         runSignal={runAll}

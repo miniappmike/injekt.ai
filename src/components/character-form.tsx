@@ -57,6 +57,12 @@ export function CharacterForm({
   const [submitting, startSubmit] = useTransition();
   const pending = pendingAction || submitting;
   const [dirty, setDirty] = useState(false);
+  // Image boxes on the edit page sit outside this form: they announce uploads, removals and reordering.
+  useEffect(() => {
+    const on = () => setDirty(true);
+    window.addEventListener("character-images-changed", on);
+    return () => window.removeEventListener("character-images-changed", on);
+  }, []);
   const formId = useId();
   // createPortal needs document.body, which only exists after the first render in the browser.
   const [portalReady, setPortalReady] = useState(false);

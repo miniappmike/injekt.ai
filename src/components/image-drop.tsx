@@ -66,7 +66,7 @@ export function ImageDrop({
   return (
     <section
       ref={box}
-      className={`dropzone group min-w-0 cursor-pointer ${tile ? "flex flex-col gap-2.5 p-3 max-sm:gap-1.5 max-sm:rounded-2xl max-sm:p-1.5" : "flex items-center gap-4 p-3 max-sm:gap-3 max-sm:p-2.5"} ${disabled ? "cursor-not-allowed opacity-60" : full ? "cursor-default" : ""}`}
+      className={`dropzone group min-w-0 cursor-pointer ${tile ? "flex flex-col gap-2.5 p-3 max-sm:gap-1.5 max-sm:rounded-2xl max-sm:p-1.5" : gallery ? "flex flex-col items-stretch gap-3 p-3 max-sm:p-2.5" : "flex items-center gap-4 p-3 max-sm:gap-3 max-sm:p-2.5"} ${disabled ? "cursor-not-allowed opacity-60" : full ? "cursor-default" : ""}`}
       tabIndex={0}
       onClick={open}
       onKeyDown={(e) => {

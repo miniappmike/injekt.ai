@@ -13,6 +13,11 @@ This is the one file every session reads first and updates last. It is the proje
 Live at injektai.vercel.app. Everything below this section is the older build history; where the two disagree, this
 section is right.
 
+**X references checkbox, floating Save after image changes, Director photo box fix (November 19; types clean; NOT checked in a browser or on a real generation)**
+- "X references" checkbox in Inject Write prompts (draft `inject.xref`, a chip by Clean up overlays) and Direct swap (Generate mode). Sends `meta.xref`; `withXRefs` in `generation-job.ts` appends her `x_reference_paths` after all other images (no @image tag moves) plus one line naming them. Errors if she has none or there's no room. X Reference is no longer a placeholder (its box hint says so).
+- Character page: `ImageSlot` fires a `character-images-changed` window event after upload, remove or reorder; `CharacterForm` listens and shows the floating Save.
+- `ImageDrop` with a gallery (Director "Edit a photo") now stacks the gallery above the text and buttons, so Paste/Add stay inside the box.
+
 **Next.js upgraded to 16.4.5 (November 19; on main)**: fixes the moderate `use cache` advisories (GHSA-mfr8-8qww-v76h, GHSA-vc7v-qv4w-wrv8). `npm audit --omit=dev` clean, types clean, `next build` passes. Migration 0037 has been run (owner confirmed).
 
 **Character page redesign, her phone, X Reference up to 5 (November 19; on main; types clean; checked on the stand-in backend on desktop and a 390px phone, NOT against real Supabase; migration 0037 has been run)**
@@ -37,7 +42,7 @@ section is right.
 **"X Reference" box on a character's page, a placeholder (November 18; types clean, all tests pass except the two env-var files; looked at on the stand-in backend on desktop and an emulated phone, upload NOT tried against real Supabase; migration 0036 must be run)**
 - A fifth upload box, **X Reference (up to 3)** (`MAX_X_REFERENCES` in `src/lib/reference-limits.ts`), after Reference images on `/characters/[id]`, the same `ImageSlot` as the others, hint "Saved with her. Not used by any tool yet." Upload slot `x_reference` (`UPLOAD_SLOTS`), saved by `/api/uploads/finalize` into `characters.x_reference_paths`, removed by `removeCharacterImage`.
 - **Run `supabase/migrations/0036_x_reference.sql`** (adds the column, at most 3). Until then the page still opens (the column is read in its own query) and an upload says "X Reference isn't set up yet".
-- **Placeholder on purpose**: no prompt, generation, likeness or sheet reading uses these images. Not on the New character page, not copied by Duplicate, not in the marketplace. The owner will say what they are for.
+- No longer a placeholder: see X references checkbox above. Still not on the New character page, not copied by Duplicate, not in the marketplace.
 
 **Group photo is now a mode of Director and Inject, not a Characters page panel (November 18; types clean, all tests pass except the two env-var files; Director and Inject checked on the stand-in backend in desktop Chromium (adding a character turns the box iris and the button into "Create group photo"); NOT run on a real generation, not checked on a phone)**
 - **Removed**: the Group photo button, card picking, selection dock and composer on the Characters page. The board is now `src/components/characters-board.tsx` (was `group-photo.tsx`): sort, rearrange and New character only.

@@ -52,6 +52,7 @@ export function QuickGenerate({ mode, characters }: { mode: "direct_swap" | "edi
   const [extras, setExtras] = useState<(Photo | null)[]>(Array(MAX_EDIT_EXTRAS).fill(null));
   const [who, setWho] = useState("");
   const [extra, setExtra] = useState("");
+  const [xref, setXref] = useState(false);
   const [editPrompt, setEditPrompt] = useState("");
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [starting, setStarting] = useState(false);
@@ -188,6 +189,12 @@ export function QuickGenerate({ mode, characters }: { mode: "direct_swap" | "edi
             <span>Extra direction <span className="text-xs text-neutral-500">optional, added if it fits</span></span>
             <Textarea value={extra} maxLength={2000} onChange={(e) => setExtra(e.target.value)} />
           </label>
+          {generation && (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={xref} onChange={(e) => setXref(e.target.checked)} /> X references
+              <span className="text-xs text-neutral-500">also send her X Reference photos</span>
+            </label>
+          )}
         </section>
       ) : (
         <>
@@ -284,7 +291,7 @@ export function QuickGenerate({ mode, characters }: { mode: "direct_swap" | "edi
           characterId={characterId || null}
           extraPaths={[]}
           kind="direct_swap"
-          meta={photo?.path && refCount ? { target: photo.path, who: who.trim() || undefined, extra: extra.trim() || undefined } : undefined}
+          meta={photo?.path && refCount ? { target: photo.path, who: who.trim() || undefined, extra: extra.trim() || undefined, ...(xref ? { xref: true } : {}) } : undefined}
         />
       ) : (
         <GenerateImage

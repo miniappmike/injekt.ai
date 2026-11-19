@@ -326,12 +326,12 @@ export async function buildJob(
 
   if (request.kind === "inject" && request.meta && c) {
     const pack = await packOf(c);
-    const job = injectJob(c, pack, request.prompt, request.meta, opts.model, opts.max);
+    const job = await withXRefs(supabase, c, injectJob(c, pack, request.prompt, request.meta, opts.model, opts.max), request.meta, opts.max);
     if (job.photoEdit || job.prompt.length <= PROMPT_LIMIT || opts.forQuote) return job;
     // Too long for the image model: shorten only the written scene, so her identity framing, both sheet tags and the
     // BODY LOCK go through whole instead of being condensed with everything else or cut off at the end.
     const scene = await shortenScene(supabase, userId, request.prompt, request.prompt.length - (job.prompt.length - PROMPT_LIMIT) - 120);
-    return scene ? injectJob(c, pack, scene, request.meta, opts.model, opts.max) : job;
+    return scene ? withXRefs(supabase, c, injectJob(c, pack, scene, request.meta, opts.model, opts.max), request.meta, opts.max) : job;
   }
 
   if ((request.kind === "likeness_fix" || request.kind === "face_fix") && request.meta) {
@@ -356,7 +356,7 @@ export async function buildJob(
 
   if (request.kind === "direct_swap" && request.meta?.target) {
     if (!c) throw new UserFacingError("Pick a character.");
-    return swapJob(c, await packOf(c), request.meta.target, request.meta, opts.max);
+    return withXRefs(supabase, c, swapJob(c, await packOf(c), request.meta.target, request.meta, opts.max), request.meta, opts.max);
   }
 
   if (request.kind === "edit" && request.meta) return editJob(c, c ? await packOf(c) : null, request.prompt, request.meta, request.extraPaths, opts.max);
@@ -373,6 +373,23 @@ export async function buildJob(
   if (c && request.kind !== "reference_sheet") paths.push(...referencesFor(request.kind, c).map((r) => r.path));
   paths.push(...request.extraPaths);
   return { prompt: request.prompt, paths, photoEdit: false };
+}
+
+/**
+ * "Send X references" (Inject and Direct swap): her X Reference photos go after everything else, so no existing
+ * @image tag moves, with one line naming them. Read in its own query so a database without the column still works.
+ */
+export async function withXRefs(supabase: SupabaseClient, c: JobCharacter, job: BuiltJob, meta: InjectMeta, max: number): Promise<BuiltJob> {
+  if (!meta.xref) return job;
+  const { data } = await supabase.from("characters").select("x_reference_paths").eq("id", c.id).maybeSingle();
+  const x = ((data as { x_reference_paths?: string[] | null } | null)?.x_reference_paths ?? []).slice(0, Math.max(0, max - job.paths.length));
+  if (!x.length) throw new UserFacingError("She has no X Reference photos (or there's no room for them). Add some on her page or untick Send X references.");
+  return { ...job, paths: [...job.paths, ...x], prompt: `${job.prompt}\n\n${xRefLine(job.paths.length + 1, x.length)}` };
+}
+
+export function xRefLine(first: number, n: number): string {
+  const tags = Array.from({ length: n }, (_, i) => `@image${first + i}`).join(", ");
+  return `${tags} ${n > 1 ? "are extra reference photos" : "is an extra reference photo"} of her: match her face and body likeness to ${n > 1 ? "them" : "it"} as well. Ignore their clothing, background and pose.`;
 }
 
 /** A finished generated image the person owns, as an input path in the generations bucket. */

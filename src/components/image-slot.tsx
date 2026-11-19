@@ -85,7 +85,10 @@ export function ImageSlot({
     if (res?.error) {
       setLocal(null);
       setError(res.error);
-    } else router.refresh();
+    } else {
+      router.refresh();
+      window.dispatchEvent(new Event("character-images-changed"));
+    }
   }
 
   async function add(files: FileList | File[] | null) {
@@ -104,7 +107,11 @@ export function ImageSlot({
         }
       }
       if (draft) draft.onChange(next);
-      else router.refresh();
+      else {
+        router.refresh();
+        // The character page's floating Save listens for this.
+        window.dispatchEvent(new Event("character-images-changed"));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -121,6 +128,7 @@ export function ImageSlot({
     } else if (characterId) {
       await removeCharacterImage(characterId, slot, path);
       router.refresh();
+      window.dispatchEvent(new Event("character-images-changed"));
     }
     setBusy(false);
   }
