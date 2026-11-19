@@ -28,7 +28,11 @@ const clothingFix = (f: string) =>
   /\b(outfit|cloth(es|ing)|garment|wearing|dress|skirt|shorts|jeans|trousers|pants|leggings|top|shirt|t-shirt|tee|blouse|sweater|jumper|hoodie|jacket|coat|bra|bikini|lingerie|underwear|panties|thong|briefs|bodysuit|sleeve|hem|neckline|shoes?|boots?|sneakers|trainers|heels|socks)\b/i.test(f);
 
 /** Worn items (not the person's body): never a likeness difference, so never a fix. */
+/** A piercing is a body mark, not an accessory, even when it is a ring or a stud ("small silver nose ring"). */
+const piercingFix = (f: string) => /\bpierc(ed|ing|ings)\b|\b(nose|nostril|septum|lip|labret|navel|belly|eyebrow|brow|tongue|nipple|cheek)\s+(rings?|studs?|hoops?|bars?|barbells?)\b/i.test(f);
+
 const accessoryFix = (f: string) =>
+  !piercingFix(f) &&
   /\b(accessor(y|ies)|cuffs?|bracelets?|wristbands?|chokers?|collars?|necklaces?|chains?|pendants?|earrings?|rings?|watch(es)?|jewel(l)?ery|belts?|gloves?|hats?|caps?|beanies?|scarf|scarves|headbands?|hair\s?(clips?|ties?|bands?|pins?|bows?)|ribbons?|sunglasses|glasses|spiked|studded|harness|garter)\b/i.test(f);
 
 const ACCESSORY_RULE =

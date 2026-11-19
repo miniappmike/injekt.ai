@@ -203,14 +203,14 @@ describe("startGeneration: opt-in generation", () => {
     expect(db.rows[0].params).toMatchObject({ photo_edit: true, image_count: 2 });
   });
 
-  it("a likeness fix repaints a generated image: it goes first, signed from the generations bucket, with a server-written prompt", async () => {
+  it("a likeness fix repaints a generated image: only that image, signed from the generations bucket, with the fixes as plain instructions", async () => {
     const G = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
     db.rows.push({ id: G, output_path: `${U}/${G}.png`, status: "complete", expires_at: new Date(Date.now() + 3600_000).toISOString() });
-    await startGeneration(userClient(), verified, request({ kind: "likeness_fix", prompt: "", extraPaths: [], meta: { sourceGeneration: G, fixes: ["dark brown eyes"] } }));
+    await startGeneration(userClient(), verified, request({ kind: "likeness_fix", prompt: "", extraPaths: [], meta: { sourceGeneration: G, fixes: ["make her eyes dark brown"] } }));
     const call = h.submit.mock.calls[0][0];
-    expect(call.input.imageUrls).toEqual([`https://signed.test/gen/${U}/${G}.png`, `https://signed.test/${U}/characters/${C}/face.jpg`]);
-    expect(call.input.prompt).toMatch(/^@image1 is the PHOTO TO EDIT.*@image2 is her face reference sheet/);
-    expect(call.input.prompt).toContain("Fix in particular: dark brown eyes.");
+    // Owner's rule (November 19): a likeness fix sends only the image to fix, and the fixes as short sentences.
+    expect(call.input.imageUrls).toEqual([`https://signed.test/gen/${U}/${G}.png`]);
+    expect(call.input.prompt).toBe("Make her eyes dark brown. Keep everything else in @image1 exactly the same.");
   });
 
   it("is refused while generation is turned off, and nothing is started or paid for by the platform", async () => {

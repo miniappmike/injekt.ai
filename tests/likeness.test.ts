@@ -183,6 +183,10 @@ const h = vi.hoisted(() => ({ ensureSheetPack: vi.fn(), getUserTextClient: vi.fn
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ai/text-client", () => ({ getUserTextClient: h.getUserTextClient }));
 vi.mock("@/lib/history", () => ({ saveHistory: h.saveHistory }));
+// Storing the quick score on the generation goes through the service-role client; nothing real here.
+vi.mock("@/lib/supabase/admin", () => ({
+  adminClient: () => ({ from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }) }) }) }),
+}));
 vi.mock("@/lib/sheet-pack", async (orig) => ({ ...(await orig<typeof import("@/lib/sheet-pack")>()), ensureSheetPack: h.ensureSheetPack }));
 
 import { buildJob, faceRefs, fixJob, fixRefs, GEN_PREFIX, type JobCharacter } from "@/lib/generation-job";
@@ -229,7 +233,7 @@ describe("fix jobs", () => {
 
   it("reads a generated image as the image to fix, and refuses one that isn't ready or has expired", async () => {
     h.ensureSheetPack.mockResolvedValue(null);
-    const req = { kind: "likeness_fix", characterId: "c1", extraPaths: [], prompt: "Fix", meta: { sourceGeneration: "3f2b8c1e-4d5a-4e6f-8a7b-9c0d1e2f3a4b" } };
+    const req = { kind: "likeness_fix", characterId: "c1", extraPaths: [], prompt: "Fix", meta: { sourceGeneration: "3f2b8c1e-4d5a-4e6f-8a7b-9c0d1e2f3a4b", fixes: ["make her eyes hazel"] } };
     const job = await buildJob(client({ output_path: `${U}/g.png`, status: "complete", expires_at: new Date(Date.now() + 1e6).toISOString() }), U, req, { model: "x", max: 10 });
     expect(job.paths[0]).toBe(`${GEN_PREFIX}${U}/g.png`);
     await expect(buildJob(client({ output_path: `${U}/g.png`, status: "processing" }), U, req, { model: "x", max: 10 })).rejects.toThrow(/isn't ready/);
@@ -296,8 +300,18 @@ describe("runQuickLikeness and runLikenessReport", () => {
     const { client, downloads } = runClient();
     const r = await runLikenessReport(client, U, { characterId: "c1", image: { path: `${U}/targets/g.jpg` }, promptUsed: "photo of her" });
     expect(r.overall).toBe(72);
-    expect(downloads).toEqual([`character-media:${U}/body.jpg`, `character-media:${U}/targets/g.jpg`]);
-    expect(h.run.mock.calls[0][0].prompt).toContain("(a character reference sheet)");
+    // Her sheet and the image for the report, then the quick check's scoring pass (her crops and the image again),
+    // which the report reuses so the badge and the report show the same score.
+    expect(downloads).toEqual([
+      `character-media:${U}/body.jpg`,
+      `character-media:${U}/targets/g.jpg`,
+      `character-media:${U}/pack/front.jpg`,
+      `character-media:${U}/pack/side.jpg`,
+      `character-media:${U}/pack/body.jpg`,
+      `character-media:${U}/pack/faces.jpg`,
+      `character-media:${U}/targets/g.jpg`,
+    ]);
+    expect(h.run.mock.calls.at(-1)![0].prompt).toContain("(a character reference sheet)");
     expect(h.saveHistory.mock.calls[0][2][0]).toMatchObject({ kind: "likeness", label: "Likeness · Juno · 72/100", imagePath: `${U}/targets/g.jpg` });
   });
 });
