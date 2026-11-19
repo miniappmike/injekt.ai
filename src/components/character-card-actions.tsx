@@ -30,13 +30,14 @@ export interface CardImage {
 export function DeleteCharacterButton({ id, name, icon = false }: { id: string; name: string; icon?: boolean }) {
   return (
     <form
+      className={icon ? "min-w-0 flex-1" : undefined}
       action={deleteCharacter.bind(null, id)}
       onSubmit={(e) => {
         if (!window.confirm(`Delete ${name}? Her images and sheets will be removed too. This can't be undone.`)) e.preventDefault();
       }}
     >
       {icon ? (
-        <button type="submit" aria-label={`Delete ${name}`} className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-600/90 text-white transition-transform active:scale-90">
+        <button type="submit" aria-label={`Delete ${name}`} className="flex h-10 w-full items-center justify-center rounded-xl bg-red-600/90 text-white transition-transform active:scale-90">
           <TrashIcon className="h-[18px] w-[18px]" />
         </button>
       ) : (
@@ -65,9 +66,11 @@ export function DuplicateCharacterButton({ id, name, icon = false }: { id: strin
   return (
     <>
       {icon ? (
-        <button type="button" onClick={run} disabled={busy} aria-label={`Duplicate ${name}`} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-800 text-neutral-100 transition-transform active:scale-90 disabled:opacity-50">
+        <div className="min-w-0 flex-1">
+        <button type="button" onClick={run} disabled={busy} aria-label={`Duplicate ${name}`} className="flex h-10 w-full items-center justify-center rounded-xl bg-neutral-800 text-neutral-100 transition-transform active:scale-90 disabled:opacity-50">
           <DuplicateIcon className={`h-[18px] w-[18px] ${busy ? "animate-pulse" : ""}`} />
         </button>
+        </div>
       ) : (
         <Button type="button" size="sm" variant="ghost" onClick={run} disabled={busy}>{busy ? "Duplicating…" : "Duplicate"}</Button>
       )}
@@ -267,9 +270,11 @@ export function DownloadSheetsButton({ name, sheets, icon = false }: { name: str
     }
   };
   return icon ? (
-    <button type="button" onClick={() => void run()} disabled={busy} aria-label={`Download ${name}'s sheets`} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-800 text-neutral-100 transition-transform active:scale-90 disabled:opacity-50">
+    <div className="min-w-0 flex-1">
+    <button type="button" onClick={() => void run()} disabled={busy} aria-label={`Download ${name}'s sheets`} className="flex h-10 w-full items-center justify-center rounded-xl bg-neutral-800 text-neutral-100 transition-transform active:scale-90 disabled:opacity-50">
       <Download className={`h-[18px] w-[18px] ${busy ? "animate-pulse" : ""}`} />
     </button>
+    </div>
   ) : (
     <Button type="button" size="sm" variant="ghost" onClick={() => void run()} disabled={busy}>{busy ? "Downloading…" : "Download sheets"}</Button>
   );

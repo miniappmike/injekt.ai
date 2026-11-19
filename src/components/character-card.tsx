@@ -82,17 +82,20 @@ export function CharacterCard({ c, canList = false, canDuplicate = false }: { c:
           <h3 className="truncate text-xl font-bold text-neutral-50 drop-shadow max-sm:hidden">{c.name}</h3>
         </div>
         <p className="line-clamp-3 text-sm leading-relaxed text-neutral-400 max-sm:line-clamp-1 max-sm:text-xs">{c.identityLine ?? "No identity line yet"}</p>
-        <div className="mt-auto flex justify-end gap-2 pt-1 max-sm:mt-2 max-sm:items-center max-sm:justify-between">
-          {/* Phones: List (admin), a duplicate icon (Pro and admin) and a trash icon; the card itself opens her page. */}
-          <div className="flex w-full items-center justify-between gap-2 sm:hidden">
-            {canList ? (
-              <Link href={`/characters/${c.id}?list=1#marketplace`} className="flex h-9 flex-1 items-center justify-center rounded-xl bg-emerald-600 text-sm font-semibold text-white transition-transform active:scale-95">List</Link>
-            ) : (
-              <Link href={`/characters/${c.id}`} className="flex h-9 flex-1 items-center justify-center rounded-xl bg-neutral-800 text-sm font-semibold text-neutral-100 transition-transform active:scale-95">Edit</Link>
-            )}
-            <DownloadSheetsButton name={c.name} sheets={sheets} icon />
-            {canDuplicate && <DuplicateCharacterButton id={c.id} name={c.name} icon />}
-            <DeleteCharacterButton id={c.id} name={c.name} icon />
+        <div className="mt-auto flex justify-end gap-2 pt-1 max-sm:mt-2">
+          {/* Phones: two rows. Edit (and List for admins) side by side, then Download, Duplicate (Pro and admin) and Delete as equal icon buttons. */}
+          <div className="flex w-full flex-col gap-2 sm:hidden">
+            <div className="flex gap-2">
+              <Link href={`/characters/${c.id}`} className="flex h-10 min-w-0 flex-1 items-center justify-center rounded-xl bg-neutral-800 text-sm font-semibold text-neutral-100 transition-transform active:scale-95">Edit</Link>
+              {canList && (
+                <Link href={`/characters/${c.id}?list=1#marketplace`} className="flex h-10 min-w-0 flex-1 items-center justify-center rounded-xl bg-emerald-600 text-sm font-semibold text-white transition-transform active:scale-95">List</Link>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <DownloadSheetsButton name={c.name} sheets={sheets} icon />
+              {canDuplicate && <DuplicateCharacterButton id={c.id} name={c.name} icon />}
+              <DeleteCharacterButton id={c.id} name={c.name} icon />
+            </div>
           </div>
           <div className="contents max-sm:hidden">
           {canList && (
