@@ -19,3 +19,22 @@ describe("blanket tattoo and piercing exclusions", () => {
     expect(h.fixed).toContain("kept her own tattoos and piercings");
   });
 });
+
+describe("skin wording", () => {
+  const run = (t: string) => harness(t, { realism: false, text: false }).text;
+
+  it("keeps a negated plastic-skin word as written, instead of turning it into its opposite", () => {
+    expect(run("Real skin with pores. No navel piercing, no glossy skin.")).toContain("no glossy skin");
+    expect(run("Never smooth skin or a beauty filter.")).toContain("Never smooth skin");
+  });
+
+  it("still fixes plastic-skin wording that isn't negated", () => {
+    expect(run("Her flawless skin catches the light.")).toContain("natural textured skin");
+  });
+
+  it("turns matte skin into natural skin texture", () => {
+    expect(run("Real matte skin with pores, uneven tone.")).toBe("Real naturally textured skin with pores, uneven tone.");
+    expect(run("Skin is matte and textured, with pores.")).toBe("Skin has natural texture, with pores.");
+    expect(run("She wears nude matte lips and a matte black dress.")).toContain("matte lips and a matte black dress");
+  });
+});

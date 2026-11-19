@@ -17,7 +17,15 @@ export interface HarnessResult {
   fixed: string[];
 }
 
-const SUBS: [RegExp, string, string][] = [
+/** Before a match in the same sentence: "no glossy skin" is already the right instruction and must stay as written. */
+const negated = (whole: string, at: number) => /\b(?:no|not|never|without|avoid|nor)\b[^.!?\n]*$/i.test(whole.slice(Math.max(0, at - 80), at).split(/[.!?\n]/).pop() ?? "");
+const unlessNegated = (rep: string) => (m: string, ...args: unknown[]) => {
+  const whole = args[args.length - 1] as string;
+  const at = args[args.length - 2] as number;
+  return negated(whole, at) ? m : rep;
+};
+
+const SUBS: [RegExp, string | ((m: string, ...args: unknown[]) => string), string][] = [
   [/\bgirl[- ]next[- ]door\b/gi, "approachable, natural", "age wording"],
   [/\b(?:(?:1[0-9]|20)[- ]years?[- ]old|teen(?:age)?)\s+(?=(?:girl|boy|woman|man|female|male|model)s?\b)/gi, "", "age wording"],
   [/\b(?:1[0-9]|20)[- ]years?[- ]old\b/gi, "young adult", "age wording"],
@@ -30,9 +38,12 @@ const SUBS: [RegExp, string, string][] = [
   [/\b(?:8k|4k|16k|ultra[- ]?hd|uhd|hyper[- ]?(?:detailed|realistic)|highly detailed|masterpiece|best quality)\b,?\s*/gi, "", "filler words"],
   [
     /\b(?:flawless|airbrushed|porcelain|poreless|glass|dewy|luminous|radiant|glowing|silky[- ]smooth|smooth|glossy|shiny|polished|perfect)\s+(?=(?:skin|complexion|face|finish|look)\b)/gi,
-    "natural textured ",
+    unlessNegated("natural textured "),
     "plastic-skin wording",
   ],
+  // Matte reads as plastic to the image model; real skin has natural texture.
+  [/\bskin (?:is|looks) matte(?: and textured)?\b/gi, (m: string) => (m[0] === "S" ? "S" : "s") + "kin has natural texture", "plastic-skin wording"],
+  [/\bmatte(?:,? and textured)?\s+(?=(?:skin|complexion)\b)/gi, unlessNegated("naturally textured "), "plastic-skin wording"],
   [
     /\b(?:a\s+)?(?:natural\s+|soft\s+|subtle\s+|healthy\s+)?(?:sheen|glow)\s+(?:where|on)\s+(?:the\s+)?light\s+(?:hits|catches)[^.,;]*/gi,
     "faint natural oil on the nose",
@@ -62,8 +73,9 @@ export function harness(raw: string, opt: HarnessOptions = {}): HarnessResult {
   if (kept) t = t.split(REALISM_FIX.quality).join(KEEP);
   for (const [re, rep, label] of SUBS) {
     re.lastIndex = 0;
-    if (re.test(t)) {
-      t = t.replace(re, rep);
+    const next = t.replace(re, rep as string);
+    if (next !== t) {
+      t = next;
       if (!fixed.includes(label)) fixed.push(label);
     }
   }

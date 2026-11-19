@@ -272,14 +272,14 @@ describe("framing per model", () => {
   });
 
   it("takes the writer's own camera-and-look passage as the quality line, so it isn't repeated", () => {
-    const look = `${scene} Matte skin with visible pores, visible sensor noise in the shadows. Real photo, not retouched or CGI. No garbled lettering.`;
+    const look = `${scene} Natural skin texture with visible pores, visible sensor noise in the shadows. Real photo, not retouched or CGI. No garbled lettering.`;
     expect(framePrompt("pro", look, R, "")).not.toContain(REALISM_FIX.quality);
     expect(harness(look).fixed).not.toContain("added image quality line");
   });
 
   it("leaves most of the 5,000 characters for the scene", () => {
     // A written scene carries its own realism and no-garbled-text lines, as the writer is told to.
-    const written = `${scene} Matte skin with visible pores, sensor noise in the shadows, not retouched or CGI. No garbled lettering.`;
+    const written = `${scene} Natural skin texture with visible pores, sensor noise in the shadows, not retouched or CGI. No garbled lettering.`;
     // Inject sends her two sheets.
     const R2 = { roles: ["her face reference sheet, a grid of her face from many angles", "her full-body reference sheet, front, side and back views"], kinds: ["faces", "body"], anchors: R.anchors };
     const overhead = framePrompt("pro", written, R2, "face, hair, waist, hips", { outfit: "a black slip dress" }).length - written.length;

@@ -133,7 +133,7 @@ SAY, IN THIS ORDER
 - Light: source, direction, how the shadows fall and how soft; glowing things tint nearby skin.
 - Camera: height, angle, distance, lens look, image quality (grain, sharpness, colour grade), as the target shows it.
 - Camera body: ${cams ? "name the camera given for that version in the VERSION PLAN" : "name one early-to-mid 2000s digital camera"} ("shot on a ..."), with its ${OLD_CAMERA_LOOK}.
-- Realism: real matte skin with pores, uneven tone and small blemishes; real fabric texture. Never "photorealistic", "8k", "flawless", "glossy" or "smooth skin".
+- Realism: natural skin texture with pores, uneven tone and small blemishes; real fabric texture. Never "photorealistic", "8k", "flawless", "glossy" or "smooth skin".
 
 RULES
 - Only what is in frame: no feet when out of frame, no face details when it is hidden.

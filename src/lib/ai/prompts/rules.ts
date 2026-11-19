@@ -42,11 +42,11 @@ export const TEXT_SHORT =
   "Any lettering and brand logos stay clean, accurate, legible and correctly spelled (clear print or neat cursive); no garbled, random or made-up text.";
 
 export const REALISM_FIX = {
-  skin: "Real, unretouched matte skin with visible pores, fine peach fuzz, uneven tone, faint redness and small natural imperfections, with a few flyaway hairs.",
+  skin: "Real, unretouched skin with natural texture: visible pores, fine peach fuzz, uneven tone, faint redness and small natural imperfections, with a few flyaway hairs.",
   texture: "Fabrics and surfaces show their real texture, with visible weave and creases in the clothing and natural wear on the surroundings.",
   camera: "It has an early-to-mid 2000s digital camera look with slight softness and focus falloff, visible noise in the shadows, mild compression and true-to-life colour.",
   quality:
-    "IMAGE QUALITY: a real, unedited photo from an early-to-mid 2000s digital camera: CCD colour, slight softness, sensor grain in the shadows, mild JPEG compression, imperfect white balance and natural depth. LIGHT AND SHADOW: shadows follow the scene's light sources in one direction, with soft contact shadows under feet, hands and props. Skin is matte and textured, with visible pores and small imperfections. No smoothing, no glossy, waxy or plastic skin, no beauty filter, no CGI look.",
+    "IMAGE QUALITY: a real, unedited photo from an early-to-mid 2000s digital camera: CCD colour, slight softness, sensor grain in the shadows, mild JPEG compression, imperfect white balance and natural depth. LIGHT AND SHADOW: shadows follow the scene's light sources in one direction, with soft contact shadows under feet, hands and props. Skin has natural texture, with visible pores and small imperfections. No smoothing, no glossy, waxy or plastic skin, no beauty filter, no CGI look.",
 };
 
 /**
