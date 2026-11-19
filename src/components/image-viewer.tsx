@@ -70,12 +70,19 @@ export function ImageViewer() {
     try {
       // Tries each address in turn (the download link, then the plain one); one may be refused by the browser.
       const tryUrls = urls.filter((u): u is string => !!u);
+      // Directly first; if the picture's host won't let this page read it (a TypeError), through the site itself
+      // (/api/image-copy, for the person's own pictures only).
+      const attempts = [
+        ...tryUrls.map((u) => () => fetch(u, { mode: "cors", credentials: "omit" })),
+        ...tryUrls.filter((u) => /^https?:/.test(u)).map((u) => () => fetch(`/api/image-copy?u=${encodeURIComponent(u)}`)),
+      ];
       const png = (async () => {
         let last: unknown = new Error("load");
-        for (const u of tryUrls) {
+        for (const attempt of attempts) {
           try {
-            const r = await fetch(u, { mode: "cors", credentials: "omit" });
+            const r = await attempt();
             if (r.ok) return await r.blob();
+            last = new Error(String(r.status));
           } catch (err) {
             last = err;
           }
