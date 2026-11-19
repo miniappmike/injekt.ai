@@ -524,11 +524,10 @@ export function ImageViewer() {
             <Button type="button" size="sm" variant="ghost" className="max-sm:h-11 max-sm:w-11 max-sm:text-lg" onClick={() => step(1)} aria-label="Next image">›</Button>
           </div>
         )}
-        {image.downloadUrl && (
-          <Button asChild size="sm" variant="secondary" className={action}>
-            <DownloadLink href={image.downloadUrl}>Download</DownloadLink>
-          </Button>
-        )}
+        {/* Always offered, on every preview: falls back to the shown image when there is no separate download address. */}
+        <Button asChild size="sm" variant="secondary" className={action}>
+          <DownloadLink href={image.downloadUrl ?? image.url}>Download</DownloadLink>
+        </Button>
         <Button type="button" size="sm" variant="secondary" className={action} onClick={() => void copyImage([image.url, image.downloadUrl])}>
           Copy image
         </Button>
