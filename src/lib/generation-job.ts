@@ -92,7 +92,8 @@ export const leanSwapOptions = (meta: InjectMeta): LeanSwapOptions => ({
 export function injectJob(c: JobCharacter, pack: SheetPack | null, text: string, meta: InjectMeta, model: string, max: number): BuiltJob {
   if (meta.target) {
     const s = sheetRefs(c, pack, max - 1, 3);
-    if (s.paths.length) return { prompt: leanSwap(s.R, leanSwapOptions(meta)), paths: [...s.paths, meta.target], photoEdit: true };
+    // Edited by hand: their text was the recipe with the same tags (sheets first, the target last), so it goes as written.
+    if (s.paths.length) return { prompt: meta.edited && text.trim() ? text.trim() : leanSwap(s.R, leanSwapOptions(meta)), paths: [...s.paths, meta.target], photoEdit: true };
   }
   if (meta.brief) throw new UserFacingError(BRIEF_ONLY_MESSAGE);
   const s = sheetRefs(c, pack, max, 3);

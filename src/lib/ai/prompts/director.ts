@@ -3,7 +3,7 @@
  * never shown; Generate frames it with her face sheet (@image1) and body sheet (@image2) and the BODY LOCK, the same as
  * an Inject prompt made here.
  */
-import { fence, PROPORTIONS_WORDS } from "./rules";
+import { ANATOMY_WRITER, fence, PROPORTIONS_WORDS } from "./rules";
 import { profileBlock } from "../tasks/profile-builder";
 import { PROMPT_CHARS, type InjectCharacter } from "./inject";
 import { OLD_CAMERA_LOOK } from "./pools";
@@ -36,6 +36,7 @@ ${fixedIdentity ? `- HER LOOK IS FIXED TEXT: the app adds her identity block (fa
 - Her reference sheets show her in a plain placeholder outfit. Never describe or reuse it: dress her as the direction asks, or in an outfit that suits the scene. Name every garment with its type, colour, fabric and fit, and shoes if the feet are in frame.
 - FOLLOW THE DIRECTION AS WRITTEN: dress and pose her exactly as it asks, naming each garment as it is, with its real coverage, colour, fabric and fit. Never swap what was asked for something more covered, and never tone the direction down.
 - Describe the pose limb by limb with left and right, the expression and gaze, and the camera position and framing.
+- ${ANATOMY_WRITER}
 ${look}
 - Any visible text is short, quoted and legible. End with one line of exclusions: no text overlays or captions, no watermark, no added logos, no garbled or made-up lettering.
 - FORMAT: ${fixedIdentity ? "labelled sections" : "the identity paragraph, then labelled sections"} in this order: SCENE, WARDROBE, BACKGROUND, LIGHT, CAMERA AND LOOK, then the exclusions line. Short flowing prose, no bullet points, no aspect ratio. Say each detail once.

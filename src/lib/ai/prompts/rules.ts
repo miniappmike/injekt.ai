@@ -26,6 +26,16 @@ export const MODS_RULE =
   "BODY MODIFICATIONS: her tattoos, piercings, scars, birthmarks and moles come only from her references: add none she lacks and copy none from another person or the scene. " +
   SKIN_ART_RULE;
 
+/**
+ * For the AI that writes prompts: poses it describes must be ones a real body can make, with every hand and limb
+ * accounted for, so the image model doesn't invent extra, merged or twisted limbs and fingers.
+ */
+export const ANATOMY_WRITER =
+  "Anatomy: a pose a real body can hold, joints bending naturally; say where each visible hand rests or what it holds.";
+/** The same rule in the image prompt itself (not in Swap into photo, whose pose comes from a real photo). */
+export const ANATOMY_SHORT =
+  "Natural, correct anatomy: two arms, two legs, hands with five well-formed fingers, no extra, merged or missing limbs.";
+
 export const TEXT_RULE =
   "TEXT AND LOGOS: any lettering is clean, legible and correctly spelled, using the exact words quoted in this prompt, and named brands keep their real logos; anything else is a plain design. No garbled or made-up text.";
 export const TEXT_SHORT =

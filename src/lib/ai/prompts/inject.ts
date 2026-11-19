@@ -3,7 +3,7 @@
  * nudity screening, so the NUDITY FILTER, strict safe mode, [[SAFE-SWAP]] and the NUDITY output line are left out; the
  * "revealing clothing is fine" rule, the adult-only wording and the mild body wording stay.
  */
-import { fence } from "./rules";
+import { ANATOMY_WRITER, fence } from "./rules";
 import { OLD_CAMERA_LOOK } from "./pools";
 import { profileBlock } from "../tasks/profile-builder";
 import type { CharacterProfile } from "@/lib/characters";
@@ -137,6 +137,7 @@ SAY, IN THIS ORDER
 
 RULES
 - Only what is in frame: no feet when out of frame, no face details when it is hidden.
+- ${ANATOMY_WRITER}
 - Describe exactly what you see; never soften or cover up an outfit or pose. ${g ? "They are all adults, never girls or teens." : "She is an adult, never a girl or teen."}
 - Never copy the target person's tattoos or piercings; add a negative for each (for example "no navel piercing").
 - Lettering: exact words in quotes, real brands kept; gibberish becomes short plain words.

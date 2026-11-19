@@ -3,7 +3,7 @@
  * face and body into every image prompt. Ported word for word; only the plumbing differs (crops are stored files, not
  * data URLs). Pure functions, so the server and the tests share them.
  */
-import { hasQualityLine, fence, joinTags, OVERLAY_RULE, REALISM_FIX, skinNote, tagList, TEXT_SHORT } from "./rules";
+import { ANATOMY_SHORT, hasQualityLine, fence, joinTags, OVERLAY_RULE, REALISM_FIX, skinNote, tagList, TEXT_SHORT } from "./rules";
 import { identityBlock, isSheetKind, paragraphs, personOnly, priority, realKeep, refRoles, sentences, tattooLine } from "./lean";
 
 /** Bump to make every saved sheet pack rebuild. */
@@ -391,6 +391,7 @@ export function framePrompt(
   const tail = sentences(
     wearLine(ox.outfit),
     personOnly(tags, sheet, R.anchors?.sheetOutfit),
+    ANATOMY_SHORT,
     ox.clean && OVERLAY_RULE,
     // Realism off (Director): the scene's own look stands, with no photo-quality lines added.
     ox.realism === false ? "Keep the look, light and style described above." : sentences(QUALITY_SHADING_MATCH, !hasQualityLine(t) && REALISM_FIX.quality),

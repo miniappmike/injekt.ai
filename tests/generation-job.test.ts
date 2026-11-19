@@ -54,6 +54,17 @@ describe("injectJob", () => {
     expect(job.prompt.length).toBeLessThan(700);
   });
 
+  it("a swap prompt edited by hand is sent as typed, with the same images", () => {
+    const job = injectJob(c, pack, "  My own words: replace the woman in @image3 with @image1 and @image2.  ", { target: TARGET, edited: true }, SEEDREAM, 4);
+    expect(job.prompt).toBe("My own words: replace the woman in @image3 with @image1 and @image2.");
+    expect(job.paths).toEqual([`${U}/face.jpg`, `${U}/body.jpg`, TARGET]);
+    expect(injectJob(c, pack, "My own words", { target: TARGET }, SEEDREAM, 4).prompt).not.toContain("My own words");
+  });
+
+  it("a recreate prompt carries the natural anatomy line", () => {
+    expect(injectJob(c, pack, "She sits on the bed.", {}, SEEDREAM, 4).prompt).toContain("hands with five well-formed fingers");
+  });
+
   it("a swap brief adds the camera and the pose in the writer's words, and can't be recreated without the target", () => {
     const meta = { brief: true, camera: "Phone at chest height, straight on, tilted slightly up; main lens; frame cuts at mid-thigh", pose: "Standing, chest to the camera, weight on the leg on the left of the frame." };
     const job = injectJob(c, pack, "ignored", { ...meta, target: TARGET }, SEEDREAM, 4);

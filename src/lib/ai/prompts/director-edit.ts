@@ -3,7 +3,7 @@
  * likeness" on, her face sheet (@image2) and body sheet (@image3) follow. The text model can optionally turn the
  * person's words into a short edit prompt, which they can still change before Generate.
  */
-import { fence } from "./rules";
+import { ANATOMY_WRITER, fence } from "./rules";
 
 /** How long the person's description of the changes, and the written prompt, may be. */
 export const MAX_EDIT_CHANGES = 1500;
@@ -22,6 +22,7 @@ RULES
 - Then say what stays exactly the same: everything the user did not ask to change (pose, framing, camera angle, face, expression, other people, background, light), named briefly.
 ${keepHer ? `- Say the woman keeps the exact face and hair of @image${f} and the body of @image${f + 1}; ignore the sheets' clothing and backgrounds.\n` : ""}- If a change affects light or shadows, say they must match the scene so it looks like one real photo.
 - Always describe any person as an adult, never as a girl or teen.
+- If a change moves her body, hands or limbs: ${ANATOMY_WRITER}
 - Plain prose, no bullet points, no aspect ratio, under 700 characters.
 
 OUTPUT: only the prompt, nothing else.`;

@@ -5,7 +5,7 @@
  * The image prompt is built from the lean blocks in ./lean.ts: one role per image, her fixed identity block, her identity
  * above the scene, then the shot, in separate paragraphs. Pure, so the server and the tests share it.
  */
-import { fence, joinTags } from "./rules";
+import { ANATOMY_WRITER, fence, joinTags } from "./rules";
 import type { RefSet } from "./identity";
 import { identityBlock, isSheetKind, paragraphs, personOnly, priority, REAL_NEW, refRoles, sentences, tattooLine } from "./lean";
 import { MAX_UGC_SHOTS, type UgcProduct, type UgcShot } from "@/lib/ugc-meta";
@@ -35,7 +35,7 @@ STEP 2, PLAN THE PHOTO${n > 1 ? "S" : ""}.
 - AESTHETIC: the place, her outfit, the light, the time of day and the mood all come from the product's look${n > 1 ? `. Every photo fits it, but each is in a different place or moment and uses a different framing` : ""}.
 - IT LOOKS LIKE UGC: taken on a phone by her or by a friend. Choose one framing${n > 1 ? " per photo" : ""}: a selfie at arm's length, a mirror selfie, the phone propped up nearby, or a friend's candid shot. Casual, slightly off-centre framing in a real, lived-in place with a few ordinary things around. Never a studio, an advert layout, a posed catalogue shot or a clean backdrop.
 - THE PRODUCT IS THE POINT: clearly visible, in focus, not cropped and not hidden by her fingers, its front or label turned to the camera, at its real size. She holds, wears or uses it the way real people do, with a relaxed, genuine expression.
-- HER: call her "she". Never describe her face, hair, skin, body or age; the reference images carry who she is. Describe only what she does, her pose and her expression. She is an adult woman.
+- HER: call her "she". Never describe her face, hair, skin, body or age; the reference images carry who she is. Describe only what she does, her pose and her expression. She is an adult woman. ${ANATOMY_WRITER}
 - ONLY WHAT IS IN FRAME: decide the framing first and list it in "frame", then describe only what it shows: no shoes for a waist-up selfie, no expression when she faces away.
 - OUTFIT: everyday clothes that suit the place and the product, each garment named with its colour. If the product is something she wears (a hat, clothing, jewellery, shoes, a bag), set "worn" to true, list only the rest of her outfit, and frame the photo so the product is fully in view.
 - LIGHT: name the source and its direction (for example low afternoon sun from the left, a window behind the phone, warm lamp light from the right). Never just "natural light".

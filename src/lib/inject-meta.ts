@@ -22,6 +22,8 @@ export const injectMetaSchema = z.object({
   /** Also send her X Reference photos (Inject and Direct swap). */
   xref: z.boolean().optional(),
   edit: z.string().max(600).optional(),
+  /** Inject: the person edited the written prompt by hand, so Swap into photo sends their text as written. */
+  edited: z.boolean().optional(),
   /** Swap into photo's short brief: the camera and the pose read from the target, and that the prompt is that brief. */
   brief: z.boolean().optional(),
   /** The reader's one short paragraph: the scene, her whole body, the camera and the aesthetic. */

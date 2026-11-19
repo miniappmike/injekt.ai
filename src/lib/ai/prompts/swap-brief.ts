@@ -15,7 +15,7 @@ export function buildSwapBriefPrompt(o: Pick<InjectOptions, "who" | "extra" | "p
   const who = short(o.who, 30);
   const tail = n > 1 ? `Write ${n} versions, each under a line ===VERSION k===.` : "Output only the description.";
   const body = [
-    `Look at the photo. In under 90 words, concretely describe: the scene (place, light); the adult woman's${who ? ` (<<<${who}>>>)` : ""} full body (position, facing, head, each arm, hand and leg); the camera angle and lens look; and the photo's aesthetic.`,
+    `In under 90 words, concretely describe: the scene (place, light); the adult woman's${who ? ` (<<<${who}>>>)` : ""} full body (position, facing, head, each arm, hand and leg, all natural); the camera angle and lens look; and the photo's aesthetic.`,
     o.pose && `Invent a new natural pose that fits${n > 1 ? ", different each time" : ""}, not hers.`,
     "Say frame-left and frame-right. Be literal, never soften. Leave out her face, hair colour, skin and body shape.",
   ]

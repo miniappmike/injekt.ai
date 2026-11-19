@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { GenerateImage } from "@/components/generate-image";
 import { AttachStrip, TaggedPrompt } from "@/components/attach-strip";
+import { TagTextarea } from "@/components/tag-textarea";
 import { CopyOpen } from "@/components/copy-open";
 import { useGeneration } from "@/components/app-context";
 import { InfoTip } from "@/components/info-tip";
@@ -145,6 +146,8 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
   const [targets, setTargets] = useState<Target[]>([]);
   const [o, setO] = useState<Options>({ ...INJECT_DEFAULTS });
   const [editTarget, setEditTarget] = useState(false);
+  // Prompts edited by hand, by card. `base` is the written text it was edited from, so a new write drops the edit.
+  const [promptEdits, setPromptEdits] = useState<Record<string, { base: string; text: string }>>({});
   const generation = useGeneration();
   const [writeOnlyChoice, setWriteOnly] = useState(false);
   // Without image generation turned on, every prompt is written to paste into a generator.
@@ -895,6 +898,11 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
               const label = (results.length > 1 ? `Target ${ti + 1} of ${results.length}` : "Target") + (o.count > 1 && t.versions ? ` · version ${k + 1}` : "");
               const sa = writeOnly && v ? standalone[t.id] : undefined;
               const ready = sa?.key === standaloneKey(t) ? sa.prompts?.[k] : undefined;
+              const cardKey = `${t.id}-${k}`;
+              const own = v ? promptEdits[cardKey] : undefined;
+              const edited = !!v && !!own && own.base === v.text && own.text.trim() !== v.text.trim() && own.text.trim().length > 0;
+              const text = v ? (own && own.base === v.text ? own.text : v.text) : "";
+              const tagCount = sentRefs(characters.find((c) => c.id === (t.characterId ?? characterId)), 1).length + (editTarget ? 1 : 0) || 3;
               return (
                 <article key={`${t.id}-${k}`} className="panel flex animate-fade-up flex-col gap-3 p-5 max-sm:rounded-3xl max-sm:p-4">
                   <div className="flex items-start gap-3">
@@ -916,7 +924,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                             size="sm"
                             variant="secondary"
                             onClick={() => {
-                              void navigator.clipboard.writeText(v.text);
+                              void navigator.clipboard.writeText(edited ? text : v.text);
                               show("Copied.");
                             }}
                           >
@@ -954,7 +962,28 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                   )}
                   {v && !writeOnly && (
                     <>
-                      <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words text-sm">{v.text}</pre>
+                      <TagTextarea
+                        value={text}
+                        onChange={(next) => setPromptEdits((x) => ({ ...x, [cardKey]: { base: v.text, text: next } }))}
+                        tags={tagCount}
+                        rows={12}
+                        maxLength={5000}
+                      />
+                      <div className="-mt-1 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+                        <span>{edited ? "Edited. Generate uses your version." : "Type in the box to change the prompt before you generate."}</span>
+                        {edited && (
+                          <button
+                            type="button"
+                            className="font-medium text-neutral-300 underline-offset-4 hover:text-white hover:underline"
+                            onClick={() => setPromptEdits((x) => {
+                              const { [cardKey]: _drop, ...rest } = x;
+                              return rest;
+                            })}
+                          >
+                            Undo my edits
+                          </button>
+                        )}
+                      </div>
                       <div className="flex flex-wrap gap-1.5">
                         {v.tags.map((x) => <span key={x} className="rounded-full bg-neutral-800 px-2 py-0.5 text-xs text-neutral-300">{x}</span>)}
                       </div>
@@ -971,11 +1000,11 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                       </p>
                       <div data-generate-anchor className="scroll-mt-24" aria-hidden="true" />
                       <GenerateImage
-                        prompt={v.text}
+                        prompt={edited ? text : v.text}
                         characterId={v.meta.group ? undefined : (t.characterId ?? characterId)}
                         extraPaths={[]}
                         kind={v.meta.group ? "group_photo" : "inject"}
-                        meta={v.meta.group ? { group: v.meta.group, real: true } : { ...metaForRun(v.meta, t.writtenPath ?? t.path ?? null, editTarget), ...(xref ? { xref: true } : {}) }}
+                        meta={v.meta.group ? { group: v.meta.group, real: true } : { ...metaForRun(v.meta, t.writtenPath ?? t.path ?? null, editTarget), ...(xref ? { xref: true } : {}), ...(edited ? { edited: true } : {}) }}
                         autoAspectRatio={t.ratio}
                         historyId={v.historyId}
                         runSignal={runAll}
