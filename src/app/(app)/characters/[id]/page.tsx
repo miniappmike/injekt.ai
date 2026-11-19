@@ -20,6 +20,7 @@ import { updateCharacter } from "../actions";
 import { DeleteCharacterButton } from "@/components/character-card-actions";
 import { PhoneCard } from "@/components/phone-card";
 import { loadPhone } from "@/lib/character-phone";
+import { InfoTip } from "@/components/info-tip";
 
 // The profile builder calls a vision model from this page.
 export const maxDuration = 60;
@@ -198,7 +199,10 @@ export default async function EditCharacterPage({
           </Card>
 
           <Card title="X Reference" sub={`Up to ${MAX_X_REFERENCES}. Sent to the AI when X references is ticked in Inject or Direct swap.`}>
-            <ImageSlot label="X Reference" slot="x_reference" characterId={c.id} images={imgs(xRefs)} max={MAX_X_REFERENCES} />
+            <ImageSlot label="X References" slot="x_reference" characterId={c.id} images={imgs(xRefs)} max={MAX_X_REFERENCES} />
+            <Button asChild variant="secondary" className="w-fit">
+              <a href="https://discord.gg/9tV5FfMvW4" target="_blank" rel="noopener noreferrer">Join the Discord for the guide</a>
+            </Button>
           </Card>
         </div>
 
@@ -220,13 +224,14 @@ export default async function EditCharacterPage({
 }
 
 /** One section of her page: a titled panel with even spacing. */
-function Card({ title, sub, className = "", children }: { title: string; sub?: string; className?: string; children: React.ReactNode }) {
+function Card({ title, sub, tip, className = "", children }: { title: string; sub?: string; tip?: React.ReactNode; className?: string; children: React.ReactNode }) {
   return (
     <section className={`panel flex flex-col gap-4 p-5 sm:p-6 ${className}`}>
       <header className="flex flex-col gap-1">
         <h2 className="flex items-center gap-2 font-display text-lg font-bold text-neutral-50">
           <span aria-hidden="true" className="h-4 w-1 rounded-full bg-gradient-to-b from-brand-400 to-iris-500" />
           {title}
+          {tip}
         </h2>
         {sub && <p className="text-sm text-neutral-400">{sub}</p>}
       </header>

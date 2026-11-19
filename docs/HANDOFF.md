@@ -15,7 +15,7 @@ section is right.
 
 **X references checkbox, floating Save after image changes, Director photo box fix (November 19; types clean; NOT checked in a browser or on a real generation)**
 - "X references" checkbox in Inject Write prompts (draft `inject.xref`, a chip by Clean up overlays) and Direct swap (Generate mode). Sends `meta.xref`; `withXRefs` in `generation-job.ts` appends her `x_reference_paths` after all other images (no @image tag moves) plus one line naming them. Errors if she has none or there's no room. X Reference is no longer a placeholder (its box hint says so).
-- Character page: header image strip no longer shows the sheets or X References; X Reference card text updated; metadata note removed. `ImageSlot` fires a `character-images-changed` window event after upload, remove or reorder; `CharacterForm` listens and shows the floating Save.
+- Character page: header image strip no longer shows the sheets or X References; X References card (renamed) has a Discord tooltip and a Join the Discord button (discord.gg/9tV5FfMvW4); metadata note removed. `ImageSlot` fires a `character-images-changed` window event after upload, remove or reorder; `CharacterForm` listens and shows the floating Save.
 - `ImageDrop` with a gallery (Director "Edit a photo") now stacks the gallery above the text and buttons, so Paste/Add stay inside the box.
 
 **Next.js upgraded to 16.4.5 (November 19; on main)**: fixes the moderate `use cache` advisories (GHSA-mfr8-8qww-v76h, GHSA-vc7v-qv4w-wrv8). `npm audit --omit=dev` clean, types clean, `next build` passes. Migration 0037 has been run (owner confirmed).
