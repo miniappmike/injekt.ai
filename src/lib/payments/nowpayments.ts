@@ -1,8 +1,9 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/env";
-import { fulfillOrder, getOrder, setOrderStatus } from "@/lib/orders";
-import { alertPaid, alertUnderpaid } from "@/lib/payments/alerts";
+import { fulfillOrder, getOrder, setOrderStatus, type OrderKind } from "@/lib/orders";
+import { fulfilPersonaOrder } from "@/lib/marketplace/persona-orders";
+import { alertAdmins, alertPaid, alertUnderpaid } from "@/lib/payments/alerts";
 
 /**
  * Crypto payments through NOWPayments.
@@ -31,7 +32,8 @@ async function api<T>(path: string, init: { method?: string; body?: unknown } = 
 }
 
 /** An invoice page for this order, in US dollars. The buyer chooses the coin there. */
-export async function createCryptoInvoice(order: { orderId: string; amountCents: number; label: string; kind: "pro" | "pack" }): Promise<string> {
+export async function createCryptoInvoice(order: { orderId: string; amountCents: number; label: string; kind: OrderKind; listingId?: string }): Promise<string> {
+  const persona = order.kind === "persona" && !!order.listingId;
   const r = await api<{ id: string; invoice_url: string }>("/invoice", {
     method: "POST",
     body: {
@@ -40,8 +42,8 @@ export async function createCryptoInvoice(order: { orderId: string; amountCents:
       order_id: order.orderId,
       order_description: order.label,
       ipn_callback_url: `${SITE()}/api/webhooks/nowpayments`,
-      success_url: `${SITE()}/tokens?paid=1`,
-      cancel_url: `${SITE()}/${order.kind === "pro" ? "upgrade" : "tokens"}`,
+      success_url: persona ? `${SITE()}/characters?bought=1` : `${SITE()}/tokens?paid=1`,
+      cancel_url: persona ? `${SITE()}/marketplace/${order.listingId}` : `${SITE()}/${order.kind === "pro" ? "upgrade" : "tokens"}`,
     },
   });
   if (!r.invoice_url) throw new NowPaymentsError("NOWPayments didn't return a payment page.");
@@ -140,6 +142,17 @@ export async function handleIpn(body: IpnBody): Promise<string> {
     console.error("[nowpayments] finished but not enough arrived", order.id, body.actually_paid, body.pay_amount);
     await alertUnderpaid(order, `${body.actually_paid ?? 0} ${body.pay_currency ?? ""}`.trim(), `${body.pay_amount ?? "?"} ${body.pay_currency ?? ""}`.trim());
     return "underpaid";
+  }
+  if (order.kind === "persona") {
+    const ref = body.payment_id ? String(body.payment_id) : `order-${order.id}`;
+    const d = await fulfilPersonaOrder(order, "nowpayments", ref);
+    if (d.refund) {
+      // Crypto can't be refunded automatically: the admins are told, with what to send back.
+      await alertAdmins(`↩️ Persona payment needs a refund (${d.outcome})\nOrder ${order.id}, NOWPayments payment ${ref}: $${(order.amount_cents / 100).toFixed(2)} in ${body.pay_currency ?? "crypto"}. Refund it from the NOWPayments dashboard.`);
+      return `persona not delivered (${d.outcome}); refund needed`;
+    }
+    if (d.firstTime) await alertPaid(order, "crypto");
+    return d.firstTime ? "persona delivered" : "persona already delivered";
   }
   const delivered = await fulfillOrder(order.id, "nowpayments", body.payment_id ? String(body.payment_id) : null);
   if (delivered) await alertPaid(order, "crypto");

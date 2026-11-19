@@ -11,7 +11,7 @@ export interface AdminOrder {
   id: string;
   user_id: string;
   email: string | null;
-  kind: "pro" | "pack";
+  kind: "pro" | "pack" | "persona";
   pack_id: string | null;
   credits: number;
   amount_cents: number;
@@ -112,7 +112,7 @@ type Run = (fn: () => Promise<{ ok: true } | { ok: false; error: string }>, done
 function What({ o }: { o: AdminOrder }) {
   return (
     <>
-      {o.kind === "pro" ? (o.renews_order_id ? "Pro renewal" : "Pro, 30 days") : "Token pack"} · {o.credits.toLocaleString()} tokens
+      {o.kind === "persona" ? "Marketplace persona" : <>{o.kind === "pro" ? (o.renews_order_id ? "Pro renewal" : "Pro, 30 days") : "Token pack"} · {o.credits.toLocaleString()} tokens</>}
       {o.provider && <span className="ml-1.5 text-xs text-neutral-500">via {PROVIDER_LABEL[o.provider] ?? o.provider}{o.provider_status && o.status === "pending" ? ` (${o.provider_status})` : ""}</span>}
       {o.first_month_bonus && <span className="ml-1.5 text-xs text-[#ff8fc0]">first month</span>}
     </>

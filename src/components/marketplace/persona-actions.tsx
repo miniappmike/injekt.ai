@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { BookmarkIcon, ShareIcon } from "@/components/icons";
 import { BuyButton } from "@/components/marketplace/buy-button";
+import { PersonaCheckout } from "@/components/marketplace/persona-checkout";
 import { HeartButton } from "@/components/marketplace/heart-button";
 import { useToast } from "@/components/toast";
 import { formatPrice, type PublicListing } from "@/lib/marketplace/view";
@@ -70,13 +71,12 @@ export function PersonaActions({
     <>
       <div className="flex items-center gap-2.5">
         <div className="min-w-0 flex-1">
-          <BuyButton
-            listingId={listing.id}
-            sold={listing.state === "sold"}
-            signedIn={signedIn}
-            label={`Buy for ${formatPrice(listing.priceCents)}`}
-            onBuy={() => show("Checkout is being set up.")}
-          />
+          {listing.state === "sold" ? (
+            <BuyButton listingId={listing.id} sold signedIn={signedIn} label="Sold" onBuy={() => {}} />
+          ) : (
+            // Telegram Stars or crypto, with her held for 15 minutes (and a countdown) while they pay.
+            <PersonaCheckout listingId={listing.id} name={listing.name} priceCents={listing.priceCents} signedIn={signedIn} align="left" />
+          )}
         </div>
         <HeartButton listingId={listing.id} name={listing.name} initialLikes={likes.likes} initialLiked={likes.liked} variant="solid" className="!h-12 !min-w-12" />
         <button type="button" onClick={share} aria-label={`Share ${listing.name}`} className={roundBtn}>

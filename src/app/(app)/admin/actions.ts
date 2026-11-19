@@ -5,7 +5,8 @@ import { requireUser } from "@/lib/auth";
 import { entitlements } from "@/lib/entitlements";
 import { appConfigSchema, saveAppConfig, type AppConfigInput } from "@/lib/app-config";
 import { adminClient } from "@/lib/supabase/admin";
-import { fulfillOrder } from "@/lib/orders";
+import { fulfillOrder, getOrder } from "@/lib/orders";
+import { fulfilPersonaOrder } from "@/lib/marketplace/persona-orders";
 import { connectTelegramBot, telegramEnabled, telegramStatus } from "@/lib/payments/telegram";
 import { nowpaymentsEnabled, nowpaymentsStatus } from "@/lib/payments/nowpayments";
 import { alertAdmins, alertConnectLink, alertStatus, disconnectAlerts } from "@/lib/payments/alerts";
@@ -55,6 +56,14 @@ export async function markOrderPaid(orderId: string): Promise<Result> {
   try {
     await requireAdmin();
     if (!/^[0-9a-f-]{36}$/i.test(orderId)) return { ok: false, error: "That order couldn't be found." };
+    const order = await getOrder(orderId);
+    if (order?.kind === "persona") {
+      // Sold exactly as a real payment would sell her (purchase_persona); never through fulfill_order.
+      const d = await fulfilPersonaOrder(order, "admin", `manual-${order.id}`);
+      revalidatePath("/admin");
+      if (d.refund) return { ok: false, error: `She couldn't be sold to this buyer (${d.outcome.replace(/_/g, " ")}).` };
+      return d.firstTime ? { ok: true } : { ok: false, error: "That order was already paid." };
+    }
     const delivered = await fulfillOrder(orderId, "admin", null);
     revalidatePath("/admin");
     return delivered ? { ok: true } : { ok: false, error: "That order was already paid." };

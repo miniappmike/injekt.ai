@@ -27,7 +27,7 @@ export interface Dashboard {
   generation: boolean;
   /** Which first steps are done. When all are, the next-step tile gives way to the quick tools. */
   steps: Record<StepKey, boolean>;
-  trending: { id: string; name: string; tagline: string; image: string | null; rank: number | null } | null;
+  trending: { id: string; name: string; tagline: string; image: string | null; rank: number | null; priceCents: number } | null;
   market: { available: number; sold: number };
 }
 
@@ -93,7 +93,7 @@ export async function loadDashboard(supabase: SupabaseClient, user: Actor & { em
       // Pinned images are kept in <user>/pinned/<character>/.
       pin: rows.some((c) => ((c.reference_paths ?? []) as string[]).some((p) => p.includes("/pinned/"))),
     },
-    trending: top ? { id: top.id, name: top.name, tagline: top.tagline, image: top.images[0]?.url ?? null, rank: stats[top.id]?.rank ?? null } : null,
+    trending: top ? { id: top.id, name: top.name, tagline: top.tagline, image: top.images[0]?.url ?? null, rank: stats[top.id]?.rank ?? null, priceCents: top.priceCents } : null,
     market,
   };
 }

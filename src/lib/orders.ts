@@ -2,7 +2,7 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { adminClient } from "@/lib/supabase/admin";
 import { env } from "@/env";
-import { PRO, packById } from "@/lib/plans";
+import { PERSONA_HOLD_MINUTES, PRO, packById, personaStars } from "@/lib/plans";
 import { emailKey, isDisposableEmail, type BonusBlock } from "@/lib/orders-core";
 import { UserFacingError } from "@/lib/errors";
 
@@ -50,14 +50,18 @@ function claimsMatching(buyer: Buyer, ctx: BuyerContext) {
   return adminClient().from("bonus_claims").select("user_id").or(ors.join(",")).limit(1);
 }
 
-export type OrderInput = { kind: "pro" } | { kind: "pack"; packId: string };
+export type OrderInput = { kind: "pro" } | { kind: "pack"; packId: string } | { kind: "persona"; listingId: string };
+export type OrderKind = "pro" | "pack" | "persona";
 
 /** How an order is paid: Telegram Stars, crypto through NOWPayments, or by hand (Admin → Mark paid). */
 export type PaymentProvider = "telegram" | "nowpayments" | "manual";
 
 export interface CreatedOrder {
   orderId: string;
-  kind: "pro" | "pack";
+  kind: OrderKind;
+  /** A persona order: the listing, and when the buyer's hold on her ends (ISO time). */
+  listingId?: string;
+  heldUntil?: string;
   credits: number;
   amountCents: number;
   /** The Telegram Stars price. */
@@ -70,8 +74,13 @@ export interface CreatedOrder {
 
 export async function createOrder(buyer: Buyer, input: OrderInput, ctx: BuyerContext, provider: PaymentProvider = "manual"): Promise<CreatedOrder> {
   const db = adminClient();
-  let row: { kind: "pro" | "pack"; pack_id: string | null; credits: number; amount_cents: number; amount_stars: number; first_month_bonus: boolean };
-  if (input.kind === "pack") {
+  let row: { kind: OrderKind; pack_id: string | null; credits: number; amount_cents: number; amount_stars: number; first_month_bonus: boolean; listing_id?: string };
+  let held: { until: string; name: string } | null = null;
+  if (input.kind === "persona") {
+    const h = await holdPersona(input.listingId, buyer.id);
+    held = { until: h.until, name: h.name };
+    row = { kind: "persona", pack_id: null, credits: 0, amount_cents: h.priceCents, amount_stars: personaStars(h.priceCents), first_month_bonus: false, listing_id: input.listingId };
+  } else if (input.kind === "pack") {
     const pack = packById(input.packId);
     if (!pack) throw new UserFacingError("That token pack doesn't exist.");
     row = { kind: "pack", pack_id: pack.id, credits: pack.credits, amount_cents: pack.priceCents, amount_stars: pack.stars, first_month_bonus: false };
@@ -99,9 +108,35 @@ export async function createOrder(buyer: Buyer, input: OrderInput, ctx: BuyerCon
     amountCents: row.amount_cents,
     amountStars: row.amount_stars,
     firstMonthBonus: row.first_month_bonus,
-    label: orderLabel(row.kind, row.credits),
+    label: held ? personaLabel(held.name) : orderLabel(row.kind as "pro" | "pack", row.credits),
     checkoutUrl: null,
+    ...(held ? { listingId: input.kind === "persona" ? input.listingId : undefined, heldUntil: held.until } : {}),
   };
+}
+
+/** What a persona order is: "Soo-jin, a one-of-a-kind ModelSpawn persona". */
+export const personaLabel = (name: string) => `${name || "Persona"}, a one-of-a-kind ModelSpawn persona`;
+
+/**
+ * Holds a listing for this buyer for PERSONA_HOLD_MINUTES while they pay (reserve_persona). Starting checkout again
+ * keeps the same hold. Throws a message the buyer can read when she can't be bought.
+ */
+async function holdPersona(listingId: string, buyerId: string): Promise<{ until: string; priceCents: number; name: string }> {
+  if (!/^[0-9a-f-]{36}$/i.test(listingId)) throw new UserFacingError("That persona wasn't found.");
+  const db = adminClient();
+  const { data, error } = await db.rpc("reserve_persona", { p_listing: listingId, p_buyer: buyerId, p_minutes: PERSONA_HOLD_MINUTES });
+  if (error) throw new UserFacingError(/reserve_persona/.test(error.message) ? "Persona checkout isn't set up yet (run migration 0038)." : "Couldn't start checkout. Try again.");
+  const r = (Array.isArray(data) ? data[0] : data) as { outcome: string; held_until: string | null; price_cents: number | null } | undefined;
+  if (r?.outcome === "sold") throw new UserFacingError("She was just bought by someone else.");
+  if (r?.outcome === "held_by_someone_else") throw new UserFacingError("Someone else is checking out with her right now. Try again in a few minutes.");
+  if (r?.outcome !== "held" || !r.held_until || !r.price_cents) throw new UserFacingError("She isn't for sale right now.");
+  const { data: l } = await db.from("marketplace_listings").select("name").eq("id", listingId).maybeSingle();
+  return { until: new Date(r.held_until).toISOString(), priceCents: r.price_cents, name: (l?.name as string | undefined) ?? "" };
+}
+
+/** Gives up this buyer's hold on a listing (they closed checkout). Harmless if they don't hold it. */
+export async function releasePersonaHold(listingId: string, buyerId: string): Promise<void> {
+  await adminClient().rpc("release_persona", { p_listing: listingId, p_buyer: buyerId });
 }
 
 /** What an order is, in a few words: "ModelSpawn Pro (30 days, 220 tokens)" or "525 ModelSpawn tokens". */
@@ -111,7 +146,9 @@ export const orderLabel = (kind: "pro" | "pack", credits: number) =>
 export interface StoredOrder {
   id: string;
   user_id: string | null;
-  kind: "pro" | "pack";
+  kind: OrderKind;
+  /** A persona order's listing. */
+  listing_id: string | null;
   credits: number;
   amount_cents: number;
   amount_stars: number | null;
@@ -124,7 +161,7 @@ export async function getOrder(id: string): Promise<StoredOrder | null> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
   const { data } = await adminClient()
     .from("orders")
-    .select("id, user_id, kind, credits, amount_cents, amount_stars, status, provider, provider_ref")
+    .select("id, user_id, kind, listing_id, credits, amount_cents, amount_stars, status, provider, provider_ref")
     .eq("id", id)
     .maybeSingle();
   return (data as StoredOrder | null) ?? null;

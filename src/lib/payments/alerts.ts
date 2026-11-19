@@ -84,7 +84,8 @@ async function emailOf(userId: string | null): Promise<string> {
   return data?.user?.email ?? "someone";
 }
 
-const what = (o: { kind: string; credits: number }) => (o.kind === "pro" ? `Pro (${o.credits} tokens)` : `${o.credits.toLocaleString("en-US")} tokens`);
+const what = (o: { kind: string; credits: number }) =>
+  o.kind === "pro" ? `Pro (${o.credits} tokens)` : o.kind === "persona" ? "a marketplace persona" : `${o.credits.toLocaleString("en-US")} tokens`;
 
 /** A paid order: "💰 $25.00 crypto: jade@... bought 525 tokens" or "⭐ 500 Stars: ... started Pro". */
 export async function alertPaid(o: { user_id: string | null; kind: string; credits: number; amount_cents: number; amount_stars: number | null }, via: "crypto" | "telegram", renewal = false): Promise<void> {

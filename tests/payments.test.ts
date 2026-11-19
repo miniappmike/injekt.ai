@@ -17,11 +17,15 @@ const h = vi.hoisted(() => ({
   alertPaid: vi.fn(async () => {}),
   alertUnderpaid: vi.fn(async () => {}),
   connectAlertChat: vi.fn(async () => "✅ Alerts are on."),
+  alertAdmins: vi.fn(async () => {}),
+  fulfilPersonaOrder: vi.fn(),
+  personaPrecheckProblem: vi.fn(async () => null as string | null),
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/env", () => ({ env: h.env }));
 vi.mock("@/lib/orders", () => ({ getOrder: h.getOrder, fulfillOrder: h.fulfillOrder, renewProOrder: h.renewProOrder, setOrderStatus: h.setOrderStatus }));
-vi.mock("@/lib/payments/alerts", () => ({ alertPaid: h.alertPaid, alertUnderpaid: h.alertUnderpaid, connectAlertChat: h.connectAlertChat }));
+vi.mock("@/lib/payments/alerts", () => ({ alertPaid: h.alertPaid, alertUnderpaid: h.alertUnderpaid, connectAlertChat: h.connectAlertChat, alertAdmins: h.alertAdmins }));
+vi.mock("@/lib/marketplace/persona-orders", () => ({ fulfilPersonaOrder: h.fulfilPersonaOrder, personaPrecheckProblem: h.personaPrecheckProblem }));
 
 import { createCryptoInvoice, handleIpn, validIpnSignature } from "@/lib/payments/nowpayments";
 import { createStarsInvoiceLink, handleTelegramUpdate, precheckProblem, SUBSCRIPTION_SECONDS } from "@/lib/payments/telegram";
@@ -175,5 +179,64 @@ describe("Telegram Stars", () => {
     expect(String(calls.at(-1)?.body.text)).toContain("https://modelspawn.test/terms");
     await handleTelegramUpdate({ update_id: 4, message: { chat: { id: 9 }, text: "/support" } });
     expect(String(calls.at(-1)?.body.text)).toContain("modelspawn@gmail.com");
+  });
+});
+
+describe("persona checkout", () => {
+  const persona = (over: Record<string, unknown> = {}) => order({ kind: "persona", listing_id: "22222222-2222-4222-8222-222222222222", credits: 0, amount_cents: 2900, amount_stars: 2250, ...over });
+  const delivered = { delivered: true, firstTime: true, refund: false, outcome: "purchased", characterId: "c9" };
+  const refused = { delivered: false, firstTime: false, refund: true, outcome: "sold", characterId: null };
+
+  it("prices her in Stars so the payout covers the dollar price, rounded up to 50", async () => {
+    const { personaStars } = await import("@/lib/plans");
+    expect(personaStars(2900)).toBe(2250);
+    expect(personaStars(2900) * 0.013).toBeGreaterThanOrEqual(29);
+    expect(personaStars(50)).toBe(50);
+  });
+
+  it("crypto: the invoice returns to her page if cancelled, and a finished payment sells her once", async () => {
+    await createCryptoInvoice({ orderId: "o1", amountCents: 2900, label: "Soo-jin", kind: "persona", listingId: "L1" });
+    expect(calls[0].body).toMatchObject({ price_amount: 29, success_url: "https://modelspawn.test/characters?bought=1", cancel_url: "https://modelspawn.test/marketplace/L1" });
+
+    h.getOrder.mockResolvedValue(persona({ provider: "nowpayments" }));
+    h.fulfilPersonaOrder.mockResolvedValue(delivered);
+    const ipn = { payment_status: "finished", order_id: "o1", price_amount: 29, price_currency: "usd", payment_id: 91, pay_amount: 29, actually_paid: 29 };
+    expect(await handleIpn(ipn)).toBe("persona delivered");
+    expect(h.fulfilPersonaOrder).toHaveBeenCalledWith(expect.objectContaining({ kind: "persona" }), "nowpayments", "91");
+    expect(h.fulfillOrder).not.toHaveBeenCalled(); // never through the Pro/token delivery
+    expect(h.alertPaid).toHaveBeenCalledTimes(1);
+    h.fulfilPersonaOrder.mockResolvedValue({ ...delivered, firstTime: false, outcome: "already_recorded" });
+    expect(await handleIpn(ipn)).toBe("persona already delivered");
+    expect(h.alertPaid).toHaveBeenCalledTimes(1);
+  });
+
+  it("crypto: if she was sold to someone else first, the admins are told to refund", async () => {
+    h.getOrder.mockResolvedValue(persona({ provider: "nowpayments" }));
+    h.fulfilPersonaOrder.mockResolvedValue(refused);
+    expect(await handleIpn({ payment_status: "finished", order_id: "o1", price_amount: 29, price_currency: "usd", payment_id: 92, pay_amount: 29, actually_paid: 29 })).toMatch(/refund needed/);
+    expect(h.alertAdmins).toHaveBeenCalledWith(expect.stringContaining("needs a refund"));
+    expect(h.alertPaid).not.toHaveBeenCalled();
+  });
+
+  it("Telegram: refuses before taking Stars when she's no longer available", async () => {
+    h.getOrder.mockResolvedValue(persona());
+    h.personaPrecheckProblem.mockResolvedValueOnce("She was just bought by someone else. You haven't been charged.");
+    await handleTelegramUpdate({ update_id: 5, pre_checkout_query: { id: "q5", currency: "XTR", total_amount: 2250, invoice_payload: persona().id } });
+    expect(calls.at(-1)).toMatchObject({ method: "answerPreCheckoutQuery", body: { ok: false, error_message: expect.stringContaining("bought by someone else") } });
+  });
+
+  it("Telegram: sells her and links the buyer to her, or refunds the Stars if she couldn't be sold", async () => {
+    h.getOrder.mockResolvedValue(persona());
+    h.fulfilPersonaOrder.mockResolvedValue(delivered);
+    const pay = { update_id: 6, message: { chat: { id: 9 }, from: { id: 4242 }, successful_payment: { currency: "XTR", total_amount: 2250, invoice_payload: persona().id, telegram_payment_charge_id: "ch9" } } };
+    await handleTelegramUpdate(pay);
+    expect(h.fulfilPersonaOrder).toHaveBeenCalledWith(expect.objectContaining({ kind: "persona" }), "telegram", "ch9");
+    expect(calls.at(-1)).toMatchObject({ method: "sendMessage", body: { text: expect.stringContaining("https://modelspawn.test/characters/c9") } });
+
+    h.fulfilPersonaOrder.mockResolvedValue(refused);
+    await handleTelegramUpdate(pay);
+    expect(calls.find((c) => c.method === "refundStarPayment")?.body).toEqual({ user_id: 4242, telegram_payment_charge_id: "ch9" });
+    expect(calls.at(-1)?.body.text).toMatch(/refunded/);
+    expect(h.fulfillOrder).not.toHaveBeenCalled();
   });
 });

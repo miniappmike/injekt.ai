@@ -71,10 +71,10 @@ describe("a successful purchase", () => {
     const c = (await q<Record<string, unknown>>("select * from public.characters where id = $1", [r.character_id])).rows[0];
     expect(c).toMatchObject({ user_id: alice, name: "Nova", lore: "Night-life creator.", always_keep: "gold chain", height: "5'7\"", weight: null, purchased_from_listing_id: id });
     expect(c.profile).toEqual(SNAPSHOT.profile);
-    // New paths in the buyer's own folder, keeping each file's type; at most 3 references.
+    // New paths in the buyer's own folder, keeping each file's type; every reference (up to 10).
     const base = `${alice}/characters/${r.character_id}`;
     expect(c).toMatchObject({ face_sheet_path: `${base}/face-sheet.png`, body_sheet_path: `${base}/body-sheet.jpg`, profile_photo_path: `${base}/profile.webp` });
-    expect(c.reference_paths).toEqual([`${base}/reference-1.jpg`, `${base}/reference-2.jpg`, `${base}/reference-3.jpg`]);
+    expect(c.reference_paths).toEqual([`${base}/reference-1.jpg`, `${base}/reference-2.jpg`, `${base}/reference-3.jpg`, `${base}/reference-4.jpg`]);
 
     // The copy plan the server carries out: from the listing's private files to those new paths.
     expect(p.asset_copies).toEqual([
@@ -84,6 +84,7 @@ describe("a successful purchase", () => {
       { from_bucket: "marketplace-assets", from: "L/r1.jpg", to_bucket: "character-media", to: `${base}/reference-1.jpg` },
       { from_bucket: "marketplace-assets", from: "L/r2.jpg", to_bucket: "character-media", to: `${base}/reference-2.jpg` },
       { from_bucket: "marketplace-assets", from: "L/r3.jpg", to_bucket: "character-media", to: `${base}/reference-3.jpg` },
+      { from_bucket: "marketplace-assets", from: "L/r4.jpg", to_bucket: "character-media", to: `${base}/reference-4.jpg` },
     ]);
   });
 
@@ -198,5 +199,67 @@ describe("who can call it", () => {
     const id = await listing();
     await expect(buy(id, alice, "")).rejects.toThrow(/purchase_bad_arguments/);
     await expect(buy(id, alice, "cs_1", null, "")).rejects.toThrow(/purchase_bad_arguments/);
+  });
+});
+
+// reserve_persona / release_persona (0038): the 15-minute hold while a buyer pays.
+async function hold(listing: string, buyer: string, minutes = 15) {
+  await t.as(null, "service_role");
+  const r = await q<{ outcome: string; held_until: string | null; price_cents: number | null }>("select * from public.reserve_persona($1, $2, $3)", [listing, buyer, minutes]);
+  await t.db.exec("reset role");
+  return r.rows[0];
+}
+async function release(listing: string, buyer: string) {
+  await t.as(null, "service_role");
+  const r = await q<{ ok: boolean }>("select public.release_persona($1, $2) as ok", [listing, buyer]);
+  await t.db.exec("reset role");
+  return r.rows[0].ok;
+}
+
+describe("reserve_persona", () => {
+  it("holds her for one buyer for 15 minutes at today's price, and keeps the same hold if they start again", async () => {
+    const id = await listing({ price: 2900 });
+    const first = await hold(id, alice);
+    expect(first).toMatchObject({ outcome: "held", price_cents: 2900 });
+    const minutes = (new Date(first.held_until!).getTime() - Date.now()) / 60000;
+    expect(minutes).toBeGreaterThan(14);
+    expect(minutes).toBeLessThanOrEqual(15.1);
+    expect(await row(id)).toMatchObject({ status: "reserved", reserved_by: alice });
+    const again = await hold(id, alice);
+    expect(new Date(again.held_until!).getTime()).toBe(new Date(first.held_until!).getTime());
+  });
+
+  it("refuses a second buyer while the hold lasts, then lets them have it once it runs out", async () => {
+    const id = await listing();
+    await hold(id, alice);
+    expect((await hold(id, bob)).outcome).toBe("held_by_someone_else");
+    // Alice's payment still goes through; Bob's would be refused.
+    expect((await buy(id, bob, "pay_bob")).outcome).toBe("unavailable");
+    await reserve(id, alice, -1); // her hold ran out
+    expect((await hold(id, bob)).outcome).toBe("held");
+    expect(await row(id)).toMatchObject({ reserved_by: bob });
+  });
+
+  it("refuses sold, draft and missing listings", async () => {
+    const sold = await listing();
+    await buy(sold, alice, "pay_sold");
+    expect((await hold(sold, bob)).outcome).toBe("sold");
+    expect((await hold(await listing({ status: "draft" }), bob)).outcome).toBe("unavailable");
+    expect((await hold("00000000-0000-4000-8000-000000000000", bob)).outcome).toBe("not_found");
+  });
+
+  it("lets only the holder give the hold up", async () => {
+    const id = await listing();
+    await hold(id, alice);
+    expect(await release(id, bob)).toBe(false);
+    expect(await release(id, alice)).toBe(true);
+    expect(await row(id)).toMatchObject({ status: "available", reserved_by: null });
+  });
+
+  it("can't be called by signed-in users directly", async () => {
+    const id = await listing();
+    await t.as(alice, "authenticated");
+    await expect(q("select * from public.reserve_persona($1, $2, 15)", [id, alice])).rejects.toThrow();
+    await t.db.exec("reset role");
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminListingControls } from "@/components/admin-listing-controls";
 import { UploadIcon } from "@/components/icons";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import { useToast, type ToastLink } from "@/components/toast";
 import { clipboardImages, usePasteTarget } from "@/components/paste-router";
 import {
@@ -370,10 +372,61 @@ function PreviewPicker({
   act: Act;
   setError: (e: string | undefined) => void;
 }) {
-  const previews = listing.previews;
+  // The pictures live here, changed at once on a tap; only the picture that changed talks to the server, so the others
+  // never reload. A picture being added shows as "Adding..." (its thumbnail), a removed one fades out straight away.
+  const [items, setItems] = useState<PreviewItem[]>(() => listing.previews.map((p) => ({ ...p, state: "ready" as const })));
+  // When the page's data changes (publish, another tab), take the server's list but keep links already loaded.
+  const serverKey = listing.previews.map((p) => p.id).join(",");
+  useEffect(() => {
+    setItems((now) => {
+      const loaded = new Map(now.filter((x) => x.state === "ready").map((x) => [x.id, x.url]));
+      const pending = now.filter((x) => x.state === "adding");
+      return [...listing.previews.map((p) => ({ id: p.id, url: loaded.get(p.id) ?? p.url, state: "ready" as const })), ...pending];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverKey]);
+  const live = items.filter((x) => x.state !== "removing");
+  const full = live.length >= MAX_PREVIEWS;
+  const router = useRouter();
+  // Adds run one after another, so two quick taps can't both take the same place.
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
   const input = useRef<HTMLInputElement>(null);
-  const full = previews.length >= MAX_PREVIEWS;
-  const ids = useMemo(() => previews.map((p) => p.id), [previews]);
+
+  function add(thumb: string, run: () => Promise<{ ok: true; imageId: string; url: string } | { ok: false; error: string }>) {
+    if (full) return setError(`A listing can have up to ${MAX_PREVIEWS} preview pictures.`);
+    setError(undefined);
+    const temp = `adding-${Math.random().toString(36).slice(2)}`;
+    setItems((now) => [...now, { id: temp, url: thumb, state: "adding" }]);
+    queue.current = queue.current.then(async () => {
+      const r = await run().catch(() => ({ ok: false as const, error: "Couldn't add that picture. Try again." }));
+      if (!r.ok) {
+        setItems((now) => now.filter((x) => x.id !== temp));
+        return setError(r.error);
+      }
+      setItems((now) => now.map((x) => (x.id === temp ? { id: r.imageId, url: r.url || thumb, state: "ready" } : x)));
+      router.refresh(); // in the background: publish checks and the count elsewhere catch up
+    });
+  }
+
+  function remove(id: string) {
+    setError(undefined);
+    setItems((now) => now.map((x) => (x.id === id ? { ...x, state: "removing" } : x)));
+    void removePreview(id).then(
+      (r) => {
+        if (r.ok) {
+          setItems((now) => now.filter((x) => x.id !== id));
+          router.refresh();
+        } else {
+          setItems((now) => now.map((x) => (x.id === id ? { ...x, state: "ready" } : x)));
+          setError(r.error);
+        }
+      },
+      () => {
+        setItems((now) => now.map((x) => (x.id === id ? { ...x, state: "ready" } : x)));
+        setError("Couldn't remove that picture. Try again.");
+      },
+    );
+  }
 
   const box = useRef<HTMLDivElement>(null);
   usePasteTarget(box, (f) => upload(f), busy);
@@ -384,39 +437,66 @@ function PreviewPicker({
     if (file.size > MAX_PREVIEW_UPLOAD_BYTES) return setError("That image is over 15 MB.");
     const fd = new FormData();
     fd.set("file", file);
-    act(() => addPreviewUpload(listing.id, fd), "Preview added", () => input.current && (input.current.value = ""));
+    const thumb = URL.createObjectURL(file);
+    add(thumb, () => addPreviewUpload(listing.id, fd));
+    if (input.current) input.current.value = "";
   }
 
   function move(i: number, by: -1 | 1) {
-    const next = [...ids];
+    const ready = items.filter((x) => x.state === "ready");
+    const next = [...ready];
     [next[i], next[i + by]] = [next[i + by], next[i]];
-    act(() => reorderPreviews(listing.id, next));
+    const before = items;
+    setItems([...next, ...items.filter((x) => x.state !== "ready")]);
+    void reorderPreviews(listing.id, next.map((x) => x.id)).then(
+      (r) => {
+        if (!r.ok) {
+          setItems(before);
+          setError(r.error);
+        }
+      },
+      () => setItems(before),
+    );
   }
+  const shown = items;
+  const readyCount = items.filter((x) => x.state === "ready").length;
 
   return (
     <div className="grid gap-3">
       <div>
-        <h3 className="text-sm font-semibold">Preview pictures ({previews.length}/{MAX_PREVIEWS})</h3>
+        <h3 className="text-sm font-semibold">Preview pictures ({live.length}/{MAX_PREVIEWS})</h3>
         <p className="text-xs text-neutral-500">
           Shoppers only see these small, watermarked copies. The full-size pictures go to the buyer. The first picture is the cover.
         </p>
       </div>
 
-      {previews.length > 0 && (
+      {shown.length > 0 && (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {previews.map((p, i) => (
-            <li key={p.id} className="relative overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900">
+          {shown.map((p, i) => (
+            <li
+              key={p.id}
+              className={cn(
+                "relative overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 transition-opacity duration-300",
+                p.state === "removing" && "pointer-events-none opacity-30",
+              )}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.url} alt={`Preview ${i + 1}`} className="aspect-[3/4] w-full object-cover object-top" />
-              {i === 0 && <span className="absolute left-2 top-2 rounded-full bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">Cover</span>}
-              {!locked && (
+              <img src={p.url} alt={`Preview ${i + 1}`} className={cn("aspect-[3/4] w-full object-cover object-top", p.state === "adding" && "opacity-40 blur-[1px]")} />
+              {p.state === "adding" && (
+                <span role="status" className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-xs font-medium text-white">
+                  <Spinner className="h-6 w-6" />
+                  Adding...
+                </span>
+              )}
+              {i === 0 && p.state === "ready" && <span className="absolute left-2 top-2 rounded-full bg-brand-500 px-2 py-0.5 text-[10px] font-bold text-white">Cover</span>}
+              {!locked && p.state === "ready" && (
                 <>
-                  <button type="button" aria-label={`Remove preview ${i + 1}`} className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-neutral-950/80 text-lg text-white ring-1 ring-white/10 hover:bg-red-600" onClick={() => act(() => removePreview(p.id))}>
+                  <button type="button" aria-label={`Remove preview ${i + 1}`} className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-neutral-950/80 text-lg text-white ring-1 ring-white/10 hover:bg-red-600" onClick={() => remove(p.id)}>
                     ×
                   </button>
                   <div className="flex justify-between gap-2 p-2">
                     <Button type="button" size="sm" variant="secondary" className="h-9 flex-1" disabled={i === 0} aria-label={`Move preview ${i + 1} earlier`} onClick={() => move(i, -1)}>←</Button>
-                    <Button type="button" size="sm" variant="secondary" className="h-9 flex-1" disabled={i === previews.length - 1} aria-label={`Move preview ${i + 1} later`} onClick={() => move(i, 1)}>→</Button>
+                    <Button type="button" size="sm" variant="secondary" className="h-9 flex-1" disabled={i >= readyCount - 1} aria-label={`Move preview ${i + 1} later`} onClick={() => move(i, 1)}>→</Button>
                   </div>
                 </>
               )}
@@ -435,11 +515,10 @@ function PreviewPicker({
                   <button
                     key={img.which}
                     type="button"
-                    disabled={busy}
                     aria-label={`Add ${img.label} as a preview`}
                     title={img.label}
                     className="relative h-20 w-16 overflow-hidden rounded-lg border border-neutral-700 hover:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 disabled:opacity-50"
-                    onClick={() => act(() => addPreviewFromCharacter(listing.id, img.which), "Preview added")}
+                    onClick={() => add(img.url, () => addPreviewFromCharacter(listing.id, img.which))}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={img.url} alt="" className="h-full w-full object-cover object-top" />
@@ -462,8 +541,8 @@ function PreviewPicker({
           >
             <UploadIcon className="h-5 w-5 text-neutral-400" />
             <p className="text-xs text-neutral-400">Drop a picture here, paste one with Ctrl+V, or choose a file. JPEG, PNG or WebP, up to 15 MB.</p>
-            <Button type="button" variant="secondary" className="h-11 max-sm:w-full" disabled={busy} onClick={() => input.current?.click()}>
-              {busy ? "Working..." : "Upload a picture"}
+            <Button type="button" variant="secondary" className="h-11 max-sm:w-full" onClick={() => input.current?.click()}>
+              Upload a picture
             </Button>
             <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => upload(e.target.files)} />
           </div>
@@ -472,4 +551,11 @@ function PreviewPicker({
       {full && !locked && <p className="text-xs text-neutral-400">That's the most previews ({MAX_PREVIEWS}). Remove one to add another.</p>}
     </div>
   );
+}
+
+/** One preview picture in the editor: on the listing ("ready"), on its way ("adding"), or being taken off ("removing"). */
+interface PreviewItem {
+  id: string;
+  url: string;
+  state: "ready" | "adding" | "removing";
 }

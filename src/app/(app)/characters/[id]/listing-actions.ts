@@ -125,7 +125,7 @@ export async function updateListingPrice(listingId: string, priceCents: number):
 }
 
 /** Watermarks a picture, stores it and adds it to the listing. */
-async function addPreview(l: ListingRow, bytes: Buffer): Promise<{ imageId: string }> {
+async function addPreview(l: ListingRow, bytes: Buffer): Promise<{ imageId: string; url: string }> {
   mustNotBeSold(l);
   const db = adminClient();
   const { data: rows } = await db.from("listing_images").select("sort_order").eq("listing_id", l.id);
@@ -146,14 +146,16 @@ async function addPreview(l: ListingRow, bytes: Buffer): Promise<{ imageId: stri
     await db.storage.from(PREVIEW_BUCKET).remove([path]);
     throw new ActionError("Couldn't save the preview. Try again.");
   }
-  revalidate(l.source_character_id);
-  return { imageId: (data as { id: string }).id };
+  // No page revalidation: these pages are rendered fresh on every visit, and revalidating made each add re-send the
+  // whole character page (slow, and every preview reloaded). The editor shows the new picture from this link.
+  const { data: signed } = await db.storage.from(PREVIEW_BUCKET).createSignedUrl(path, 3600);
+  return { imageId: (data as { id: string }).id, url: signed?.signedUrl ?? "" };
 }
 
 const sourceSchema = z.enum(PREVIEW_SOURCES);
 
 /** Adds one of the character's own pictures as a (watermarked, shrunk) preview. */
-export async function addPreviewFromCharacter(listingId: string, which: string): Promise<Result<{ imageId: string }>> {
+export async function addPreviewFromCharacter(listingId: string, which: string): Promise<Result<{ imageId: string; url: string }>> {
   return run(async (adminId) => {
     const id = parseId(listingId);
     const src = sourceSchema.safeParse(which);
@@ -172,7 +174,7 @@ export async function addPreviewFromCharacter(listingId: string, which: string):
 }
 
 /** Adds an uploaded picture as a (watermarked, shrunk) preview. */
-export async function addPreviewUpload(listingId: string, formData: FormData): Promise<Result<{ imageId: string }>> {
+export async function addPreviewUpload(listingId: string, formData: FormData): Promise<Result<{ imageId: string; url: string }>> {
   return run(async () => {
     const id = parseId(listingId);
     const file = formData.get("file");
@@ -197,7 +199,7 @@ export async function removePreview(imageId: string): Promise<Result> {
     if (error) throw new ActionError("Couldn't remove that picture. Try again.");
     // The row is the source of truth; a leftover file is harmless.
     await db.storage.from(PREVIEW_BUCKET).remove([row.storage_path]);
-    revalidate(l.source_character_id);
+    // No page revalidation (see addPreview): the editor already took the picture away.
     return {};
   });
 }
@@ -221,7 +223,7 @@ export async function reorderPreviews(listingId: string, orderedImageIds: string
       const { error } = await db.from("listing_images").update({ sort_order: i }).eq("id", imageId).eq("listing_id", id);
       if (error) throw new ActionError("Couldn't save the new order. Try again.");
     }
-    revalidate(l.source_character_id);
+    // No page revalidation (see addPreview): the editor already shows the new order.
     return {};
   });
 }

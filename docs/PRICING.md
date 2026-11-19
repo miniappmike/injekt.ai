@@ -69,6 +69,14 @@ ones a crypto payment is still moving on are kept.
 Env vars: `TELEGRAM_BOT_TOKEN`, `NOWPAYMENTS_API_KEY`, `NOWPAYMENTS_IPN_SECRET`, optional `NOWPAYMENTS_SANDBOX=1`.
 After adding the Telegram token, press **Connect Telegram bot** once in Admin → Orders → Payments.
 
+## Marketplace personas
+
+Bought with Telegram Stars or crypto from her page or the dashboard's trending card. Checkout holds her for the buyer
+for 15 minutes (`reserve_persona`) with a countdown. Her Stars price is `personaStars(price)`: enough Stars that
+Telegram's payout (about $0.013 a Star) covers the dollar price, rounded up to 50 ($29 is 2,250 Stars). A paid order
+sells her through `purchase_persona`; if she was already sold, Stars are refunded automatically and crypto is flagged
+to the admins for a refund.
+
 ## Refunds (as written in the Terms)
 
 No returns and no refunds: a purchase buys 30 days of access or tokens, and model costs go to the model provider, which
@@ -76,7 +84,6 @@ doesn't refund. Failed generations return their tokens automatically. Support: m
 
 ## Not built
 
-- Buying a marketplace persona (the Buy button says checkout is being set up).
 - A card processor.
 
 ## Costs to keep in mind

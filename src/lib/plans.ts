@@ -62,3 +62,15 @@ export function bonusPercent(p: CreditPack): number {
 }
 
 export const imageCredits = (resolution: ImageResolution) => IMAGE_CREDITS[resolution];
+
+/** How long a persona is held for one buyer while they pay (owner: 15 minutes, shown as a countdown). */
+export const PERSONA_HOLD_MINUTES = 15;
+
+/**
+ * A persona's price in Telegram Stars: what Telegram pays out (about $0.013 a Star) comes to at least the dollar price,
+ * rounded up to the next 50 Stars. $29 is 2,250 Stars.
+ */
+export function personaStars(priceCents: number): number {
+  const STAR_PAYOUT_USD = 0.013;
+  return Math.max(50, Math.ceil(priceCents / 100 / STAR_PAYOUT_USD / 50) * 50);
+}

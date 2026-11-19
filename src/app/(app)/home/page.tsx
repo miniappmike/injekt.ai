@@ -1,3 +1,4 @@
+import { PersonaCheckout } from "@/components/marketplace/persona-checkout";
 import Link from "next/link";
 import { ArrowRight, Flame, Settings } from "lucide-react";
 import { Studio } from "@/components/dashboard/studio";
@@ -56,11 +57,13 @@ export default async function HomePage() {
         <GenerationSwitch enabled={d.generation} className="col-span-2 lg:col-span-3 lg:col-start-7 lg:row-start-3" />
 
         {/* The persona with the best rank among those still for sale. It changes when the ranking does, or when she sells. */}
-        <section aria-label="Marketplace" className="panel col-span-6 flex overflow-hidden md:col-span-3 lg:col-span-3 lg:col-start-10 lg:row-span-2 lg:row-start-1 lg:flex-col max-lg:h-40">
+        <section aria-label="Marketplace" className="panel relative col-span-6 flex overflow-hidden md:col-span-3 lg:col-span-3 lg:col-start-10 lg:row-span-2 lg:row-start-1 lg:flex-col max-lg:h-40">
           {d.trending ? (
-            <Link href={`/marketplace/${d.trending.id}`} className="group relative block w-28 shrink-0 bg-gradient-to-br from-neutral-800 to-neutral-950 sm:w-32 lg:aspect-[2/3] lg:w-full lg:flex-1">
+            // No zoom on hover (it showed the picture's edges): the glowing Buy button rises beside her name instead.
+            <div className="group relative w-28 shrink-0 sm:w-32 lg:aspect-[2/3] lg:w-full lg:flex-1">
+            <Link href={`/marketplace/${d.trending.id}`} className="absolute inset-0 block bg-gradient-to-br from-neutral-800 to-neutral-950">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              {d.trending.image && <img src={d.trending.image} alt="" className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]" />}
+              {d.trending.image && <img src={d.trending.image} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />}
               <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-neutral-950/95 to-transparent" />
               <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-[linear-gradient(90deg,#ff5f2e,#f92776)] px-2 py-1 text-[9px] font-extrabold whitespace-nowrap uppercase tracking-[0.06em] text-white lg:px-2.5 shadow-[0_6px_18px_rgb(249_39_118/0.6)] lg:left-3 lg:top-3 lg:text-[11px]">
                 <Flame aria-hidden="true" className="h-3 w-3" />
@@ -74,6 +77,17 @@ export default async function HomePage() {
                 </span>
               </span>
             </Link>
+            {/* Wide screens: beside her name, floating up on hover (always shown where there's no hover). */}
+            <PersonaCheckout
+              listingId={d.trending.id}
+              name={d.trending.name}
+              priceCents={d.trending.priceCents}
+              signedIn
+              look="glow"
+              menuClassName="!w-[15rem]"
+              className="absolute bottom-[3.15rem] right-4 z-10 hidden translate-y-3 opacity-0 transition duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100 focus-within:translate-y-0 focus-within:opacity-100 has-[[aria-expanded=true]]:translate-y-0 has-[[aria-expanded=true]]:opacity-100 lg:block [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100"
+            />
+            </div>
           ) : (
             <div className="flex w-28 shrink-0 items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950 p-3 text-center text-xs text-neutral-400 sm:w-32 lg:w-full lg:flex-1">New personas soon</div>
           )}
@@ -85,8 +99,21 @@ export default async function HomePage() {
             <span aria-hidden="true" className="block h-1.5 overflow-hidden rounded-full bg-neutral-800">
               <span className="block h-full rounded-full bg-gradient-to-r from-brand-500 to-iris-500" style={{ width: `${total ? Math.round((d.market.sold / total) * 100) : 0}%` }} />
             </span>
-            <span className="text-xs font-medium text-brand-300 lg:hidden">Open the Marketplace</span>
+            {/* With a persona for sale, her Buy button sits on this line on small screens (the panel still opens the Marketplace). */}
+            {d.trending ? <span aria-hidden="true" className="h-7 lg:hidden" /> : <span className="text-xs font-medium text-brand-300 lg:hidden">Open the Marketplace</span>}
           </Link>
+          {d.trending && (
+            <PersonaCheckout
+              listingId={d.trending.id}
+              name={d.trending.name}
+              priceCents={d.trending.priceCents}
+              signedIn
+              look="glow"
+              className="absolute bottom-3 right-3 z-10 lg:hidden"
+              buttonClassName="!px-3 !py-1.5 !text-xs"
+              sheet
+            />
+          )}
         </section>
 
         <div className="col-span-6 grid grid-cols-2 gap-3 sm:gap-4 lg:col-span-3 lg:col-start-10 lg:row-start-3">

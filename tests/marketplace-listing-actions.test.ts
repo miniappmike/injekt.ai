@@ -67,6 +67,7 @@ vi.mock("@/lib/supabase/admin", () => ({
           download: async () => ({ data: new Blob([h.png]), error: null }),
           upload: async (path: string) => (h.uploads.push({ bucket, path }), { error: null }),
           remove: async (paths: string[]) => (h.removed.push(...paths), { error: null }),
+          createSignedUrl: async (path: string) => ({ data: { signedUrl: `https://signed.test/${bucket}/${path}` }, error: null }),
           copy: async (from: string, to: string, o?: { destinationBucket?: string }) => (h.copies.push({ from, to, dest: o?.destinationBucket }), { error: null }),
         }),
       },
@@ -195,6 +196,8 @@ describe("previews", () => {
     expect(h.uploads[0].bucket).toBe("marketplace-previews");
     expect(h.uploads[0].path.startsWith(`${LISTING}/`)).toBe(true);
     expect(h.tables.listing_images.at(-1)).toMatchObject({ listing_id: LISTING, sort_order: 1 });
+    // The editor shows the new picture from this link straight away (no page reload).
+    expect(r.ok && r.url).toBe(`https://signed.test/marketplace-previews/${h.uploads[0].path}`);
   });
 
   it("says so when she doesn't have that picture", async () => {

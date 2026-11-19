@@ -3,7 +3,8 @@ import { createHmac } from "node:crypto";
 import { env } from "@/env";
 import { PRO } from "@/lib/plans";
 import { CONTACT_EMAIL } from "@/lib/links";
-import { fulfillOrder, getOrder, renewProOrder, type StoredOrder } from "@/lib/orders";
+import { fulfillOrder, getOrder, renewProOrder, type OrderKind, type StoredOrder } from "@/lib/orders";
+import { fulfilPersonaOrder, personaPrecheckProblem } from "@/lib/marketplace/persona-orders";
 import { alertPaid, connectAlertChat } from "@/lib/payments/alerts";
 import { BOT_COMMANDS, commandReply, commandWord, NOT_A_COMMAND, type Reply } from "@/lib/telegram-commands";
 
@@ -41,13 +42,15 @@ export async function telegramApi<T = unknown>(method: string, body: Record<stri
 }
 
 /** A link that opens the Stars payment for this order. Pro is a subscription that renews every 30 days. */
-export async function createStarsInvoiceLink(order: { orderId: string; kind: "pro" | "pack"; amountStars: number; label: string }): Promise<string> {
+export async function createStarsInvoiceLink(order: { orderId: string; kind: OrderKind; amountStars: number; label: string }): Promise<string> {
   const pro = order.kind === "pro";
   return telegramApi<string>("createInvoiceLink", {
-    title: pro ? "ModelSpawn Pro" : "ModelSpawn tokens",
+    title: pro ? "ModelSpawn Pro" : order.kind === "persona" ? "ModelSpawn persona" : "ModelSpawn tokens",
     description: pro
       ? `${order.label}. Your own API keys, no daily limits. Renews every 30 days until you cancel in Telegram.`
-      : `${order.label}, added to your account straight away. Bought tokens never expire.`,
+      : order.kind === "persona"
+        ? `${order.label}. Her full-size sheets, reference photos and profile go to your account, and she's never sold again.`
+        : `${order.label}, added to your account straight away. Bought tokens never expire.`,
     payload: order.orderId,
     currency: "XTR",
     prices: [{ label: order.label, amount: order.amountStars }],
@@ -61,6 +64,7 @@ interface Update {
   pre_checkout_query?: { id: string; currency: string; total_amount: number; invoice_payload: string };
   message?: {
     chat: { id: number; type?: string };
+    from?: { id: number };
     text?: string;
     successful_payment?: {
       currency: string;
@@ -106,7 +110,9 @@ export async function handleTelegramUpdate(update: Update): Promise<void> {
   const q = update.pre_checkout_query;
   if (q) {
     // Telegram waits at most 10 seconds for this answer.
-    const problem = precheckProblem(await getOrder(q.invoice_payload), q);
+    const order = await getOrder(q.invoice_payload);
+    // A persona must still be the buyer's to have: refusing here means Telegram takes no payment.
+    const problem = precheckProblem(order, q) ?? (order?.kind === "persona" ? await personaPrecheckProblem(order) : null);
     await telegramApi("answerPreCheckoutQuery", problem ? { pre_checkout_query_id: q.id, ok: false, error_message: problem } : { pre_checkout_query_id: q.id, ok: true });
     return;
   }
@@ -120,6 +126,7 @@ export async function handleTelegramUpdate(update: Update): Promise<void> {
       await say(msg.chat.id, `Thanks, your payment was received, but we couldn't match it to an order. Email ${CONTACT_EMAIL} with this code: ${paid.telegram_payment_charge_id}`);
       return;
     }
+    if (order.kind === "persona") return void (await deliverPersona(order, msg.chat.id, msg.from?.id ?? msg.chat.id, paid.telegram_payment_charge_id));
     // A renewal of a Pro subscription (the first payment is handled like any order).
     const renewal = order.status === "paid" && order.kind === "pro" && paid.is_recurring && !paid.is_first_recurring;
     const delivered = renewal ? await renewProOrder(order, "telegram", paid.telegram_payment_charge_id) : await fulfillOrder(order.id, "telegram", paid.telegram_payment_charge_id);
@@ -145,6 +152,28 @@ export async function handleTelegramUpdate(update: Update): Promise<void> {
   if (reply) return void (await sayReply(msg.chat.id, reply));
   // Plain chatter in a group is none of the bot's business; in a private chat, point to /help.
   if (command.startsWith("/") || !msg.chat.type || msg.chat.type === "private") await sayReply(msg.chat.id, NOT_A_COMMAND);
+}
+
+/**
+ * A paid persona: sells her to the buyer (once) and links them to her. If she wasn't theirs to have after all (bought
+ * by someone else between the check and the payment), the Stars go straight back.
+ */
+async function deliverPersona(order: StoredOrder, chatId: number, payerId: number, chargeId: string): Promise<void> {
+  const d = await fulfilPersonaOrder(order, "telegram", chargeId);
+  if (d.refund) {
+    const refunded = await telegramApi("refundStarPayment", { user_id: payerId, telegram_payment_charge_id: chargeId }).then(() => true, () => false);
+    console.error(`[telegram] persona order ${order.id} not delivered (${d.outcome}); refund ${refunded ? "sent" : "FAILED"}`);
+    await say(
+      chatId,
+      refunded
+        ? "Sorry, she was bought by someone else just before your payment went through. Your Stars have been refunded."
+        : `Sorry, she was bought by someone else just before your payment went through. Email ${CONTACT_EMAIL} with this code for a refund: ${chargeId}`,
+    );
+    return;
+  }
+  if (!d.firstTime) return;
+  await alertPaid(order, "telegram");
+  await say(chatId, `Done! She's yours. Her full-size sheets, reference photos and profile are in your account now.\n\n${SITE()}/characters${d.characterId ? `/${d.characterId}` : ""}`);
 }
 
 /** Points Telegram at this site's webhook and sets the bot's commands. Run once from Admin after adding the token. */

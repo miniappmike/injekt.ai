@@ -4,12 +4,12 @@ import { MARK, MARK_BOX } from "@/lib/brand-mark";
 
 /** Longest side of a marketplace preview. Big enough to judge the look, too small to be a usable copy. */
 export const PREVIEW_MAX_EDGE = 768;
-/** How strong the logos are (owner: 25%). */
-export const WATERMARK_OPACITY = 0.25;
+/** How strong the logos are (owner: 15%). */
+export const WATERMARK_OPACITY = 0.15;
 
 /**
  * A transparent layer the size of the image: the ModelSpawn logo, upright, repeated in staggered rows across the whole
- * picture at 25% so it can't be cropped out. Drawn from the logo's path, so no font is needed (the old text watermark
+ * picture at 15% so it can't be cropped out. Drawn from the logo's path, so no font is needed (the old text watermark
  * drew as empty boxes on the server, which has no fonts). A faint dark outline keeps it visible on pink or bright photos.
  */
 export function watermarkSvg(width: number, height: number): string {
@@ -17,8 +17,9 @@ export function watermarkSvg(width: number, height: number): string {
   const lw = Math.max(32, Math.round(Math.min(width, height) / 9));
   const scale = lw / MARK_BOX.w;
   const lh = MARK_BOX.h * scale;
-  const tileW = Math.round(lw * 1.9);
-  const tileH = Math.round(lh * 3.2);
+  // Spaced out (owner: less often): about a third as many logos as a tight grid.
+  const tileW = Math.round(lw * 3.4);
+  const tileH = Math.round(lh * 5.6);
   // One logo at (x, y), its top-left corner, in pattern space.
   const logo = (x: number, y: number) =>
     `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale.toFixed(5)}) translate(${-MARK_BOX.x} ${-MARK_BOX.y})"><path d="${MARK}" fill="url(#wm-pink)" stroke="rgba(0,0,0,0.35)" stroke-width="${(1.2 / scale).toFixed(1)}"/></g>`;
