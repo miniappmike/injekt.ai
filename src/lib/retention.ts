@@ -4,7 +4,8 @@ export const GENERATION_RETENTION_HOURS = 72;
 
 export const RETENTION_NOTICE = `Generated images are stored for ${GENERATION_RETENTION_HOURS} hours only. Download and save them before they expire.`;
 
-/** Reference sheets are the character's look, so they are kept until someone deletes them (no 72-hour expiry). */
+/** Reference sheets are the character's look, so they are kept until someone deletes them (no 72-hour expiry).
+ *  Deleting the character starts the usual 72 hours (trigger in migration 0039). */
 export const KEPT_KINDS: readonly string[] = ["reference_sheet"];
 
 /** Kept images get an expiry this far out, so every "expires_at > now" check, signed link and cleanup query still works. */
