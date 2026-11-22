@@ -286,7 +286,7 @@ export function QuickGenerate({ mode, characters }: { mode: "direct_swap" | "edi
           )}
         </section>
       ) : mode === "direct_swap" ? (
-        <GenerateImage
+        <GenerateImage xrefs={false}
           prompt="Direct swap"
           characterId={characterId || null}
           extraPaths={[]}

@@ -66,6 +66,7 @@ function GenerateImageInner({
   compareTo,
   checkLikeness = true,
   historyId,
+  xrefs = true,
 }: {
   prompt: string;
   characterId?: string | null;
@@ -97,6 +98,8 @@ function GenerateImageInner({
   checkLikeness?: boolean;
   /** The History prompt this runs, so History can open the image from it. */
   historyId?: string | null;
+  /** Show the "X references" checkbox (her X Reference photos are sent last). Off where the page has its own. */
+  xrefs?: boolean;
 }) {
   const router = useRouter();
   const free = freeImagesLeft !== null;
@@ -143,6 +146,9 @@ function GenerateImageInner({
 
   // The page's one-off model, when its box has one.
   const pageModel = usePageModelForRequest();
+  const [xref, setXref] = useState(false);
+  const showXref = xrefs && !!characterId && kind !== "reference_sheet" && kind !== "group_photo";
+  const sentMeta: InjectMeta | undefined = showXref && xref ? { ...meta, xref: true } : meta;
   const request = {
     kind,
     characterId: characterId ?? null,
@@ -151,12 +157,12 @@ function GenerateImageInner({
     resolution: free ? "1k" : resolution,
     aspectRatio,
     outputFormat,
-    ...(meta ? { meta } : {}),
+    ...(sentMeta ? { meta: sentMeta } : {}),
     ...(historyId ? { historyId } : {}),
     ...(pageModel ? { model: pageModel } : {}),
   };
   // Something to send: pictures, or (for a framed Inject prompt) a character whose references the server picks.
-  const hasImages = extraPaths.length > 0 || (!!meta && (!!characterId || !!meta.target || (meta.group?.length ?? 0) >= 2));
+  const hasImages = extraPaths.length > 0 || (!!sentMeta && (!!characterId || !!sentMeta.target || (sentMeta.group?.length ?? 0) >= 2));
   const requestKey = JSON.stringify(request);
 
   // Show the price before anything is spent, on their own key only (tokens have a set price per size, shown on the
@@ -327,6 +333,11 @@ function GenerateImageInner({
             <option value="png">PNG</option>
           </select>
         </label>
+        {showXref && (
+          <label className="flex items-center gap-1.5 text-neutral-400">
+            <input type="checkbox" checked={xref} onChange={(e) => setXref(e.target.checked)} /> X references
+          </label>
+        )}
       </div>
       {free && <p className="text-xs text-neutral-500">Your free image is made at 1k, and you can only make one.</p>}
 

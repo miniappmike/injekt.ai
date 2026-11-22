@@ -1004,7 +1004,7 @@ export function InjectWriter({ characters, outfits: initialOutfits = [], initial
                         )}
                       </p>
                       <div data-generate-anchor className="scroll-mt-24" aria-hidden="true" />
-                      <GenerateImage
+                      <GenerateImage xrefs={false}
                         prompt={edited ? text : v.text}
                         characterId={v.meta.group ? undefined : (t.characterId ?? characterId)}
                         extraPaths={[]}

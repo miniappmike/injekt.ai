@@ -285,6 +285,20 @@ export async function buildJob(
   request: JobRequest,
   opts: { model: string; max: number; forQuote?: boolean },
 ): Promise<BuiltJob> {
+  const job = await buildJobBase(supabase, userId, request, opts);
+  // "X references" on any other generation: her X Reference photos go last. Inject prompts and Direct swap add them
+  // themselves (before any shortening), and a sheet or group photo isn't made from one character's references.
+  const own = (request.kind === "inject" && !request.meta?.direct) || request.kind === "direct_swap";
+  if (!request.meta?.xref || own || !request.characterId || request.kind === "reference_sheet" || request.kind === "group_photo") return job;
+  return withXRefs(supabase, { id: request.characterId } as JobCharacter, job, request.meta, opts.max);
+}
+
+async function buildJobBase(
+  supabase: SupabaseClient,
+  userId: string,
+  request: JobRequest,
+  opts: { model: string; max: number; forQuote?: boolean },
+): Promise<BuiltJob> {
   for (const p of [...request.extraPaths, request.meta?.target].filter((x): x is string => !!x)) {
     if (!isOwnPath(userId, p)) throw new UserFacingError("One of the images couldn't be used. Upload it again.");
   }
